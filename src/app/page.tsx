@@ -477,8 +477,8 @@ function BannerCarousel({ banners, language }: { banners: Banner[]; language: st
   const banner = banners[current];
 
   const content = (
-    <div className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-secondary">
-      {banner.image_url && (
+    <div className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900">
+      {banner.image_url ? (
         <Image
           src={banner.image_url}
           alt={banner.title || 'Banner'}
@@ -487,9 +487,9 @@ function BannerCarousel({ banners, language }: { banners: Banner[]; language: st
           sizes="100vw"
           priority={current === 0}
         />
-      )}
+      ) : null}
       {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+      <div className={`absolute inset-0 ${banner.image_url ? 'bg-gradient-to-r from-black/60 via-black/20 to-transparent' : ''}`} />
       {/* Text content */}
       <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 lg:px-16">
         {banner.title && (

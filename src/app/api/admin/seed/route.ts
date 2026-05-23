@@ -211,9 +211,35 @@ export async function POST() {
     const { error: priceError } = await client.from('product_prices').insert(priceRows);
     if (priceError) throw new Error(`Prices failed: ${priceError.message}`);
 
+    // 6. Create banners
+    const { data: banners, error: bannerError } = await client
+      .from('banners')
+      .insert([
+        { sort_order: 1, is_active: true, link_url: '/product/oxva-xlim-3-ultra', image_key: null },
+        { sort_order: 2, is_active: true, link_url: '/product/elfbar-bc10000', image_key: null },
+        { sort_order: 3, is_active: true, link_url: '/product/smok-novo-4', image_key: null },
+      ])
+      .select();
+    if (bannerError) throw new Error(`Banners failed: ${bannerError.message}`);
+
+    const bannerMap: Record<number, number> = {};
+    for (const b of banners || []) {
+      bannerMap[b.sort_order as number] = (b as Record<string, unknown>).id as number;
+    }
+
+    const { error: btError } = await client.from('banner_translations').insert([
+      { banner_id: bannerMap[1], language: 'en', title: 'Hot Deal: OXVA Xlim 3 Ultra', subtitle: 'Save up to 33% — Limited time offer!', image_key: null },
+      { banner_id: bannerMap[1], language: 'zh', title: '热卖：OXVA Xlim 3 Ultra', subtitle: '最高立省33% — 限时优惠！', image_key: null },
+      { banner_id: bannerMap[2], language: 'en', title: 'ElfBar BC10000 — Best Seller', subtitle: 'Starting from $12.99 at multiple stores', image_key: null },
+      { banner_id: bannerMap[2], language: 'zh', title: 'ElfBar BC10000 — 畅销爆款', subtitle: '多家商城低至 $12.99', image_key: null },
+      { banner_id: bannerMap[3], language: 'en', title: 'Smok Novo 4 — Price Drop Alert', subtitle: 'Compare prices across 5 stores now', image_key: null },
+      { banner_id: bannerMap[3], language: 'zh', title: 'Smok Novo 4 — 降价提醒', subtitle: '立即对比5家商城价格', image_key: null },
+    ]);
+    if (btError) throw new Error(`Banner translations failed: ${btError.message}`);
+
     return NextResponse.json({
       success: true,
-      message: `Seeded ${products?.length || 0} products, ${categories?.length || 0} categories, ${stores?.length || 0} stores, ${priceRows.length} prices`,
+      message: `Seeded ${products?.length || 0} products, ${categories?.length || 0} categories, ${stores?.length || 0} stores, ${priceRows.length} prices, ${banners?.length || 0} banners`,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

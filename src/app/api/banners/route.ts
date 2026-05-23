@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ success: true, data: bannersWithUrls.filter((b) => b.image_url) });
+    return NextResponse.json({ success: true, data: bannersWithUrls });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch banners';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
