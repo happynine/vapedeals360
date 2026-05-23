@@ -15,7 +15,7 @@ interface BannerTranslation { id: number; banner_id: number; language: string; i
 interface Banner { id: number; image_key: string | null; image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'products' | 'categories' | 'stores' | 'banners';
+type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics';
 const LANGUAGES = ['en', 'zh'];
 
 // i18n helper
@@ -24,7 +24,23 @@ function t(en: string, zh: string, lang: string) {
 }
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('products');
+  const [activeTab, setActiveTab] = useState<Tab>('site_settings');
+  const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
+  const [editSiteName, setEditSiteName] = useState('');
+  const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
+  const [analyticsMonth, setAnalyticsMonth] = useState('all');
+
+  useEffect(() => {
+    fetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetch(`/api/analytics?month=${analyticsMonth}`).then(r => r.json()).then(d => { if (d.success) setAnalyticsData(d.data); }).catch(() => {});
+    }
+  }, [activeTab, analyticsMonth]);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -117,10 +133,12 @@ export default function AdminPage() {
   };
 
   const tabLabels: Record<Tab, { en: string; zh: string }> = {
+    site_settings: { en: 'Site Settings', zh: '站点设置' },
     products: { en: 'Products', zh: '产品' },
     categories: { en: 'Categories', zh: '分类' },
     stores: { en: 'Stores', zh: '商城' },
     banners: { en: 'Banners', zh: 'Banner' },
+    analytics: { en: 'Analytics', zh: '数据统计' },
   };
 
   return (
@@ -129,22 +147,28 @@ export default function AdminPage() {
       <aside className="w-64 flex-shrink-0 border-r border-border bg-sidebar">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">V</div>
-            <span className="text-xl font-bold tracking-tight">VapeDeal</span>
+            {adminSiteSettings?.logo_url ? (
+              <img src={adminSiteSettings.logo_url.startsWith('http') ? adminSiteSettings.logo_url : `/api/image?key=${encodeURIComponent(adminSiteSettings.logo_url)}`} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">V</div>
+            )}
+            <span className="text-xl font-bold tracking-tight">{adminSiteSettings?.site_name || 'VapeDeal'}</span>
           </Link>
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['products', 'categories', 'stores', 'banners'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'analytics'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`}
             >
+              {tab === 'site_settings' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
               {tab === 'products' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
               {tab === 'categories' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>}
               {tab === 'stores' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>}
               {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+              {tab === 'analytics' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
               {t(tabLabels[tab].en, tabLabels[tab].zh, adminLang)}
             </button>
           ))}
@@ -185,6 +209,160 @@ export default function AdminPage() {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <div className="p-8">
+          {/* Site Settings Tab */}
+          {activeTab === 'site_settings' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">{t('Site Settings', '站点设置', adminLang)}</h2>
+              <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">{t('Site Name', '网站名称', adminLang)}</label>
+                  <input
+                    type="text"
+                    value={editSiteName}
+                    onChange={(e) => setEditSiteName(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={t('Enter site name', '输入网站名称', adminLang)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {t('Site Logo', '网站 Logo', adminLang)}
+                    <span className="ml-2 text-xs text-muted-foreground">({t('Recommended: 36x36px, 1:1 ratio', '建议尺寸: 36x36px, 1:1 比例', adminLang)})</span>
+                  </label>
+                  <ImageUpload
+                    value={editSiteLogo}
+                    onChange={setEditSiteLogo}
+                    aspectRatio={1}
+                    recommendedSize="36x36px"
+                    label={t('Logo', 'Logo', adminLang)}
+                    lang={adminLang}
+                  />
+                </div>
+                <div className="pt-4">
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/admin/site-settings', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ site_name: editSiteName, logo_url: editSiteLogo }),
+                      });
+                      const json = await res.json();
+                      if (json.success) {
+                        setAdminSiteSettings(json.data);
+                        alert(t('Saved!', '已保存!', adminLang));
+                      }
+                    }}
+                    className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    {t('Save Settings', '保存设置', adminLang)}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">{t('Analytics', '数据统计', adminLang)}</h2>
+                <select
+                  value={analyticsMonth}
+                  onChange={(e) => setAnalyticsMonth(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="all">{t('All', '全部', adminLang)}</option>
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const label = d.toLocaleDateString(adminLang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
+                    return <option key={val} value={val}>{label}</option>;
+                  })}
+                </select>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                  { key: 'pv', label: t('Page Views', '浏览量', adminLang), color: 'text-blue-400' },
+                  { key: 'uv', label: t('Unique Visitors', '独立访客', adminLang), color: 'text-green-400' },
+                  { key: 'vv', label: t('Visit Sessions', '访问次数', adminLang), color: 'text-purple-400' },
+                  { key: 'ip', label: t('IP Count', 'IP 数', adminLang), color: 'text-orange-400' },
+                ].map(({ key, label, color }) => (
+                  <div key={key} className="bg-card rounded-xl border border-border p-4">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className={`text-2xl font-bold ${color}`}>{(analyticsData as Record<string, Record<string, number>>)?.summary?.[key] ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Extra Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                {[
+                  { key: 'new_visitor_rate', label: t('New Visitor Rate', '新访客占比', adminLang), suffix: '%' },
+                  { key: 'bounce_rate', label: t('Bounce Rate', '跳出率', adminLang), suffix: '%' },
+                  { key: 'avg_duration', label: t('Avg Duration', '平均访问时长', adminLang), suffix: 's' },
+                ].map(({ key, label, suffix }) => (
+                  <div key={key} className="bg-card rounded-xl border border-border p-4">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-xl font-bold">{(analyticsData as Record<string, Record<string, number>>)?.summary?.[key]?.toFixed(1) ?? '0.0'}{suffix}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* PV Trend Chart */}
+              <div className="bg-card rounded-xl border border-border p-6 mb-8">
+                <h3 className="text-lg font-semibold mb-4">{t('PV/UV Trend', 'PV/UV 趋势', adminLang)}</h3>
+                <div className="h-48 flex items-end gap-1">
+                  {((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number | string>> || []).map((item, idx) => (
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full bg-blue-500/60 rounded-t" style={{ height: `${Math.max(4, ((item.pv as number) / Math.max(...((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number>> || [{ pv: 1 }]).map((i: Record<string, number>) => i.pv || 1))) * 140)}px` }} title={`PV: ${item.pv}`} />
+                      <div className="w-full bg-green-500/60 rounded-t" style={{ height: `${Math.max(4, ((item.uv as number) / Math.max(...((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number>> || [{ uv: 1 }]).map((i: Record<string, number>) => i.uv || 1))) * 100)}px` }} title={`UV: ${item.uv}`} />
+                      <span className="text-[10px] text-muted-foreground truncate w-full text-center">{String(item.date).slice(-5)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/60" /> PV</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500/60" /> UV</span>
+                </div>
+              </div>
+
+              {/* Click Rate Table */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <h3 className="text-lg font-semibold mb-4">{t('Click Rate Details', '点击率详情', adminLang)}</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4">{t('Metric', '指标', adminLang)}</th>
+                      <th className="text-right py-3 px-4">{t('Clicks', '点击次数', adminLang)}</th>
+                      <th className="text-right py-3 px-4">{t('Rate', '点击率', adminLang)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { key: 'product_card', label: t('Product Card Click', '产品卡片点击', adminLang) },
+                      { key: 'buy_button', label: t('Buy Button Click', '首页 Buy 点击', adminLang) },
+                      { key: 'visit_store', label: t('Visit Store Click', '详情页 Visit Store 点击', adminLang) },
+                      { key: 'banner', label: t('Banner Click', 'Banner 点击', adminLang) },
+                    ].map(({ key, label }) => {
+                      const clicks = ((analyticsData as Record<string, Record<string, number>>)?.clickRates?.[key] as number) || 0;
+                      const pv = (analyticsData as Record<string, Record<string, number>>)?.summary?.pv || 1;
+                      return (
+                        <tr key={key} className="border-b border-border/50">
+                          <td className="py-3 px-4">{label}</td>
+                          <td className="text-right py-3 px-4 font-mono">{clicks}</td>
+                          <td className="text-right py-3 px-4 font-mono">{pv > 0 ? (clicks / pv * 100).toFixed(2) : '0.00'}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Products Tab */}
           {activeTab === 'products' && (
             <div>

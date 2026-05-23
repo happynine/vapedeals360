@@ -5,22 +5,30 @@ import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
 interface ImageUploadProps {
-  value: string; // image_key from S3
-  onUploadComplete: (key: string) => void;
+  value: string | null; // image_key from S3
+  onUploadComplete?: (key: string) => void;
+  onChange?: (key: string | null) => void; // alias for onUploadComplete
   aspectRatio?: number; // locked aspect ratio, e.g. 21/6 for banner
-  suggestedSize: string; // e.g. "1200x400px"
-  label: string;
+  suggestedSize?: string; // e.g. "1200x400px"
+  recommendedSize?: string; // alias for suggestedSize
+  label?: string;
   folder?: string; // upload folder in S3
+  lang?: string; // language for UI text
 }
 
 export function ImageUpload({
   value,
   onUploadComplete,
+  onChange,
   aspectRatio,
   suggestedSize,
-  label,
+  recommendedSize,
+  label = 'Image',
   folder = 'uploads',
+  lang = 'en',
 }: ImageUploadProps) {
+  const sizeHint = suggestedSize || recommendedSize;
+  const handleComplete = onChange || onUploadComplete || (() => {});
   const [showCrop, setShowCrop] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>();
@@ -116,7 +124,7 @@ export function ImageUpload({
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const json = await res.json();
       if (json.success) {
-        onUploadComplete(json.data.key);
+        handleComplete(json.data.key);
         setShowCrop(false);
         setSrc(null);
       } else {
@@ -127,7 +135,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [completedCrop, folder, onUploadComplete]);
+  }, [completedCrop, folder, handleComplete]);
 
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
@@ -138,8 +146,8 @@ export function ImageUpload({
     <div>
       <label className="text-xs text-muted-foreground block mb-1">
         {label}
-        {suggestedSize && (
-          <span className="text-[10px] text-muted-foreground/60 ml-1">({suggestedSize})</span>
+        {sizeHint && (
+          <span className="text-[10px] text-muted-foreground/60 ml-1">({sizeHint})</span>
         )}
       </label>
 
@@ -163,15 +171,15 @@ export function ImageUpload({
             disabled={uploading}
             className="rounded-lg border border-dashed border-border bg-secondary/50 px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
           >
-            {uploading ? 'Uploading...' : value ? 'Replace Image' : 'Select Image'}
+            {uploading ? (lang === 'zh' ? '上传中...' : 'Uploading...') : value ? (lang === 'zh' ? '替换图片' : 'Replace Image') : (lang === 'zh' ? '选择图片' : 'Select Image')}
           </button>
           {value && (
             <button
               type="button"
-              onClick={() => onUploadComplete('')}
+              onClick={() => handleComplete('')}
               className="text-xs text-destructive hover:underline"
             >
-              Remove
+              {lang === 'zh' ? '移除' : 'Remove'}
             </button>
           )}
           <input
@@ -188,7 +196,7 @@ export function ImageUpload({
       {showCrop && src && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
-            <h3 className="text-sm font-semibold mb-3">Crop Image</h3>
+            <h3 className="text-sm font-semibold mb-3">{lang === 'zh' ? '裁剪图片' : 'Crop Image'}</h3>
             <div className="flex justify-center mb-4">
               <ReactCrop
                 crop={crop}
@@ -210,7 +218,7 @@ export function ImageUpload({
                 onClick={handleCancelCrop}
                 className="rounded-lg border border-border px-4 py-2 text-sm"
               >
-                Cancel
+                {lang === 'zh' ? '取消' : 'Cancel'}
               </button>
               <button
                 type="button"
@@ -218,7 +226,7 @@ export function ImageUpload({
                 disabled={uploading}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {uploading ? 'Uploading...' : 'Crop & Upload'}
+                {uploading ? (lang === 'zh' ? '上传中...' : 'Uploading...') : (lang === 'zh' ? '裁剪并上传' : 'Crop & Upload')}
               </button>
             </div>
           </div>

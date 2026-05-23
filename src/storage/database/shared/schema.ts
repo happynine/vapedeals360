@@ -178,3 +178,67 @@ export const productPrices = pgTable(
     index("pp_current_price_idx").on(table.current_price),
   ]
 );
+
+// Site Settings (logo, site name, etc.)
+export const siteSettings = pgTable(
+  "site_settings",
+  {
+    id: serial().primaryKey(),
+    logo_url: text("logo_url"),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  }
+);
+
+// Site Setting translations (multi-language site name)
+export const siteSettingTranslations = pgTable(
+  "site_setting_translations",
+  {
+    id: serial().primaryKey(),
+    site_setting_id: integer("site_setting_id").notNull().references(() => siteSettings.id, { onDelete: "cascade" }),
+    language: varchar("language", { length: 10 }).notNull(),
+    site_name: varchar("site_name", { length: 255 }).notNull(),
+  },
+  (table) => [
+    index("sst_site_setting_id_idx").on(table.site_setting_id),
+    index("sst_language_idx").on(table.language),
+    index("sst_site_setting_lang_idx").on(table.site_setting_id, table.language),
+  ]
+);
+
+// Page Views (analytics)
+export const pageViews = pgTable(
+  "page_views",
+  {
+    id: serial().primaryKey(),
+    session_id: varchar("session_id", { length: 100 }).notNull(),
+    page: varchar("page", { length: 255 }).notNull(),
+    referrer: text("referrer"),
+    ip: varchar("ip", { length: 45 }),
+    user_agent: text("user_agent"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("pv_session_id_idx").on(table.session_id),
+    index("pv_page_idx").on(table.page),
+    index("pv_created_at_idx").on(table.created_at),
+    index("pv_ip_idx").on(table.ip),
+  ]
+);
+
+// Click Events (analytics)
+export const clickEvents = pgTable(
+  "click_events",
+  {
+    id: serial().primaryKey(),
+    session_id: varchar("session_id", { length: 100 }).notNull(),
+    event_type: varchar("event_type", { length: 50 }).notNull(),
+    target_id: varchar("target_id", { length: 255 }),
+    metadata: text("metadata"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("ce_session_id_idx").on(table.session_id),
+    index("ce_event_type_idx").on(table.event_type),
+    index("ce_created_at_idx").on(table.created_at),
+  ]
+);

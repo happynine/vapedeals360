@@ -83,6 +83,12 @@ export default function ProductDetailPage() {
   const [language, setLanguage] = useState<string>('en');
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [siteSettings, setSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/site-settings').then(r => r.json()).then(d => { if (d.success) setSiteSettings(d.data); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -162,23 +168,28 @@ export default function ProductDetailPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">V</div>
-              <span className="text-xl font-bold tracking-tight">VapeDeal</span>
+              {siteSettings?.logo_url ? (
+                <img src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">V</div>
+              )}
+              <span className="text-xl font-bold tracking-tight">{siteSettings?.site_name || 'VapeDeal'}</span>
             </Link>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 rounded-lg bg-secondary p-1">
+              <div className="relative">
                 <button
-                  onClick={() => setLanguage('en')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${language === 'en' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                  className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-all"
                 >
-                  EN
+                  {language === 'en' ? 'EN' : '中文'}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
-                <button
-                  onClick={() => setLanguage('zh')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${language === 'zh' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  中文
-                </button>
+                {langDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-28 rounded-lg bg-secondary border border-border shadow-lg z-50">
+                    <button onClick={() => { setLanguage('en'); setLangDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-t-lg ${language === 'en' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>English</button>
+                    <button onClick={() => { setLanguage('zh'); setLangDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-b-lg ${language === 'zh' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>中文</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -357,6 +368,13 @@ export default function ProductDetailPage() {
                       href={price.product_url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => {
+                        fetch('/api/track', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'visit_store', product_id: product.id, store_id: price.store_id }),
+                        }).catch(() => {});
+                      }}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105"
                     >
                       {language === 'zh' ? '前往购买' : 'Visit Store'}
