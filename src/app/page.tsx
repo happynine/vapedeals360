@@ -384,7 +384,7 @@ export default function HomePage() {
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               <div className="h-5 w-5 flex-shrink-0 rounded bg-accent/20 flex items-center justify-center overflow-hidden">
                                 {price.store?.logo_url ? (
-                                  <img src={price.store.logo_url} alt="" className="w-full h-full object-contain" />
+                                  <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
                                 ) : (
                                   <span className="text-[10px] font-bold text-accent">{st?.name?.charAt(0) || '?'}</span>
                                 )}

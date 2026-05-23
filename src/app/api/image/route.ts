@@ -17,7 +17,23 @@ export async function GET(request: NextRequest) {
     }
 
     const signedUrl = await storage.generatePresignedUrl({ key, expireTime: 3600 });
-    return NextResponse.redirect(signedUrl);
+    
+    // Fetch the image from S3 and proxy it to avoid CORS issues
+    const imageResponse = await fetch(signedUrl);
+    if (!imageResponse.ok) {
+      return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 });
+    }
+
+    const contentType = imageResponse.headers.get('content-type') || 'image/png';
+    const buffer = await imageResponse.arrayBuffer();
+
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to get image URL';
     return NextResponse.json({ error: message }, { status: 500 });

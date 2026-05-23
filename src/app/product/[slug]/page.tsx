@@ -317,7 +317,7 @@ export default function ProductDetailPage() {
                   <div className="col-span-4 flex items-center gap-3">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10 overflow-hidden">
                       {price.store?.logo_url ? (
-                        <img src={price.store.logo_url} alt="" className="w-full h-full object-contain" />
+                        <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
                       ) : (
                         <span className="text-sm font-bold text-accent">{st?.name?.charAt(0) || '?'}</span>
                       )}
