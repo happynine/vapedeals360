@@ -73,16 +73,16 @@ export async function POST() {
     const liqCatId = (categories?.find((c: Record<string, unknown>) => c.slug === 'e-liquids') as Record<string, unknown>)?.id as number;
 
     const productDefs = [
-      { slug: 'oxva-xlim-3-ultra', category_id: podCatId, image_url: 'https://images.unsplash.com/photo-1608130257712-0b2a0e6e0911?w=400&h=400&fit=crop', is_featured: true },
-      { slug: 'voopoo-drag-x2', category_id: modCatId, image_url: 'https://images.unsplash.com/photo-1579965342575-16428a7c8881?w=400&h=400&fit=crop', is_featured: true },
-      { slug: 'geekvape-aegis-legend-3', category_id: modCatId, image_url: 'https://images.unsplash.com/photo-1616400619175-5beda3a17896?w=400&h=400&fit=crop', is_featured: false },
-      { slug: 'elfbar-bc10000', category_id: dispCatId, image_url: 'https://images.unsplash.com/photo-1561241717-b0207b93a8fd?w=400&h=400&fit=crop', is_featured: true },
-      { slug: 'lost-mary-mo20000', category_id: dispCatId, image_url: 'https://images.unsplash.com/photo-1587563871167-1ee9c731aefb?w=400&h=400&fit=crop', is_featured: false },
-      { slug: 'nkd-100-salt', category_id: liqCatId, image_url: 'https://images.unsplash.com/photo-1615947217870-6a1e11b18898?w=400&h=400&fit=crop', is_featured: false },
-      { slug: 'uwell-caliburn-g3', category_id: podCatId, image_url: 'https://images.unsplash.com/photo-1587213811864-46e59f6873b1?w=400&h=400&fit=crop', is_featured: true },
-      { slug: 'smok-novo-4', category_id: podCatId, image_url: 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?w=400&h=400&fit=crop', is_featured: false },
-      { slug: 'vaporesso-xros-4', category_id: podCatId, image_url: 'https://images.unsplash.com/photo-1560185127-6a431720fed6?w=400&h=400&fit=crop', is_featured: false },
-      { slug: 'geekvape-wenax-h2', category_id: podCatId, image_url: 'https://images.unsplash.com/photo-1608130257583-0418a0d3a18e?w=400&h=400&fit=crop', is_featured: false },
+      { slug: 'oxva-xlim-3-ultra', category_id: podCatId, image_url: 'https://placehold.co/400x400/1a1a24/7c3aed?text=OXVA+Xlim3', is_featured: true },
+      { slug: 'voopoo-drag-x2', category_id: modCatId, image_url: 'https://placehold.co/400x400/1a1a24/06b6d4?text=VooPoo+Drag+X2', is_featured: true },
+      { slug: 'geekvape-aegis-legend-3', category_id: modCatId, image_url: 'https://placehold.co/400x400/1a1a24/7c3aed?text=Aegis+Legend+3', is_featured: false },
+      { slug: 'elfbar-bc10000', category_id: dispCatId, image_url: 'https://placehold.co/400x400/1a1a24/22c55e?text=ElfBar+BC10000', is_featured: true },
+      { slug: 'lost-mary-mo20000', category_id: dispCatId, image_url: 'https://placehold.co/400x400/1a1a24/ef4444?text=Lost+Mary', is_featured: false },
+      { slug: 'nkd-100-salt', category_id: liqCatId, image_url: 'https://placehold.co/400x400/1a1a24/f59e0b?text=NKD+100+Salt', is_featured: false },
+      { slug: 'uwell-caliburn-g3', category_id: podCatId, image_url: 'https://placehold.co/400x400/1a1a24/7c3aed?text=Caliburn+G3', is_featured: true },
+      { slug: 'smok-novo-4', category_id: podCatId, image_url: 'https://placehold.co/400x400/1a1a24/06b6d4?text=SMOK+Novo+4', is_featured: false },
+      { slug: 'vaporesso-xros-4', category_id: podCatId, image_url: 'https://placehold.co/400x400/1a1a24/22c55e?text=XROS+4', is_featured: false },
+      { slug: 'geekvape-wenax-h2', category_id: podCatId, image_url: 'https://placehold.co/400x400/1a1a24/ef4444?text=Wenax+H2', is_featured: false },
     ];
 
     // Delete existing products with these slugs

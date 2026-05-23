@@ -71,7 +71,8 @@ interface Product {
   category?: Category | null;
 }
 
-function getTranslation<T extends { language: string }>(translations: T[], language: string): T {
+function getTranslation<T extends { language: string }>(translations: T[] | undefined | null, language: string): T | undefined {
+  if (!translations || translations.length === 0) return undefined;
   return translations.find((t) => t.language === language) || translations.find((t) => t.language === 'en') || translations[0];
 }
 

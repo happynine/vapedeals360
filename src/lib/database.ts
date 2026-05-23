@@ -138,10 +138,18 @@ export async function fetchProducts(options?: {
   return (data || []).map((product: Record<string, unknown>) => ({
     ...product,
     translations: product.product_translations as ProductTranslation[],
-    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => ({
-      ...p,
-      store: p.stores as Store,
-    })),
+    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => {
+      const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
+      return {
+        ...p,
+        store: storeData
+          ? {
+              ...storeData,
+              translations: (storeData.store_translations || []) as StoreTranslation[],
+            }
+          : undefined,
+      };
+    }),
   }));
 }
 
@@ -161,11 +169,26 @@ export async function fetchProductBySlug(slug: string, language: string = 'en') 
   return {
     ...product,
     translations: product.product_translations as ProductTranslation[],
-    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => ({
-      ...(p as Record<string, unknown>),
-      store: (p as Record<string, unknown>).stores as Store,
-    })),
-    category: product.categories as Category | null,
+    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => {
+      const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
+      return {
+        ...(p as Record<string, unknown>),
+        store: storeData
+          ? {
+              ...storeData,
+              translations: (storeData.store_translations || []) as StoreTranslation[],
+            }
+          : undefined,
+      };
+    }),
+    category: (() => {
+      const catData = product.categories as Record<string, unknown> | null;
+      if (!catData) return null;
+      return {
+        ...catData,
+        translations: (catData.category_translations || []) as CategoryTranslation[],
+      };
+    })(),
   };
 }
 
@@ -183,10 +206,11 @@ export async function countProducts(category_id?: number) {
 
 // Get translation helper
 export function getTranslation<T extends { language: string }>(
-  translations: T[],
+  translations: T[] | undefined | null,
   language: string,
   fallback: string = 'en'
-): T {
+): T | undefined {
+  if (!translations || translations.length === 0) return undefined;
   return translations.find((t) => t.language === language) || translations.find((t) => t.language === fallback) || translations[0];
 }
 
@@ -194,7 +218,7 @@ export function getTranslation<T extends { language: string }>(
 export function getStoreName(price: ProductPrice, language: string = 'en'): string {
   if (!price.store) return 'Unknown Store';
   const store = price.store as Store;
-  const translation = getTranslation(store.translations || [], language);
+  const translation = getTranslation(store.translations, language);
   return translation?.name || 'Unknown Store';
 }
 
