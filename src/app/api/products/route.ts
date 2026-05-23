@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { fetchCategories, fetchProducts, countProducts } from '@/lib/database';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get('category_id');
+    const language = searchParams.get('language') || 'en';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const featured = searchParams.get('featured') === 'true';
+    const offset = (page - 1) * limit;
+
+    const [categories, products, total] = await Promise.all([
+      fetchCategories(language),
+      fetchProducts({
+        category_id: categoryId ? parseInt(categoryId) : undefined,
+        language,
+        limit,
+        offset,
+        featured,
+      }),
+      countProducts(categoryId ? parseInt(categoryId) : undefined),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        categories,
+        products,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
