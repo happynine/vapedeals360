@@ -315,8 +315,12 @@ export default function ProductDetailPage() {
                   className={`grid grid-cols-12 gap-4 px-5 py-4 items-center border-t border-border transition-colors hover:bg-secondary/30 ${isLowest ? 'bg-green-400/5' : ''}`}
                 >
                   <div className="col-span-4 flex items-center gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10 text-sm font-bold text-accent">
-                      {st?.name?.charAt(0) || '?'}
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10 overflow-hidden">
+                      {price.store?.logo_url ? (
+                        <img src={price.store.logo_url} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-sm font-bold text-accent">{st?.name?.charAt(0) || '?'}</span>
+                      )}
                     </div>
                     <div>
                       <span className="text-sm font-medium text-foreground">{st?.name || 'Store'}</span>
