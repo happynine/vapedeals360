@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/safe-image';
 
 interface CategoryTranslation {
   id: number;
@@ -241,7 +241,7 @@ export default function HomePage() {
                     <div className="flex gap-4">
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-secondary">
                         {product.image_url && (
-                          <Image src={product.image_url} alt={t?.name || ''} fill className="object-cover" sizes="96px" />
+                          <SafeImage src={product.image_url} alt={t?.name || ''} fill className="object-cover" sizes="96px" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -335,7 +335,7 @@ export default function HomePage() {
                   {/* Product Image */}
                   <Link href={`/product/${product.slug}`} className="block relative aspect-square bg-secondary overflow-hidden">
                     {product.image_url && (
-                      <Image
+                      <SafeImage
                         src={product.image_url}
                         alt={t?.name || ''}
                         fill
@@ -479,7 +479,7 @@ function BannerCarousel({ banners, language }: { banners: Banner[]; language: st
   const content = (
     <div className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900">
       {banner.image_url ? (
-        <Image
+        <SafeImage
           src={banner.image_url}
           alt={banner.title || 'Banner'}
           fill

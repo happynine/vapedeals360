@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '@/components/safe-image';
 
 interface StoreTranslation {
   id: number;
@@ -200,7 +200,7 @@ export default function ProductDetailPage() {
           <div>
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-secondary border border-border">
               {selectedImage && (
-                <Image src={selectedImage} alt={t?.name || ''} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" priority />
+              <SafeImage src={selectedImage} alt={t?.name || ''} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" priority />
               )}
               {discount && (
                 <div className="absolute top-4 left-4 z-10 rounded-xl bg-destructive px-4 py-1.5 text-lg font-bold text-white animate-pulse-deal">
@@ -216,7 +216,7 @@ export default function ProductDetailPage() {
                     onClick={() => setSelectedImage(img)}
                     className={`relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === img ? 'border-primary' : 'border-border hover:border-primary/50'}`}
                   >
-                    <Image src={img} alt="" fill className="object-cover" sizes="64px" />
+                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" />
                   </button>
                 ))}
               </div>
