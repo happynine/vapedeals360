@@ -120,6 +120,42 @@ export const productTranslations = pgTable(
   ]
 );
 
+// Banners
+export const banners = pgTable(
+  "banners",
+  {
+    id: serial().primaryKey(),
+    image_key: text("image_key"), // S3 object key for the banner image
+    link_url: text("link_url"), // optional click-through URL
+    sort_order: integer("sort_order").default(0).notNull(),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("banners_is_active_idx").on(table.is_active),
+    index("banners_sort_order_idx").on(table.sort_order),
+  ]
+);
+
+// Banner translations (multi-language)
+export const bannerTranslations = pgTable(
+  "banner_translations",
+  {
+    id: serial().primaryKey(),
+    banner_id: integer("banner_id").notNull().references(() => banners.id, { onDelete: "cascade" }),
+    language: varchar("language", { length: 10 }).notNull(),
+    image_key: text("image_key"), // language-specific banner image key
+    title: varchar("title", { length: 255 }),
+    subtitle: varchar("subtitle", { length: 500 }),
+  },
+  (table) => [
+    index("bt_banner_id_idx").on(table.banner_id),
+    index("bt_language_idx").on(table.language),
+    index("bt_banner_lang_idx").on(table.banner_id, table.language),
+  ]
+);
+
 // Product prices per store
 export const productPrices = pgTable(
   "product_prices",

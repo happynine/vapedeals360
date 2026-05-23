@@ -10,9 +10,11 @@ interface StoreTranslation { id: number; store_id: number; language: string; nam
 interface Store { id: number; slug: string; logo_url: string | null; website_url: string | null; is_active: boolean; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
+interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
+interface Banner { id: number; image_key: string | null; image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'products' | 'categories' | 'stores';
+type Tab = 'products' | 'categories' | 'stores' | 'banners';
 const LANGUAGES = ['en', 'zh'];
 
 export default function AdminPage() {
@@ -20,23 +22,27 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch all data
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, storeRes, prodRes] = await Promise.all([
+      const [catRes, storeRes, prodRes, bannerRes] = await Promise.all([
         fetch('/api/admin/categories'),
         fetch('/api/admin/stores'),
         fetch('/api/admin/products?limit=100'),
+        fetch('/api/admin/banners'),
       ]);
       const catJson = await catRes.json();
       const storeJson = await storeRes.json();
       const prodJson = await prodRes.json();
+      const bannerJson = await bannerRes.json();
       if (catJson.success) setCategories(catJson.data || []);
       if (storeJson.success) setStores(storeJson.data || []);
       if (prodJson.success) setProducts(prodJson.data?.products || []);
+      if (bannerJson.success) setBanners(bannerJson.data || []);
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
@@ -96,6 +102,17 @@ export default function AdminPage() {
     } catch { alert('Failed to delete'); }
   };
 
+  // Delete banner
+  const handleDeleteBanner = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this banner?')) return;
+    try {
+      const res = await fetch(`/api/admin/banners?id=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) fetchAllData();
+      else alert('Error: ' + json.error);
+    } catch { alert('Failed to delete banner'); }
+  };
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
@@ -108,7 +125,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">Admin Panel</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['products', 'categories', 'stores'] as Tab[]).map((tab) => (
+          {(['products', 'categories', 'stores', 'banners'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -117,6 +134,7 @@ export default function AdminPage() {
               {tab === 'products' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
               {tab === 'categories' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>}
               {tab === 'stores' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>}
+              {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
@@ -317,6 +335,71 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Banners Tab */}
+          {activeTab === 'banners' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-bold">Banners</h1>
+                <BannerFormModal onSave={fetchAllData} />
+              </div>
+              {loading ? (
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
+              ) : banners.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  No banners yet. Click &quot;Add Banner&quot; to get started.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {banners.map((banner) => {
+                    const enTrans = banner.banner_translations?.find((t) => t.language === 'en');
+                    const zhTrans = banner.banner_translations?.find((t) => t.language === 'zh');
+                    return (
+                      <div key={banner.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                        {/* Banner Preview */}
+                        <div className="relative aspect-[21/6] bg-secondary">
+                          {banner.image_url && (
+                            <img src={banner.image_url} alt="Banner preview" className="w-full h-full object-cover" />
+                          )}
+                          {!banner.image_url && enTrans?.image_key && (
+                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">EN image set</div>
+                          )}
+                          {!banner.image_url && !enTrans?.image_key && (
+                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">No image</div>
+                          )}
+                          {/* Status badge */}
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            {banner.is_active && <span className="rounded bg-green-400/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">Active</span>}
+                          </div>
+                        </div>
+                        {/* Banner Info */}
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">Banner #{banner.id}</span>
+                            <span className="text-xs text-muted-foreground">Sort: {banner.sort_order}</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-muted-foreground mb-3">
+                            {enTrans && <div>EN: {enTrans.title || '(no title)'} {enTrans.image_key ? '✓ Image' : '✗ Image'}</div>}
+                            {zhTrans && <div>ZH: {zhTrans.title || '(no title)'} {zhTrans.image_key ? '✓ Image' : '✗ Image'}</div>}
+                            {banner.link_url && <div className="text-accent truncate">Link: {banner.link_url}</div>}
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <BannerFormModal banner={banner} onSave={fetchAllData} />
+                            <button
+                              onClick={() => handleDeleteBanner(banner.id)}
+                              className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -757,6 +840,196 @@ function ProductFormModal({ product, categories, stores, onSave }: { product?: P
                 ))}
                 <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '' }])} className="text-xs text-primary hover:underline">
                   + Add Store Price
+                </button>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============== Banner Form Modal ==============
+function BannerFormModal({ banner, onSave }: { banner?: Banner; onSave: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState(banner?.link_url || '');
+  const [sortOrder, setSortOrder] = useState(banner?.sort_order || 0);
+  const [isActive, setIsActive] = useState(banner?.is_active !== false);
+  const [defaultImageKey, setDefaultImageKey] = useState(banner?.image_key || '');
+  const [translations, setTranslations] = useState<{ language: string; image_key: string; title: string; subtitle: string }[]>(
+    banner?.banner_translations?.map((t) => ({
+      language: t.language,
+      image_key: t.image_key || '',
+      title: t.title || '',
+      subtitle: t.subtitle || '',
+    })) || [
+      { language: 'en', image_key: '', title: '', subtitle: '' },
+      { language: 'zh', image_key: '', title: '', subtitle: '' },
+    ]
+  );
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const isEdit = !!banner;
+
+  const handleUpload = async (file: File, target: 'default' | number) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    if (target === 'default') {
+      setUploading('default');
+    } else {
+      setUploading(`trans-${target}`);
+    }
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (json.success) {
+        const key = json.data.key;
+        if (target === 'default') {
+          setDefaultImageKey(key);
+        } else {
+          const newT = [...translations];
+          newT[target].image_key = key;
+          setTranslations(newT);
+        }
+      } else {
+        alert('Upload failed: ' + json.error);
+      }
+    } catch {
+      alert('Upload failed');
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const url = '/api/admin/banners';
+      const method = isEdit ? 'PUT' : 'POST';
+      const body = {
+        id: banner?.id,
+        image_key: defaultImageKey || null,
+        link_url: linkUrl || null,
+        sort_order: sortOrder,
+        is_active: isActive,
+        translations: translations.map((t) => ({
+          language: t.language,
+          image_key: t.image_key || null,
+          title: t.title || null,
+          subtitle: t.subtitle || null,
+        })),
+      };
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (json.success) { setOpen(false); onSave(); }
+      else alert('Error: ' + json.error);
+    } catch { alert('Failed to save'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+      >
+        {isEdit ? 'Edit' : 'Add Banner'}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8" onClick={() => setOpen(false)}>
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-4">{isEdit ? 'Edit Banner' : 'Add Banner'}</h2>
+            <div className="space-y-4">
+              {/* Default Image Upload */}
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Default Banner Image (fallback if no language-specific image)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(file, 'default');
+                    }}
+                    className="text-sm"
+                    disabled={uploading === 'default'}
+                  />
+                  {uploading === 'default' && <span className="text-xs text-primary animate-pulse">Uploading...</span>}
+                  {defaultImageKey && <span className="text-xs text-green-400">✓ Uploaded</span>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Link URL (optional)</label>
+                  <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Sort Order</label>
+                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
+                Active
+              </label>
+
+              {/* Language-specific translations */}
+              <div className="border-t border-border pt-3">
+                <h3 className="text-sm font-semibold mb-2">Language-specific Banners</h3>
+                <p className="text-xs text-muted-foreground mb-3">Upload different banner images for each language. If no language-specific image is set, the default image will be used.</p>
+                {translations.map((t, idx) => (
+                  <div key={idx} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <select
+                        value={t.language}
+                        onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }}
+                        className="rounded-lg border border-border bg-secondary px-2 py-1 text-xs"
+                      >
+                        {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                      </select>
+                      <span className="text-xs text-muted-foreground">Banner Image</span>
+                    </div>
+                    <div className="mb-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUpload(file, idx);
+                        }}
+                        className="text-sm"
+                        disabled={uploading === `trans-${idx}`}
+                      />
+                      {uploading === `trans-${idx}` && <span className="text-xs text-primary animate-pulse ml-2">Uploading...</span>}
+                      {t.image_key && <span className="text-xs text-green-400 ml-2">✓ Uploaded</span>}
+                    </div>
+                    <input
+                      value={t.title}
+                      onChange={(e) => { const newT = [...translations]; newT[idx].title = e.target.value; setTranslations(newT); }}
+                      placeholder="Banner title (optional)"
+                      className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm mb-2"
+                    />
+                    <input
+                      value={t.subtitle}
+                      onChange={(e) => { const newT = [...translations]; newT[idx].subtitle = e.target.value; setTranslations(newT); }}
+                      placeholder="Banner subtitle (optional)"
+                      className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                    />
+                  </div>
+                ))}
+                <button onClick={() => setTranslations([...translations, { language: 'en', image_key: '', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
+                  + Add Language Banner
                 </button>
               </div>
             </div>

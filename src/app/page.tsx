@@ -88,6 +88,14 @@ function getHighestOriginal(prices: ProductPrice[]): string | null {
   return originals.length > 0 ? Math.max(...originals).toFixed(2) : null;
 }
 
+interface Banner {
+  id: number;
+  image_url: string | null;
+  link_url: string | null;
+  title: string | null;
+  subtitle: string | null;
+}
+
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -99,6 +107,7 @@ export default function HomePage() {
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -124,6 +133,12 @@ export default function HomePage() {
       const featJson = await featRes.json();
       if (featJson.success) {
         setFeaturedProducts(featJson.data.products || []);
+      }
+      // Fetch banners
+      const bannerRes = await fetch(`/api/banners?language=${language}`);
+      const bannerJson = await bannerRes.json();
+      if (bannerJson.success) {
+        setBanners(bannerJson.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -155,6 +170,17 @@ export default function HomePage() {
             </Link>
 
             <div className="flex items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative w-48 sm:w-64">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input
+                  type="text"
+                  placeholder={language === 'zh' ? '搜索产品...' : 'Search products...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                />
+              </div>
               {/* Language Switcher */}
               <div className="flex items-center gap-1 rounded-lg bg-secondary p-1">
                 <button
@@ -179,19 +205,14 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative max-w-xl">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input
-              type="text"
-              placeholder={language === 'zh' ? '搜索产品...' : 'Search products...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-            />
+        {/* Banner Carousel */}
+        {banners.length > 0 && (
+          <div className="mb-8">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
+              <BannerCarousel banners={banners} language={language} />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Featured Deals Banner */}
         {featuredProducts.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
@@ -437,4 +458,73 @@ export default function HomePage() {
       </footer>
     </div>
   );
+}
+
+// Banner Carousel Component
+function BannerCarousel({ banners, language }: { banners: Banner[]; language: string }) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
+  if (banners.length === 0) return null;
+
+  const banner = banners[current];
+
+  const content = (
+    <div className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-secondary">
+      {banner.image_url && (
+        <Image
+          src={banner.image_url}
+          alt={banner.title || 'Banner'}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority={current === 0}
+        />
+      )}
+      {/* Overlay gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+      {/* Text content */}
+      <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 lg:px-16">
+        {banner.title && (
+          <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white drop-shadow-lg max-w-lg">
+            {banner.title}
+          </h2>
+        )}
+        {banner.subtitle && (
+          <p className="mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base text-white/80 drop-shadow max-w-md">
+            {banner.subtitle}
+          </p>
+        )}
+      </div>
+      {/* Dots indicator */}
+      {banners.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {banners.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrent(idx)}
+              className={`h-1.5 rounded-full transition-all ${idx === current ? 'w-6 bg-white' : 'w-1.5 bg-white/50'}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  if (banner.link_url) {
+    return (
+      <a href={banner.link_url} target="_blank" rel="noopener noreferrer" className="block">
+        {content}
+      </a>
+    );
+  }
+
+  return content;
 }

@@ -222,6 +222,42 @@ export function getStoreName(price: ProductPrice, language: string = 'en'): stri
   return translation?.name || 'Unknown Store';
 }
 
+// Banner types
+export interface Banner {
+  id: number;
+  image_key: string | null;
+  link_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+  translations: BannerTranslation[];
+}
+
+export interface BannerTranslation {
+  id: number;
+  banner_id: number;
+  language: string;
+  image_key: string | null;
+  title: string | null;
+  subtitle: string | null;
+}
+
+// Fetch active banners with translations
+export async function fetchBanners(language: string = 'en') {
+  const client = getClient();
+  const { data, error } = await client
+    .from('banners')
+    .select('*, banner_translations(*)')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(`Fetch banners failed: ${error.message}`);
+  return (data || []).map((banner: Record<string, unknown>) => ({
+    ...banner,
+    translations: (banner.banner_translations || []) as BannerTranslation[],
+  }));
+}
+
 // Calculate discount percent
 export function calcDiscount(current: string, original: string | null): number | null {
   if (!original) return null;
