@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { S3Storage } from 'coze-coding-dev-sdk';
-
-const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: '',
-  secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
-});
+import { getPresignedUrl } from '@/lib/storage';
 
 function getClient() {
   return getSupabaseClient();
@@ -25,33 +17,19 @@ export async function GET() {
 
     if (error) throw new Error(`Fetch banners failed: ${error.message}`);
 
-    // Generate presigned URLs for image keys
+    // Generate accessible URLs for image keys
     const bannersWithUrls = await Promise.all(
       (data || []).map(async (banner: Record<string, unknown>) => {
         const translations = (banner.banner_translations || []) as Record<string, unknown>[];
         const translationsWithUrls = await Promise.all(
           translations.map(async (t) => {
             const imgKey = t.image_key as string | null;
-            let imageUrl: string | null = null;
-            if (imgKey) {
-              try {
-                imageUrl = await storage.generatePresignedUrl({ key: imgKey, expireTime: 3600 });
-              } catch {
-                imageUrl = null;
-              }
-            }
+            const imageUrl = await getPresignedUrl(imgKey);
             return { ...t, image_url: imageUrl };
           })
         );
 
-        let defaultImageUrl: string | null = null;
-        if (banner.image_key) {
-          try {
-            defaultImageUrl = await storage.generatePresignedUrl({ key: banner.image_key as string, expireTime: 3600 });
-          } catch {
-            defaultImageUrl = null;
-          }
-        }
+        const defaultImageUrl = await getPresignedUrl(banner.image_key as string | null);
 
         return {
           ...banner,

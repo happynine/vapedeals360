@@ -43,13 +43,21 @@ function isSvgUrl(src: string): boolean {
   }
 }
 
+/**
+ * Checks if a URL is a Vercel Blob URL (publicly accessible, no proxy needed)
+ */
+function isVercelBlobUrl(src: string): boolean {
+  return src.includes('.blob.vercel-storage.com') || src.includes('.public.blob.vercel-storage.com');
+}
+
 interface SafeImageProps extends Omit<ImageProps, 'src'> {
   src: string | null | undefined;
   fallback?: React.ReactNode;
 }
 
 /**
- * A wrapper around next/image that gracefully handles invalid URLs and S3 keys.
+ * A wrapper around next/image that gracefully handles invalid URLs, S3 keys, and Vercel Blob URLs.
+ * - Vercel Blob URLs → pass to next/image (publicly accessible)
  * - Valid URLs (http/https/) → pass to next/image
  * - S3 keys (e.g. "stores/logo.png") → proxy through /api/image?key=...
  * - Invalid/empty → render fallback
@@ -67,7 +75,7 @@ export function SafeImage({ src, fallback, alt, ...rest }: SafeImageProps) {
 
   const trimmedSrc = src.trim();
 
-  // If it's an S3 key, convert to proxy URL
+  // If it's an S3 key, convert to proxy URL and use plain img (not next/image, to avoid domain issues)
   if (isS3Key(trimmedSrc)) {
     const proxyUrl = s3KeyToProxyUrl(trimmedSrc);
     return <img src={proxyUrl} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
@@ -83,7 +91,8 @@ export function SafeImage({ src, fallback, alt, ...rest }: SafeImageProps) {
     );
   }
 
-  const needsUnoptimized = isSvgUrl(trimmedSrc);
+  // Vercel Blob URLs and SVG URLs need unoptimized
+  const needsUnoptimized = isSvgUrl(trimmedSrc) || isVercelBlobUrl(trimmedSrc);
 
   return <Image src={trimmedSrc} alt={alt} unoptimized={needsUnoptimized} {...rest} />;
 }

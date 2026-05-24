@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Storage } from 'coze-coding-dev-sdk';
-
-const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: '',
-  secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
-});
+import { uploadFile } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,17 +14,20 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop() || 'jpg';
-    const fileName = `${folder}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-    const fileKey = await storage.uploadFile({
+    const result = await uploadFile({
       fileContent: buffer,
-      fileName,
+      fileName: file.name,
       contentType: file.type || 'image/jpeg',
+      folder,
     });
 
-    return NextResponse.json({ success: true, data: { key: fileKey } });
+    return NextResponse.json({
+      success: true,
+      data: {
+        key: result.key,   // The value to store in DB (URL for Vercel Blob, S3 key for dev)
+        url: result.url,   // The accessible URL
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload failed';
     return NextResponse.json({ success: false, error: message }, { status: 500 });

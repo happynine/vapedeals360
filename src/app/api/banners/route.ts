@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchBanners, type Banner } from '@/lib/database';
-import { S3Storage } from 'coze-coding-dev-sdk';
-
-const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: '',
-  secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
-});
+import { getPresignedUrl } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,20 +9,13 @@ export async function GET(request: NextRequest) {
 
     const banners = await fetchBanners(language) as Banner[];
 
-    // Generate presigned URLs for banner images
+    // Generate accessible URLs for banner images
     const bannersWithUrls = await Promise.all(
       banners.map(async (banner) => {
         const translation = banner.translations?.find((t) => t.language === language) || banner.translations?.[0];
         const imageKey = translation?.image_key || banner.image_key;
 
-        let imageUrl: string | null = null;
-        if (imageKey) {
-          try {
-            imageUrl = await storage.generatePresignedUrl({ key: imageKey, expireTime: 3600 });
-          } catch {
-            imageUrl = null;
-          }
-        }
+        const imageUrl = await getPresignedUrl(imageKey || null);
 
         return {
           id: banner.id,

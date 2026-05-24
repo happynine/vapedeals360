@@ -1,12 +1,11 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { S3Storage } from 'coze-coding-dev-sdk';
+import { getPresignedUrl } from '@/lib/storage';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const language = searchParams.get('language') || 'en';
     const supabase = getSupabaseClient();
-    const s3 = new S3Storage();
 
     const { data, error } = await supabase
       .from('site_settings')
@@ -32,10 +31,7 @@ export async function GET(request: Request) {
       || translations.find((t: { language: string }) => t.language === 'en')
       || translations[0];
 
-    let logoUrl: string | null = data.logo_url;
-    if (logoUrl && !logoUrl.startsWith('http')) {
-      try { logoUrl = await s3.generatePresignedUrl({ key: logoUrl, expireTime: 3600 }); } catch { logoUrl = `/api/image?key=${encodeURIComponent(logoUrl!)}`; }
-    }
+    const logoUrl = await getPresignedUrl(data.logo_url);
 
     return Response.json({
       success: true,

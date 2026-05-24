@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Storage } from 'coze-coding-dev-sdk';
-
-const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: '',
-  secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
-});
+import { isProduction, s3Storage } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,9 +8,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing key parameter' }, { status: 400 });
     }
 
-    const signedUrl = await storage.generatePresignedUrl({ key, expireTime: 3600 });
-    
-    // Fetch the image from S3 and proxy it to avoid CORS issues
+    // If it's already a full URL, redirect to it
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      return NextResponse.redirect(key);
+    }
+
+    // In production, S3 keys can't be resolved without Coze sandbox auth
+    if (isProduction) {
+      return NextResponse.json({ error: 'S3 image not available in production. Please re-upload the image.' }, { status: 404 });
+    }
+
+    // Dev: use S3Storage to get presigned URL and proxy the image
+    const signedUrl = await s3Storage.generatePresignedUrl({ key, expireTime: 3600 });
+
     const imageResponse = await fetch(signedUrl);
     if (!imageResponse.ok) {
       return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 });
