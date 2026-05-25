@@ -1,42 +1,5 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-export async function POST(request: Request) {
-  try {
-    const supabase = getSupabaseClient();
-    const body = await request.json();
-    const { session_id, page, referrer, ip, user_agent } = body;
-
-    if (!session_id || !page) {
-      return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const { error } = await supabase.from('page_views').insert({
-      session_id,
-      page,
-      referrer: referrer || null,
-      ip: ip || null,
-      user_agent: user_agent || null,
-    });
-
-    if (error) throw error;
-
-    // Also record a click event if provided
-    if (body.event_type) {
-      await supabase.from('click_events').insert({
-        session_id,
-        event_type: body.event_type,
-        target_id: body.target_id || null,
-        metadata: body.metadata || null,
-      });
-    }
-
-    return Response.json({ success: true });
-  } catch (err) {
-    console.error('Failed to track:', err);
-    return Response.json({ success: false, error: 'Failed to track' }, { status: 500 });
-  }
-}
-
 export async function GET(request: Request) {
   try {
     const supabase = getSupabaseClient();
@@ -89,8 +52,8 @@ export async function GET(request: Request) {
     const totalIPs = allIPs.size;
 
     const newVisitors = Array.from(sessions.values()).filter(s => s.pages === 1).length;
-    const newVisitorRatio = totalVV > 0 ? (newVisitors / totalVV * 100).toFixed(1) : '0';
-    const bounceRate = totalVV > 0 ? (newVisitors / totalVV * 100).toFixed(1) : '0';
+    const newVisitorRatio = totalVV > 0 ? (newVisitors / totalVV * 100) : 0;
+    const bounceRate = totalVV > 0 ? (newVisitors / totalVV * 100) : 0;
 
     let totalDuration = 0;
     let durationCount = 0;
@@ -98,12 +61,12 @@ export async function GET(request: Request) {
       const dur = new Date(s.endTime).getTime() - new Date(s.startTime).getTime();
       if (dur > 0) { totalDuration += dur; durationCount++; }
     });
-    const avgDurationMs = durationCount > 0 ? totalDuration / durationCount : 0;
-    const avgDurationMin = (avgDurationMs / 60000).toFixed(1);
+    const avgDurationSec = durationCount > 0 ? (totalDuration / durationCount / 1000) : 0;
 
-    const avgPages = totalVV > 0 ? (totalPV / totalVV).toFixed(1) : '0';
+    const avgPages = totalVV > 0 ? (totalPV / totalVV) : 0;
 
-    const chartData = Array.from(dailyStats.entries())
+    // Trend data for chart (daily PV/UV)
+    const trend = Array.from(dailyStats.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, d]) => ({
         date,
@@ -119,30 +82,36 @@ export async function GET(request: Request) {
       .gte('created_at', startDate)
       .lt('created_at', endDate);
 
-    const clickStats: Record<string, { total: number; items: Record<string, number> }> = {};
-    (clickData || []).forEach((c: { event_type: string; target_id: string | null }) => {
-      if (!clickStats[c.event_type]) clickStats[c.event_type] = { total: 0, items: {} };
-      clickStats[c.event_type].total++;
-      if (c.target_id) {
-        clickStats[c.event_type].items[c.target_id] = (clickStats[c.event_type].items[c.target_id] || 0) + 1;
+    // Map event_type to the keys the admin page expects
+    const clickRates: Record<string, number> = {};
+    (clickData || []).forEach((c: { event_type: string }) => {
+      const eventType = c.event_type;
+      if (eventType === 'product_click') {
+        clickRates['product_card'] = (clickRates['product_card'] || 0) + 1;
+      } else if (eventType === 'buy_click') {
+        clickRates['buy_button'] = (clickRates['buy_button'] || 0) + 1;
+      } else if (eventType === 'visit_store') {
+        clickRates['visit_store'] = (clickRates['visit_store'] || 0) + 1;
+      } else if (eventType === 'banner_click') {
+        clickRates['banner'] = (clickRates['banner'] || 0) + 1;
       }
     });
 
     return Response.json({
       success: true,
       data: {
-        macro: {
+        summary: {
           pv: totalPV,
           uv: totalUV,
           vv: totalVV,
-          ip_count: totalIPs,
-          new_visitor_ratio: newVisitorRatio + '%',
-          bounce_rate: bounceRate + '%',
-          avg_duration: avgDurationMin + ' min',
+          ip: totalIPs,
+          new_visitor_rate: newVisitorRatio,
+          bounce_rate: bounceRate,
+          avg_duration: avgDurationSec,
           avg_pages: avgPages,
         },
-        chart: chartData,
-        clicks: clickStats,
+        trend,
+        clickRates,
       },
     });
   } catch (err) {

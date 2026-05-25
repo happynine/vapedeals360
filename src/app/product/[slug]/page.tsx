@@ -109,6 +109,20 @@ export default function ProductDetailPage() {
     if (slug) fetchProduct();
   }, [slug, language]);
 
+  // Track page view
+  useEffect(() => {
+    const sessionId = sessionStorage.getItem('vp_session_id') || (() => {
+      const id = 's_' + Math.random().toString(36).substring(2, 12);
+      sessionStorage.setItem('vp_session_id', id);
+      return id;
+    })();
+    fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'page_view', session_id: sessionId, page: `/product/${slug}`, referrer: document.referrer }),
+    }).catch(() => {});
+  }, [slug]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -372,7 +386,7 @@ export default function ProductDetailPage() {
                         fetch('/api/track', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'visit_store', product_id: product.id, store_id: price.store_id }),
+                          body: JSON.stringify({ type: 'visit_store', session_id: sessionStorage.getItem('vp_session_id') || '', product_id: product.id, store_id: price.store_id }),
                         }).catch(() => {});
                       }}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105"
@@ -425,8 +439,16 @@ export default function ProductDetailPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">V</div>
-              <span className="text-sm font-semibold">VapeDeal</span>
+              {siteSettings?.logo_url ? (
+                <img
+                  src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
+                  alt={siteSettings?.site_name || 'VapeDeal'}
+                  className="h-7 w-7 rounded-md object-contain"
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">{(siteSettings?.site_name || 'V').charAt(0)}</div>
+              )}
+              <span className="text-sm font-semibold">{siteSettings?.site_name || 'VapeDeal'}</span>
             </div>
             <p className="text-xs text-muted-foreground">
               {language === 'zh' ? '比较电子烟价格，找到最优惠的交易' : 'Compare vape prices. Find the best deals.'}

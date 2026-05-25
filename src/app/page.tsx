@@ -190,7 +190,7 @@ export default function HomePage() {
         fetch("/api/track", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session_id: sessionId, page: "/", referrer: document.referrer }),
+            body: JSON.stringify({ type: "page_view", session_id: sessionId, page: "/", referrer: document.referrer }),
         }).catch(() => {});
     }, []);
 
@@ -403,7 +403,11 @@ export default function HomePage() {
                                 {}
                                 <Link
                                     href={`/product/${product.slug}`}
-                                    className="block relative aspect-square bg-secondary overflow-hidden">
+                                    className="block relative aspect-square bg-secondary overflow-hidden"
+                                    onClick={() => {
+                                        const sid = sessionStorage.getItem("vp_session_id") || "";
+                                        fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "product_click", session_id: sid, product_id: product.id }) }).catch(() => {});
+                                    }}>
                                     {product.image_url && <SafeImage
                                         src={product.image_url}
                                         alt={t?.name || ""}
@@ -461,7 +465,7 @@ export default function HomePage() {
                                                             onClick={e => {
                                                                 e.stopPropagation();
                                                                 const sid = sessionStorage.getItem("vp_session_id") || "";
-                                                                fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid, page: "/", event_type: "buy_click", target_id: String(price.product_id) }) }).catch(() => {});
+                                                                fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "buy_click", session_id: sid, product_id: price.product_id, store_id: price.store_id }) }).catch(() => {});
                                                             }}
                                                             className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-all">
                                                             {language === "zh" ? "购买" : "Buy"}
@@ -591,7 +595,7 @@ function BannerCarousel(
                 className="block"
                 onClick={() => {
                     const sid = sessionStorage.getItem("vp_session_id") || "";
-                    fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid, page: "/", event_type: "banner_click", target_id: String(banner.id) }) }).catch(() => {});
+                    fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "banner_click", session_id: sid, banner_id: banner.id }) }).catch(() => {});
                 }}>
                 {content}
             </a>

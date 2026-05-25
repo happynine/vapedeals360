@@ -24,22 +24,65 @@ function t(en: string, zh: string, lang: string) {
 }
 
 export default function AdminPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
 
+  // Check login state on mount
   useEffect(() => {
-    fetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
+    const token = sessionStorage.getItem('admin_token');
+    if (token) setIsLoggedIn(true);
   }, []);
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        sessionStorage.setItem('admin_token', json.token);
+        setIsLoggedIn(true);
+      } else {
+        setLoginError(t('Invalid username or password', '用户名或密码错误', adminLang));
+      }
+    } catch {
+      setLoginError(t('Login failed', '登录失败', adminLang));
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('admin_token');
+    setIsLoggedIn(false);
+  };
+
   useEffect(() => {
-    if (activeTab === 'analytics') {
+    if (isLoggedIn) {
+      fetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'analytics') {
       fetch(`/api/analytics?month=${analyticsMonth}`).then(r => r.json()).then(d => { if (d.success) setAnalyticsData(d.data); }).catch(() => {});
     }
-  }, [activeTab, analyticsMonth]);
+  }, [isLoggedIn, activeTab, analyticsMonth]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -141,6 +184,58 @@ export default function AdminPage() {
     analytics: { en: 'Analytics', zh: '数据统计' },
   };
 
+  // Login page
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="bg-card rounded-2xl border border-border p-8 shadow-xl">
+            <div className="flex flex-col items-center mb-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl mb-4">V</div>
+              <h1 className="text-2xl font-bold">{t('Admin Login', '后台登录', adminLang)}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
+            </div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">{t('Username', '用户名', adminLang)}</label>
+                <input
+                  type="text"
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder={t('Enter username', '输入用户名', adminLang)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">{t('Password', '密码', adminLang)}</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder={t('Enter password', '输入密码', adminLang)}
+                />
+              </div>
+              {loginError && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm text-red-400">
+                  {loginError}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loginLoading ? t('Logging in...', '登录中...', adminLang) : t('Login', '登录', adminLang)}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
@@ -204,6 +299,16 @@ export default function AdminPage() {
             >中文</button>
           </div>
         </div>
+        {/* Logout */}
+        <div className="px-3 mt-4 mb-6">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            {t('Logout', '退出登录', adminLang)}
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -238,25 +343,51 @@ export default function AdminPage() {
                     lang={adminLang}
                   />
                 </div>
-                <div className="pt-4">
+                <div className="pt-4 flex gap-3">
                   <button
                     onClick={async () => {
-                      const res = await fetch('/api/admin/site-settings', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ site_name: editSiteName, logo_url: editSiteLogo }),
-                      });
-                      const json = await res.json();
-                      if (json.success) {
-                        setAdminSiteSettings(json.data);
-                        alert(t('Saved!', '已保存!', adminLang));
-                      }
+                      setShowSaveConfirm(true);
                     }}
                     className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
                     {t('Save Settings', '保存设置', adminLang)}
                   </button>
                 </div>
+                {/* Save Confirmation Dialog */}
+                {showSaveConfirm && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
+                      <h3 className="text-lg font-bold mb-2">{t('Confirm Save', '确认保存', adminLang)}</h3>
+                      <p className="text-sm text-muted-foreground mb-6">{t('Are you sure you want to update the site settings? This will change the site name and logo on the frontend.', '确定要更新站点设置吗？这将更改前台的网站名称和Logo。', adminLang)}</p>
+                      <div className="flex gap-3 justify-end">
+                        <button
+                          onClick={() => setShowSaveConfirm(false)}
+                          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
+                        >
+                          {t('Cancel', '取消', adminLang)}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setShowSaveConfirm(false);
+                            const res = await fetch('/api/admin/site-settings', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ site_name: editSiteName, logo_url: editSiteLogo }),
+                            });
+                            const json = await res.json();
+                            if (json.success) {
+                              setAdminSiteSettings(json.data);
+                              alert(t('Saved!', '已保存!', adminLang));
+                            }
+                          }}
+                          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                        >
+                          {t('Confirm', '确认', adminLang)}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

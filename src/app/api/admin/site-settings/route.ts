@@ -34,7 +34,7 @@ export async function PUT(request: Request) {
   try {
     const supabase = getSupabaseClient();
     const body = await request.json();
-    const { logo_url, translations } = body;
+    const { logo_url, translations, site_name } = body;
 
     // Upsert site_settings row
     let settingsId: number | null = null;
@@ -60,9 +60,15 @@ export async function PUT(request: Request) {
       settingsId = data.id;
     }
 
+    // Handle site_name shorthand: if site_name is provided without translations, update both languages
+    const effectiveTranslations = translations || (site_name ? [
+      { language: 'en', site_name },
+      { language: 'zh', site_name },
+    ] : []);
+
     // Upsert translations
-    if (translations && Array.isArray(translations) && settingsId) {
-      for (const tr of translations) {
+    if (effectiveTranslations && Array.isArray(effectiveTranslations) && settingsId) {
+      for (const tr of effectiveTranslations) {
         if (!tr.language || !tr.site_name) continue;
         const { data: existingTr } = await supabase
           .from('site_setting_translations')
@@ -84,7 +90,26 @@ export async function PUT(request: Request) {
       }
     }
 
-    return Response.json({ success: true });
+    // Return updated data for frontend to refresh
+    const { data: updatedData } = await supabase
+      .from('site_settings')
+      .select('*, site_setting_translations(*)')
+      .eq('id', settingsId)
+      .single();
+
+    const logoUrlSigned = await getPresignedUrl(updatedData?.logo_url);
+    const updatedTranslations = updatedData?.site_setting_translations || [];
+    const enTranslation = updatedTranslations.find((t: { language: string }) => t.language === 'en') || updatedTranslations[0];
+
+    return Response.json({
+      success: true,
+      data: {
+        id: settingsId,
+        site_name: enTranslation?.site_name || 'VapeDeal',
+        logo_url: logoUrlSigned,
+        translations: updatedTranslations,
+      },
+    });
   } catch (err) {
     console.error('Failed to update site settings:', err);
     return Response.json({ success: false, error: 'Failed to update site settings' }, { status: 500 });
