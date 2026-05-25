@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isProduction, s3Storage } from '@/lib/storage';
+import { useVercelBlob } from '@/lib/storage';
+import { getS3Storage } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,13 +14,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(key);
     }
 
-    // In production, S3 keys can't be resolved without Coze sandbox auth
-    if (isProduction) {
-      return NextResponse.json({ error: 'S3 image not available in production. Please re-upload the image.' }, { status: 404 });
+    // S3 key - only works in sandbox (not on Vercel)
+    if (useVercelBlob) {
+      return NextResponse.json({ error: 'S3 image not available. Please re-upload the image.' }, { status: 404 });
     }
 
     // Dev: use S3Storage to get presigned URL and proxy the image
-    const signedUrl = await s3Storage.generatePresignedUrl({ key, expireTime: 3600 });
+    const signedUrl = await getS3Storage().generatePresignedUrl({ key, expireTime: 3600 });
 
     const imageResponse = await fetch(signedUrl);
     if (!imageResponse.ok) {

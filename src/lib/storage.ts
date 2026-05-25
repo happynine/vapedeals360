@@ -1,16 +1,24 @@
 import { put } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
 
-const isProduction = process.env.COZE_PROJECT_ENV === 'PROD';
+// Use Vercel Blob when BLOB_READ_WRITE_TOKEN is available (Vercel deployment)
+// Otherwise fall back to S3Storage (Coze sandbox)
+const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
-// S3Storage for development (sandbox)
-const s3Storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-  accessKey: '',
-  secretKey: '',
-  bucketName: process.env.COZE_BUCKET_NAME,
-  region: 'cn-beijing',
-});
+// S3Storage for development (sandbox) - only initialize when needed
+let s3StorageInstance: S3Storage | null = null;
+function getS3Storage(): S3Storage {
+  if (!s3StorageInstance) {
+    s3StorageInstance = new S3Storage({
+      endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+      accessKey: '',
+      secretKey: '',
+      bucketName: process.env.COZE_BUCKET_NAME,
+      region: 'cn-beijing',
+    });
+  }
+  return s3StorageInstance;
+}
 
 export interface UploadResult {
   key: string;   // The storage key or URL to persist in DB
@@ -18,7 +26,7 @@ export interface UploadResult {
 }
 
 /**
- * Upload a file. In production (Vercel) uses Vercel Blob; in dev uses S3Storage.
+ * Upload a file. On Vercel uses Vercel Blob; in Coze sandbox uses S3Storage.
  * Returns both the key (to store in DB) and the accessible URL.
  */
 export async function uploadFile(params: {
@@ -29,7 +37,7 @@ export async function uploadFile(params: {
 }): Promise<UploadResult> {
   const { fileContent, fileName, contentType, folder = 'uploads' } = params;
 
-  if (isProduction) {
+  if (useVercelBlob) {
     // Vercel Blob: returns a full public URL
     const timestamp = Date.now();
     const ext = fileName.split('.').pop() || 'jpg';
@@ -46,9 +54,9 @@ export async function uploadFile(params: {
     };
   } else {
     // Sandbox: use S3Storage, returns S3 key
-    const key = await s3Storage.uploadFile({
+    const key = await getS3Storage().uploadFile({
       fileContent,
-      fileName: `${folder}/${timestamp(fileName)}`,
+      fileName: `${folder}/${Date.now()}-${fileName}`,
       contentType,
     });
 
@@ -57,13 +65,6 @@ export async function uploadFile(params: {
       url: `/api/image?key=${encodeURIComponent(key)}`,  // Proxy URL for display
     };
   }
-}
-
-function timestamp(fileName: string): string {
-  const ts = Date.now();
-  const ext = fileName.split('.').pop() || 'jpg';
-  const base = fileName.replace(/\.[^.]+$/, '');
-  return `${ts}-${base}.${ext}`;
 }
 
 /**
@@ -95,18 +96,18 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
     return key;
   }
 
-  // S3 key - generate presigned URL (dev only)
-  if (isProduction) {
-    // In production, S3 keys won't work without the Coze sandbox auth
+  // S3 key - only works in sandbox
+  if (useVercelBlob) {
+    // On Vercel, S3 keys can't be resolved without Coze sandbox auth
     // Fallback to proxy endpoint
     return `/api/image?key=${encodeURIComponent(key)}`;
   }
 
   try {
-    return await s3Storage.generatePresignedUrl({ key, expireTime: 3600 });
+    return await getS3Storage().generatePresignedUrl({ key, expireTime: 3600 });
   } catch {
     return `/api/image?key=${encodeURIComponent(key)}`;
   }
 }
 
-export { s3Storage, isProduction };
+export { useVercelBlob };
