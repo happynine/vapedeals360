@@ -7,7 +7,7 @@ const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 // S3Storage for development (sandbox) - only initialize when needed
 let s3StorageInstance: S3Storage | null = null;
-function getS3Storage(): S3Storage {
+export function getS3Storage(): S3Storage {
   if (!s3StorageInstance) {
     s3StorageInstance = new S3Storage({
       endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
