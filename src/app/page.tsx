@@ -244,12 +244,6 @@ export default function HomePage() {
                                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">{siteSettings.site_name.charAt(0)}</div>}
                             <span className="text-xl font-bold tracking-tight">{siteSettings.site_name}</span>
                         </Link>
-                        <Link
-                            href="/contact"
-                            className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        >
-                            {language === "zh" ? "联系我们" : "Contact Us"}
-                        </Link>
                         <div className="flex items-center gap-3">
                             {/* Search */}
                             <div className="relative w-48 sm:w-64">
@@ -552,6 +546,9 @@ export default function HomePage() {
                                     className="h-7 w-7 rounded-md object-contain" /> : <div
                                     className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">{siteSettings.site_name.charAt(0)}</div>}
                                 <span className="text-sm font-semibold">{siteSettings.site_name}</span>
+                                <Link href="/contact" className="text-xs text-muted-foreground hover:text-primary transition-colors ml-2">
+                                    {language === "zh" ? "联系我们" : "Contact Us"}
+                                </Link>
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 {language === "zh" ? "比较电子烟价格，找到最优惠的交易" : "Compare vape prices. Find the best deals."}
