@@ -172,8 +172,15 @@ export default function ProductDetailPage() {
   const catT = product.category ? getTranslation(product.category.translations, language) : null;
   let features: string[] = [];
   try { features = t?.features ? (typeof t.features === 'string' ? JSON.parse(t.features) : t.features) : []; } catch { features = []; }
-  let specs: Record<string, string> = {};
-  try { specs = t?.specs ? (typeof t.specs === 'string' ? JSON.parse(t.specs) : t.specs) : {}; } catch { specs = {}; }
+  let specsEntries: [string, string][] = [];
+  try {
+    const raw = t?.specs ? (typeof t.specs === 'string' ? JSON.parse(t.specs) : t.specs) : null;
+    if (Array.isArray(raw)) {
+      specsEntries = raw.map((item: string) => { const colonIdx = item.indexOf(':'); return colonIdx > 0 ? [item.substring(0, colonIdx).trim(), item.substring(colonIdx + 1).trim()] : [item, '']; });
+    } else if (raw && typeof raw === 'object') {
+      specsEntries = Object.entries(raw as Record<string, string>);
+    }
+  } catch { specsEntries = []; }
   const sortedPrices = [...product.prices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
   const highestOriginal = product.prices
@@ -421,14 +428,14 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Specs Table */}
-        {Object.keys(specs).length > 0 && (
+        {specsEntries.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
               <svg className="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               {language === 'zh' ? '规格参数' : 'Specifications'}
             </h2>
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              {Object.entries(specs).map(([key, value], idx) => (
+              {specsEntries.map(([key, value], idx) => (
                 <div
                   key={key}
                   className={`flex items-center px-5 py-3 ${idx > 0 ? 'border-t border-border' : ''} ${idx % 2 === 0 ? 'bg-secondary/20' : ''}`}

@@ -1215,23 +1215,14 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (key: value per line)', '规格参数 (每行 key: value)', lang)}</label>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)', lang)}</label>
                         <textarea
                           value={(() => {
-                            try { const obj = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; return obj && typeof obj === 'object' ? Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n') : tr.specs || ''; } catch { return tr.specs || ''; }
+                            try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
                           })()}
-                          onChange={(e) => {
-                            const newT = [...translations];
-                            const obj: Record<string, string> = {};
-                            e.target.value.split('\n').forEach(line => {
-                              const colonIdx = line.indexOf(':');
-                              if (colonIdx > 0) { const key = line.substring(0, colonIdx).trim(); const val = line.substring(colonIdx + 1).trim(); if (key) obj[key] = val; }
-                            });
-                            newT[idx].specs = Object.keys(obj).length > 0 ? JSON.stringify(obj) : '';
-                            setTranslations(newT);
-                          }}
+                          onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].specs = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
                           rows={5}
-                          placeholder={lang === 'zh' ? '每行输入 key: value\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'key: value per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
+                          placeholder={lang === 'zh' ? '每行输入一条规格\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'One spec per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
                           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
                         />
                       </div>
