@@ -205,6 +205,24 @@ export const siteSettingTranslations = pgTable(
   ]
 );
 
+// Social Links
+export const socialLinks = pgTable(
+  "social_links",
+  {
+    id: serial().primaryKey(),
+    platform: varchar("platform", { length: 100 }).notNull(),
+    url: text("url").notNull(),
+    icon: varchar("icon", { length: 50 }),
+    sort_order: integer("sort_order").default(0).notNull(),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("sl_platform_idx").on(table.platform),
+  ]
+);
+
 // Page Views (analytics)
 export const pageViews = pgTable(
   "page_views",

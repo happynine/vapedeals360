@@ -34,6 +34,9 @@ export default function AdminPage() {
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [socialLinks, setSocialLinks] = useState<Array<{ id: number; platform: string; url: string; icon: string | null; sort_order: number; is_active: boolean }>>([]);
+  const [editingSocial, setEditingSocial] = useState<{ id: number | null; platform: string; url: string; sort_order: number }>({ id: null, platform: '', url: '', sort_order: 0 });
+  const [showSocialForm, setShowSocialForm] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
 
@@ -75,6 +78,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (isLoggedIn) {
       fetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
+      fetch('/api/social-links').then(r => r.json()).then(d => { if (d.success) setSocialLinks(d.data || []); }).catch(() => {});
     }
   }, [isLoggedIn]);
 
@@ -383,6 +387,146 @@ export default function AdminPage() {
                           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                         >
                           {t('Confirm', '确认', adminLang)}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Social Links Section */}
+              <div className="bg-card rounded-xl border border-border p-6 space-y-4 mt-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">{t('Social Media Links', '社媒链接', adminLang)}</h3>
+                  <button
+                    onClick={() => { setEditingSocial({ id: null, platform: '', url: '', sort_order: socialLinks.length }); setShowSocialForm(true); }}
+                    className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    + {t('Add', '添加', adminLang)}
+                  </button>
+                </div>
+
+                {socialLinks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t('No social links yet. Click Add to create one.', '暂无社媒链接，点击添加。', adminLang)}</p>
+                )}
+
+                {socialLinks.sort((a, b) => a.sort_order - b.sort_order).map((link) => (
+                  <div key={link.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{link.platform}</p>
+                      <p className="text-xs text-muted-foreground truncate">{link.url}</p>
+                    </div>
+                    <button
+                      onClick={() => { setEditingSocial({ id: link.id, platform: link.platform, url: link.url, sort_order: link.sort_order }); setShowSocialForm(true); }}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
+                    >
+                      {t('Edit', '编辑', adminLang)}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(t('Delete this social link?', '确定删除此社媒链接？', adminLang))) return;
+                        const res = await fetch(`/api/admin/social-links?id=${link.id}`, { method: 'DELETE' });
+                        const json = await res.json();
+                        if (json.success) {
+                          setSocialLinks(prev => prev.filter(l => l.id !== link.id));
+                        } else {
+                          alert(json.error || 'Delete failed');
+                        }
+                      }}
+                      className="rounded-md border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-950/50 transition-colors"
+                    >
+                      {t('Delete', '删除', adminLang)}
+                    </button>
+                  </div>
+                ))}
+
+                {/* Social Link Form Modal */}
+                {showSocialForm && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md shadow-2xl space-y-4">
+                      <h3 className="text-lg font-bold">{editingSocial.id ? t('Edit Social Link', '编辑社媒链接', adminLang) : t('Add Social Link', '添加社媒链接', adminLang)}</h3>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('Platform', '平台名称', adminLang)}</label>
+                        <select
+                          value={editingSocial.platform}
+                          onChange={(e) => setEditingSocial(prev => ({ ...prev, platform: e.target.value }))}
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="">{t('Select platform...', '选择平台...', adminLang)}</option>
+                          <option value="facebook">Facebook</option>
+                          <option value="twitter">Twitter / X</option>
+                          <option value="instagram">Instagram</option>
+                          <option value="youtube">YouTube</option>
+                          <option value="tiktok">TikTok</option>
+                          <option value="telegram">Telegram</option>
+                          <option value="discord">Discord</option>
+                          <option value="reddit">Reddit</option>
+                          <option value="pinterest">Pinterest</option>
+                          <option value="linkedin">LinkedIn</option>
+                          <option value="whatsapp">WhatsApp</option>
+                          <option value="wechat">WeChat</option>
+                          <option value="other">{t('Other', '其他', adminLang)}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('URL', '链接地址', adminLang)}</label>
+                        <input
+                          type="url"
+                          value={editingSocial.url}
+                          onChange={(e) => setEditingSocial(prev => ({ ...prev, url: e.target.value }))}
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', adminLang)}</label>
+                        <input
+                          type="number"
+                          value={editingSocial.sort_order}
+                          onChange={(e) => setEditingSocial(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div className="flex gap-3 justify-end pt-2">
+                        <button
+                          onClick={() => setShowSocialForm(false)}
+                          className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
+                        >
+                          {t('Cancel', '取消', adminLang)}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!editingSocial.platform || !editingSocial.url) {
+                              alert(t('Platform and URL are required', '平台和链接不能为空', adminLang));
+                              return;
+                            }
+                            let res;
+                            if (editingSocial.id) {
+                              res = await fetch('/api/admin/social-links', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(editingSocial),
+                              });
+                            } else {
+                              res = await fetch('/api/admin/social-links', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(editingSocial),
+                              });
+                            }
+                            const json = await res.json();
+                            if (json.success) {
+                              const listRes = await fetch('/api/social-links');
+                              const listJson = await listRes.json();
+                              if (listJson.success) setSocialLinks(listJson.data || []);
+                              setShowSocialForm(false);
+                            } else {
+                              alert(json.error || 'Save failed');
+                            }
+                          }}
+                          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                        >
+                          {t('Save', '保存', adminLang)}
                         </button>
                       </div>
                     </div>
