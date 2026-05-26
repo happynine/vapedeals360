@@ -170,8 +170,10 @@ export default function ProductDetailPage() {
 
   const t = getTranslation(product.translations, language);
   const catT = product.category ? getTranslation(product.category.translations, language) : null;
-  const features: string[] = t?.features ? (typeof t.features === 'string' ? JSON.parse(t.features) : t.features) : [];
-  const specs: Record<string, string> = t?.specs ? (typeof t.specs === 'string' ? JSON.parse(t.specs) : t.specs) : {};
+  let features: string[] = [];
+  try { features = t?.features ? (typeof t.features === 'string' ? JSON.parse(t.features) : t.features) : []; } catch { features = []; }
+  let specs: Record<string, string> = {};
+  try { specs = t?.specs ? (typeof t.specs === 'string' ? JSON.parse(t.specs) : t.specs) : {}; } catch { specs = {}; }
   const sortedPrices = [...product.prices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
   const highestOriginal = product.prices

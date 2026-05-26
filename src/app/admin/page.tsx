@@ -1203,12 +1203,37 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                         <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (JSON array)', '产品特性 (JSON 数组)', lang)}</label>
-                        <input value={tr.features} onChange={(e) => { const newT = [...translations]; newT[idx].features = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
+                        <textarea
+                          value={(() => {
+                            try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
+                          })()}
+                          onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].features = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
+                          rows={4}
+                          placeholder={lang === 'zh' ? '每行输入一条特性\n例如：\n大烟雾量\n便携设计' : 'One feature per line\nExample:\nLarge vapor\nPortable design'}
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                        />
                       </div>
                       <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (JSON object)', '规格参数 (JSON 对象)', lang)}</label>
-                        <input value={tr.specs} onChange={(e) => { const newT = [...translations]; newT[idx].specs = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (key: value per line)', '规格参数 (每行 key: value)', lang)}</label>
+                        <textarea
+                          value={(() => {
+                            try { const obj = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; return obj && typeof obj === 'object' ? Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n') : tr.specs || ''; } catch { return tr.specs || ''; }
+                          })()}
+                          onChange={(e) => {
+                            const newT = [...translations];
+                            const obj: Record<string, string> = {};
+                            e.target.value.split('\n').forEach(line => {
+                              const colonIdx = line.indexOf(':');
+                              if (colonIdx > 0) { const key = line.substring(0, colonIdx).trim(); const val = line.substring(colonIdx + 1).trim(); if (key) obj[key] = val; }
+                            });
+                            newT[idx].specs = Object.keys(obj).length > 0 ? JSON.stringify(obj) : '';
+                            setTranslations(newT);
+                          }}
+                          rows={5}
+                          placeholder={lang === 'zh' ? '每行输入 key: value\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'key: value per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                        />
                       </div>
                     </div>
                   </div>
