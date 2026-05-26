@@ -614,10 +614,9 @@ function BannerCarousel(
             sizes="100vw"
             priority={current === 0} /> : null}
         {}
-        <div
-            className={`absolute inset-0 ${banner.image_url ? "bg-gradient-to-r from-black/60 via-black/20 to-transparent" : ""}`} />
-        {}
-        <div
+        {(banner.title || banner.subtitle) && <div
+            className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />}
+        {(banner.title || banner.subtitle) && <div
             className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 lg:px-16">
             {banner.title && <h2
                 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white drop-shadow-lg max-w-lg">
@@ -627,7 +626,7 @@ function BannerCarousel(
                 className="mt-1 sm:mt-2 text-xs sm:text-sm lg:text-base text-white/80 drop-shadow max-w-md">
                 {banner.subtitle}
             </p>}
-        </div>
+        </div>}
         {}
         {banners.length > 1 && <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {banners.map((_, idx) => <button
