@@ -1215,7 +1215,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)', lang)}</label>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)：必须为英文格式', lang)}</label>
                         <textarea
                           value={(() => {
                             try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
