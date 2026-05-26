@@ -359,8 +359,8 @@ export default function AdminPage() {
                 </div>
                 {/* Save Confirmation Dialog */}
                 {showSaveConfirm && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirm(false); }}>
+                    <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
                       <h3 className="text-lg font-bold mb-2">{t('Confirm Save', '确认保存', adminLang)}</h3>
                       <p className="text-sm text-muted-foreground mb-6">{t('Are you sure you want to update the site settings? This will change the site name and logo on the frontend.', '确定要更新站点设置吗？这将更改前台的网站名称和Logo。', adminLang)}</p>
                       <div className="flex gap-3 justify-end">
@@ -914,7 +914,7 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
         {isEdit ? t('Edit', '编辑', lang) : t('Add Category', '添加分类', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
             <div className="space-y-3">
@@ -1014,7 +1014,7 @@ function StoreFormModal({ store, onSave, lang }: { store?: Store; onSave: () => 
         {isEdit ? t('Edit', '编辑', lang) : t('Add Store', '添加商城', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Store', '编辑商城', lang) : t('Add Store', '添加商城', lang)}</h2>
             <div className="space-y-3">
@@ -1142,7 +1142,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
         {isEdit ? t('Edit', '编辑', lang) : t('Add Product', '添加产品', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Product', '编辑产品', lang) : t('Add Product', '添加产品', lang)}</h2>
             <div className="space-y-4">
@@ -1326,7 +1326,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
         {isEdit ? t('Edit', '编辑', lang) : t('Add Banner', '添加 Banner', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Banner', '编辑 Banner', lang) : t('Add Banner', '添加 Banner', lang)}</h2>
             <div className="space-y-4">
