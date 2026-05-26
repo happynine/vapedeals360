@@ -608,7 +608,7 @@ function BannerCarousel(
     const banner = banners[current];
 
     const content = <div
-        className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900"
+        className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900"
         onMouseEnter={() => {
             if (hoverRef.current) clearTimeout(hoverRef.current);
             setHovered(true);
@@ -616,13 +616,14 @@ function BannerCarousel(
         onMouseLeave={() => {
             hoverRef.current = setTimeout(() => setHovered(false), 200);
         }}>
-        {banner.image_url ? <SafeImage
-            src={banner.image_url}
-            alt={banner.title || "Banner"}
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority={current === 0} /> : null}
+        {banner.image_url ? <div className="relative w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={banner.image_url.startsWith('http') || banner.image_url.startsWith('/') ? banner.image_url : `/api/image?key=${encodeURIComponent(banner.image_url)}`}
+                alt={banner.title || "Banner"}
+                className="w-full h-auto block"
+                loading={current === 0 ? 'eager' : 'lazy'} />
+        </div> : null}
         {}
         {(banner.title || banner.subtitle) && <div
             className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />}
