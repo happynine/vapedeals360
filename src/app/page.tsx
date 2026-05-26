@@ -609,7 +609,7 @@ function BannerCarousel(
 
     const content = <div
         className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900"
-        style={{ height: '400px' }}
+        style={{ aspectRatio: '1200/343' }}
         onMouseEnter={() => {
             if (hoverRef.current) clearTimeout(hoverRef.current);
             setHovered(true);
@@ -622,7 +622,7 @@ function BannerCarousel(
             <img
                 src={banner.image_url.startsWith('http') || banner.image_url.startsWith('/') ? banner.image_url : `/api/image?key=${encodeURIComponent(banner.image_url)}`}
                 alt={banner.title || "Banner"}
-                className="w-full h-full object-cover block"
+                className="w-full h-full object-fill block"
                 loading={current === 0 ? 'eager' : 'lazy'} />
         </div> : null}
         {}
