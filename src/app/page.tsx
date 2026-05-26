@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CategoryTranslation {
     id: number;
@@ -587,6 +588,8 @@ function BannerCarousel(
     }
 ) {
     const [current, setCurrent] = useState(0);
+    const [hovered, setHovered] = useState(false);
+    const hoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (banners.length <= 1)
@@ -605,7 +608,14 @@ function BannerCarousel(
     const banner = banners[current];
 
     const content = <div
-        className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900">
+        className="relative w-full aspect-[21/6] sm:aspect-[21/5] lg:aspect-[21/4] overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900"
+        onMouseEnter={() => {
+            if (hoverRef.current) clearTimeout(hoverRef.current);
+            setHovered(true);
+        }}
+        onMouseLeave={() => {
+            hoverRef.current = setTimeout(() => setHovered(false), 200);
+        }}>
         {banner.image_url ? <SafeImage
             src={banner.image_url}
             alt={banner.title || "Banner"}
@@ -628,10 +638,25 @@ function BannerCarousel(
             </p>}
         </div>}
         {}
+        {banners.length > 1 && hovered && <>
+            <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrent(prev => (prev - 1 + banners.length) % banners.length); }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
+                aria-label="Previous">
+                <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrent(prev => (prev + 1) % banners.length); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-all"
+                aria-label="Next">
+                <ChevronRight className="w-5 h-5" />
+            </button>
+        </>}
+        {}
         {banners.length > 1 && <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {banners.map((_, idx) => <button
                 key={idx}
-                onClick={() => setCurrent(idx)}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrent(idx); }}
                 className={`h-1.5 rounded-full transition-all ${idx === current ? "w-6 bg-white" : "w-1.5 bg-white/50"}`} />)}
         </div>}
     </div>;
