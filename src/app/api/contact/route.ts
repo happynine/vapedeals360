@@ -9,8 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'All fields are required' }, { status: 400 });
   }
 
-  // Use Vercel's environment to determine if we can send email
-  // For now, we store in a contact_messages table and also try to forward via mailto link approach
+  // Store in database
   const supabase = (await import('@/storage/database/supabase-client')).getSupabaseClient();
 
   const { error } = await supabase
@@ -24,44 +23,22 @@ export async function POST(request: Request) {
     });
 
   if (error) {
-    // If table doesn't exist, create it
-    if (error.code === '42P01') {
-      // Table doesn't exist, create it via SQL
-      const createResult = await supabase.rpc('exec_sql', {
-        sql: `CREATE TABLE IF NOT EXISTS contact_messages (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          email VARCHAR(255) NOT NULL,
-          subject VARCHAR(500) NOT NULL,
-          message TEXT NOT NULL,
-          is_read BOOLEAN DEFAULT false,
-          created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-        );`
-      });
-      // Try insert again
-      const { error: error2 } = await supabase
-        .from('contact_messages')
-        .insert({ name, email, subject, message, created_at: new Date().toISOString() });
-      if (error2) {
-        return NextResponse.json({ success: false, error: error2.message }, { status: 500 });
-      }
-    } else {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    console.error('Contact message DB insert error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  // Forward to email via Resend if available, otherwise just store
+  // Send email via Resend
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (RESEND_API_KEY) {
     try {
-      await fetch('https://api.resend.com/emails', {
+      const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'VapeDeal Contact <noreply@vapedeals360.com>',
+          from: 'onboarding@resend.dev',
           to: ['funan9999@gmail.com'],
           subject: `[Contact] ${subject}`,
           html: `
@@ -76,9 +53,25 @@ export async function POST(request: Request) {
           `,
         }),
       });
-    } catch {
-      // Email send failed, but message is stored in DB
+
+      const emailResult = await emailResponse.json();
+      
+      if (!emailResponse.ok) {
+        console.error('Resend API error:', emailResponse.status, emailResult);
+        // Email failed but message is stored in DB
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Message saved, but email delivery failed. We will review it in our system.',
+          emailError: emailResult 
+        });
+      }
+
+      console.log('Email sent successfully:', emailResult);
+    } catch (err) {
+      console.error('Resend API exception:', err);
     }
+  } else {
+    console.warn('RESEND_API_KEY not configured, email not sent');
   }
 
   return NextResponse.json({ success: true, message: 'Message sent successfully' });
