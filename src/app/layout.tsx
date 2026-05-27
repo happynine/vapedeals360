@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
+import AgeVerification from '@/components/age-verification';
+import WarningBar from '@/components/warning-bar';
 
 async function getSiteLogo(): Promise<string | null> {
   try {
@@ -37,6 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <AgeVerification />
+        <WarningBar />
         {children}
       </body>
     </html>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import WarningBar from '@/components/warning-bar';
 import { SafeImage } from '@/components/safe-image';
 
 interface StoreTranslation {
@@ -203,6 +204,8 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Nicotine Warning */}
+      <WarningBar />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -503,6 +506,18 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </footer>
+      <div className="border-t border-gray-800 py-8 px-4 max-w-7xl mx-auto">
+        <div className="space-y-4 text-xs text-gray-500">
+          <div>
+            <h4 className="text-gray-400 font-semibold mb-1">FDA Disclaimer</h4>
+            <p>The products available on this website are intended for adults of legal smoking age only. These products have not been evaluated by the Food and Drug Administration. These products are not intended to diagnose, treat, cure, or prevent any disease. The FDA does not evaluate the safety or efficacy of these products. Keep out of reach of children and pets. Not for sale to minors. Not for use by women who are pregnant or breastfeeding. Not for use by persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. If you experience any side effects or possible side effects, stop using the product immediately and consult a physician.</p>
+          </div>
+          <div>
+            <h4 className="text-gray-400 font-semibold mb-1">NIXODINE Disclaimer</h4>
+            <p>Nixodine products contain nicotine, which is a highly addictive substance. Nicotine use during pregnancy can harm the fetus. Nixodine products are not smoking cessation products and have not been tested as such. Nixodine products are intended for use by adults of legal smoking age, not by minors, women who are pregnant or breastfeeding, or persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. If you experience any side effects or possible side effects, stop using the product immediately and consult a physician.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
