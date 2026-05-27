@@ -11,9 +11,6 @@ export default function AgeVerification() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('age_verified') === 'true') {
-      setIsVerified(true);
-    }
     setMounted(true);
   }, []);
 
@@ -41,7 +38,6 @@ export default function AgeVerification() {
     }
 
     if (age >= 21) {
-      localStorage.setItem('age_verified', 'true');
       setIsVerified(true);
     } else {
       setError('Sorry, you must be at least 21 years old to enter this site.');
