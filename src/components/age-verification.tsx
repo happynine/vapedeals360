@@ -1,124 +1,142 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from 'react';
 
 export default function AgeVerification() {
-  const [month, setMonth] = useState("");
-  const [day, setDay] = useState("");
-  const [year, setYear] = useState("");
-  const [error, setError] = useState("");
+  const [month, setMonth] = useState('');
+  const [day, setDay] = useState('');
+  const [year, setYear] = useState('');
+  const [error, setError] = useState('');
+  const [isVerified, setIsVerified] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  if (typeof window !== "undefined" && localStorage.getItem("age_verified") === "true") {
-    return null;
-  }
+  useEffect(() => {
+    if (localStorage.getItem('age_verified') === 'true') {
+      setIsVerified(true);
+    }
+    setMounted(true);
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    const m = parseInt(month);
-    const d = parseInt(day);
-    const y = parseInt(year);
-
-    if (!m || !d || !y || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > new Date().getFullYear()) {
-      setError("Please enter a valid date of birth.");
+  const handleVerify = () => {
+    if (!month || !day || !year) {
+      setError('Please enter your full date of birth.');
       return;
     }
 
-    const birthDate = new Date(y, m - 1, d);
+    const m = parseInt(month, 10);
+    const d = parseInt(day, 10);
+    const y = parseInt(year, 10);
+
+    if (isNaN(m) || isNaN(d) || isNaN(y) || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > new Date().getFullYear()) {
+      setError('Please enter a valid date of birth.');
+      return;
+    }
+
     const today = new Date();
+    const birthDate = new Date(y, m - 1, d);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
 
-    if (age < 21) {
-      setError("You must be 21 or older to enter this site.");
-      return;
+    if (age >= 21) {
+      localStorage.setItem('age_verified', 'true');
+      setIsVerified(true);
+    } else {
+      setError('Sorry, you must be at least 21 years old to enter this site.');
     }
-
-    localStorage.setItem("age_verified", "true");
-    window.dispatchEvent(new Event("ageVerified"));
   };
+
+  if (!mounted || isVerified) {
+    return null;
+  }
+
+  const months = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-purple-500/30 bg-[#1a1a24] p-8 text-center shadow-2xl shadow-purple-500/10">
-        {/* Logo / Title */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">
-            <span className="text-purple-500">Vape</span>Deal
-          </h1>
-          <p className="mt-2 text-sm text-gray-400">Age Verification Required</p>
-        </div>
-
-        {/* Warning */}
-        <div className="mb-6 rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-4 py-3">
-          <p className="text-sm text-yellow-400 font-medium">
-            WARNING: This product contains nicotine. Nicotine is an addictive chemical.
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-gray-700 bg-[#1a1a24] p-8">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20">
+            <svg className="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-white">Age Verification</h2>
+          <p className="mt-2 text-sm text-gray-400">
+            You must be 21 or older to enter this site. Please verify your age.
           </p>
         </div>
 
-        <p className="mb-6 text-gray-300 text-sm">
-          You must be 21 years or older to enter this website. Please enter your date of birth.
-        </p>
-
-        {/* DOB Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex gap-3">
+        <div className="mb-4">
+          <label className="mb-2 block text-sm font-medium text-gray-300">Date of Birth</label>
+          <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-xs text-gray-400 mb-1 text-left">Month</label>
-              <input
-                type="number"
-                placeholder="MM"
-                min={1}
-                max={12}
+              <select
                 value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-3 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-              />
+                onChange={(e) => { setMonth(e.target.value); setError(''); }}
+                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-2 py-2.5 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Month</option>
+                {months.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs text-gray-400 mb-1 text-left">Day</label>
+            <div className="w-20">
               <input
                 type="number"
                 placeholder="DD"
                 min={1}
                 max={31}
                 value={day}
-                onChange={(e) => setDay(e.target.value)}
-                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-3 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                onChange={(e) => { setDay(e.target.value); setError(''); }}
+                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-2 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
-            <div className="flex-1">
-              <label className="block text-xs text-gray-400 mb-1 text-left">Year</label>
+            <div className="w-24">
               <input
                 type="number"
                 placeholder="YYYY"
                 min={1900}
-                max={new Date().getFullYear()}
+                max={2026}
                 value={year}
-                onChange={(e) => setYear(e.target.value)}
-                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-3 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                onChange={(e) => { setYear(e.target.value); setError(''); }}
+                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-2 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
           </div>
+        </div>
 
-          {error && (
-            <p className="text-sm text-red-400 font-medium">{error}</p>
-          )}
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-sm text-red-400 border border-red-500/30">
+            {error}
+          </div>
+        )}
 
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-purple-600 px-4 py-3 text-white font-semibold hover:bg-purple-700 transition-colors"
-          >
-            Enter Site
-          </button>
-        </form>
+        <button
+          onClick={handleVerify}
+          className="w-full rounded-lg bg-purple-600 py-3 text-base font-semibold text-white transition-colors hover:bg-purple-700 active:bg-purple-800"
+        >
+          Verify Age
+        </button>
 
-        <p className="mt-4 text-xs text-gray-500">
-          By entering this site, you confirm that you are of legal smoking age in your jurisdiction.
+        <p className="mt-4 text-center text-xs text-gray-500">
+          By entering this site, you confirm you are of legal age to purchase tobacco products in your jurisdiction.
         </p>
       </div>
     </div>
