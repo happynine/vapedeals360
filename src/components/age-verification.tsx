@@ -94,26 +94,28 @@ export default function AgeVerification() {
               </select>
             </div>
             <div className="w-20">
-              <input
-                type="number"
-                placeholder="DD"
-                min={1}
-                max={31}
+              <select
                 value={day}
                 onChange={(e) => { setDay(e.target.value); setError(''); }}
-                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-2 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-              />
+                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-1 py-2.5 text-center text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Day</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={String(d)}>{String(d).padStart(2, '0')}</option>
+                ))}
+              </select>
             </div>
             <div className="w-24">
-              <input
-                type="number"
-                placeholder="YYYY"
-                min={1900}
-                max={2026}
+              <select
                 value={year}
                 onChange={(e) => { setYear(e.target.value); setError(''); }}
-                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-2 py-2.5 text-center text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-              />
+                className="w-full rounded-lg border border-gray-600 bg-[#0f0f13] px-1 py-2.5 text-center text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Year</option>
+                {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
