@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import WarningBar from '@/components/warning-bar';
 import { SafeImage } from '@/components/safe-image';
 
 interface StoreTranslation {
@@ -204,8 +203,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nicotine Warning */}
-      <WarningBar />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

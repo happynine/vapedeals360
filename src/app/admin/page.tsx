@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
+
+import dynamic from 'next/dynamic';
+
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="min-h-[300px] rounded-lg border border-border bg-secondary animate-pulse" /> });
 
 // Types
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
@@ -16,7 +20,7 @@ interface BannerTranslation { id: number; banner_id: number; language: string; i
 interface Banner { id: number; image_key: string | null; image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics';
+type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'privacy' | 'about';
 const LANGUAGES = ['en', 'zh'];
 
 // i18n helper
@@ -186,6 +190,10 @@ export default function AdminPage() {
     categories: { en: 'Categories', zh: '分类' },
     stores: { en: 'Stores', zh: '商城' },
     banners: { en: 'Banners', zh: 'Banner' },
+    best_vapes: { en: 'Best Vapes', zh: 'Best Vapes' },
+    news: { en: 'News', zh: '新闻' },
+    privacy: { en: 'Privacy Policy', zh: '隐私政策' },
+    about: { en: 'About Us', zh: '关于我们' },
     analytics: { en: 'Analytics', zh: '数据统计' },
   };
 
@@ -257,7 +265,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'analytics'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'privacy', 'about', 'analytics'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -268,6 +276,10 @@ export default function AdminPage() {
               {tab === 'categories' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>}
               {tab === 'stores' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>}
               {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+              {tab === 'best_vapes' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}
+              {tab === 'news' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>}
+              {tab === 'privacy' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>}
+              {tab === 'about' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
               {tab === 'analytics' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
               {t(tabLabels[tab].en, tabLabels[tab].zh, adminLang)}
             </button>
@@ -353,7 +365,11 @@ export default function AdminPage() {
                     onClick={async () => {
                       setShowSaveConfirm(true);
                     }}
-                    className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+                      editSiteName !== (adminSiteSettings?.site_name || '') || editSiteLogo !== (adminSiteSettings?.logo_url || null)
+                        ? 'bg-green-600 text-white hover:bg-green-700 ring-2 ring-green-400/50 animate-pulse'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
                   >
                     {t('Save Settings', '保存设置', adminLang)}
                   </button>
@@ -874,8 +890,385 @@ export default function AdminPage() {
               )}
             </div>
           )}
+          {/* Best Vapes Tab */}
+          {activeTab === 'best_vapes' && (
+            <ContentPagesManager type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} />
+          )}
+          {/* News Tab */}
+          {activeTab === 'news' && (
+            <ContentPagesManager type="news" title={t('News', '新闻', adminLang)} lang={adminLang} />
+          )}
+          {/* Privacy Policy Tab */}
+          {activeTab === 'privacy' && (
+            <StaticPageEditor slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} />
+          )}
+          {/* About Us Tab */}
+          {activeTab === 'about' && (
+            <StaticPageEditor slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} />
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// ============== Rich Text Editor ==============
+function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <ReactQuill
+      theme="snow"
+      value={value}
+      onChange={onChange}
+      modules={{
+        toolbar: [
+          [{ header: [1, 2, 3, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ color: [] }, { background: [] }],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['link', 'image'],
+          ['clean'],
+        ],
+      }}
+      formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'link', 'image']}
+      style={{ minHeight: '300px' }}
+    />
+  );
+}
+
+// ============== Content Pages Manager (Best Vapes / News) ==============
+function ContentPagesManager({ type, title, lang }: { type: string; title: string; lang: string }) {
+  const [pages, setPages] = useState<Array<{
+    id: number; slug: string; cover_image: string | null; sort_order: number; is_published: boolean;
+    content_page_translations: Array<{ id: number; language: string; title: string; content: string }>;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingPage, setEditingPage] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  // Form state
+  const [formSlug, setFormSlug] = useState('');
+  const [formCoverImage, setFormCoverImage] = useState<string | null>(null);
+  const [formSortOrder, setFormSortOrder] = useState(0);
+  const [formPublished, setFormPublished] = useState(true);
+  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([
+    { language: 'en', title: '', content: '' },
+    { language: 'zh', title: '', content: '' },
+  ]);
+  const [saving, setSaving] = useState(false);
+
+  const fetchPages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/content-pages?type=${type}`);
+      const json = await res.json();
+      if (json.success) setPages(json.data || []);
+    } catch (err) {
+      console.error('Failed to fetch content pages:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [type]);
+
+  useEffect(() => { fetchPages(); }, [fetchPages]);
+
+  const openEditForm = (page: typeof pages[0]) => {
+    setEditingPage(page.id);
+    setFormSlug(page.slug);
+    setFormCoverImage(page.cover_image);
+    setFormSortOrder(page.sort_order);
+    setFormPublished(page.is_published);
+
+    const translations = LANGUAGES.map(l => {
+      const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l);
+      return existing || { language: l, title: '', content: '' };
+    });
+    setFormTranslations(translations);
+    setShowForm(true);
+  };
+
+  const openNewForm = () => {
+    setEditingPage(null);
+    setFormSlug('');
+    setFormCoverImage(null);
+    setFormSortOrder(pages.length + 1);
+    setFormPublished(true);
+    setFormTranslations([
+      { language: 'en', title: '', content: '' },
+      { language: 'zh', title: '', content: '' },
+    ]);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const body = {
+        id: editingPage,
+        type,
+        slug: formSlug,
+        cover_image: formCoverImage,
+        sort_order: formSortOrder,
+        is_published: formPublished,
+        translations: formTranslations.map(t => ({
+          id: t.id,
+          language: t.language,
+          title: t.title,
+          content: t.content,
+        })),
+      };
+
+      const res = await fetch('/api/admin/content-pages', {
+        method: editingPage ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setShowForm(false);
+        fetchPages();
+      } else {
+        alert(json.error || 'Save failed');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm(t('Delete this page?', '确定删除此页面？', lang))) return;
+    try {
+      const res = await fetch('/api/admin/content-pages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (json.success) fetchPages();
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">{title}</h2>
+        <button
+          onClick={openNewForm}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          + {t('Add Page', '添加页面', lang)}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
+      ) : pages.length === 0 ? (
+        <div className="py-12 text-center text-muted-foreground">
+          {t('No pages yet. Click "Add Page" to get started.', '暂无页面。点击"添加页面"开始。', lang)}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pages.map((page) => {
+            const enTitle = page.content_page_translations?.find((t: { language: string }) => t.language === 'en')?.title || page.slug;
+            return (
+              <div key={page.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
+                    {page.cover_image ? <img src={page.cover_image.startsWith('http') ? page.cover_image : `/api/image?key=${encodeURIComponent(page.cover_image)}`} alt="" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-primary">{enTitle.charAt(0)}</span>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{enTitle}</p>
+                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Draft', '草稿', lang)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => openEditForm(page)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors">{t('Edit', '编辑', lang)}</button>
+                  <button onClick={() => handleDelete(page.id)} className="rounded-lg border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-900/30 transition-colors">{t('Delete', '删除', lang)}</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-3xl shadow-2xl relative">
+            <button onClick={() => setShowForm(false)} className="absolute top-3 left-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            <h3 className="text-lg font-bold mb-4">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h3>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Slug</label>
+                  <input value={formSlug} onChange={e => setFormSlug(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', lang)}</label>
+                  <input type="number" value={formSortOrder} onChange={e => setFormSortOrder(parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="published" checked={formPublished} onChange={e => setFormPublished(e.target.checked)} className="rounded" />
+                <label htmlFor="published" className="text-sm">{t('Published', '已发布', lang)}</label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
+                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="800x450px" label={t('Cover', '封面', lang)} lang={lang} />
+              </div>
+
+              {/* Translations */}
+              {formTranslations.map((tr, idx) => (
+                <div key={tr.language} className="border border-border rounded-xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold">{tr.language === 'en' ? 'English' : '中文'}</h4>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
+                    <input
+                      value={tr.title}
+                      onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
+                    <RichTextEditor
+                      value={tr.content}
+                      onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============== Static Page Editor (Privacy Policy / About Us) ==============
+function StaticPageEditor({ slug, title, lang }: { slug: string; title: string; lang: string }) {
+  const [pageData, setPageData] = useState<{
+    id: number;
+    slug: string;
+    static_page_translations: Array<{ id: number; language: string; content: string }>;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [translations, setTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([
+    { language: 'en', content: '' },
+    { language: 'zh', content: '' },
+  ]);
+  const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    const fetchPage = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setPageData(json.data);
+          const trans = LANGUAGES.map(l => {
+            const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            return existing || { language: l, content: '' };
+          });
+          setTranslations(trans);
+        }
+      } catch (err) {
+        console.error('Failed to fetch static page:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPage();
+  }, [slug]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/static-pages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setHasChanges(false);
+        alert(t('Saved!', '已保存!', lang));
+        // Refresh
+        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const refreshJson = await refreshRes.json();
+        if (refreshJson.success && refreshJson.data) {
+          const trans = LANGUAGES.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            return existing || { language: l, content: '' };
+          });
+          setTranslations(trans);
+        }
+      } else {
+        alert(json.error || 'Save failed');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">{title}</h2>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+            hasChanges
+              ? 'bg-green-600 text-white hover:bg-green-700 ring-2 ring-green-400/50 animate-pulse'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          } disabled:opacity-50`}
+        >
+          {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">{Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
+      ) : (
+        <div className="space-y-6">
+          {translations.map((tr, idx) => (
+            <div key={tr.language} className="border border-border rounded-xl p-4 space-y-3">
+              <h4 className="text-sm font-semibold">{tr.language === 'en' ? 'English' : '中文'}</h4>
+              <RichTextEditor
+                value={tr.content}
+                onChange={(v: string) => {
+                  const newT = [...translations];
+                  newT[idx].content = v;
+                  setTranslations(newT);
+                  setHasChanges(true);
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -243,6 +243,59 @@ export const pageViews = pgTable(
   ]
 );
 
+// Content Pages (Best Vapes / News)
+export const contentPages = pgTable("content_pages", {
+  id: serial().primaryKey(),
+  type: varchar("type", { length: 20 }).notNull(), // 'best_vapes' | 'news'
+  cover_image: text("cover_image"),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  sort_order: integer("sort_order").default(0).notNull(),
+  is_published: boolean("is_published").default(true).notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }),
+}, (table) => [
+  index("cp_type_idx").on(table.type),
+  index("cp_slug_idx").on(table.slug),
+]);
+
+export const contentPageTranslations = pgTable("content_page_translations", {
+  id: serial().primaryKey(),
+  page_id: integer("page_id").notNull(),
+  language: varchar("language", { length: 10 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  content: text("content"), // HTML content for detail page
+}, (table) => [
+  index("cpt_page_id_idx").on(table.page_id),
+]);
+
+// Static Pages (Privacy Policy / About Us)
+export const staticPages = pgTable("static_pages", {
+  id: serial().primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull(), // 'privacy-policy' | 'about-us'
+  updated_at: timestamp("updated_at", { withTimezone: true }),
+}, (table) => [
+  index("sp_slug_idx").on(table.slug),
+]);
+
+export const staticPageTranslations = pgTable("static_page_translations", {
+  id: serial().primaryKey(),
+  page_id: integer("page_id").notNull(),
+  language: varchar("language", { length: 10 }).notNull(),
+  content: text("content"), // HTML content
+}, (table) => [
+  index("spt_page_id_idx").on(table.page_id),
+]);
+
+// Content Category Descriptions (Best Vapes / News overview text)
+export const categoryDescriptions = pgTable("category_descriptions", {
+  id: serial().primaryKey(),
+  category_key: varchar("category_key", { length: 50 }).notNull(), // 'best_vapes' | 'news'
+  language: varchar("language", { length: 10 }).notNull(),
+  description: text("description"),
+}, (table) => [
+  index("cd_category_key_idx").on(table.category_key),
+]);
+
 // Click Events (analytics)
 export const clickEvents = pgTable(
   "click_events",

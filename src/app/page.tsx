@@ -150,6 +150,7 @@ export default function HomePage() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: "VapeDeal", logo_url: null });
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+    const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -225,10 +226,30 @@ export default function HomePage() {
         }).catch(() => {});
     }, []);
 
-    const filteredProducts = searchQuery ? products.filter(p => {
-        const t = getTranslation(p.translations, language);
-        return t?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    }) : products;
+    const filteredProducts = (() => {
+        let list = searchQuery ? products.filter(p => {
+            const t = getTranslation(p.translations, language);
+            return t?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+        }) : products;
+
+        if (sortBy === "price_low") {
+            list = [...list].sort((a, b) => {
+                const aPrice = getLowestPrice(a.prices);
+                const bPrice = getLowestPrice(b.prices);
+                return (aPrice ? parseFloat(aPrice.current_price) : Infinity) - (bPrice ? parseFloat(bPrice.current_price) : Infinity);
+            });
+        } else if (sortBy === "price_high") {
+            list = [...list].sort((a, b) => {
+                const aPrice = getLowestPrice(a.prices);
+                const bPrice = getLowestPrice(b.prices);
+                return (bPrice ? parseFloat(bPrice.current_price) : 0) - (aPrice ? parseFloat(aPrice.current_price) : 0);
+            });
+        } else {
+            list = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+
+        return list;
+    })();
 
     return (
         <div className="min-h-screen bg-background">
@@ -290,6 +311,20 @@ export default function HomePage() {
                 </div>
             </header>
             <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+                {/* Tab Navigation: Vape Deals / Best Vapes / News */}
+                <div className="mb-6 border-b border-border">
+                    <div className="flex items-center gap-6">
+                        <Link href="/" className="pb-3 text-sm font-semibold text-primary border-b-2 border-primary">
+                            {language === "zh" ? "Vape Deals" : "Vape Deals"}
+                        </Link>
+                        <Link href="/best-vapes" className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                            Best Vapes
+                        </Link>
+                        <Link href="/news" className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                            News
+                        </Link>
+                    </div>
+                </div>
                 {}
                 {banners.length > 0 && <div className="mb-8">
                     <div
@@ -381,8 +416,27 @@ export default function HomePage() {
                     </div>
                 </div>
                 {}
-                <div className="mb-4 text-sm text-muted-foreground">
-                    {language === "zh" ? `共 ${total} 个产品` : `${total} products found`}
+                <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="text-sm text-muted-foreground">
+                        {language === "zh" ? `共 ${total} 个产品` : `${total} products found`}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setSortBy("newest")}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            {language === "zh" ? "最新发布" : "Newest"}
+                        </button>
+                        <button
+                            onClick={() => setSortBy("price_low")}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            {language === "zh" ? "价格从低到高" : "Price: Low → High"}
+                        </button>
+                        <button
+                            onClick={() => setSortBy("price_high")}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            {language === "zh" ? "价格从高到低" : "Price: High → Low"}
+                        </button>
+                    </div>
                 </div>
                 {}
                 {loading ? <div
@@ -537,46 +591,62 @@ export default function HomePage() {
             </main>
             {}
             <footer className="border-t border-border mt-12">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                        {/* Navigation Column */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-foreground mb-4">Navigation</h4>
+                            <div className="flex flex-col gap-2">
+                                <Link href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Vape Deals</Link>
+                                <Link href="/best-vapes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Best Vapes</Link>
+                                <Link href="/news" className="text-sm text-muted-foreground hover:text-primary transition-colors">News</Link>
+                            </div>
+                        </div>
+                        {/* About Column */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-foreground mb-4">About</h4>
+                            <div className="flex flex-col gap-2">
+                                <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</Link>
+                                <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact Us</Link>
+                                <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
+                            </div>
+                        </div>
+                        {/* Contact Column */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
                                 {siteSettings.logo_url ? <img
                                     src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
                                     alt={siteSettings.site_name}
                                     className="h-7 w-7 rounded-md object-contain" /> : <div
                                     className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">{siteSettings.site_name.charAt(0)}</div>}
                                 <span className="text-sm font-semibold">{siteSettings.site_name}</span>
-                                <Link href="/contact" className="text-xs text-muted-foreground hover:text-primary transition-colors ml-2">
-                                    {language === "zh" ? "联系我们" : "Contact Us"}
-                                </Link>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {language === "zh" ? "比较电子烟价格，找到最优惠的交易" : "Compare vape prices. Find the best deals."}
-                            </p>
+                            <a href="mailto:info@vapedeals360.com" className="text-sm text-muted-foreground hover:text-primary transition-colors block mb-4">
+                                Email: info@vapedeals360.com
+                            </a>
+                            {socialLinks.length > 0 && (
+                                <div className="flex items-center gap-3">
+                                    {socialLinks.map((link: SocialLink) => (
+                                        <a
+                                            key={link.id}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-foreground transition-colors"
+                                            title={link.platform}
+                                        >
+                                            {getSocialIcon(link.platform)}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        {socialLinks.length > 0 && (
-                            <div className="flex items-center gap-3">
-                                {socialLinks.map((link: SocialLink) => (
-                                    <a
-                                        key={link.id}
-                                        href={link.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-muted-foreground hover:text-foreground transition-colors"
-                                        title={link.platform}
-                                    >
-                                        {getSocialIcon(link.platform)}
-                                    </a>
-                                ))}
-                            </div>
-                        )}
                     </div>
                 </div>
             </footer>
-            {/* FDA & NIXODINE Disclaimer */}
+            {/* FDA & NIXODINE Disclaimer - Left aligned with footer */}
             <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4">
-                <div className="max-w-5xl mx-auto space-y-6">
+                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
                     <div>
                         <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
                         <p className="text-xs text-gray-500 leading-relaxed">
