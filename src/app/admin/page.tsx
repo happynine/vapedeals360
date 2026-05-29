@@ -200,7 +200,7 @@ export default function AdminPage() {
   // Login page
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="admin-dark min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <div className="bg-card rounded-2xl border border-border p-8 shadow-xl">
             <div className="flex flex-col items-center mb-8">
@@ -250,7 +250,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="admin-dark min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 border-r border-border bg-sidebar">
         <div className="p-6">

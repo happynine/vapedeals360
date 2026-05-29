@@ -54,42 +54,75 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #0f0f13;
-  --foreground: #e5e7eb;
-  --card: #1a1a24;
-  --card-foreground: #e5e7eb;
-  --popover: #1a1a24;
-  --popover-foreground: #e5e7eb;
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
   --primary: #7c3aed;
   --primary-foreground: #ffffff;
-  --secondary: #1e1e2e;
-  --secondary-foreground: #e5e7eb;
-  --muted: #1e1e2e;
-  --muted-foreground: #9ca3af;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
   --accent: #06b6d4;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
-  --border: #2d2d3f;
-  --input: #2d2d3f;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
   --ring: #7c3aed;
   --chart-1: #7c3aed;
   --chart-2: #06b6d4;
   --chart-3: #22c55e;
   --chart-4: #f59e0b;
   --chart-5: #ef4444;
-  --sidebar: #12121a;
-  --sidebar-foreground: #e5e7eb;
+  --sidebar: #f9fafb;
+  --sidebar-foreground: #111827;
   --sidebar-primary: #7c3aed;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e1e2e;
-  --sidebar-accent-foreground: #e5e7eb;
-  --sidebar-border: #2d2d3f;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #e5e7eb;
   --sidebar-ring: #7c3aed;
 }
 
+/* Admin dark theme override */
+.admin-dark {
+  --background: #0f0f13;
+  --foreground: #e5e7eb;
+  --card: #1a1a24;
+  --card-foreground: #e5e7eb;
+  --popover: #1a1a24;
+  --popover-foreground: #e5e7eb;
+  --secondary: #1e1e2e;
+  --secondary-foreground: #e5e7eb;
+  --muted: #1e1e2e;
+  --muted-foreground: #9ca3af;
+  --border: #2d2d3f;
+  --input: #2d2d3f;
+  --sidebar: #12121a;
+  --sidebar-foreground: #e5e7eb;
+  --sidebar-accent: #1e1e2e;
+  --sidebar-accent-foreground: #e5e7eb;
+  --sidebar-border: #2d2d3f;
+  background-color: #0f0f13;
+  color: #e5e7eb;
+}
+
+.admin-dark ::-webkit-scrollbar-track {
+  background: #0f0f13;
+}
+.admin-dark ::-webkit-scrollbar-thumb {
+  background: #2d2d3f;
+}
+.admin-dark ::-webkit-scrollbar-thumb:hover {
+  background: #3d3d5f;
+}
+
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: #ffffff;
+  color: #111827;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -100,14 +133,14 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f0f13;
+  background: #f3f4f6;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2d2d3f;
+  background: #d1d5db;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3d3d5f;
+  background: #9ca3af;
 }
 
 /* Price tag pulse animation */

@@ -309,22 +309,25 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
-            </header>
-            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 bg-white flex-1">
                 {/* Tab Navigation: Vape Deals / Best Vapes / News */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-6">
-                        <Link href="/" className="pb-3 text-sm font-semibold text-purple-700">
-                            {language === "zh" ? "Vape Deals" : "Vape Deals"}
-                        </Link>
-                        <Link href="/best-vapes" className="pb-3 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-                            Best Vapes
-                        </Link>
-                        <Link href="/news" className="pb-3 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-                            News
-                        </Link>
+                <div className="border-t border-gray-800">
+                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                        <div className="flex items-center gap-6 h-12">
+                            <Link href="/" className="text-sm font-semibold text-white">
+                                {language === "zh" ? "Vape Deals" : "Vape Deals"}
+                            </Link>
+                            <Link href="/best-vapes" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                                Best Vapes
+                            </Link>
+                            <Link href="/news" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
+                                News
+                            </Link>
+                        </div>
                     </div>
                 </div>
+            </header>
+            <main className="flex-1 bg-white">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
                 {}
                 {banners.length > 0 && <div className="mb-8">
                     <div
@@ -588,6 +591,7 @@ export default function HomePage() {
                         {language === "zh" ? "下一页" : "Next"}
                     </button>
                 </div>}
+                </div>
             </main>
             {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
             <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4">
