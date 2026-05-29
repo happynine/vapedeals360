@@ -954,6 +954,7 @@ function ContentPagesManager({ type, title, lang }: { type: string; title: strin
     { language: 'en', title: '', content: '' },
     { language: 'zh', title: '', content: '' },
   ]);
+  const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [saving, setSaving] = useState(false);
 
   const fetchPages = useCallback(async () => {
@@ -1135,29 +1136,40 @@ function ContentPagesManager({ type, title, lang }: { type: string; title: strin
                 <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="800x450px" label={t('Cover', '封面', lang)} lang={lang} />
               </div>
 
-              {/* Translations */}
-              {formTranslations.map((tr, idx) => (
-                <div key={tr.language} className="border border-border rounded-xl p-4 space-y-3">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">{tr.language === 'en' ? 'English' : '中文'}
-                  <button type="button" onClick={() => { const newT = [...formTranslations]; newT[idx].language = tr.language === 'en' ? 'zh' : 'en'; setFormTranslations(newT); }} className="text-xs text-purple-400 hover:text-purple-300 border border-purple-800 rounded px-1.5 py-0.5 hover:bg-purple-900/30">{tr.language === 'en' ? '切换中文' : 'Switch to English'}</button>
-                </h4>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
-                    <input
-                      value={tr.title}
-                      onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
-                    <RichTextEditor
-                      value={tr.content}
-                      onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
-                    />
-                  </div>
+              {/* Language toggle + unified editor */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditLang('en')}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'en' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                  >English</button>
+                  <button
+                    type="button"
+                    onClick={() => setEditLang('zh')}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'zh' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                  >中文</button>
                 </div>
-              ))}
+                {formTranslations.map((tr, idx) => tr.language === editLang ? (
+                  <div key={tr.language} className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
+                      <input
+                        value={tr.title}
+                        onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
+                      <RichTextEditor
+                        value={tr.content}
+                        onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                      />
+                    </div>
+                  </div>
+                ) : null)}
+              </div>
             </div>
 
             <div className="mt-6 flex items-center justify-between">
