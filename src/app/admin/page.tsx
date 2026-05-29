@@ -923,7 +923,7 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
         toolbar: [
           [{ header: [1, 2, 3, false] }],
           ['bold', 'italic', 'underline'],
-          [{ color: [] }, { background: ['#ffffff', '#ffff00', '#00ff00', '#00ffff', '#ff6600', '#ff0000', '#ff69b4', '#9b59b6', false] }],
+          [{ color: [] }, { background: ['rgba(0,0,0,0)', '#ffffff', '#ffff00', '#00ff00', '#00ffff', '#ff6600', '#ff0000', '#ff69b4', '#9b59b6'] }],
           [{ list: 'ordered' }, { list: 'bullet' }],
           ['link', 'image'],
           ['clean'],

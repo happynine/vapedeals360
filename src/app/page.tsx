@@ -523,8 +523,8 @@ export default function HomePage() {
                 </div>
             </main>
             {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
-            <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4">
-                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+            <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
                     <div>
                         <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
                         <p className="text-xs text-gray-500 leading-relaxed">
