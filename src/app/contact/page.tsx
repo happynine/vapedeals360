@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { SiteHeader } from '@/components/site-header';
 
 interface SiteSettings {
   site_name: string;
@@ -89,44 +90,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              {siteSettings.logo_url ? (
-                <img
-                  src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
-                  alt={siteSettings.site_name}
-                  className="h-9 w-9 rounded-lg object-contain"
-                />
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-                  {siteSettings.site_name.charAt(0)}
-                </div>
-              )}
-              <span className="text-xl font-bold tracking-tight">{siteSettings.site_name}</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/contact"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              >
-                Contact Us
-              </Link>
-              {/* Language dropdown */}
-              <select
-                value={language}
-                onChange={(e) => { setLanguage(e.target.value); localStorage.setItem('vapedeal_lang', e.target.value); }}
-                className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
-              >
-                <option value="en">EN</option>
-                <option value="zh">中文</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader activeTab="" />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-2xl mx-auto">

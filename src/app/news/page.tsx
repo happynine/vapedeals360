@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
+import { SiteHeader } from '@/components/site-header';
 
 interface ContentPageItem {
   id: number;
@@ -69,24 +70,7 @@ export default function NewsPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            {siteSettings.logo_url ? (
-              <SafeImage src={siteSettings.logo_url} alt="Logo" width={40} height={40} className="rounded" />
-            ) : (
-              <span className="text-xl font-bold text-purple-700">V</span>
-            )}
-            <span className="text-lg font-semibold">{siteSettings.site_name || 'VapeDeal'}</span>
-          </Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Vape Deals</Link>
-            <Link href="/best-vapes" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Best Vapes</Link>
-            <span className="text-gray-900 font-medium text-sm border-b-2 border-purple-700 pb-1">News</span>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader activeTab="news" />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-4">News</h1>

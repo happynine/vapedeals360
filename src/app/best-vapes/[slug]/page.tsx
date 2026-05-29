@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { SafeImage } from '@/components/safe-image';
+import { SiteHeader } from '@/components/site-header';
 
 interface ContentPageDetail {
   id: number;
@@ -43,24 +44,7 @@ export default function BestVapesDetailPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            {siteSettings.logo_url ? (
-              <SafeImage src={siteSettings.logo_url} alt="Logo" width={40} height={40} className="rounded" />
-            ) : (
-              <span className="text-xl font-bold text-purple-700">V</span>
-            )}
-            <span className="text-lg font-semibold">{siteSettings.site_name || 'VapeDeal'}</span>
-          </Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Vape Deals</Link>
-            <Link href="/best-vapes" className="text-white font-medium text-sm border-b-2 border-purple-500 pb-1">Best Vapes</Link>
-            <Link href="/news" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">News</Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader activeTab="best-vapes" />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link href="/best-vapes" className="text-purple-400 hover:text-purple-300 text-sm mb-6 inline-block">

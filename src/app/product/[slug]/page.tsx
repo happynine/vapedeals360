@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { SiteHeader } from '@/components/site-header';
 import { SafeImage } from '@/components/safe-image';
 
 interface StoreTranslation {
@@ -225,38 +226,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              {siteSettings?.logo_url ? (
-                <img src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">V</div>
-              )}
-              <span className="text-xl font-bold tracking-tight text-white">{siteSettings?.site_name || 'VapeDeal'}</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <button
-                  onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#1a1a24] px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#2a2a3a] transition-all"
-                >
-                  {language === 'en' ? 'EN' : '中文'}
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-                {langDropdownOpen && (
-                  <div className="absolute right-0 mt-1 w-28 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg z-50">
-                    <button onClick={() => { setLanguage('en'); setLangDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-t-lg ${language === 'en' ? 'bg-purple-700 text-white' : 'text-gray-300 hover:bg-[#2a2a3a]'}`}>English</button>
-                    <button onClick={() => { setLanguage('zh'); setLangDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-b-lg ${language === 'zh' ? 'bg-purple-700 text-white' : 'text-gray-300 hover:bg-[#2a2a3a]'}`}>中文</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader activeTab="vape-deals" />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 bg-white flex-1">
         {/* Breadcrumb */}
