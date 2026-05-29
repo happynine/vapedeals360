@@ -1114,8 +1114,8 @@ function ContentPagesManager({ type, title, lang }: { type: string; title: strin
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 w-full max-w-3xl shadow-2xl relative">
-            <button onClick={() => setShowForm(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-3xl shadow-2xl relative">
+            <button onClick={() => setShowForm(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             <h3 className="text-lg font-bold mb-4">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h3>
 
             <div className="space-y-4">
@@ -1138,19 +1138,19 @@ function ContentPagesManager({ type, title, lang }: { type: string; title: strin
               {/* Translations */}
               {formTranslations.map((tr, idx) => (
                 <div key={tr.language} className="border border-border rounded-xl p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">{tr.language === 'en' ? 'English' : '中文'}
-                  <button type="button" onClick={() => { const newT = [...formTranslations]; newT[idx].language = tr.language === 'en' ? 'zh' : 'en'; setFormTranslations(newT); }} className="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 rounded px-1.5 py-0.5 hover:bg-purple-50">{tr.language === 'en' ? '切换中文' : 'Switch to English'}</button>
+                  <h4 className="text-sm font-semibold flex items-center gap-2">{tr.language === 'en' ? 'English' : '中文'}
+                  <button type="button" onClick={() => { const newT = [...formTranslations]; newT[idx].language = tr.language === 'en' ? 'zh' : 'en'; setFormTranslations(newT); }} className="text-xs text-purple-400 hover:text-purple-300 border border-purple-800 rounded px-1.5 py-0.5 hover:bg-purple-900/30">{tr.language === 'en' ? '切换中文' : 'Switch to English'}</button>
                 </h4>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">{t('Title', '标题', lang)}</label>
+                    <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
                     <input
                       value={tr.title}
                       onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">{t('Content', '内容', lang)}</label>
+                    <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                     <RichTextEditor
                       value={tr.content}
                       onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
@@ -1173,7 +1173,7 @@ function ContentPagesManager({ type, title, lang }: { type: string; title: strin
                 {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
               </button>
               <div className="flex gap-3">
-                <button onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">{t('Cancel', '取消', lang)}</button>
+                <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
                 <button onClick={handleSave} disabled={saving} className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
                 </button>
