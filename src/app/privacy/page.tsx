@@ -35,9 +35,10 @@ export default function PrivacyPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="" />
 
+      <main className="flex-1 bg-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
         {loading ? (
@@ -55,9 +56,10 @@ export default function PrivacyPage() {
           </div>
         )}
       </div>
+      </main>
 
       {/* Footer */}
-      <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-16">
+      <footer className="bg-[#0a0a0e] border-t border-gray-800">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div>
