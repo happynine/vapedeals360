@@ -252,10 +252,10 @@ export default function HomePage() {
     })();
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen flex flex-col">
             {}
             <header
-                className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+                className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
                         <Link href="/" className="flex items-center gap-2">
@@ -264,13 +264,13 @@ export default function HomePage() {
                                 alt={siteSettings.site_name}
                                 className="h-9 w-9 rounded-lg object-contain" /> : <div
                                 className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">{siteSettings.site_name.charAt(0)}</div>}
-                            <span className="text-xl font-bold tracking-tight">{siteSettings.site_name}</span>
+                            <span className="text-xl font-bold tracking-tight text-white">{siteSettings.site_name}</span>
                         </Link>
                         <div className="flex items-center gap-3">
                             {/* Search */}
                             <div className="relative w-48 sm:w-64">
                                 <svg
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"><path
@@ -283,24 +283,24 @@ export default function HomePage() {
                                     placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-xl border border-border bg-card pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors" />
+                                    className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors" />
                             </div>
                             {/* Language Dropdown */}
                             <div className="relative">
                                 <button
                                     onClick={() => setLangOpen(!langOpen)}
-                                    className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors">
+                                    className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#1a1a24] px-3 py-2 text-sm font-medium text-gray-300 hover:bg-[#2a2a3a] transition-colors">
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
                                     {language === "en" ? "English" : "中文"}
                                     <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </button>
                                 {langOpen && <>
                                     <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
-                                    <div className="absolute right-0 mt-2 z-50 w-36 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                                        <button onClick={() => { setLanguage("en"); setLangOpen(false); }} className={`w-full px-4 py-2.5 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-2 ${language === "en" ? "text-primary font-semibold" : "text-foreground"}`}>
+                                    <div className="absolute right-0 mt-2 z-50 w-36 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg overflow-hidden">
+                                        <button onClick={() => { setLanguage("en"); setLangOpen(false); }} className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "en" ? "text-primary font-semibold" : "text-gray-300"}`}>
                                             🇺🇸 English {language === "en" && <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                         </button>
-                                        <button onClick={() => { setLanguage("zh"); setLangOpen(false); }} className={`w-full px-4 py-2.5 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-2 ${language === "zh" ? "text-primary font-semibold" : "text-foreground"}`}>
+                                        <button onClick={() => { setLanguage("zh"); setLangOpen(false); }} className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "zh" ? "text-primary font-semibold" : "text-gray-300"}`}>
                                             🇨🇳 中文 {language === "zh" && <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                         </button>
                                     </div>
@@ -310,17 +310,17 @@ export default function HomePage() {
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 bg-white flex-1">
                 {/* Tab Navigation: Vape Deals / Best Vapes / News */}
-                <div className="mb-6 border-b border-border">
+                <div className="mb-6">
                     <div className="flex items-center gap-6">
-                        <Link href="/" className="pb-3 text-sm font-semibold text-primary border-b-2 border-primary">
+                        <Link href="/" className="pb-3 text-sm font-semibold text-purple-700">
                             {language === "zh" ? "Vape Deals" : "Vape Deals"}
                         </Link>
-                        <Link href="/best-vapes" className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <Link href="/best-vapes" className="pb-3 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
                             Best Vapes
                         </Link>
-                        <Link href="/news" className="pb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <Link href="/news" className="pb-3 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
                             News
                         </Link>
                     </div>
@@ -328,7 +328,7 @@ export default function HomePage() {
                 {}
                 {banners.length > 0 && <div className="mb-8">
                     <div
-                        className="relative overflow-hidden rounded-2xl border border-border bg-card">
+                        className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
                         <BannerCarousel banners={banners} language={language} />
                     </div>
                 </div>}
@@ -336,7 +336,7 @@ export default function HomePage() {
                 {featuredProducts.length > 0 && page === 1 && !selectedCategory && !searchQuery && <div className="mb-8">
                     <div className="flex items-center gap-2 mb-4">
                         <span
-                            className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive animate-pulse-deal">
+                            className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 animate-pulse-deal">
                             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path
                                     d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" /></svg>
                             {language === "zh" ? "今日特价" : "HOT DEALS"}
@@ -356,13 +356,13 @@ export default function HomePage() {
                                 <Link
                                     key={product.id}
                                     href={`/product/${product.slug}`}
-                                    className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 card-glow">
+                                    className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md hover:border-purple-300 transition-all">
                                     {discount && <div
-                                        className="absolute top-3 right-3 z-10 rounded-lg bg-destructive px-2 py-0.5 text-xs font-bold text-white">-{discount}%
+                                        className="absolute top-3 right-3 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white">-{discount}%
                                                               </div>}
                                     <div className="flex gap-4">
                                         <div
-                                            className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-secondary">
+                                            className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
                                             {product.image_url && <SafeImage
                                                 src={product.image_url}
                                                 alt={t?.name || ""}
@@ -372,12 +372,12 @@ export default function HomePage() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3
-                                                className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">{t?.name}</h3>
+                                                className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors">{t?.name}</h3>
                                             <div className="mt-2 flex items-baseline gap-2">
-                                                <span className="text-xl font-bold text-green-400 tabular-nums">${lowest?.current_price || "—"}</span>
-                                                {highestOrig && <span className="text-sm text-muted-foreground line-through tabular-nums">${highestOrig}</span>}
+                                                <span className="text-xl font-bold text-emerald-600 tabular-nums">${lowest?.current_price || "—"}</span>
+                                                {highestOrig && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>}
                                             </div>
-                                            <p className="mt-1 text-xs text-muted-foreground">
+                                            <p className="mt-1 text-xs text-gray-500">
                                                 {product.prices.length} {language === "zh" ? "家商城比价" : "stores compared"}
                                             </p>
                                         </div>
@@ -395,7 +395,7 @@ export default function HomePage() {
                                 setSelectedCategory(null);
                                 setPage(1);
                             }}
-                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${selectedCategory === null ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${selectedCategory === null ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}>
                             {language === "zh" ? "全部" : "All"}
                         </button>
                         {categories.map(cat => {
@@ -408,7 +408,7 @@ export default function HomePage() {
                                         setSelectedCategory(cat.id);
                                         setPage(1);
                                     }}
-                                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${selectedCategory === cat.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${selectedCategory === cat.id ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200"}`}>
                                     {cat.icon} {ct?.name}
                                 </button>
                             );
@@ -417,23 +417,23 @@ export default function HomePage() {
                 </div>
                 {}
                 <div className="mb-4 flex items-center justify-between gap-4">
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-gray-500">
                         {language === "zh" ? `共 ${total} 个产品` : `${total} products found`}
                     </div>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setSortBy("newest")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "最新发布" : "Newest"}
                         </button>
                         <button
                             onClick={() => setSortBy("price_low")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从低到高" : "Price: Low → High"}
                         </button>
                         <button
                             onClick={() => setSortBy("price_high")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从高到低" : "Price: High → Low"}
                         </button>
                     </div>
@@ -445,18 +445,18 @@ export default function HomePage() {
                         length: 8
                     }).map((_, i) => <div
                         key={i}
-                        className="rounded-2xl border border-border bg-card p-4 animate-pulse">
-                        <div className="h-48 w-full rounded-xl bg-secondary" />
-                        <div className="mt-4 h-4 w-3/4 rounded bg-secondary" />
-                        <div className="mt-2 h-6 w-1/2 rounded bg-secondary" />
+                        className="rounded-2xl border border-gray-200 bg-white p-4 animate-pulse">
+                        <div className="h-48 w-full rounded-xl bg-gray-100" />
+                        <div className="mt-4 h-4 w-3/4 rounded bg-gray-100" />
+                        <div className="mt-2 h-6 w-1/2 rounded bg-gray-100" />
                         <div className="mt-3 space-y-2">
-                            <div className="h-8 w-full rounded bg-secondary" />
-                            <div className="h-8 w-full rounded bg-secondary" />
+                            <div className="h-8 w-full rounded bg-gray-100" />
+                            <div className="h-8 w-full rounded bg-gray-100" />
                         </div>
                     </div>)}
                 </div> : filteredProducts.length === 0 ? <div className="flex flex-col items-center justify-center py-20 text-center">
                     <svg
-                        className="h-16 w-16 text-muted-foreground/30"
+                        className="h-16 w-16 text-gray-300"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"><path
@@ -464,7 +464,7 @@ export default function HomePage() {
                             strokeLinejoin="round"
                             strokeWidth={1}
                             d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                    <p className="mt-4 text-lg text-muted-foreground">{language === "zh" ? "暂无产品" : "No products found"}</p>
+                    <p className="mt-4 text-lg text-gray-400">{language === "zh" ? "暂无产品" : "No products found"}</p>
                 </div> : <div
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
@@ -481,14 +481,14 @@ export default function HomePage() {
                         return (
                             <div
                                 key={product.id}
-                                className="group rounded-2xl border border-border bg-card overflow-hidden card-glow animate-fade-in-up"
+                                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-purple-300 transition-all animate-fade-in-up"
                                 style={{
                                     animationDelay: `${idx * 50}ms`
                                 }}>
                                 {}
                                 <Link
                                     href={`/product/${product.slug}`}
-                                    className="block relative aspect-square bg-secondary overflow-hidden"
+                                    className="block relative aspect-square bg-gray-50 overflow-hidden"
                                     onClick={() => {
                                         const sid = sessionStorage.getItem("vp_session_id") || "";
                                         fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "product_click", session_id: sid, product_id: product.id }) }).catch(() => {});
@@ -500,10 +500,10 @@ export default function HomePage() {
                                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" />}
                                     {discount && <div
-                                        className="absolute top-2 left-2 z-10 rounded-lg bg-destructive px-2 py-0.5 text-xs font-bold text-white animate-pulse-deal">-{discount}%
+                                        className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white animate-pulse-deal">-{discount}%
                                                               </div>}
                                     {product.is_featured && <div
-                                        className="absolute top-2 right-2 z-10 rounded-lg bg-primary/90 px-2 py-0.5 text-xs font-semibold text-white">
+                                        className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-2 py-0.5 text-xs font-semibold text-white">
                                         {language === "zh" ? "精选" : "Featured"}
                                     </div>}
                                 </Link>
@@ -511,15 +511,15 @@ export default function HomePage() {
                                 <div className="p-4">
                                     <Link href={`/product/${product.slug}`}>
                                         <h3
-                                            className="text-sm font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors leading-snug">
+                                            className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
                                             {t?.name}
                                         </h3>
                                     </Link>
                                     {}
                                     <div className="mt-2 flex items-baseline gap-2">
-                                        <span className="text-2xl font-bold text-green-400 tabular-nums">${lowest?.current_price || "—"}
+                                        <span className="text-2xl font-bold text-emerald-600 tabular-nums">${lowest?.current_price || "—"}
                                         </span>
-                                        {highestOrig && <span className="text-sm text-muted-foreground line-through tabular-nums">${highestOrig}
+                                        {highestOrig && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}
                                         </span>}
                                     </div>
                                     {}
@@ -530,19 +530,19 @@ export default function HomePage() {
                                             return (
                                                 <div
                                                     key={price.id}
-                                                    className="flex items-center justify-between gap-2 rounded-lg bg-secondary/50 px-2.5 py-1.5">
+                                                    className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5">
                                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                                         <div
-                                                            className="h-5 w-5 flex-shrink-0 rounded bg-accent/20 flex items-center justify-center overflow-hidden">
+                                                            className="h-5 w-5 flex-shrink-0 rounded bg-purple-50 flex items-center justify-center overflow-hidden">
                                                             {price.store?.logo_url ? <img
                                                                 src={price.store.logo_url.startsWith("http") ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`}
                                                                 alt=""
-                                                                className="w-full h-full object-contain" /> : <span className="text-[10px] font-bold text-accent">{st?.name?.charAt(0) || "?"}</span>}
+                                                                className="w-full h-full object-contain" /> : <span className="text-[10px] font-bold text-purple-600">{st?.name?.charAt(0) || "?"}</span>}
                                                         </div>
-                                                        <span className="text-xs text-muted-foreground truncate">{st?.name || "Store"}</span>
+                                                        <span className="text-xs text-gray-500 truncate">{st?.name || "Store"}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                                        <span className="text-xs font-semibold text-green-400 tabular-nums">${price.current_price}</span>
+                                                        <span className="text-xs font-semibold text-emerald-600 tabular-nums">${price.current_price}</span>
                                                         <a
                                                             href={price.product_url}
                                                             target="_blank"
@@ -552,7 +552,7 @@ export default function HomePage() {
                                                                 const sid = sessionStorage.getItem("vp_session_id") || "";
                                                                 fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "buy_click", session_id: sid, product_id: price.product_id, store_id: price.store_id }) }).catch(() => {});
                                                             }}
-                                                            className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-all">
+                                                            className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-700 hover:text-white transition-all">
                                                             {language === "zh" ? "购买" : "Buy"}
                                                         </a>
                                                     </div>
@@ -561,7 +561,7 @@ export default function HomePage() {
                                         })}
                                         {sortedPrices.length > 3 && <Link
                                             href={`/product/${product.slug}`}
-                                            className="block text-center text-xs text-primary hover:underline py-1">
+                                            className="block text-center text-xs text-purple-700 hover:underline py-1">
                                             {language === "zh" ? `查看全部 ${sortedPrices.length} 家商城` : `View all ${sortedPrices.length} stores`}
                                         </Link>}
                                     </div>
@@ -575,76 +575,21 @@ export default function HomePage() {
                     <button
                         onClick={() => setPage(Math.max(1, page - 1))}
                         disabled={page === 1}
-                        className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         {language === "zh" ? "上一页" : "Previous"}
                     </button>
-                    <span className="px-4 py-2 text-sm text-muted-foreground">
+                    <span className="px-4 py-2 text-sm text-gray-500">
                         {page}/ {totalPages}
                     </span>
                     <button
                         onClick={() => setPage(Math.min(totalPages, page + 1))}
                         disabled={page === totalPages}
-                        className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         {language === "zh" ? "下一页" : "Next"}
                     </button>
                 </div>}
             </main>
-            {}
-            <footer className="border-t border-border mt-12">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                        {/* Navigation Column */}
-                        <div>
-                            <h4 className="text-sm font-semibold text-foreground mb-4">Navigation</h4>
-                            <div className="flex flex-col gap-2">
-                                <Link href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">Vape Deals</Link>
-                                <Link href="/best-vapes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Best Vapes</Link>
-                                <Link href="/news" className="text-sm text-muted-foreground hover:text-primary transition-colors">News</Link>
-                            </div>
-                        </div>
-                        {/* About Column */}
-                        <div>
-                            <h4 className="text-sm font-semibold text-foreground mb-4">About</h4>
-                            <div className="flex flex-col gap-2">
-                                <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</Link>
-                                <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact Us</Link>
-                                <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
-                            </div>
-                        </div>
-                        {/* Contact Column */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                {siteSettings.logo_url ? <img
-                                    src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
-                                    alt={siteSettings.site_name}
-                                    className="h-7 w-7 rounded-md object-contain" /> : <div
-                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">{siteSettings.site_name.charAt(0)}</div>}
-                                <span className="text-sm font-semibold">{siteSettings.site_name}</span>
-                            </div>
-                            <a href="mailto:info@vapedeals360.com" className="text-sm text-muted-foreground hover:text-primary transition-colors block mb-4">
-                                Email: info@vapedeals360.com
-                            </a>
-                            {socialLinks.length > 0 && (
-                                <div className="flex items-center gap-3">
-                                    {socialLinks.map((link: SocialLink) => (
-                                        <a
-                                            key={link.id}
-                                            href={link.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-muted-foreground hover:text-foreground transition-colors"
-                                            title={link.platform}
-                                        >
-                                            {getSocialIcon(link.platform)}
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </footer>
-            {/* FDA & NIXODINE Disclaimer - Left aligned with footer */}
+            {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
             <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
                     <div>
@@ -661,6 +606,61 @@ export default function HomePage() {
                     </div>
                 </div>
             </div>
+            {/* Footer */}
+            <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-0">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                        {/* Navigation Column */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>
+                            <div className="flex flex-col gap-2">
+                                <Link href="/" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Vape Deals</Link>
+                                <Link href="/best-vapes" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Best Vapes</Link>
+                                <Link href="/news" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">News</Link>
+                            </div>
+                        </div>
+                        {/* About Column */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-300 mb-4">About</h4>
+                            <div className="flex flex-col gap-2">
+                                <Link href="/about" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">About Us</Link>
+                                <Link href="/contact" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Contact Us</Link>
+                                <Link href="/privacy" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Privacy Policy</Link>
+                            </div>
+                        </div>
+                        {/* Contact Column */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                {siteSettings.logo_url ? <img
+                                    src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
+                                    alt={siteSettings.site_name}
+                                    className="h-7 w-7 rounded-md object-contain" /> : <div
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{siteSettings.site_name.charAt(0)}</div>}
+                                <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name}</span>
+                            </div>
+                            <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">
+                                Email: info@vapedeals360.com
+                            </a>
+                            {socialLinks.length > 0 && (
+                                <div className="flex items-center gap-3">
+                                    {socialLinks.map((link: SocialLink) => (
+                                        <a
+                                            key={link.id}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-gray-500 hover:text-gray-300 transition-colors"
+                                            title={link.platform}
+                                        >
+                                            {getSocialIcon(link.platform)}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 }

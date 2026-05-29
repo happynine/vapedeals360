@@ -88,9 +88,9 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export default function ContactPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/contact"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
               >
                 Contact Us
               </Link>
@@ -118,7 +118,7 @@ export default function ContactPage() {
               <select
                 value={language}
                 onChange={(e) => { setLanguage(e.target.value); localStorage.setItem('vapedeal_lang', e.target.value); }}
-                className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm"
+                className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm"
               >
                 <option value="en">EN</option>
                 <option value="zh">中文</option>
@@ -131,11 +131,11 @@ export default function ContactPage() {
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-2xl mx-auto">
           {/* Contact Card */}
-          <div className="bg-card rounded-2xl border border-border p-8 shadow-lg">
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
             <h1 className="text-3xl font-bold mb-2">
               {language === 'zh' ? '联系我们' : 'Contact Us'}
             </h1>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-gray-500 mb-8">
               {language === 'zh'
                 ? '有任何问题或建议？请填写以下表单，我们会尽快回复您。'
                 : 'Have a question or feedback? Fill out the form below and we\'ll get back to you as soon as possible.'}
@@ -151,7 +151,7 @@ export default function ContactPage() {
                 <h3 className="text-lg font-semibold mb-2">
                   {language === 'zh' ? '消息已发送！' : 'Message Sent!'}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-500">
                   {language === 'zh' ? '感谢您的来信，我们会尽快回复。' : 'Thank you for reaching out. We\'ll get back to you shortly.'}
                 </p>
                 <button
@@ -172,7 +172,7 @@ export default function ContactPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder={language === 'zh' ? '您的姓名' : 'Your name'}
                   />
                 </div>
@@ -185,7 +185,7 @@ export default function ContactPage() {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder={language === 'zh' ? 'your@email.com' : 'your@email.com'}
                   />
                 </div>
@@ -198,7 +198,7 @@ export default function ContactPage() {
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder={language === 'zh' ? '消息主题' : 'What is this about?'}
                   />
                 </div>
@@ -211,7 +211,7 @@ export default function ContactPage() {
                     rows={5}
                     value={formData.message}
                     onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                     placeholder={language === 'zh' ? '请输入您的消息...' : 'Tell us what you need...'}
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function ContactPage() {
           <div className="mt-8 text-center">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               {language === 'zh' ? '返回首页' : 'Back to All Deals'}
@@ -245,11 +245,27 @@ export default function ContactPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+      <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>
+              <div className="flex flex-col gap-2">
+                <Link href="/" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Vape Deals</Link>
+                <Link href="/best-vapes" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Best Vapes</Link>
+                <Link href="/news" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">News</Link>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-300 mb-4">About</h4>
+              <div className="flex flex-col gap-2">
+                <Link href="/about" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">About Us</Link>
+                <Link href="/contact" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Contact Us</Link>
+                <Link href="/privacy" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Privacy Policy</Link>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
                 {siteSettings.logo_url ? (
                   <img
                     src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
@@ -257,35 +273,33 @@ export default function ContactPage() {
                     className="h-7 w-7 rounded-md object-contain"
                   />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
-                    {siteSettings.site_name.charAt(0)}
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">
+                    {(siteSettings.site_name || 'V').charAt(0)}
                   </div>
                 )}
-                <span className="text-sm font-semibold">{siteSettings.site_name}</span>
+                <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || 'VapeDeal'}</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {language === 'zh' ? '比较电子烟价格，找到最优惠的交易' : 'Compare vape prices. Find the best deals.'}
-              </p>
+              <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
+              {socialLinks.length > 0 && (
+                <div className="flex items-center gap-3">
+                  {socialLinks.map((link) => {
+                    const iconData = getSocialIcon(link.platform);
+                    return (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-500 hover:text-gray-300 transition-colors"
+                        title={link.platform}
+                      >
+                        {iconData.svg}
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            {socialLinks.length > 0 && (
-              <div className="flex items-center gap-3">
-                {socialLinks.map((link) => {
-                  const iconData = getSocialIcon(link.platform);
-                  return (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/50 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all"
-                      title={link.platform}
-                    >
-                      {iconData.svg}
-                    </a>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </footer>

@@ -68,82 +68,98 @@ export default function NewsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0f0f13] text-[#e5e7eb]">
+    <div className="min-h-screen bg-white text-gray-900">
       {/* Header */}
-      <header className="border-b border-white/10">
+      <header className="border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             {siteSettings.logo_url ? (
               <SafeImage src={siteSettings.logo_url} alt="Logo" width={40} height={40} className="rounded" />
             ) : (
-              <span className="text-xl font-bold text-purple-500">V</span>
+              <span className="text-xl font-bold text-purple-700">V</span>
             )}
             <span className="text-lg font-semibold">{siteSettings.site_name || 'VapeDeal'}</span>
           </Link>
           <nav className="flex items-center gap-6">
-            <Link href="/" className="text-gray-400 hover:text-white transition-colors text-sm">Vape Deals</Link>
-            <Link href="/best-vapes" className="text-gray-400 hover:text-white transition-colors text-sm">Best Vapes</Link>
-            <span className="text-white font-medium text-sm border-b-2 border-purple-500 pb-1">News</span>
+            <Link href="/" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Vape Deals</Link>
+            <Link href="/best-vapes" className="text-gray-500 hover:text-gray-900 transition-colors text-sm">Best Vapes</Link>
+            <span className="text-gray-900 font-medium text-sm border-b-2 border-purple-700 pb-1">News</span>
           </nav>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-4">News</h1>
-        {description && <p className="text-gray-400 mb-8 max-w-3xl">{description}</p>}
+        {description && <p className="text-gray-500 mb-8 max-w-3xl">{description}</p>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pages.map((page) => (
             <Link
               key={page.id}
               href={`/news/${page.slug}`}
-              className="group block bg-[#1a1a24] rounded-xl overflow-hidden border border-white/5 hover:border-purple-500/50 transition-all"
+              className="group block bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-purple-300 transition-all"
             >
-              <div className="aspect-video bg-[#0f0f13] relative overflow-hidden">
+              <div className="aspect-video bg-white relative overflow-hidden">
                 {page.cover_image ? (
                   <SafeImage src={page.cover_image} alt={page.title} fill className="object-cover group-hover:scale-105 transition-transform" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-600">
+                  <div className="w-full h-full flex items-center justify-center text-gray-300">
                     <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
                   </div>
                 )}
               </div>
               <div className="p-5">
-                <h2 className="text-lg font-semibold group-hover:text-purple-400 transition-colors">{page.title || page.slug}</h2>
+                <h2 className="text-lg font-semibold group-hover:text-purple-700 transition-colors">{page.title || page.slug}</h2>
               </div>
             </Link>
           ))}
         </div>
 
         {pages.length === 0 && (
-          <div className="text-center text-gray-500 py-20">
+          <div className="text-center text-gray-400 py-20">
             <p>No news yet. Stay tuned!</p>
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 mt-16 py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {siteSettings.logo_url ? (
-                <SafeImage src={siteSettings.logo_url} alt="Logo" width={24} height={24} className="rounded" />
-              ) : (
-                <span className="text-sm font-bold text-purple-500">V</span>
-              )}
-              <span className="text-sm font-semibold">{siteSettings.site_name || 'VapeDeal'}</span>
-              <Link href="/contact" className="text-xs text-gray-400 hover:text-purple-400 ml-2 transition-colors">Contact Us</Link>
-            </div>
-            <div className="flex items-center gap-3">
-              {socialLinks.filter(l => l.is_active).sort((a, b) => a.sort_order - b.sort_order).map(link => (
-                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors">
-                  {getSocialIcon(link.platform)}
-                </a>
-              ))}
-            </div>
+      <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                  <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>
+                      <div className="flex flex-col gap-2">
+                          <Link href="/" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Vape Deals</Link>
+                          <Link href="/best-vapes" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Best Vapes</Link>
+                          <Link href="/news" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">News</Link>
+                      </div>
+                  </div>
+                  <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-4">About</h4>
+                      <div className="flex flex-col gap-2">
+                          <Link href="/about" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">About Us</Link>
+                          <Link href="/contact" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Contact Us</Link>
+                          <Link href="/privacy" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Privacy Policy</Link>
+                      </div>
+                  </div>
+                  <div>
+                      <div className="flex items-center gap-2 mb-3">
+                          {siteSettings.logo_url ? <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-7 w-7 rounded-md object-contain" /> : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{(siteSettings.site_name || 'V').charAt(0)}</div>}
+                          <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || 'VapeDeal'}</span>
+                      </div>
+                      <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
+                      {socialLinks.length > 0 && (
+                          <div className="flex items-center gap-3">
+                              {socialLinks.filter(l => l.is_active).sort((a, b) => a.sort_order - b.sort_order).map(link => (
+                                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-300 transition-colors" title={link.platform}>
+                                      {getSocialIcon(link.platform)}
+                                  </a>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              </div>
           </div>
-        </div>
       </footer>
     </div>
   );
