@@ -13,18 +13,23 @@ export async function GET(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
-  const { data: page, error } = await supabase
+  const { data: pages, error } = await supabase
     .from('static_pages')
     .select('*, static_page_translations(*)')
-    .eq('slug', slug)
-    .eq('static_page_translations.language', language)
-    .single();
+    .eq('slug', slug);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const translation = Array.isArray(page.static_page_translations) ? page.static_page_translations[0] : page.static_page_translations;
+  if (!pages || pages.length === 0) {
+    return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+  }
+
+  const page = pages[0];
+  const translation = (page.static_page_translations || []).find(
+    (t: { language: string }) => t.language === language
+  );
 
   return NextResponse.json({
     success: true,

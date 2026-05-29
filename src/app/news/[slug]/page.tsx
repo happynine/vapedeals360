@@ -47,7 +47,7 @@ export default function NewsDetailPage() {
       <SiteHeader activeTab="news" />
 
       <main className="flex-1 bg-white">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link href="/news" className="text-purple-400 hover:text-purple-300 text-sm mb-6 inline-block">
           &larr; Back to News
         </Link>

@@ -11,11 +11,12 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseClient();
 
   if (slug) {
-    // Get single content page detail
+    // Get single content page detail (only published)
     const { data: page, error: pageError } = await supabase
       .from('content_pages')
       .select('*, content_page_translations(*)')
       .eq('slug', slug)
+      .eq('is_published', true)
       .eq('content_page_translations.language', language)
       .single();
 

@@ -43,29 +43,23 @@ export default function BestVapesPage() {
   const [description, setDescription] = useState('');
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const lang = localStorage.getItem('language') || 'en';
 
-    fetch(`/api/content-pages?type=best_vapes&language=${lang}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          setPages(d.data);
-          setDescription(d.description || '');
-        }
-      })
-      .catch(() => {});
-
-    fetch('/api/site-settings')
-      .then(r => r.json())
-      .then(d => { if (d.success) setSiteSettings(d.data); })
-      .catch(() => {});
-
-    fetch('/api/social-links')
-      .then(r => r.json())
-      .then(d => { if (d.success) setSocialLinks(d.data); })
-      .catch(() => {});
+    Promise.all([
+      fetch(`/api/content-pages?type=best_vapes&language=${lang}`).then(r => r.json()),
+      fetch('/api/site-settings').then(r => r.json()),
+      fetch('/api/social-links').then(r => r.json()),
+    ]).then(([contentData, settingsData, socialData]) => {
+      if (contentData.success) {
+        setPages(contentData.data);
+        setDescription(contentData.description || '');
+      }
+      if (settingsData.success) setSiteSettings(settingsData.data);
+      if (socialData.success) setSocialLinks(socialData.data);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   return (
@@ -73,7 +67,22 @@ export default function BestVapesPage() {
       <SiteHeader activeTab="best-vapes" />
 
       <main className="flex-1 bg-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      {loading ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-[40vh]">
+          {siteSettings.logo_url ? (
+            <img src={siteSettings.logo_url} alt="Logo" className="h-12 mb-4 animate-pulse" />
+          ) : (
+            <div className="h-12 w-12 rounded-full bg-purple-100 animate-pulse mb-4" />
+          )}
+          <p className="text-gray-400 text-sm animate-pulse">{siteSettings.site_name || 'Loading...'}</p>
+          <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1,2,3].map(i => (
+              <div key={i} className="h-48 rounded-xl bg-gray-100 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-4">Best Vapes</h1>
         {description && <p className="text-gray-500 mb-8 max-w-3xl">{description}</p>}
 
@@ -106,6 +115,7 @@ export default function BestVapesPage() {
           </div>
         )}
       </div>
+      )}
       </main>
 
       {/* Footer */}
