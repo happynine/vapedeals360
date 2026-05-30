@@ -1821,6 +1821,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const [savedTranslations, setSavedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<string>('');
+  const [publishSuccess, setPublishSuccess] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
@@ -1856,7 +1857,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({
     save: async () => {
-      await handleAutoSave();
+      await handleManualSave();
     },
     publish: async () => {
       await handlePublish();
@@ -1892,7 +1893,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     fetchPage();
   }, [slug]);
 
-  // Auto-save: save draft content without publishing
+  // Auto-save: save draft content without publishing (called by timer)
   const handleAutoSave = async () => {
     setSaving(true);
     try {
@@ -1907,10 +1908,6 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       const json = await res.json();
       if (json.success) {
         setHasChanges(false);
-        setSavedTranslations(translations);
-        const now = new Date();
-        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setLastAutoSave(timeStr);
         // Refresh data
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
@@ -1933,6 +1930,46 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     }
   };
 
+  // Manual save: save draft + show save time
+  const handleManualSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/static-pages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setHasChanges(false);
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setLastAutoSave(timeStr);
+        // Refresh data
+        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const refreshJson = await refreshRes.json();
+        if (refreshJson.success && refreshJson.data) {
+          setPageData(refreshJson.data);
+          const trans = LANGUAGES.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
+            }
+            return { language: l, content: '' };
+          });
+          setSavedTranslations(trans);
+        }
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Publish: copy draft_content → content, set is_published = true
   const handlePublish = async () => {
     // Auto-save first to ensure draft is saved
@@ -1947,7 +1984,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       const json = await res.json();
       if (json.success) {
         setHasChanges(false);
-        alert(t('Published successfully!', '发布成功!', lang));
+        setPublishSuccess(true);
+        setTimeout(() => setPublishSuccess(false), 3000);
         // Refresh data
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
@@ -1981,21 +2019,39 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         <h2 className="text-2xl font-bold">{title}</h2>
         <div className="flex items-center gap-3">
           {lastAutoSave && (
-            <span className="text-sm text-gray-500">{t('Auto-saved', '自动保存', lang)} {lastAutoSave}</span>
+            <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastAutoSave}</span>
           )}
           {saving && (
-            <span className="text-sm text-gray-500">{t('Saving...', '保存中...', lang)}</span>
+            <span className="text-xs text-gray-500">{t('Saving...', '保存中...', lang)}</span>
+          )}
+          {publishSuccess && (
+            <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
           )}
           <button
             onClick={handlePublish}
-            disabled={publishing}
-            className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+            disabled={publishing || publishSuccess}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               publishing
                 ? 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
+                : publishSuccess
+                  ? 'bg-purple-600/50 text-white cursor-not-allowed'
+                  : !hasChanges
+                    ? 'bg-purple-600/50 text-white cursor-default'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
           >
             {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
+          </button>
+          <button
+            onClick={handleManualSave}
+            disabled={saving || !hasChanges || publishSuccess}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
+              (!hasChanges || publishSuccess)
+                ? 'bg-purple-700/50 cursor-not-allowed'
+                : 'bg-purple-700 hover:bg-purple-600'
+            }`}
+          >
+            {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
           </button>
         </div>
       </div>
