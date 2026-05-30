@@ -1283,7 +1283,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                     : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
-              {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
+              {t('Publish', '发布', lang)}
             </button>
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
             <button
@@ -1392,7 +1392,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   </div>
                   <div>
                     <p className="text-sm font-medium">{enTitle}</p>
-                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Draft', '草稿', lang)}</p>
+                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Unpublished', '未发布', lang)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1400,9 +1400,9 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                     onClick={async () => {
                       await handleTogglePublish(page.id, page.is_published);
                     }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-purple-800 text-purple-400 hover:bg-purple-900/30' : 'border-purple-800 text-purple-400 hover:bg-purple-900/30'}`}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-purple-800 text-purple-400 hover:bg-purple-900/30 opacity-50 cursor-not-allowed' : 'border-purple-800 text-purple-400 hover:bg-purple-900/30'}`}
                   >
-                    {page.is_published ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
+                    {t('Publish', '发布', lang)}
                   </button>
                   <button onClick={() => openEditForm(page)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors">{t('Edit', '编辑', lang)}</button>
                   <button onClick={() => handleDelete(page.id)} className="rounded-lg border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-900/30 transition-colors">{t('Delete', '删除', lang)}</button>
@@ -1487,7 +1487,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                         : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
-                  {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
+                  {t('Publish', '发布', lang)}
                 </button>
                 {lastSavedTime && (
                   <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
