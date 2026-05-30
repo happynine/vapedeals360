@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface ContentPageDetail {
   id: number;
@@ -25,12 +26,11 @@ export default function BestVapesDetailPage() {
   const slug = params?.slug as string;
   const [page, setPage] = useState<ContentPageDetail | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
+  const { language } = useLanguage();
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-
     if (slug) {
-      fetch(`/api/content-pages?slug=${slug}&language=${lang}`)
+      fetch(`/api/content-pages?slug=${slug}&language=${language}`)
         .then(r => r.json())
         .then(d => { if (d.success) setPage(d.data); })
         .catch(() => {});
@@ -40,7 +40,7 @@ export default function BestVapesDetailPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setSiteSettings(d.data); })
       .catch(() => {});
-  }, [slug]);
+  }, [slug, language]);
 
   return (
     <div className="min-h-screen flex flex-col">

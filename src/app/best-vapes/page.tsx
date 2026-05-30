@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface ContentPageItem {
   id: number;
@@ -44,12 +45,12 @@ export default function BestVapesPage() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const { language } = useLanguage();
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-
+    setLoading(true);
     Promise.all([
-      fetch(`/api/content-pages?type=best_vapes&language=${lang}`).then(r => r.json()),
+      fetch(`/api/content-pages?type=best_vapes&language=${language}`).then(r => r.json()),
       fetch('/api/site-settings').then(r => r.json()),
       fetch('/api/social-links').then(r => r.json()),
     ]).then(([contentData, settingsData, socialData]) => {
@@ -60,7 +61,7 @@ export default function BestVapesPage() {
       if (settingsData.success) setSiteSettings(settingsData.data);
       if (socialData.success) setSocialLinks(socialData.data);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface SiteSettings {
   site_name: string;
@@ -17,14 +17,14 @@ interface StaticPageData {
 }
 
 export default function AboutPage() {
+  const { language } = useLanguage();
   const [content, setContent] = useState('');
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-
-    fetch(`/api/static-pages?slug=about-us&language=${lang}`)
+    setLoading(true);
+    fetch(`/api/static-pages?slug=about-us&language=${language}`)
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
@@ -38,7 +38,7 @@ export default function AboutPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setSiteSettings(d.data); })
       .catch(() => {});
-  }, []);
+  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">

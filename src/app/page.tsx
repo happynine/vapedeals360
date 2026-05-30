@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { SiteHeader } from "@/components/site-header";
@@ -140,8 +141,7 @@ export default function HomePage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-    const [language, setLanguage] = useState<string>("en");
-    const [langOpen, setLangOpen] = useState(false);
+    const { language } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);

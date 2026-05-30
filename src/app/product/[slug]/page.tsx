@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { SafeImage } from '@/components/safe-image';
+import { useLanguage } from '@/hooks/use-language';
 
 interface StoreTranslation {
   id: number;
@@ -95,13 +96,12 @@ function getSocialIcon(platform: string) {
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { language } = useLanguage();
   const [product, setProduct] = useState<Product | null>(null);
-  const [language, setLanguage] = useState<string>('en');
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [socialLinks, setSocialLinks] = useState<Array<{ id: number; platform: string; url: string; icon: string | null }>>([]);
-  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/site-settings').then(r => r.json()).then(d => { if (d.success) setSiteSettings(d.data); }).catch(() => {});

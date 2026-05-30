@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface SiteSettings {
   site_name: string;
@@ -11,14 +11,14 @@ interface SiteSettings {
 }
 
 export default function PrivacyPage() {
+  const { language } = useLanguage();
   const [content, setContent] = useState('');
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-
-    fetch(`/api/static-pages?slug=privacy-policy&language=${lang}`)
+    setLoading(true);
+    fetch(`/api/static-pages?slug=privacy-policy&language=${language}`)
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setSiteSettings(d.data); })
       .catch(() => {});
-  }, []);
+  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">

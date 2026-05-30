@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
+import { useLanguage } from '@/hooks/use-language';
 
 interface SiteSettings {
   site_name: string;
@@ -15,24 +16,19 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: 'VapeDeal', logo_url: '' });
-  const [language, setLanguage] = useState('en');
+  const { language, setLanguage } = useLanguage();
   const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-    setLanguage(lang);
-
     fetch('/api/site-settings')
       .then(r => r.json())
       .then(d => { if (d.success) setSiteSettings(d.data); })
       .catch(() => {});
   }, []);
 
-  const handleLanguageChange = (lang: string) => {
+  const handleLanguageChange = (lang: 'en' | 'zh') => {
     setLanguage(lang);
-    localStorage.setItem('language', lang);
     setLangOpen(false);
-    window.dispatchEvent(new Event('language-change'));
   };
 
   return (

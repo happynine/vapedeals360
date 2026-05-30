@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface SiteSettings {
   site_name: string;
@@ -17,18 +18,13 @@ interface SocialLink {
 }
 
 export default function ContactPage() {
-  const [language, setLanguage] = useState('en');
+  const { language } = useLanguage();
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: 'VapeDeal', logo_url: null });
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('vapedeal_lang');
-    if (saved) setLanguage(saved);
-  }, []);
 
   const fetchSettings = useCallback(async () => {
     try {

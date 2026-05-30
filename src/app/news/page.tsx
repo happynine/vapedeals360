@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { useLanguage } from '@/hooks/use-language';
 
 interface ContentPageItem {
   id: number;
@@ -39,6 +40,7 @@ function getSocialIcon(platform: string) {
 }
 
 export default function NewsPage() {
+  const { language } = useLanguage();
   const [pages, setPages] = useState<ContentPageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [description, setDescription] = useState('');
@@ -46,9 +48,8 @@ export default function NewsPage() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   useEffect(() => {
-    const lang = localStorage.getItem('language') || 'en';
-
-    fetch(`/api/content-pages?type=news&language=${lang}`)
+    setLoading(true);
+    fetch(`/api/content-pages?type=news&language=${language}`)
       .then(r => r.json())
       .then(d => {
         if (d.success) {
@@ -59,7 +60,7 @@ export default function NewsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
 
-    fetch('/api/site-settings')
+    fetch(`/api/site-settings?language=${language}`)
       .then(r => r.json())
       .then(d => { if (d.success) setSiteSettings(d.data); })
       .catch(() => {});
@@ -68,7 +69,7 @@ export default function NewsPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setSocialLinks(d.data); })
       .catch(() => {});
-  }, []);
+  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">
