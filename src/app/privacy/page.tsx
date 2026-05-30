@@ -47,7 +47,7 @@ export default function PrivacyPage() {
           </div>
         ) : content ? (
           <div
-            className="prose max-w-none prose-headings:text-gray-900 prose-a:text-purple-700 prose-img:rounded-lg"
+            className="rich-text-content"
             dangerouslySetInnerHTML={{ __html: content }}
           />
         ) : (

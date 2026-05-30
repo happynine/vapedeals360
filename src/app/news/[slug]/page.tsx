@@ -61,7 +61,7 @@ export default function NewsDetailPage() {
               )}
               <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
               <div
-                className="prose max-w-none prose-headings:text-gray-900 prose-a:text-purple-700 prose-img:rounded-lg"
+                className="rich-text-content"
                 dangerouslySetInnerHTML={{ __html: page.content || '' }}
               />
             </>
