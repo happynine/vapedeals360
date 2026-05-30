@@ -152,52 +152,75 @@
   padding: 4px;
 }
 
-/* Quill color picker - transparent/no-color swatch with diagonal line */
-.ql-snow .ql-picker-options .ql-color-item[data-value="transparent"],
-.ql-snow .ql-picker-options .ql-bg-item[data-value="transparent"] {
-  position: relative;
-}
-.ql-snow .ql-picker-options span[data-value="transparent"]::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
-  background: linear-gradient(to top right, transparent calc(50% - 1px), #e53e3e calc(50% - 1px), #e53e3e calc(50% + 1px), transparent calc(50% + 1px));
-  pointer-events: none;
+/* ===== Quill Color Picker Customization ===== */
+
+/* Color picker dropdown container - set width for 8 columns */
+.ql-snow .ql-color-picker .ql-picker-options {
+  width: auto !important;
+  min-width: 232px !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 2px !important;
 }
 
-/* Quill color picker - nicer swatch styling, force 8 columns */
-.ql-snow .ql-picker-options .ql-color-item,
-.ql-snow .ql-picker-options .ql-bg-item {
-  border-radius: 3px;
-  border: 1px solid #e5e7eb;
-  width: 24px !important;
-  height: 24px !important;
-}
-
-/* Force color picker grid to 8 columns */
-.ql-snow .ql-picker-options .ql-color-item,
-.ql-snow .ql-picker-options .ql-bg-item,
-.ql-snow .ql-picker-options span[class*="ql-color-item"],
-.ql-snow .ql-picker-options span[class*="ql-bg-item"] {
+/* Each color swatch item */
+.ql-snow .ql-color-picker .ql-picker-item {
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
+  border-radius: 3px !important;
+  border: 1px solid #d1d5db !important;
   display: inline-block !important;
-  width: 24px !important;
-  margin: 1px !important;
+  flex-shrink: 0;
 }
 
-/* Color picker container width for 8 columns */
-.ql-snow .ql-picker.ql-color .ql-picker-options,
-.ql-snow .ql-picker.ql-background .ql-picker-options {
-  width: 224px !important;
-  padding: 6px !important;
+/* Force 8 items per row using nth-child */
+.ql-snow .ql-color-picker .ql-picker-item:nth-child(8n+1) {
+  margin-left: 0 !important;
 }
 
-/* Quill color picker item hover */
-.ql-snow .ql-picker-options span:hover {
-  border-color: #7c3aed;
-  outline: 1px solid #7c3aed;
+/* Color swatch hover */
+.ql-snow .ql-color-picker .ql-picker-item:hover {
+  border-color: #7c3aed !important;
+  outline: 2px solid #7c3aed !important;
+  outline-offset: -1px;
+}
+
+/* Selected color swatch */
+.ql-snow .ql-color-picker .ql-picker-item.ql-selected {
+  border-color: #7c3aed !important;
+  outline: 2px solid #7c3aed !important;
+  outline-offset: -1px;
+}
+
+/* Transparent/no-color swatch - white bg with diagonal red slash */
+.ql-snow .ql-color-picker .ql-picker-item[data-value="transparent"] {
+  position: relative !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+.ql-snow .ql-color-picker .ql-picker-item[data-value="transparent"]::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 1px !important;
+  left: 1px !important;
+  right: 1px !important;
+  bottom: 1px !important;
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.5px),
+    #ef4444 calc(50% - 0.5px),
+    #ef4444 calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  ) !important;
+  pointer-events: none !important;
+}
+
+/* Override Quill's default selected border color for color picker */
+.ql-toolbar.ql-snow .ql-color-picker .ql-picker-item.ql-selected,
+.ql-toolbar.ql-snow .ql-color-picker .ql-picker-item:hover {
+  border-color: #7c3aed !important;
 }
 
 body {
