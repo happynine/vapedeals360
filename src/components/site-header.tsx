@@ -28,8 +28,14 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [desktopSearchQuery, setDesktopSearchQuery] = useState('');
+  const [desktopSearchResults, setDesktopSearchResults] = useState<SearchResult[]>([]);
+  const [desktopSearchLoading, setDesktopSearchLoading] = useState(false);
+  const [desktopSearchFocused, setDesktopSearchFocused] = useState(false);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
 
   const displayName = siteSettings?.site_name || '';
@@ -50,11 +56,14 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setSearchResults([]);
   }, [pathname]);
 
-  // Cleanup debounce timer
+  // Cleanup debounce timers
   useEffect(() => {
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
+      }
+      if (desktopDebounceRef.current) {
+        clearTimeout(desktopDebounceRef.current);
       }
     };
   }, []);
@@ -120,7 +129,71 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setSearchQuery('');
     setSearchResults([]);
     setMobileSearchOpen(false);
+    setDesktopSearchQuery('');
+    setDesktopSearchResults([]);
+    setDesktopSearchFocused(false);
   };
+
+  // Desktop search with debounce
+  const handleDesktopSearch = useCallback((query: string) => {
+    setDesktopSearchQuery(query);
+    if (desktopDebounceRef.current) {
+      clearTimeout(desktopDebounceRef.current);
+    }
+    if (!query.trim()) {
+      setDesktopSearchResults([]);
+      setDesktopSearchLoading(false);
+      return;
+    }
+    setDesktopSearchLoading(true);
+    desktopDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?language=${language}&limit=10`);
+        const json = await res.json();
+        if (json.success) {
+          const q = query.toLowerCase();
+          const filtered = (json.data.products || []).filter((p: Record<string, unknown>) => {
+            const translations = p.product_translations as Record<string, unknown>[] | undefined;
+            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
+            return (t?.name as string)?.toLowerCase().includes(q);
+          }).slice(0, 8).map((p: Record<string, unknown>) => {
+            const translations = p.product_translations as Record<string, unknown>[];
+            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
+            const prices = (p.product_prices as Record<string, unknown>[]) || [];
+            const lowestPrice = prices.length > 0
+              ? prices.reduce((min: Record<string, unknown>, pr: Record<string, unknown>) => {
+                  const curr = parseFloat(pr.current_price as string);
+                  return curr < parseFloat(min.current_price as string) ? pr : min;
+                }, prices[0])
+              : null;
+            return {
+              slug: p.slug as string,
+              name: (t?.name as string) || '',
+              image_url: p.image_url as string | null,
+              price: lowestPrice ? (lowestPrice.current_price as string) : null,
+              original_price: lowestPrice?.original_price ? (lowestPrice.original_price as string) : null,
+            };
+          });
+          setDesktopSearchResults(filtered);
+        }
+      } catch {
+        setDesktopSearchResults([]);
+      } finally {
+        setDesktopSearchLoading(false);
+      }
+    }, 300);
+  }, [language]);
+
+  // Close desktop search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (desktopSearchRef.current && !desktopSearchRef.current.contains(e.target as Node)) {
+        setDesktopSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navItems = [
     { href: '/', label: 'Vape Deals', tab: 'vape-deals' },
@@ -151,22 +224,80 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             </Link>
             <div className="flex items-center gap-3">
               {/* Search */}
-              <form action="/" method="get" className="relative w-48 sm:w-64">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  name="q"
-                  placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
-                  className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
-                />
-              </form>
+              <div className="relative w-48 sm:w-64">
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={desktopSearchQuery}
+                    onChange={(e) => handleDesktopSearch(e.target.value)}
+                    onFocus={() => { if (desktopSearchQuery.trim()) handleDesktopSearch(desktopSearchQuery); }}
+                    placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
+                    className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-8 py-2 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
+                  />
+                  {desktopSearchQuery && (
+                    <button
+                      onClick={() => { handleDesktopSearch(''); setDesktopSearchResults([]); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {/* Desktop Search Results Dropdown */}
+                {desktopSearchFocused && desktopSearchQuery.trim() && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a24] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto">
+                    {desktopSearchLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <svg className="animate-spin h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="ml-2 text-sm text-gray-400">{language === "zh" ? "搜索中..." : "Searching..."}</span>
+                      </div>
+                    ) : desktopSearchResults.length > 0 ? (
+                      desktopSearchResults.map((product) => (
+                        <Link
+                          key={product.slug}
+                          href={`/product/${product.slug}`}
+                          onClick={() => { setDesktopSearchFocused(false); setDesktopSearchQuery(''); }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3a] transition-colors border-b border-gray-800 last:border-b-0"
+                        >
+                          <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-800 overflow-hidden">
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">No img</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">{product.name}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {product.price && <span className="text-sm font-semibold text-emerald-500">${product.price}</span>}
+                              {product.original_price && product.original_price !== product.price && (
+                                <span className="text-xs text-gray-500 line-through">${product.original_price}</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="px-4 py-6 text-center text-sm text-gray-400">
+                        {language === "zh" ? "未找到相关产品" : "No products found"}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               {/* Language Dropdown */}
               <div className="relative">
                 <button
