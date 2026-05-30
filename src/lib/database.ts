@@ -226,6 +226,7 @@ export function getStoreName(price: ProductPrice, language: string = 'en'): stri
 export interface Banner {
   id: number;
   image_key: string | null;
+  mobile_image_key: string | null;
   link_url: string | null;
   sort_order: number;
   is_active: boolean;
@@ -239,6 +240,7 @@ export interface BannerTranslation {
   banner_id: number;
   language: string;
   image_key: string | null;
+  mobile_image_key: string | null;
   title: string | null;
   subtitle: string | null;
 }

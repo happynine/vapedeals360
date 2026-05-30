@@ -20,8 +20,8 @@ interface StoreTranslation { id: number; store_id: number; language: string; nam
 interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; is_active: boolean; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
-interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
-interface Banner { id: number; image_key: string | null; image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
+interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; mobile_image_key: string | null; title: string | null; subtitle: string | null; }
+interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'privacy' | 'about';
@@ -2057,15 +2057,17 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
   const [sortOrder, setSortOrder] = useState(banner?.sort_order || 0);
   const [isActive, setIsActive] = useState(banner?.is_active !== false);
   const [defaultImageKey, setDefaultImageKey] = useState(banner?.image_key || '');
-  const [translations, setTranslations] = useState<{ language: string; image_key: string; title: string; subtitle: string }[]>(
+  const [defaultMobileImageKey, setDefaultMobileImageKey] = useState(banner?.mobile_image_key || '');
+  const [translations, setTranslations] = useState<{ language: string; image_key: string; mobile_image_key: string; title: string; subtitle: string }[]>(
     banner?.banner_translations?.map((tr) => ({
       language: tr.language,
       image_key: tr.image_key || '',
+      mobile_image_key: tr.mobile_image_key || '',
       title: tr.title || '',
       subtitle: tr.subtitle || '',
     })) || [
-      { language: 'en', image_key: '', title: '', subtitle: '' },
-      { language: 'zh', image_key: '', title: '', subtitle: '' },
+      { language: 'en', image_key: '', mobile_image_key: '', title: '', subtitle: '' },
+      { language: 'zh', image_key: '', mobile_image_key: '', title: '', subtitle: '' },
     ]
   );
   const [saving, setSaving] = useState(false);
@@ -2079,12 +2081,14 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
       const body = {
         id: banner?.id,
         image_key: defaultImageKey || null,
+        mobile_image_key: defaultMobileImageKey || null,
         link_url: linkUrl || null,
         sort_order: sortOrder,
         is_active: isActive,
         translations: translations.map((tr) => ({
           language: tr.language,
           image_key: tr.image_key || null,
+          mobile_image_key: tr.mobile_image_key || null,
           title: tr.title || null,
           subtitle: tr.subtitle || null,
         })),
@@ -2108,13 +2112,23 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
             <button onClick={() => setOpen(false)} className="absolute top-4 left-4 text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             <h2 className="text-lg font-bold mb-4 pl-8">{isEdit ? t('Edit Banner', '编辑 Banner', lang) : t('Add Banner', '添加 Banner', lang)}</h2>
             <div className="space-y-4">
-              {/* Default Banner Image Upload */}
+              {/* Default Banner Image Upload (Web) */}
               <ImageUpload
                 value={defaultImageKey}
                 onUploadComplete={setDefaultImageKey}
                 aspectRatio={21 / 6}
                 suggestedSize="1200x343px"
-                label={t('Default Banner Image (fallback if no language-specific image)', '默认 Banner 图片（无语言专属图时使用）', lang)}
+                label={t('Web Banner Image (fallback if no language-specific image)', 'Web 端 Banner 图片（无语言专属图时使用）', lang)}
+                folder="banners"
+              />
+
+              {/* Default Mobile Banner Image Upload */}
+              <ImageUpload
+                value={defaultMobileImageKey}
+                onUploadComplete={setDefaultMobileImageKey}
+                aspectRatio={3 / 4}
+                suggestedSize="750x1000px"
+                label={t('Mobile Banner Image (fallback if no language-specific image)', '移动端 Banner 图片（无语言专属图时使用）', lang)}
                 folder="banners"
               />
 
@@ -2153,7 +2167,15 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                       onUploadComplete={(key) => { const newT = [...translations]; newT[idx].image_key = key; setTranslations(newT); }}
                       aspectRatio={21 / 6}
                       suggestedSize="1200x343px"
-                      label={t('Banner Image', 'Banner 图片', lang)}
+                      label={t('Web Banner Image', 'Web 端 Banner 图片', lang)}
+                      folder="banners"
+                    />
+                    <ImageUpload
+                      value={tr.mobile_image_key}
+                      onUploadComplete={(key) => { const newT = [...translations]; newT[idx].mobile_image_key = key; setTranslations(newT); }}
+                      aspectRatio={3 / 4}
+                      suggestedSize="750x1000px"
+                      label={t('Mobile Banner Image', '移动端 Banner 图片', lang)}
                       folder="banners"
                     />
                     <div className="mt-2 space-y-2">
@@ -2168,7 +2190,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                     </div>
                   </div>
                 ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', image_key: '', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
+                <button onClick={() => setTranslations([...translations, { language: 'en', image_key: '', mobile_image_key: '', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
                   + {t('Add Language Banner', '添加语言 Banner', lang)}
                 </button>
               </div>

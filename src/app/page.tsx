@@ -105,6 +105,7 @@ function getHighestOriginal(prices: ProductPrice[]): string | null {
 interface Banner {
     id: number;
     image_url: string | null;
+    mobile_image_url: string | null;
     link_url: string | null;
     title: string | null;
     subtitle: string | null;
@@ -622,6 +623,7 @@ function BannerCarousel(
         return null;
 
     const banner = banners[current];
+    const mobileImgUrl = banner.mobile_image_url;
 
     const content = <div
         className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 sm:aspect-[1200/343]"
@@ -633,11 +635,17 @@ function BannerCarousel(
             hoverRef.current = setTimeout(() => setHovered(false), 200);
         }}>
         {banner.image_url ? <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* Mobile banner image */}
+            {mobileImgUrl && <img
+                src={mobileImgUrl.startsWith('http') || mobileImgUrl.startsWith('/') ? mobileImgUrl : `/api/image?key=${encodeURIComponent(mobileImgUrl)}`}
+                alt={banner.title || "Banner"}
+                className="w-full h-auto block sm:hidden"
+                loading={current === 0 ? 'eager' : 'lazy'} />}
+            {/* Web banner image */}
             <img
                 src={banner.image_url.startsWith('http') || banner.image_url.startsWith('/') ? banner.image_url : `/api/image?key=${encodeURIComponent(banner.image_url)}`}
                 alt={banner.title || "Banner"}
-                className="w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill"
+                className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${mobileImgUrl ? 'hidden sm:block sm:absolute' : ''}`}
                 loading={current === 0 ? 'eager' : 'lazy'} />
         </div> : null}
         {}

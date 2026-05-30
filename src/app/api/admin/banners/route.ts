@@ -24,17 +24,21 @@ export async function GET() {
         const translationsWithUrls = await Promise.all(
           translations.map(async (t) => {
             const imgKey = t.image_key as string | null;
+            const mobileImgKey = t.mobile_image_key as string | null;
             const imageUrl = await getPresignedUrl(imgKey);
-            return { ...t, image_url: imageUrl };
+            const mobileImageUrl = await getPresignedUrl(mobileImgKey);
+            return { ...t, image_url: imageUrl, mobile_image_url: mobileImageUrl };
           })
         );
 
         const defaultImageUrl = await getPresignedUrl(banner.image_key as string | null);
+        const defaultMobileImageUrl = await getPresignedUrl(banner.mobile_image_key as string | null);
 
         return {
           ...banner,
           banner_translations: translationsWithUrls,
           image_url: defaultImageUrl,
+          mobile_image_url: defaultMobileImageUrl,
         };
       })
     );
@@ -51,12 +55,13 @@ export async function POST(request: NextRequest) {
   try {
     const client = getClient();
     const body = await request.json();
-    const { image_key, link_url, sort_order, is_active, translations } = body;
+    const { image_key, mobile_image_key, link_url, sort_order, is_active, translations } = body;
 
     const { data, error } = await client
       .from('banners')
       .insert({
         image_key: image_key || null,
+        mobile_image_key: mobile_image_key || null,
         link_url: link_url || null,
         sort_order: sort_order || 0,
         is_active: is_active !== false,
@@ -70,10 +75,11 @@ export async function POST(request: NextRequest) {
 
     // Insert translations
     if (translations && Array.isArray(translations) && translations.length > 0) {
-      const translationRecords = translations.map((t: { language: string; image_key?: string; title?: string; subtitle?: string }) => ({
+      const translationRecords = translations.map((t: { language: string; image_key?: string; mobile_image_key?: string; title?: string; subtitle?: string }) => ({
         banner_id: banner.id,
         language: t.language,
         image_key: t.image_key || null,
+        mobile_image_key: t.mobile_image_key || null,
         title: t.title || null,
         subtitle: t.subtitle || null,
       }));
@@ -94,7 +100,7 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getClient();
     const body = await request.json();
-    const { id, image_key, link_url, sort_order, is_active, translations } = body;
+    const { id, image_key, mobile_image_key, link_url, sort_order, is_active, translations } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Banner ID is required' }, { status: 400 });
@@ -102,6 +108,7 @@ export async function PUT(request: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (image_key !== undefined) updateData.image_key = image_key || null;
+    if (mobile_image_key !== undefined) updateData.mobile_image_key = mobile_image_key || null;
     if (link_url !== undefined) updateData.link_url = link_url || null;
     if (sort_order !== undefined) updateData.sort_order = sort_order;
     if (is_active !== undefined) updateData.is_active = is_active;
@@ -115,10 +122,11 @@ export async function PUT(request: NextRequest) {
       await client.from('banner_translations').delete().eq('banner_id', id);
 
       if (translations.length > 0) {
-        const translationRecords = translations.map((t: { language: string; image_key?: string; title?: string; subtitle?: string }) => ({
+        const translationRecords = translations.map((t: { language: string; image_key?: string; mobile_image_key?: string; title?: string; subtitle?: string }) => ({
           banner_id: id,
           language: t.language,
           image_key: t.image_key || null,
+          mobile_image_key: t.mobile_image_key || null,
           title: t.title || null,
           subtitle: t.subtitle || null,
         }));

@@ -125,7 +125,8 @@ export const banners = pgTable(
   "banners",
   {
     id: serial().primaryKey(),
-    image_key: text("image_key"), // S3 object key for the banner image
+    image_key: text("image_key"), // S3 object key for the banner image (web)
+    mobile_image_key: text("mobile_image_key"), // S3 object key for mobile banner image
     link_url: text("link_url"), // optional click-through URL
     sort_order: integer("sort_order").default(0).notNull(),
     is_active: boolean("is_active").default(true).notNull(),
@@ -145,7 +146,8 @@ export const bannerTranslations = pgTable(
     id: serial().primaryKey(),
     banner_id: integer("banner_id").notNull().references(() => banners.id, { onDelete: "cascade" }),
     language: varchar("language", { length: 10 }).notNull(),
-    image_key: text("image_key"), // language-specific banner image key
+    image_key: text("image_key"), // language-specific banner image key (web)
+    mobile_image_key: text("mobile_image_key"), // language-specific mobile banner image key
     title: varchar("title", { length: 255 }),
     subtitle: varchar("subtitle", { length: 500 }),
   },
