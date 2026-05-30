@@ -1435,22 +1435,20 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   handleSave();
                 }
               }}
-              disabled={publishSuccess}
+              disabled={formPublished && !hasUnsavedChanges}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                publishSuccess
-                  ? 'bg-purple-600/50 text-white cursor-not-allowed'
-                  : !hasUnsavedChanges
-                    ? 'bg-purple-600/50 text-white cursor-default'
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                (formPublished && !hasUnsavedChanges)
+                  ? 'bg-purple-600/50 text-white cursor-default'
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
               {t('Publish', '发布', lang)}
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !hasUnsavedChanges || publishSuccess}
+              disabled={saving || !hasUnsavedChanges}
               className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-                (!hasUnsavedChanges || publishSuccess)
+                !hasUnsavedChanges
                   ? 'bg-purple-700/50 cursor-not-allowed'
                   : 'bg-purple-700 hover:bg-purple-600'
               }`}
@@ -1706,13 +1704,11 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                       handleSave();
                     }
                   }}
-                  disabled={publishSuccess}
+                  disabled={formPublished && !hasUnsavedChanges}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                    publishSuccess
-                      ? 'bg-purple-600/50 text-white cursor-not-allowed'
-                      : !hasUnsavedChanges
-                        ? 'bg-purple-600/50 text-white cursor-default'
-                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                    (formPublished && !hasUnsavedChanges)
+                      ? 'bg-purple-600/50 text-white cursor-default'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
                   {t('Publish', '发布', lang)}
@@ -1727,9 +1723,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
               <div className="flex gap-3">
                 <button
                   onClick={handleSave}
-                  disabled={saving || !hasUnsavedChanges || publishSuccess}
+                  disabled={saving || !hasUnsavedChanges}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-                    (!hasUnsavedChanges || publishSuccess)
+                    !hasUnsavedChanges
                       ? 'bg-purple-700/50 cursor-not-allowed'
                       : 'bg-purple-700 hover:bg-purple-600'
                   }`}
@@ -1817,10 +1813,13 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  // hasDraftNotPublished: true when draft_content differs from published content
+  const [hasDraftNotPublished, setHasDraftNotPublished] = useState(false);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [savedTranslations, setSavedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
+  const [publishedTranslations, setPublishedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [lastAutoSave, setLastAutoSave] = useState<string>('');
+  const [lastSaveTime, setLastSaveTime] = useState<string>('');
   const [publishSuccess, setPublishSuccess] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1834,7 +1833,12 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       ts.map(t => ({ ...t, content: normalizeQuillHtml(t.content) }));
     const changed = JSON.stringify(normalizeTs(translations)) !== JSON.stringify(normalizeTs(savedTranslations));
     if (changed !== hasChanges) setHasChanges(changed);
-  }, [translations, savedTranslations, dataLoaded]);
+    // Check if draft differs from published content
+    if (publishedTranslations) {
+      const draftDiffers = JSON.stringify(normalizeTs(translations)) !== JSON.stringify(normalizeTs(publishedTranslations));
+      if (draftDiffers !== hasDraftNotPublished) setHasDraftNotPublished(draftDiffers);
+    }
+  }, [translations, savedTranslations, publishedTranslations, dataLoaded]);
 
   // Auto-save: when hasChanges becomes true, start a 3-second debounce timer
   useEffect(() => {
@@ -1848,10 +1852,10 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [hasChanges, translations]);
 
-  // Notify parent about unsaved changes
+  // Notify parent about unsaved/unpublished changes
   useEffect(() => {
-    onUnsavedChange?.(hasChanges);
-  }, [hasChanges]);
+    onUnsavedChange?.(hasDraftNotPublished || hasChanges);
+  }, [hasDraftNotPublished, hasChanges]);
 
   // Expose save and publish methods to parent via ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1882,6 +1886,15 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
           });
           setTranslations(trans);
           setSavedTranslations(trans);
+          // Save published content snapshot for publish detection
+          const publishedTrans = LANGUAGES.map(l => {
+            const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.content || '' };
+            }
+            return { language: l, content: '' };
+          });
+          setPublishedTranslations(publishedTrans);
           setDataLoaded(true);
         }
       } catch (err) {
@@ -1921,6 +1934,15 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             return { language: l, content: '' };
           });
           setSavedTranslations(trans);
+          // Update published snapshot (shouldn't change on auto-save, but keep in sync)
+          const pubTrans = LANGUAGES.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.content || '' };
+            }
+            return { language: l, content: '' };
+          });
+          setPublishedTranslations(pubTrans);
         }
       }
     } catch (err) {
@@ -1947,7 +1969,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         setHasChanges(false);
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setLastAutoSave(timeStr);
+        setLastSaveTime(timeStr);
         // Refresh data
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
@@ -1961,6 +1983,14 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             return { language: l, content: '' };
           });
           setSavedTranslations(trans);
+          const pubTrans = LANGUAGES.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.content || '' };
+            }
+            return { language: l, content: '' };
+          });
+          setPublishedTranslations(pubTrans);
         }
       }
     } catch (err) {
@@ -1984,6 +2014,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       const json = await res.json();
       if (json.success) {
         setHasChanges(false);
+        setHasDraftNotPublished(false);
         setPublishSuccess(true);
         setTimeout(() => setPublishSuccess(false), 3000);
         // Refresh data
@@ -2000,6 +2031,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
           });
           setTranslations(trans);
           setSavedTranslations(trans);
+          // After publish, draft === published, so publishedTranslations = current translations
+          setPublishedTranslations(trans);
         }
       } else {
         alert(json.error || 'Publish failed');
@@ -2018,8 +2051,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">{title}</h2>
         <div className="flex items-center gap-3">
-          {lastAutoSave && (
-            <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastAutoSave}</span>
+          {lastSaveTime && (
+            <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSaveTime}</span>
           )}
           {saving && (
             <span className="text-xs text-gray-500">{t('Saving...', '保存中...', lang)}</span>
@@ -2029,24 +2062,22 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
           )}
           <button
             onClick={handlePublish}
-            disabled={publishing || publishSuccess}
+            disabled={publishing || !hasDraftNotPublished}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               publishing
                 ? 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
-                : publishSuccess
-                  ? 'bg-purple-600/50 text-white cursor-not-allowed'
-                  : !hasChanges
-                    ? 'bg-purple-600/50 text-white cursor-default'
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                : !hasDraftNotPublished
+                  ? 'bg-purple-600/50 text-white cursor-default'
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
           >
             {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
           </button>
           <button
             onClick={handleManualSave}
-            disabled={saving || !hasChanges || publishSuccess}
+            disabled={saving || !hasChanges}
             className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-              (!hasChanges || publishSuccess)
+              !hasChanges
                 ? 'bg-purple-700/50 cursor-not-allowed'
                 : 'bg-purple-700 hover:bg-purple-600'
             }`}
