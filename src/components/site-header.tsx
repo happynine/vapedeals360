@@ -309,6 +309,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 <Link
                   key={item.tab}
                   href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-5 py-3.5 text-base font-semibold transition-colors ${
                     activeTab === item.tab
                       ? 'text-white bg-[#1a1a24] border-l-4 border-purple-500'
@@ -318,6 +319,28 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   {item.label}
                 </Link>
               ))}
+              <div className="my-2 mx-5 border-t border-gray-800" />
+              <Link
+                href="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
+              >
+                {language === "zh" ? "关于我们" : "About Us"}
+              </Link>
+              <Link
+                href="/contact"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
+              >
+                {language === "zh" ? "联系我们" : "Contact Us"}
+              </Link>
+              <Link
+                href="/privacy"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
+              >
+                {language === "zh" ? "隐私政策" : "Privacy Policy"}
+              </Link>
             </nav>
           </div>
         </>

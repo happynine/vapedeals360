@@ -539,8 +539,8 @@ export default function HomePage() {
             <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-0">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                        {/* Navigation Column */}
-                        <div>
+                        {/* Navigation Column - hidden on mobile (available in hamburger menu) */}
+                        <div className="hidden sm:block">
                             <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>
                             <div className="flex flex-col gap-2">
                                 <Link href="/" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Vape Deals</Link>
@@ -548,8 +548,8 @@ export default function HomePage() {
                                 <Link href="/news" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">News</Link>
                             </div>
                         </div>
-                        {/* About Column */}
-                        <div>
+                        {/* About Column - hidden on mobile (available in hamburger menu) */}
+                        <div className="hidden sm:block">
                             <h4 className="text-sm font-semibold text-gray-300 mb-4">About</h4>
                             <div className="flex flex-col gap-2">
                                 <Link href="/about" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">About Us</Link>
