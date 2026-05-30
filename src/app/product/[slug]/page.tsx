@@ -338,8 +338,8 @@ export default function ProductDetailPage() {
             {language === 'zh' ? '价格对比' : 'Price Comparison'}
           </h2>
           <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-            {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            {/* Table Header - hidden on mobile, shown on md+ */}
+            <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <div className="col-span-4">{language === 'zh' ? '商城' : 'Store'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '现价' : 'Price'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '原价' : 'Original'}</div>
@@ -355,63 +355,123 @@ export default function ProductDetailPage() {
               return (
                 <div
                   key={price.id}
-                  className={`grid grid-cols-12 gap-4 px-5 py-4 items-center border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? 'bg-emerald-50/50' : ''}`}
+                  className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? 'bg-emerald-50/50' : ''}`}
                 >
-                  <div className="col-span-4 flex items-center gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
-                      {price.store?.logo_url ? (
-                        <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-sm font-bold text-purple-700">{st?.name?.charAt(0) || '?'}</span>
-                      )}
+                  {/* Desktop row */}
+                  <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-4 items-center">
+                    <div className="col-span-4 flex items-center gap-3">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
+                        {price.store?.logo_url ? (
+                          <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-sm font-bold text-purple-700">{st?.name?.charAt(0) || '?'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{st?.name || 'Store'}</span>
+                        {isLowest && (
+                          <span className="ml-2 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                            {language === 'zh' ? '最低价' : 'LOWEST'}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">{st?.name || 'Store'}</span>
-                      {isLowest && (
-                        <span className="ml-2 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                          {language === 'zh' ? '最低价' : 'LOWEST'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-span-2 text-center">
-                    <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
-                      ${price.current_price}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-center">
-                    {price.original_price ? (
-                      <span className="text-sm text-gray-400 line-through tabular-nums">${price.original_price}</span>
-                    ) : (
-                      <span className="text-sm text-gray-400">—</span>
-                    )}
-                  </div>
-                  <div className="col-span-2 text-center">
-                    {priceDiscount ? (
-                      <span className="inline-block rounded-md bg-red-50 px-2 py-0.5 text-sm font-semibold text-red-600">
-                        -{priceDiscount}%
+                    <div className="col-span-2 text-center">
+                      <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
+                        ${price.current_price}
                       </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">—</span>
-                    )}
+                    </div>
+                    <div className="col-span-2 text-center">
+                      {price.original_price ? (
+                        <span className="text-sm text-gray-400 line-through tabular-nums">${price.original_price}</span>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-center">
+                      {priceDiscount ? (
+                        <span className="inline-block rounded-md bg-red-50 px-2 py-0.5 text-sm font-semibold text-red-600">
+                          -{priceDiscount}%
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-center">
+                      <a
+                        href={price.product_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          fetch('/api/track', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'visit_store', session_id: sessionStorage.getItem('vp_session_id') || '', product_id: product.id, store_id: price.store_id }),
+                          }).catch(() => {});
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-800 transition-all hover:scale-105"
+                      >
+                        {language === 'zh' ? '前往购买' : 'Visit Store'}
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    </div>
                   </div>
-                  <div className="col-span-2 text-center">
-                    <a
-                      href={price.product_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        fetch('/api/track', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'visit_store', session_id: sessionStorage.getItem('vp_session_id') || '', product_id: product.id, store_id: price.store_id }),
-                        }).catch(() => {});
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-800 transition-all hover:scale-105"
-                    >
-                      {language === 'zh' ? '前往购买' : 'Visit Store'}
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
+                  {/* Mobile card */}
+                  <div className="md:hidden px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
+                          {price.store?.logo_url ? (
+                            <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-sm font-bold text-purple-700">{st?.name?.charAt(0) || '?'}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-medium text-gray-900 truncate">{st?.name || 'Store'}</span>
+                            {isLowest && (
+                              <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 flex-shrink-0">
+                                {language === 'zh' ? '最低价' : 'LOWEST'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
+                          ${price.current_price}
+                        </span>
+                        {priceDiscount ? (
+                          <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
+                            -{priceDiscount}%
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      {price.original_price ? (
+                        <span className="text-xs text-gray-400 line-through tabular-nums">${price.original_price}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                      <a
+                        href={price.product_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          fetch('/api/track', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: 'visit_store', session_id: sessionStorage.getItem('vp_session_id') || '', product_id: product.id, store_id: price.store_id }),
+                          }).catch(() => {});
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-800 transition-all"
+                      >
+                        {language === 'zh' ? '前往购买' : 'Visit Store'}
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    </div>
                   </div>
                 </div>
               );
