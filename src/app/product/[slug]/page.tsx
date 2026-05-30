@@ -148,8 +148,8 @@ export default function ProductDetailPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">V</div>
-                <span className="text-xl font-bold tracking-tight text-white">VapeDeal</span>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
+                <span className="text-xl font-bold tracking-tight text-white">siteSettings?.site_name || '\u00A0'</span>
               </Link>
             </div>
           </div>
@@ -175,8 +175,8 @@ export default function ProductDetailPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">V</div>
-                <span className="text-xl font-bold tracking-tight text-white">VapeDeal</span>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
+                <span className="text-xl font-bold tracking-tight text-white">siteSettings?.site_name || '\u00A0'</span>
               </Link>
             </div>
           </div>
@@ -477,13 +477,13 @@ export default function ProductDetailPage() {
                 {siteSettings?.logo_url ? (
                   <img
                     src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
-                    alt={siteSettings?.site_name || 'VapeDeal'}
+                    alt={siteSettings?.site_name || ''}
                     className="h-7 w-7 rounded-md object-contain"
                   />
                 ) : (
                   <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{(siteSettings?.site_name || 'V').charAt(0)}</div>
                 )}
-                <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || 'VapeDeal'}</span>
+                <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || ''}</span>
               </div>
               <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
               {socialLinks.length > 0 && (

@@ -105,7 +105,7 @@ export async function PUT(request: Request) {
       success: true,
       data: {
         id: settingsId,
-        site_name: enTranslation?.site_name || 'VapeDeal',
+        site_name: enTranslation?.site_name || null,
         logo_url: logoUrlSigned,
         translations: updatedTranslations,
       },

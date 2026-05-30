@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     if (error) throw error;
     if (!data) {
-      return Response.json({ success: true, data: { site_name: 'VapeDeal', logo_url: null } });
+      return Response.json({ success: true, data: { site_name: null, logo_url: null } });
     }
 
     const translations = (data.site_setting_translations || []).map(
@@ -37,13 +37,13 @@ export async function GET(request: Request) {
       success: true,
       data: {
         id: data.id,
-        site_name: translation?.site_name || 'VapeDeal',
+        site_name: translation?.site_name || null,
         logo_url: logoUrl,
         translations,
       },
     });
   } catch (err) {
     console.error('Failed to fetch site settings:', err);
-    return Response.json({ success: true, data: { site_name: 'VapeDeal', logo_url: null } });
+    return Response.json({ success: true, data: { site_name: null, logo_url: null } });
   }
 }

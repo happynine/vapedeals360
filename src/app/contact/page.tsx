@@ -19,7 +19,7 @@ interface SocialLink {
 
 export default function ContactPage() {
   const { language } = useLanguage();
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: 'VapeDeal', logo_url: null });
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: null });
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [sending, setSending] = useState(false);
@@ -31,7 +31,7 @@ export default function ContactPage() {
       const siteRes = await fetch(`/api/site-settings?language=${language}`);
       const siteJson = await siteRes.json();
       if (siteJson.success && siteJson.data) {
-        setSiteSettings({ site_name: siteJson.data.site_name || 'VapeDeal', logo_url: siteJson.data.logo_url || null });
+        setSiteSettings({ site_name: siteJson.data.site_name || '', logo_url: siteJson.data.logo_url || null });
       }
       const socialRes = await fetch('/api/social-links');
       const socialJson = await socialRes.json();
@@ -239,7 +239,7 @@ export default function ContactPage() {
                     {(siteSettings.site_name || 'V').charAt(0)}
                   </div>
                 )}
-                <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || 'VapeDeal'}</span>
+                <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || '\u00A0'}</span>
               </div>
               <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
               {socialLinks.length > 0 && (

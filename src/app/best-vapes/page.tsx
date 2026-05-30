@@ -142,7 +142,7 @@ export default function BestVapesPage() {
                   <div>
                       <div className="flex items-center gap-2 mb-3">
                           {siteSettings.logo_url ? <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-7 w-7 rounded-md object-contain" /> : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{(siteSettings.site_name || 'V').charAt(0)}</div>}
-                          <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || 'VapeDeal'}</span>
+                          <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || '\u00A0'}</span>
                       </div>
                       <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
                       {socialLinks.length > 0 && (

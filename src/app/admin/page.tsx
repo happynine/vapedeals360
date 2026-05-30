@@ -267,9 +267,9 @@ export default function AdminPage() {
             {adminSiteSettings?.logo_url ? (
               <img src={adminSiteSettings.logo_url.startsWith('http') ? adminSiteSettings.logo_url : `/api/image?key=${encodeURIComponent(adminSiteSettings.logo_url)}`} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">V</div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">{(adminSiteSettings?.site_name || 'V').charAt(0)}</div>
             )}
-            <span className="text-xl font-bold tracking-tight">{adminSiteSettings?.site_name || 'VapeDeal'}</span>
+            <span className="text-xl font-bold tracking-tight">{adminSiteSettings?.site_name || '\u00A0'}</span>
           </Link>
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
