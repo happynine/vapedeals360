@@ -2058,15 +2058,14 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
   const [isActive, setIsActive] = useState(banner?.is_active !== false);
   const [defaultImageKey, setDefaultImageKey] = useState(banner?.image_key || '');
   const [defaultMobileImageKey, setDefaultMobileImageKey] = useState(banner?.mobile_image_key || '');
-  const [translations, setTranslations] = useState<{ language: string; image_key: string; title: string; subtitle: string }[]>(
+  const [translations, setTranslations] = useState<{ language: string; title: string; subtitle: string }[]>(
     banner?.banner_translations?.map((tr) => ({
       language: tr.language,
-      image_key: tr.image_key || '',
       title: tr.title || '',
       subtitle: tr.subtitle || '',
     })) || [
-      { language: 'en', image_key: '', title: '', subtitle: '' },
-      { language: 'zh', image_key: '', title: '', subtitle: '' },
+      { language: 'en', title: '', subtitle: '' },
+      { language: 'zh', title: '', subtitle: '' },
     ]
   );
   const [saving, setSaving] = useState(false);
@@ -2086,7 +2085,6 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
         is_active: isActive,
         translations: translations.map((tr) => ({
           language: tr.language,
-          image_key: tr.image_key || null,
           title: tr.title || null,
           subtitle: tr.subtitle || null,
         })),
@@ -2160,16 +2158,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                       </select>
                       <span className="text-xs text-muted-foreground">{t('Language Banner', '语言 Banner', lang)}</span>
                     </div>
-                    <ImageUpload
-                      value={tr.image_key}
-                      onUploadComplete={(key) => { const newT = [...translations]; newT[idx].image_key = key; setTranslations(newT); }}
-                      aspectRatio={21 / 6}
-                      suggestedSize="1200x343px"
-                      label={t('Web Banner Image', 'Web 端 Banner 图片', lang)}
-                      folder="banners"
-                    />
-
-                    <div className="mt-2 space-y-2">
+                    <div className="space-y-2">
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Title', '标题', lang)}</label>
                         <input value={tr.title} onChange={(e) => { const newT = [...translations]; newT[idx].title = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
@@ -2181,7 +2170,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                     </div>
                   </div>
                 ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', image_key: '', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
+                <button onClick={() => setTranslations([...translations, { language: 'en', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
                   + {t('Add Language Banner', '添加语言 Banner', lang)}
                 </button>
               </div>
