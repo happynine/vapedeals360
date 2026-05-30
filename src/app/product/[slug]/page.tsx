@@ -565,8 +565,8 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </footer>
-      <div className="border-t border-gray-800 py-8 px-4 max-w-7xl mx-auto">
-        <div className="space-y-4 text-xs text-gray-500">
+      <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4 max-w-7xl mx-auto">
+        <div className="space-y-4 text-xs text-gray-400">
           <div>
             <h4 className="text-gray-400 font-semibold mb-1">FDA Disclaimer</h4>
             <p>The products available on this website are intended for adults of legal smoking age only. These products have not been evaluated by the Food and Drug Administration. These products are not intended to diagnose, treat, cure, or prevent any disease. The FDA does not evaluate the safety or efficacy of these products. Keep out of reach of children and pets. Not for sale to minors. Not for use by women who are pregnant or breastfeeding. Not for use by persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. If you experience any side effects or possible side effects, stop using the product immediately and consult a physician.</p>
