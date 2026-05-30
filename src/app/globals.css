@@ -183,9 +183,12 @@
 }
 
 /* Show dropdown triangle on color picker label - positioned to the right of the icon */
+.ql-snow .ql-color-picker {
+  width: auto !important;
+}
 .ql-snow .ql-color-picker .ql-picker-label {
   position: relative !important;
-  padding-right: 14px !important;
+  padding: 2px 16px 2px 4px !important;
 }
 .ql-snow .ql-color-picker .ql-picker-label::after {
   content: "" !important;
