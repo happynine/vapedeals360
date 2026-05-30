@@ -44,18 +44,22 @@ function setCachedSettings(data: SiteSettings) {
 }
 
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Read localStorage cache synchronously on first render to prevent flash
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(() => getCachedSettings());
+  const [loading, setLoading] = useState(() => {
+    // If we have cached data, we're not loading; otherwise we are
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return true;
+      const { timestamp } = JSON.parse(raw);
+      return Date.now() - timestamp > CACHE_TTL;
+    } catch {
+      return true;
+    }
+  });
 
   useEffect(() => {
-    // 1. Read from localStorage cache first for instant render
-    const cached = getCachedSettings();
-    if (cached) {
-      setSiteSettings(cached);
-      setLoading(false);
-    }
-
-    // 2. Fetch fresh data from API
+    // Fetch fresh data from API
     fetch('/api/site-settings')
       .then(r => r.json())
       .then(d => {

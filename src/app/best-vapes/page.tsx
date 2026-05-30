@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface ContentPageItem {
   id: number;
@@ -13,11 +14,6 @@ interface ContentPageItem {
   cover_image: string | null;
   sort_order: number;
   title: string;
-}
-
-interface SiteSettings {
-  site_name: string;
-  logo_url: string;
 }
 
 interface SocialLink {
@@ -42,7 +38,7 @@ function getSocialIcon(platform: string) {
 export default function BestVapesPage() {
   const [pages, setPages] = useState<ContentPageItem[]>([]);
   const [description, setDescription] = useState('');
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
+  const { siteSettings } = useSiteSettings();
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [loading, setLoading] = useState(true);
   const { language } = useLanguage();
@@ -51,14 +47,12 @@ export default function BestVapesPage() {
     setLoading(true);
     Promise.all([
       fetch(`/api/content-pages?type=best_vapes&language=${language}`).then(r => r.json()),
-      fetch('/api/site-settings').then(r => r.json()),
       fetch('/api/social-links').then(r => r.json()),
-    ]).then(([contentData, settingsData, socialData]) => {
+    ]).then(([contentData, socialData]) => {
       if (contentData.success) {
         setPages(contentData.data);
         setDescription(contentData.description || '');
       }
-      if (settingsData.success) setSiteSettings(settingsData.data);
       if (socialData.success) setSocialLinks(socialData.data);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [language]);
@@ -70,12 +64,12 @@ export default function BestVapesPage() {
       <main className="flex-1 bg-white">
         {loading ? (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-[40vh]">
-            {siteSettings.logo_url ? (
+            {siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-12 mb-4 animate-pulse" />
             ) : (
               <div className="h-12 w-12 rounded-full bg-purple-100 animate-pulse mb-4" />
             )}
-            <p className="text-gray-400 text-sm animate-pulse">{siteSettings.site_name || 'Loading...'}</p>
+            <p className="text-gray-400 text-sm animate-pulse">{siteSettings?.site_name || 'Loading...'}</p>
             <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1,2,3].map(i => (
                 <div key={i} className="h-48 rounded-xl bg-gray-100 animate-pulse" />
@@ -141,8 +135,8 @@ export default function BestVapesPage() {
                   </div>
                   <div>
                       <div className="flex items-center gap-2 mb-3">
-                          {siteSettings.logo_url ? <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-7 w-7 rounded-md object-contain" /> : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{(siteSettings.site_name || 'V').charAt(0)}</div>}
-                          <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || '\u00A0'}</span>
+                          {siteSettings?.logo_url ? <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-7 w-7 rounded-md object-contain" /> : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>}
+                          <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || '\u00A0'}</span>
                       </div>
                       <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
                       {socialLinks.length > 0 && (

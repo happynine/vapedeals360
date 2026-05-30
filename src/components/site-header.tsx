@@ -217,7 +217,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 />
               ) : (
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">
-                  {displayName.charAt(0) || '\u00A0'}
+                  {displayName ? displayName.charAt(0) : '\u00A0'}
                 </div>
               )}
               <span className="text-xl font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>
@@ -391,7 +391,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               />
             ) : (
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-sm">
-                {displayName.charAt(0) || '\u00A0'}
+                {displayName ? displayName.charAt(0) : '\u00A0'}
               </div>
             )}
             <span className="text-lg font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>
@@ -567,7 +567,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   />
                 ) : (
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-sm">
-                    {displayName.charAt(0) || '\u00A0'}
+                    {displayName ? displayName.charAt(0) : '\u00A0'}
                   </div>
                 )}
                 <span className="text-lg font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>

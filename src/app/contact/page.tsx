@@ -4,11 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
-
-interface SiteSettings {
-  site_name: string;
-  logo_url: string | null;
-}
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface SocialLink {
   id: number;
@@ -19,7 +15,7 @@ interface SocialLink {
 
 export default function ContactPage() {
   const { language } = useLanguage();
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: null });
+  const { siteSettings } = useSiteSettings();
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [sending, setSending] = useState(false);
@@ -28,11 +24,6 @@ export default function ContactPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const siteRes = await fetch(`/api/site-settings?language=${language}`);
-      const siteJson = await siteRes.json();
-      if (siteJson.success && siteJson.data) {
-        setSiteSettings({ site_name: siteJson.data.site_name || '', logo_url: siteJson.data.logo_url || null });
-      }
       const socialRes = await fetch('/api/social-links');
       const socialJson = await socialRes.json();
       if (socialJson.success && socialJson.data) {
@@ -41,7 +32,7 @@ export default function ContactPage() {
     } catch {
       // ignore
     }
-  }, [language]);
+  }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
@@ -228,7 +219,7 @@ export default function ContactPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-3">
-                {siteSettings.logo_url ? (
+                {siteSettings?.logo_url ? (
                   <img
                     src={siteSettings.logo_url.startsWith('http') ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`}
                     alt={siteSettings.site_name}
@@ -236,10 +227,10 @@ export default function ContactPage() {
                   />
                 ) : (
                   <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">
-                    {(siteSettings.site_name || 'V').charAt(0)}
+                    {siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}
                   </div>
                 )}
-                <span className="text-sm font-semibold text-gray-300">{siteSettings.site_name || '\u00A0'}</span>
+                <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || '\u00A0'}</span>
               </div>
               <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">Email: info@vapedeals360.com</a>
               {socialLinks.length > 0 && (

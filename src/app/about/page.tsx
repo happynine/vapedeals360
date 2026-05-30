@@ -4,11 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
-
-interface SiteSettings {
-  site_name: string;
-  logo_url: string;
-}
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface StaticPageData {
   id: number;
@@ -18,8 +14,8 @@ interface StaticPageData {
 
 export default function AboutPage() {
   const { language } = useLanguage();
+  const { siteSettings } = useSiteSettings();
   const [content, setContent] = useState('');
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: '', logo_url: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,11 +29,6 @@ export default function AboutPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-
-    fetch('/api/site-settings')
-      .then(r => r.json())
-      .then(d => { if (d.success) setSiteSettings(d.data); })
-      .catch(() => {});
   }, [language]);
 
   return (
@@ -87,7 +78,7 @@ export default function AboutPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">V</div>
+                {siteSettings?.logo_url ? <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-7 w-7 rounded-md object-contain" /> : <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>}
                 <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || '\u00A0'}</span>
               </div>
               <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block">Email: info@vapedeals360.com</a>

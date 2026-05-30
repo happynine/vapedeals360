@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { SafeImage } from '@/components/safe-image';
 import { useLanguage } from '@/hooks/use-language';
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface StoreTranslation {
   id: number;
@@ -100,11 +101,10 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [siteSettings, setSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
+  const { siteSettings } = useSiteSettings();
   const [socialLinks, setSocialLinks] = useState<Array<{ id: number; platform: string; url: string; icon: string | null }>>([]);
 
   useEffect(() => {
-    fetch('/api/site-settings').then(r => r.json()).then(d => { if (d.success) setSiteSettings(d.data); }).catch(() => {});
     fetch('/api/social-links').then(r => r.json()).then(d => { if (d.success) setSocialLinks(d.data); }).catch(() => {});
   }, []);
 
@@ -144,16 +144,7 @@ export default function ProductDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
-                <span className="text-xl font-bold tracking-tight text-white">{siteSettings?.site_name || '\u00A0'}</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <SiteHeader activeTab="" />
         <div className="mx-auto max-w-7xl px-4 py-8 bg-white flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
@@ -171,16 +162,7 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col">
-        <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex h-16 items-center justify-between">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
-                <span className="text-xl font-bold tracking-tight text-white">{siteSettings?.site_name || '\u00A0'}</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <SiteHeader activeTab="" />
         <div className="min-h-[50vh] flex items-center justify-center bg-white flex-1">
           <div className="text-center">
             <p className="text-lg text-gray-400">{language === 'zh' ? '产品未找到' : 'Product not found'}</p>
@@ -540,7 +522,7 @@ export default function ProductDetailPage() {
                     className="h-7 w-7 rounded-md object-contain"
                   />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{(siteSettings?.site_name || 'V').charAt(0)}</div>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>
                 )}
                 <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || ''}</span>
               </div>
