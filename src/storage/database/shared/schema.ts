@@ -272,6 +272,7 @@ export const contentPageTranslations = pgTable("content_page_translations", {
 export const staticPages = pgTable("static_pages", {
   id: serial().primaryKey(),
   slug: varchar("slug", { length: 100 }).notNull(), // 'privacy-policy' | 'about-us'
+  is_published: boolean("is_published").default(false).notNull(),
   updated_at: timestamp("updated_at", { withTimezone: true }),
 }, (table) => [
   index("sp_slug_idx").on(table.slug),
@@ -281,7 +282,8 @@ export const staticPageTranslations = pgTable("static_page_translations", {
   id: serial().primaryKey(),
   page_id: integer("page_id").notNull(),
   language: varchar("language", { length: 10 }).notNull(),
-  content: text("content"), // HTML content
+  content: text("content"), // Published content (shown on frontend)
+  draft_content: text("draft_content"), // Draft content (auto-saved while editing)
 }, (table) => [
   index("spt_page_id_idx").on(table.page_id),
 ]);

@@ -933,11 +933,11 @@ export default function AdminPage() {
             <h3 className="text-lg font-bold mb-2">{t('Unsaved Changes', '未保存的修改', adminLang)}</h3>
             <p className="text-sm text-muted-foreground mb-6">{t('You have unsaved changes. Do you want to publish or save before leaving?', '当前内容有修改，是需要发布还是保存？', adminLang)}</p>
             <div className="flex gap-3 justify-end">
-              {(activeTab === 'best_vapes' || activeTab === 'news') && (
+              {(activeTab === 'best_vapes' || activeTab === 'news' || activeTab === 'privacy' || activeTab === 'about') && (
                 <button
                   onClick={async () => {
                     // Publish then switch
-                    const ref = activeTab === 'best_vapes' ? bestVapesRef : activeTab === 'news' ? newsRef : null;
+                    const ref = activeTab === 'best_vapes' ? bestVapesRef : activeTab === 'news' ? newsRef : activeTab === 'privacy' ? privacyRef : activeTab === 'about' ? aboutRef : null;
                     if (ref?.current) {
                       await ref.current.publish();
                     }
@@ -1797,6 +1797,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
 export interface StaticPageEditorRef {
   save: () => Promise<void>;
+  publish: () => Promise<void>;
 }
 
 // ============== Static Page Editor (Privacy Policy / About Us) ==============
@@ -1804,18 +1805,23 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const [pageData, setPageData] = useState<{
     id: number;
     slug: string;
-    static_page_translations: Array<{ id: number; language: string; content: string }>;
+    is_published: boolean;
+    static_page_translations: Array<{ id: number; language: string; content: string; draft_content: string }>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  // Draft content being edited (starts from draft_content or content)
   const [translations, setTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([
     { language: 'en', content: '' },
     { language: 'zh', content: '' },
   ]);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [savedTranslations, setSavedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [lastAutoSave, setLastAutoSave] = useState<string>('');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
   const normalizeQuillHtml = (html: string) => html.replace(/\s+$/gm, '').trim();
@@ -1829,16 +1835,31 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     if (changed !== hasChanges) setHasChanges(changed);
   }, [translations, savedTranslations, dataLoaded]);
 
+  // Auto-save: when hasChanges becomes true, start a 3-second debounce timer
+  useEffect(() => {
+    if (!dataLoaded || !hasChanges) return;
+    // Clear existing timer
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    // Set new timer
+    autoSaveTimerRef.current = setTimeout(async () => {
+      await handleAutoSave();
+    }, 3000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [hasChanges, translations]);
+
   // Notify parent about unsaved changes
   useEffect(() => {
     onUnsavedChange?.(hasChanges);
   }, [hasChanges]);
 
-  // Expose save method to parent via ref
+  // Expose save and publish methods to parent via ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({
     save: async () => {
-      await handleSave();
+      await handleAutoSave();
+    },
+    publish: async () => {
+      await handlePublish();
     },
   }));
 
@@ -1850,9 +1871,13 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         const json = await res.json();
         if (json.success && json.data) {
           setPageData(json.data);
+          // Load draft_content if available, otherwise fall back to published content
           const trans = LANGUAGES.map(l => {
             const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            return existing || { language: l, content: '' };
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
+            }
+            return { language: l, content: '' };
           });
           setTranslations(trans);
           setSavedTranslations(trans);
@@ -1867,7 +1892,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     fetchPage();
   }, [slug]);
 
-  const handleSave = async () => {
+  // Auto-save: save draft content without publishing
+  const handleAutoSave = async () => {
     setSaving(true);
     try {
       const res = await fetch('/api/admin/static-pages', {
@@ -1882,43 +1908,96 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       if (json.success) {
         setHasChanges(false);
         setSavedTranslations(translations);
-        alert(t('Saved!', '已保存!', lang));
-        // Refresh
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setLastAutoSave(timeStr);
+        // Refresh data
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
         if (refreshJson.success && refreshJson.data) {
+          setPageData(refreshJson.data);
           const trans = LANGUAGES.map(l => {
             const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            return existing || { language: l, content: '' };
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
+            }
+            return { language: l, content: '' };
           });
-          setTranslations(trans);
           setSavedTranslations(trans);
         }
-      } else {
-        alert(json.error || 'Save failed');
       }
     } catch (err) {
-      console.error('Save error:', err);
+      console.error('Auto-save error:', err);
     } finally {
       setSaving(false);
     }
   };
 
+  // Publish: copy draft_content → content, set is_published = true
+  const handlePublish = async () => {
+    // Auto-save first to ensure draft is saved
+    await handleAutoSave();
+    setPublishing(true);
+    try {
+      const res = await fetch('/api/admin/static-pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setHasChanges(false);
+        alert(t('Published successfully!', '发布成功!', lang));
+        // Refresh data
+        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const refreshJson = await refreshRes.json();
+        if (refreshJson.success && refreshJson.data) {
+          setPageData(refreshJson.data);
+          const trans = LANGUAGES.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+            if (existing) {
+              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
+            }
+            return { language: l, content: '' };
+          });
+          setTranslations(trans);
+          setSavedTranslations(trans);
+        }
+      } else {
+        alert(json.error || 'Publish failed');
+      }
+    } catch (err) {
+      console.error('Publish error:', err);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const isPublished = pageData?.is_published ?? false;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">{title}</h2>
-        <button
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
-          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
-            hasChanges
-              ? 'bg-purple-600 text-white hover:bg-purple-700'
-              : 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
-          }`}
-        >
-          {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
-        </button>
+        <div className="flex items-center gap-3">
+          {lastAutoSave && (
+            <span className="text-sm text-gray-500">{t('Auto-saved', '自动保存', lang)} {lastAutoSave}</span>
+          )}
+          {saving && (
+            <span className="text-sm text-gray-500">{t('Saving...', '保存中...', lang)}</span>
+          )}
+          <button
+            onClick={handlePublish}
+            disabled={publishing}
+            className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+              publishing
+                ? 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
+          </button>
+        </div>
       </div>
 
       {loading ? (
