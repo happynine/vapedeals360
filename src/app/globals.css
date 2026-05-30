@@ -271,6 +271,32 @@
   border-color: #7c3aed !important;
 }
 
+/* Custom color button in color picker dropdown */
+.ql-snow .ql-color-picker .ql-picker-options .ql-custom-color-wrapper {
+  border-top: 1px solid #374151;
+  margin-top: 4px;
+  padding-top: 4px;
+  width: 100%;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-custom-color-btn {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #9ca3af;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-custom-color-btn:hover {
+  background-color: rgba(124, 58, 237, 0.15);
+  color: #c4b5fd;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-custom-color-btn svg {
+  flex-shrink: 0;
+}
+
 body {
   background-color: #ffffff;
   color: #111827;

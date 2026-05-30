@@ -8,6 +8,10 @@ import { ImageUpload } from '@/components/image-upload';
 import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="min-h-[300px] rounded-lg border border-border bg-secondary animate-pulse" /> });
+// Import Quill class for Quill.find() - needed for custom color picker
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let QuillClass: any = null;
+import('quill').then((mod) => { QuillClass = mod.default; }).catch(() => {});
 
 // Types
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
@@ -914,24 +918,98 @@ export default function AdminPage() {
 
 // ============== Rich Text Editor ==============
 function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const injectCustomColorButtons = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Find color and background picker options
+      const pickers = container.querySelectorAll('.ql-toolbar .ql-color-picker');
+      pickers.forEach((picker) => {
+        const options = picker.querySelector('.ql-picker-options');
+        if (!options || options.querySelector('.ql-custom-color-wrapper')) return; // already injected
+
+        const isBackground = picker.classList.contains('ql-background');
+        const formatName = isBackground ? 'background' : 'color';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ql-custom-color-wrapper';
+        wrapper.innerHTML = `
+          <div class="ql-custom-color-btn">
+            <span>自定义颜色</span>
+            <svg viewBox="0 0 10 10" width="10" height="10" style="margin-left:auto"><path d="M3 1l5 4-5 4z" fill="currentColor"/></svg>
+          </div>
+        `;
+
+        const btn = wrapper.querySelector('.ql-custom-color-btn') as HTMLElement;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const input = document.createElement('input');
+          input.type = 'color';
+          input.style.position = 'absolute';
+          input.style.opacity = '0';
+          input.style.width = '0';
+          input.style.height = '0';
+          document.body.appendChild(input);
+
+          input.addEventListener('input', (ev) => {
+            const color = (ev.target as HTMLInputElement).value;
+            // Access Quill instance via Quill.find() and the Parchment registry
+            const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+            if (qlContainer && QuillClass) {
+              try {
+                const quill = QuillClass.find(qlContainer);
+                if (quill) quill.format(formatName, color);
+              } catch { /* ignore */ }
+            }
+          });
+
+          input.addEventListener('change', () => {
+            document.body.removeChild(input);
+          });
+
+          // Close picker after selection
+          const blurHandler = () => {
+            setTimeout(() => {
+              if (input.parentNode) document.body.removeChild(input);
+            }, 300);
+          };
+          input.addEventListener('blur', blurHandler);
+
+          input.click();
+        });
+
+        options.appendChild(wrapper);
+      });
+    };
+
+    // Wait for Quill to render
+    const timer = setTimeout(injectCustomColorButtons, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <ReactQuill
-      theme="snow"
-      value={value}
-      onChange={onChange}
-      modules={{
-        toolbar: [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline'],
-          [{ color: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }, { background: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link', 'image'],
-          ['clean'],
-        ],
-      }}
-      formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'link', 'image']}
-      style={{ minHeight: '300px' }}
-    />
+    <div ref={containerRef}>
+      <ReactQuill
+        theme="snow"
+        value={value}
+        onChange={onChange}
+        modules={{
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline'],
+            [{ color: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }, { background: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link', 'image'],
+            ['clean'],
+          ],
+        }}
+        formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'link', 'image']}
+        style={{ minHeight: '300px' }}
+      />
+    </div>
   );
 }
 
