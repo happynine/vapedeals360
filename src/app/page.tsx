@@ -590,7 +590,7 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
-                <div className="border-t border-gray-800 mt-8 pt-4 text-center text-xs text-gray-500">
+                <div className="border-t border-gray-800 mt-8 py-6 text-center text-xs text-gray-500">
                     ©Vapedeals360.com All Rights Reserved.
                 </div>
             </footer>
