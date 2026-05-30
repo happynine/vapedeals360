@@ -232,9 +232,8 @@ export default function ProductDetailPage() {
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500">
           <Link href="/" className="hover:text-gray-900 transition-colors">{language === 'zh' ? '首页' : 'Home'}</Link>
+          {catT && <><span className="hidden sm:inline">/</span><span className="hidden sm:inline hover:text-gray-900">{catT.name}</span></>}
           <span>/</span>
-          {catT && <span className="hover:text-gray-900">{catT.name}</span>}
-          {catT && <span>/</span>}
           <span className="text-gray-900 truncate">{t?.name}</span>
         </nav>
 
