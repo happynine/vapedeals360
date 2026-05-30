@@ -129,7 +129,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800">
+    <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800 relative">
       {/* Desktop Header */}
       <div className="hidden md:block">
         {/* Top row: Logo + Search + Language */}
@@ -322,9 +322,9 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
           </>
         )}
 
-        {/* Mobile Search Bar */}
+        {/* Mobile Search Bar - Overlay on content */}
         {mobileSearchOpen && (
-          <div className="border-t border-gray-800 px-4 py-3 relative">
+          <div className="absolute left-0 right-0 top-full z-50 border-t border-gray-800 bg-[#0a0a0e] px-4 py-3">
             <div className="relative">
               <svg
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
