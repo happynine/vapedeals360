@@ -168,11 +168,30 @@
   pointer-events: none;
 }
 
-/* Quill color picker - nicer swatch styling */
+/* Quill color picker - nicer swatch styling, force 8 columns */
 .ql-snow .ql-picker-options .ql-color-item,
 .ql-snow .ql-picker-options .ql-bg-item {
   border-radius: 3px;
   border: 1px solid #e5e7eb;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+/* Force color picker grid to 8 columns */
+.ql-snow .ql-picker-options .ql-color-item,
+.ql-snow .ql-picker-options .ql-bg-item,
+.ql-snow .ql-picker-options span[class*="ql-color-item"],
+.ql-snow .ql-picker-options span[class*="ql-bg-item"] {
+  display: inline-block !important;
+  width: 24px !important;
+  margin: 1px !important;
+}
+
+/* Color picker container width for 8 columns */
+.ql-snow .ql-picker.ql-color .ql-picker-options,
+.ql-snow .ql-picker.ql-background .ql-picker-options {
+  width: 224px !important;
+  padding: 6px !important;
 }
 
 /* Quill color picker item hover */
