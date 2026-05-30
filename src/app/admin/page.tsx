@@ -1076,7 +1076,6 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [saving, setSaving] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
-  const [justPublished, setJustPublished] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [savedContent, setSavedContent] = useState<{slug: string; cover_image: string | null; sort_order: number; is_published: boolean; translations: typeof formTranslations} | null>(null);
@@ -1110,8 +1109,6 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       formPublished !== savedContent.is_published ||
       JSON.stringify(formTranslations) !== JSON.stringify(savedContent.translations);
     if (changed && !hasUnsavedChanges) setHasUnsavedChanges(true);
-    // If content changed after save, reset justPublished so buttons show correct state
-    if (changed && justPublished) setJustPublished(false);
   }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent]);
 
   const openEditForm = (page: typeof pages[0]) => {
@@ -1138,7 +1135,6 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
     setSavedContent(null);
     setHasUnsavedChanges(true); // New form has unsaved changes by default
     setLastSavedTime(null);
-    setJustPublished(false);
     setPublishSuccess(false);
     setShowForm(true);
   };
@@ -1154,7 +1150,6 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       { language: 'zh', title: '', content: '' },
     ]);
     setLastSavedTime(null);
-    setJustPublished(false);
     setPublishSuccess(false);
     setShowForm(true);
   };
@@ -1187,7 +1182,6 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
         const now = new Date();
         const pad = (n: number) => String(n).padStart(2, '0');
         setLastSavedTime(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`);
-        setJustPublished(true);
         setPublishSuccess(false);
         setHasUnsavedChanges(false);
         // Update saved content snapshot so future changes are detected correctly
@@ -1224,12 +1218,10 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
           if (!currentPublished) {
             // Publishing: show success, disable buttons
             setPublishSuccess(true);
-            setJustPublished(false);
             // Auto-hide publish success after 3s
             setTimeout(() => setPublishSuccess(false), 3000);
           } else {
             // Unpublishing: re-enable
-            setJustPublished(false);
           }
         } else {
           // List-level toggle
@@ -1286,16 +1278,12 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                 publishSuccess
                   ? 'bg-purple-600/50 text-white cursor-not-allowed'
-                  : (!hasUnsavedChanges && !justPublished)
+                  : !hasUnsavedChanges
                     ? 'bg-purple-600/50 text-white cursor-default'
-                    : justPublished
-                      ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30'
-                      : formPublished
-                        ? 'bg-purple-600 text-white hover:bg-purple-700'
-                        : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
-              {formPublished ? '已发布' : '发布'}
+              {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
             </button>
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
             <button
@@ -1404,7 +1392,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   </div>
                   <div>
                     <p className="text-sm font-medium">{enTitle}</p>
-                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? '已发布' : '草稿'}</p>
+                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Draft', '草稿', lang)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1412,9 +1400,9 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                     onClick={async () => {
                       await handleTogglePublish(page.id, page.is_published);
                     }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-purple-800 text-purple-400 hover:bg-purple-900/30' : 'border-yellow-800 text-yellow-400 hover:bg-yellow-900/30'}`}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-purple-800 text-purple-400 hover:bg-purple-900/30' : 'border-purple-800 text-purple-400 hover:bg-purple-900/30'}`}
                   >
-                    {page.is_published ? '已发布' : '发布'}
+                    {page.is_published ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
                   </button>
                   <button onClick={() => openEditForm(page)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors">{t('Edit', '编辑', lang)}</button>
                   <button onClick={() => handleDelete(page.id)} className="rounded-lg border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-900/30 transition-colors">{t('Delete', '删除', lang)}</button>
@@ -1494,16 +1482,12 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                     publishSuccess
                       ? 'bg-purple-600/50 text-white cursor-not-allowed'
-                      : (!hasUnsavedChanges && !justPublished)
+                      : !hasUnsavedChanges
                         ? 'bg-purple-600/50 text-white cursor-default'
-                        : justPublished
-                          ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30'
-                          : formPublished
-                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                            : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
-                  {formPublished ? '已发布' : '发布'}
+                  {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
                 </button>
                 {lastSavedTime && (
                   <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
