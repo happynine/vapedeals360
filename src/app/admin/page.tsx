@@ -1185,7 +1185,11 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   // Detect unsaved changes by comparing current form state with saved content
   useEffect(() => {
     if (!showForm || !savedContent) {
-      // No form open or new form (no saved content) — skip detection
+      return;
+    }
+    // For new pages (no editingPage), always treat as having unsaved changes
+    if (!editingPage) {
+      if (!hasUnsavedChanges) setHasUnsavedChanges(true);
       return;
     }
     const changed =
@@ -1194,8 +1198,18 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       formSortOrder !== savedContent.sort_order ||
       formPublished !== savedContent.is_published ||
       JSON.stringify(formTranslations) !== JSON.stringify(savedContent.translations);
-    if (changed && !hasUnsavedChanges) setHasUnsavedChanges(true);
-  }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent]);
+    if (changed !== hasUnsavedChanges) setHasUnsavedChanges(changed);
+  }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent, editingPage]);
+
+  // Clean up state when form is closed
+  useEffect(() => {
+    if (!showForm) {
+      setSavedContent(null);
+      setHasUnsavedChanges(false);
+      setPublishSuccess(false);
+      setLastSavedTime(null);
+    }
+  }, [showForm]);
 
   // Notify parent about unsaved changes
   useEffect(() => {
@@ -1211,8 +1225,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       return true;
     },
     publish: async () => {
-      if (!editingPage) return false;
-      await handleTogglePublish(editingPage, formPublished);
+      if (editingPage) {
+        await handleTogglePublish(editingPage, formPublished);
+      } else {
+        // New page: save as published
+        setFormPublished(true);
+        await handleSave();
+      }
       return true;
     },
     hasUnsaved: hasUnsavedChanges,
@@ -1239,8 +1258,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     };
     setSavedContent(initialContent);
     setHasUnsavedChanges(false);
-    setSavedContent(null);
-    setHasUnsavedChanges(true); // New form has unsaved changes by default
     setLastSavedTime(null);
     setPublishSuccess(false);
     setShowForm(true);
@@ -1252,10 +1269,20 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormCoverImage(null);
     setFormSortOrder(pages.length + 1);
     setFormPublished(true);
-    setFormTranslations([
+    const initialTranslations = [
       { language: 'en', title: '', content: '' },
       { language: 'zh', title: '', content: '' },
-    ]);
+    ];
+    setFormTranslations(initialTranslations);
+    const initialContent = {
+      slug: '',
+      cover_image: null as string | null,
+      sort_order: pages.length + 1,
+      is_published: true,
+      translations: initialTranslations,
+    };
+    setSavedContent(initialContent);
+    setHasUnsavedChanges(true); // New form always has unsaved changes
     setLastSavedTime(null);
     setPublishSuccess(false);
     setShowForm(true);
@@ -1286,6 +1313,10 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       });
       const json = await res.json();
       if (json.success) {
+        // For new pages, capture the returned ID
+        if (!editingPage && json.data?.id) {
+          setEditingPage(json.data.id);
+        }
         const now = new Date();
         const pad = (n: number) => String(n).padStart(2, '0');
         setLastSavedTime(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`);
@@ -1390,8 +1421,16 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             )}
             <button
               type="button"
-              onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
-              disabled={!editingPage || publishSuccess}
+              onClick={() => {
+                if (editingPage) {
+                  handleTogglePublish(editingPage, formPublished);
+                } else {
+                  // New page: save as published
+                  setFormPublished(true);
+                  handleSave();
+                }
+              }}
+              disabled={publishSuccess}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                 publishSuccess
                   ? 'bg-purple-600/50 text-white cursor-not-allowed'
@@ -1653,8 +1692,16 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
-                  disabled={!editingPage || publishSuccess}
+                  onClick={() => {
+                    if (editingPage) {
+                      handleTogglePublish(editingPage, formPublished);
+                    } else {
+                      // New page: save as published
+                      setFormPublished(true);
+                      handleSave();
+                    }
+                  }}
+                  disabled={publishSuccess}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                     publishSuccess
                       ? 'bg-purple-600/50 text-white cursor-not-allowed'
