@@ -148,6 +148,37 @@
 .admin-dark .ql-snow .ql-picker-options {
   background: #ffffff;
   border-color: #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 4px;
+}
+
+/* Quill color picker - transparent/no-color swatch with diagonal line */
+.ql-snow .ql-picker-options .ql-color-item[data-value="transparent"],
+.ql-snow .ql-picker-options .ql-bg-item[data-value="transparent"] {
+  position: relative;
+}
+.ql-snow .ql-picker-options span[data-value="transparent"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), #e53e3e calc(50% - 1px), #e53e3e calc(50% + 1px), transparent calc(50% + 1px));
+  pointer-events: none;
+}
+
+/* Quill color picker - nicer swatch styling */
+.ql-snow .ql-picker-options .ql-color-item,
+.ql-snow .ql-picker-options .ql-bg-item {
+  border-radius: 3px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Quill color picker item hover */
+.ql-snow .ql-picker-options span:hover {
+  border-color: #7c3aed;
+  outline: 1px solid #7c3aed;
 }
 
 body {
