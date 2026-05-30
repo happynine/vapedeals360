@@ -564,6 +564,9 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+        <div className="border-t border-gray-800 mt-8 pt-4 text-center text-xs text-gray-500">
+          ©Vapedeals360.com All Rights Reserved.
+        </div>
       </footer>
       <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4 max-w-7xl mx-auto">
         <div className="space-y-4 text-xs text-gray-400">
