@@ -1069,7 +1069,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   // Full-page edit view for Best Vapes
   if (isFullPage && showForm) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full quill-sticky-toolbar">
         {/* Top bar with back button - sticky */}
         <div className="flex items-center justify-between sticky top-0 z-10 bg-background pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">

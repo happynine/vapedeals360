@@ -126,6 +126,13 @@
   border-color: #e5e7eb;
   border-radius: 0.5rem 0.5rem 0 0;
 }
+
+/* Quill toolbar sticky in full-page edit mode */
+.quill-sticky-toolbar .ql-toolbar.ql-snow {
+  position: sticky;
+  top: 61px;
+  z-index: 5;
+}
 .admin-dark .ql-container.ql-snow {
   background: #ffffff;
   border-color: #e5e7eb;
