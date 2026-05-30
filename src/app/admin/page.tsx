@@ -48,7 +48,7 @@ export default function AdminPage() {
   const [showSocialForm, setShowSocialForm] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
-  const [contentHasUnsavedChanges, setContentHasUnsavedChanges] = useState(false);
+  const [unsavedByTab, setUnsavedByTab] = useState<Record<string, boolean>>({});
   const [pendingTabSwitch, setPendingTabSwitch] = useState<Tab | null>(null);
   const [showTabSwitchDialog, setShowTabSwitchDialog] = useState(false);
   const bestVapesRef = useRef<ContentPagesManagerRef>(null);
@@ -280,7 +280,7 @@ export default function AdminPage() {
             <button
               key={tab}
               onClick={() => {
-                if (tab !== activeTab && contentHasUnsavedChanges) {
+                if (tab !== activeTab && unsavedByTab[activeTab]) {
                   setPendingTabSwitch(tab);
                   setShowTabSwitchDialog(true);
                 } else {
@@ -910,19 +910,19 @@ export default function AdminPage() {
           )}
           {/* Best Vapes Tab */}
           {activeTab === 'best_vapes' && (
-            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage onUnsavedChange={setContentHasUnsavedChanges} />
+            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, best_vapes: v }))} />
           )}
           {/* News Tab */}
           {activeTab === 'news' && (
-            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage onUnsavedChange={setContentHasUnsavedChanges} />
+            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, news: v }))} />
           )}
           {/* Privacy Policy Tab */}
           {activeTab === 'privacy' && (
-            <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} onUnsavedChange={setContentHasUnsavedChanges} />
+            <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, privacy: v }))} />
           )}
           {/* About Us Tab */}
           {activeTab === 'about' && (
-            <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} onUnsavedChange={setContentHasUnsavedChanges} />
+            <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, about: v }))} />
           )}
         </div>
       </main>
@@ -946,7 +946,7 @@ export default function AdminPage() {
                       setActiveTab(pendingTabSwitch);
                       setPendingTabSwitch(null);
                     }
-                    setContentHasUnsavedChanges(false);
+                    setUnsavedByTab(prev => ({ ...prev, [activeTab]: false }));
                   }}
                   className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
                 >
@@ -970,7 +970,7 @@ export default function AdminPage() {
                     setActiveTab(pendingTabSwitch);
                     setPendingTabSwitch(null);
                   }
-                  setContentHasUnsavedChanges(false);
+                  setUnsavedByTab(prev => ({ ...prev, [activeTab]: false }));
                 }}
                 className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-600"
               >
@@ -1182,6 +1182,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
   useEffect(() => { fetchPages(); }, [fetchPages]);
 
+  // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
+  const normalizeQuillHtml = (html: string) => html.replace(/\s+$/gm, '').trim();
+
   // Detect unsaved changes by comparing current form state with saved content
   useEffect(() => {
     if (!showForm || !savedContent) {
@@ -1192,12 +1195,14 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       if (!hasUnsavedChanges) setHasUnsavedChanges(true);
       return;
     }
+    const normalizeTranslations = (ts: typeof formTranslations) =>
+      ts.map(t => ({ ...t, content: normalizeQuillHtml(t.content) }));
     const changed =
       formSlug !== savedContent.slug ||
       formCoverImage !== savedContent.cover_image ||
       formSortOrder !== savedContent.sort_order ||
       formPublished !== savedContent.is_published ||
-      JSON.stringify(formTranslations) !== JSON.stringify(savedContent.translations);
+      JSON.stringify(normalizeTranslations(formTranslations)) !== JSON.stringify(normalizeTranslations(savedContent.translations));
     if (changed !== hasUnsavedChanges) setHasUnsavedChanges(changed);
   }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent, editingPage]);
 
@@ -1809,6 +1814,20 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
+  const [savedTranslations, setSavedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
+  const normalizeQuillHtml = (html: string) => html.replace(/\s+$/gm, '').trim();
+
+  // Detect unsaved changes by comparing current translations with saved snapshot
+  useEffect(() => {
+    if (!dataLoaded || !savedTranslations) return;
+    const normalizeTs = (ts: typeof translations) =>
+      ts.map(t => ({ ...t, content: normalizeQuillHtml(t.content) }));
+    const changed = JSON.stringify(normalizeTs(translations)) !== JSON.stringify(normalizeTs(savedTranslations));
+    if (changed !== hasChanges) setHasChanges(changed);
+  }, [translations, savedTranslations, dataLoaded]);
 
   // Notify parent about unsaved changes
   useEffect(() => {
@@ -1836,6 +1855,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             return existing || { language: l, content: '' };
           });
           setTranslations(trans);
+          setSavedTranslations(trans);
+          setDataLoaded(true);
         }
       } catch (err) {
         console.error('Failed to fetch static page:', err);
@@ -1860,6 +1881,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       const json = await res.json();
       if (json.success) {
         setHasChanges(false);
+        setSavedTranslations(translations);
         alert(t('Saved!', '已保存!', lang));
         // Refresh
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
@@ -1870,6 +1892,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             return existing || { language: l, content: '' };
           });
           setTranslations(trans);
+          setSavedTranslations(trans);
         }
       } else {
         alert(json.error || 'Save failed');
@@ -1926,7 +1949,6 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
                 const newT = [...translations];
                 newT[idx].content = v;
                 setTranslations(newT);
-                setHasChanges(true);
               }}
             />
           ) : null)}
