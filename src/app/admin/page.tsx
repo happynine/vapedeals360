@@ -371,7 +371,7 @@ export default function AdminPage() {
                     }}
                     className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
                       editSiteName !== (adminSiteSettings?.site_name || '') || editSiteLogo !== (adminSiteSettings?.logo_url || null)
-                        ? 'bg-green-600 text-white hover:bg-green-700 ring-2 ring-green-400/50 animate-pulse'
+                        ? 'bg-purple-600 text-white hover:bg-purple-700 ring-2 ring-purple-400/50'
                         : 'bg-primary text-primary-foreground hover:bg-primary/90'
                     }`}
                   >
@@ -1277,7 +1277,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
               <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
             )}
             {publishSuccess && (
-              <span className="text-xs text-emerald-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
+              <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
             )}
             <button
               type="button"
@@ -1285,13 +1285,13 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
               disabled={!editingPage || publishSuccess}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                 publishSuccess
-                  ? 'bg-emerald-600/50 text-white cursor-not-allowed'
+                  ? 'bg-purple-600/50 text-white cursor-not-allowed'
                   : (!hasUnsavedChanges && !justPublished)
-                    ? 'bg-emerald-600/50 text-white cursor-default'
+                    ? 'bg-purple-600/50 text-white cursor-default'
                     : justPublished
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                      ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30'
                       : formPublished
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
                         : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >
@@ -1375,7 +1375,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">{title}</h2>
           {listPublishMsg && (
-            <span className="text-xs text-emerald-400 font-medium">{listPublishMsg}</span>
+            <span className="text-xs text-purple-400 font-medium">{listPublishMsg}</span>
           )}
         </div>
         <button
@@ -1412,7 +1412,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                     onClick={async () => {
                       await handleTogglePublish(page.id, page.is_published);
                     }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-emerald-800 text-emerald-400 hover:bg-emerald-900/30' : 'border-yellow-800 text-yellow-400 hover:bg-yellow-900/30'}`}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-purple-800 text-purple-400 hover:bg-purple-900/30' : 'border-yellow-800 text-yellow-400 hover:bg-yellow-900/30'}`}
                   >
                     {page.is_published ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
                   </button>
@@ -1493,13 +1493,13 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   disabled={!editingPage || publishSuccess}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                     publishSuccess
-                      ? 'bg-emerald-600/50 text-white cursor-not-allowed'
+                      ? 'bg-purple-600/50 text-white cursor-not-allowed'
                       : (!hasUnsavedChanges && !justPublished)
-                        ? 'bg-emerald-600/50 text-white cursor-default'
+                        ? 'bg-purple-600/50 text-white cursor-default'
                         : justPublished
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                          ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30'
                           : formPublished
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
                             : 'bg-yellow-500 text-white hover:bg-yellow-600'
                   }`}
                 >
@@ -1509,7 +1509,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
                 )}
                 {publishSuccess && (
-                  <span className="text-xs text-emerald-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
+                  <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
                 )}
               </div>
               <div className="flex gap-3">
@@ -1616,7 +1616,7 @@ function StaticPageEditor({ slug, title, lang }: { slug: string; title: string; 
           disabled={saving}
           className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
             hasChanges
-              ? 'bg-green-600 text-white hover:bg-green-700 ring-2 ring-green-400/50 animate-pulse'
+              ? 'bg-purple-600 text-white hover:bg-purple-700 ring-2 ring-purple-400/50'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
           } disabled:opacity-50`}
         >
