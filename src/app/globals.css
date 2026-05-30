@@ -297,6 +297,45 @@
   flex-shrink: 0;
 }
 
+/* Inline color input - hidden but positioned near button */
+.ql-snow .ql-color-picker .ql-picker-options .ql-custom-color-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Recently used colors section */
+.ql-snow .ql-color-picker .ql-picker-options .ql-recent-colors-wrapper {
+  border-top: 1px solid #374151;
+  margin-top: 4px;
+  padding-top: 4px;
+  width: 100%;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-recent-colors-label {
+  font-size: 11px;
+  color: #6b7280;
+  padding: 0 4px 3px;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-recent-colors-row {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-recent-color-slot {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  border: 1px solid #4b5563;
+  cursor: pointer;
+  background-color: #1f2937;
+  transition: border-color 0.15s;
+}
+.ql-snow .ql-color-picker .ql-picker-options .ql-recent-color-slot:hover {
+  border-color: #7c3aed;
+}
+
 body {
   background-color: #ffffff;
   color: #111827;

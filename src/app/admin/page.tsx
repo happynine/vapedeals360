@@ -925,15 +925,58 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       const container = containerRef.current;
       if (!container) return;
 
-      // Find color and background picker options
       const pickers = container.querySelectorAll('.ql-toolbar .ql-color-picker');
       pickers.forEach((picker) => {
         const options = picker.querySelector('.ql-picker-options');
-        if (!options || options.querySelector('.ql-custom-color-wrapper')) return; // already injected
+        if (!options || options.querySelector('.ql-custom-color-wrapper')) return;
 
         const isBackground = picker.classList.contains('ql-background');
         const formatName = isBackground ? 'background' : 'color';
+        const storageKey = isBackground ? 'quill-recent-bg-colors' : 'quill-recent-text-colors';
 
+        // --- Recently Used Colors Section ---
+        const recentWrapper = document.createElement('div');
+        recentWrapper.className = 'ql-recent-colors-wrapper';
+
+        const recentLabel = document.createElement('div');
+        recentLabel.className = 'ql-recent-colors-label';
+        recentLabel.textContent = '最近使用';
+        recentWrapper.appendChild(recentLabel);
+
+        const recentRow = document.createElement('div');
+        recentRow.className = 'ql-recent-colors-row';
+        recentWrapper.appendChild(recentRow);
+
+        const renderRecentColors = () => {
+          recentRow.innerHTML = '';
+          const stored = localStorage.getItem(storageKey);
+          const recentColors: string[] = stored ? JSON.parse(stored) : [];
+          for (let i = 0; i < 8; i++) {
+            const slot = document.createElement('span');
+            slot.className = 'ql-recent-color-slot';
+            if (recentColors[i]) {
+              slot.style.backgroundColor = recentColors[i];
+              slot.title = recentColors[i];
+              const colorVal = recentColors[i];
+              slot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+                if (qlContainer && QuillClass) {
+                  try {
+                    const quill = QuillClass.find(qlContainer);
+                    if (quill) quill.format(formatName, colorVal);
+                  } catch { /* ignore */ }
+                }
+                // Close picker
+                picker.classList.remove('ql-expanded');
+              });
+            }
+            recentRow.appendChild(slot);
+          }
+        };
+        renderRecentColors();
+
+        // --- Custom Color Button ---
         const wrapper = document.createElement('div');
         wrapper.className = 'ql-custom-color-wrapper';
         wrapper.innerHTML = `
@@ -941,51 +984,49 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
             <span>自定义颜色</span>
             <svg viewBox="0 0 10 10" width="10" height="10" style="margin-left:auto"><path d="M3 1l5 4-5 4z" fill="currentColor"/></svg>
           </div>
+          <input type="color" class="ql-custom-color-input" />
         `;
 
         const btn = wrapper.querySelector('.ql-custom-color-btn') as HTMLElement;
+        const colorInput = wrapper.querySelector('.ql-custom-color-input') as HTMLInputElement;
+
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const input = document.createElement('input');
-          input.type = 'color';
-          input.style.position = 'absolute';
-          input.style.opacity = '0';
-          input.style.width = '0';
-          input.style.height = '0';
-          document.body.appendChild(input);
-
-          input.addEventListener('input', (ev) => {
-            const color = (ev.target as HTMLInputElement).value;
-            // Access Quill instance via Quill.find() and the Parchment registry
-            const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
-            if (qlContainer && QuillClass) {
-              try {
-                const quill = QuillClass.find(qlContainer);
-                if (quill) quill.format(formatName, color);
-              } catch { /* ignore */ }
-            }
-          });
-
-          input.addEventListener('change', () => {
-            document.body.removeChild(input);
-          });
-
-          // Close picker after selection
-          const blurHandler = () => {
-            setTimeout(() => {
-              if (input.parentNode) document.body.removeChild(input);
-            }, 300);
-          };
-          input.addEventListener('blur', blurHandler);
-
-          input.click();
+          colorInput.click();
         });
 
+        colorInput.addEventListener('input', (ev) => {
+          const color = (ev.target as HTMLInputElement).value;
+          const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+          if (qlContainer && QuillClass) {
+            try {
+              const quill = QuillClass.find(qlContainer);
+              if (quill) quill.format(formatName, color);
+            } catch { /* ignore */ }
+          }
+          // Save to recent colors
+          const stored = localStorage.getItem(storageKey);
+          const recentColors: string[] = stored ? JSON.parse(stored) : [];
+          const filtered = recentColors.filter((c: string) => c !== color);
+          filtered.unshift(color);
+          if (filtered.length > 8) filtered.length = 8;
+          localStorage.setItem(storageKey, JSON.stringify(filtered));
+          renderRecentColors();
+        });
+
+        options.appendChild(recentWrapper);
         options.appendChild(wrapper);
+
+        // Re-render recent colors when picker opens
+        const observer = new MutationObserver(() => {
+          if (picker.classList.contains('ql-expanded')) {
+            renderRecentColors();
+          }
+        });
+        observer.observe(picker, { attributes: true, attributeFilter: ['class'] });
       });
     };
 
-    // Wait for Quill to render
     const timer = setTimeout(injectCustomColorButtons, 500);
     return () => clearTimeout(timer);
   }, []);
