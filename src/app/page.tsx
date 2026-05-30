@@ -624,8 +624,7 @@ function BannerCarousel(
     const banner = banners[current];
 
     const content = <div
-        className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900"
-        style={{ aspectRatio: '1200/343' }}
+        className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 sm:aspect-[1200/343]"
         onMouseEnter={() => {
             if (hoverRef.current) clearTimeout(hoverRef.current);
             setHovered(true);
@@ -633,12 +632,12 @@ function BannerCarousel(
         onMouseLeave={() => {
             hoverRef.current = setTimeout(() => setHovered(false), 200);
         }}>
-        {banner.image_url ? <div className="relative w-full h-full">
+        {banner.image_url ? <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src={banner.image_url.startsWith('http') || banner.image_url.startsWith('/') ? banner.image_url : `/api/image?key=${encodeURIComponent(banner.image_url)}`}
                 alt={banner.title || "Banner"}
-                className="w-full h-full object-fill block"
+                className="w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill"
                 loading={current === 0 ? 'eager' : 'lazy'} />
         </div> : null}
         {}
