@@ -48,9 +48,7 @@ export default function AdminPage() {
   const [showSocialForm, setShowSocialForm] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
-  const [unsavedByTab, setUnsavedByTab] = useState<Record<string, boolean>>({});
-  const [pendingTabSwitch, setPendingTabSwitch] = useState<Tab | null>(null);
-  const [showTabSwitchDialog, setShowTabSwitchDialog] = useState(false);
+
   const bestVapesRef = useRef<ContentPagesManagerRef>(null);
   const newsRef = useRef<ContentPagesManagerRef>(null);
   const privacyRef = useRef<StaticPageEditorRef>(null);
@@ -279,14 +277,7 @@ export default function AdminPage() {
           {(['site_settings', 'products', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'privacy', 'about', 'analytics'] as Tab[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => {
-                if (tab !== activeTab && unsavedByTab[activeTab]) {
-                  setPendingTabSwitch(tab);
-                  setShowTabSwitchDialog(true);
-                } else {
-                  setActiveTab(tab);
-                }
-              }}
+              onClick={() => setActiveTab(tab)}
               className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent'}`}
             >
               {tab === 'site_settings' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
@@ -910,86 +901,22 @@ export default function AdminPage() {
           )}
           {/* Best Vapes Tab */}
           {activeTab === 'best_vapes' && (
-            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, best_vapes: v }))} />
+            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage />
           )}
           {/* News Tab */}
           {activeTab === 'news' && (
-            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, news: v }))} />
+            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage />
           )}
           {/* Privacy Policy Tab */}
           {activeTab === 'privacy' && (
-            <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, privacy: v }))} />
+            <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} />
           )}
           {/* About Us Tab */}
           {activeTab === 'about' && (
-            <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} onUnsavedChange={(v) => setUnsavedByTab(prev => ({ ...prev, about: v }))} />
+            <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} />
           )}
         </div>
       </main>
-      {/* Tab Switch Unsaved Changes Dialog */}
-      {showTabSwitchDialog && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-bold mb-2">{t('Unsaved Changes', '未保存的修改', adminLang)}</h3>
-            <p className="text-sm text-muted-foreground mb-6">{t('You have unsaved changes. Do you want to publish or save before leaving?', '当前内容有修改，是需要发布还是保存？', adminLang)}</p>
-            <div className="flex gap-3 justify-end">
-              {(activeTab === 'best_vapes' || activeTab === 'news' || activeTab === 'privacy' || activeTab === 'about') && (
-                <button
-                  onClick={async () => {
-                    // Publish then switch
-                    const ref = activeTab === 'best_vapes' ? bestVapesRef : activeTab === 'news' ? newsRef : activeTab === 'privacy' ? privacyRef : activeTab === 'about' ? aboutRef : null;
-                    if (ref?.current) {
-                      await ref.current.publish();
-                    }
-                    setShowTabSwitchDialog(false);
-                    if (pendingTabSwitch) {
-                      setActiveTab(pendingTabSwitch);
-                      setPendingTabSwitch(null);
-                    }
-                    setUnsavedByTab(prev => ({ ...prev, [activeTab]: false }));
-                  }}
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-                >
-                  {t('Publish', '发布', adminLang)}
-                </button>
-              )}
-              <button
-                onClick={async () => {
-                  // Save then switch
-                  if (activeTab === 'best_vapes' && bestVapesRef.current) {
-                    await bestVapesRef.current.save();
-                  } else if (activeTab === 'news' && newsRef.current) {
-                    await newsRef.current.save();
-                  } else if (activeTab === 'privacy' && privacyRef.current) {
-                    await privacyRef.current.save();
-                  } else if (activeTab === 'about' && aboutRef.current) {
-                    await aboutRef.current.save();
-                  }
-                  setShowTabSwitchDialog(false);
-                  if (pendingTabSwitch) {
-                    setActiveTab(pendingTabSwitch);
-                    setPendingTabSwitch(null);
-                  }
-                  setUnsavedByTab(prev => ({ ...prev, [activeTab]: false }));
-                }}
-                className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-600"
-              >
-                {t('Save', '保存', adminLang)}
-              </button>
-              <button
-                onClick={() => {
-                  // Cancel navigation, stay on current tab
-                  setShowTabSwitchDialog(false);
-                  setPendingTabSwitch(null);
-                }}
-                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                {t('Cancel', '取消', adminLang)}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1134,12 +1061,10 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
 
 // ============== Content Pages Manager (Best Vapes / News) ==============
 export interface ContentPagesManagerRef {
-  save: () => Promise<boolean>;
-  publish: () => Promise<boolean>;
-  hasUnsaved: boolean;
+  publish: () => Promise<void>;
 }
 
-const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean; onUnsavedChange?: (hasChanges: boolean) => void }>(function ContentPagesManager({ type, title, lang, isFullPage, onUnsavedChange }, ref) {
+const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean }>(function ContentPagesManager({ type, title, lang, isFullPage }, ref) {
   const [pages, setPages] = useState<Array<{
     id: number; slug: string; cover_image: string | null; sort_order: number; is_published: boolean;
     content_page_translations: Array<{ id: number; language: string; title: string; content: string }>;
@@ -1153,19 +1078,16 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const [formCoverImage, setFormCoverImage] = useState<string | null>(null);
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formPublished, setFormPublished] = useState(true);
+  const [hasFormChanges, setHasFormChanges] = useState(false);
   const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([
     { language: 'en', title: '', content: '' },
     { language: 'zh', title: '', content: '' },
   ]);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [saving, setSaving] = useState(false);
-  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [publishSuccess, setPublishSuccess] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [savedContent, setSavedContent] = useState<{slug: string; cover_image: string | null; sort_order: number; is_published: boolean; translations: typeof formTranslations} | null>(null);
   const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [pendingBackAction, setPendingBackAction] = useState(false);
+
 
   const fetchPages = useCallback(async () => {
     setLoading(true);
@@ -1185,61 +1107,12 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
   const normalizeQuillHtml = (html: string) => html.replace(/\s+$/gm, '').trim();
 
-  // Detect unsaved changes by comparing current form state with saved content
-  useEffect(() => {
-    if (!showForm || !savedContent) {
-      return;
-    }
-    // For new pages (no editingPage), always treat as having unsaved changes
-    if (!editingPage) {
-      if (!hasUnsavedChanges) setHasUnsavedChanges(true);
-      return;
-    }
-    const normalizeTranslations = (ts: typeof formTranslations) =>
-      ts.map(t => ({ ...t, content: normalizeQuillHtml(t.content) }));
-    const changed =
-      formSlug !== savedContent.slug ||
-      formCoverImage !== savedContent.cover_image ||
-      formSortOrder !== savedContent.sort_order ||
-      formPublished !== savedContent.is_published ||
-      JSON.stringify(normalizeTranslations(formTranslations)) !== JSON.stringify(normalizeTranslations(savedContent.translations));
-    if (changed !== hasUnsavedChanges) setHasUnsavedChanges(changed);
-  }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent, editingPage]);
-
-  // Clean up state when form is closed
-  useEffect(() => {
-    if (!showForm) {
-      setSavedContent(null);
-      setHasUnsavedChanges(false);
-      setPublishSuccess(false);
-      setLastSavedTime(null);
-    }
-  }, [showForm]);
-
-  // Notify parent about unsaved changes
-  useEffect(() => {
-    onUnsavedChange?.(hasUnsavedChanges);
-  }, [hasUnsavedChanges]);
-
-  // Expose methods to parent via ref
+  // Expose publish method to parent via ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({
-    save: async () => {
-      if (!hasUnsavedChanges) return true;
-      await handleSave();
-      return true;
-    },
     publish: async () => {
-      if (editingPage) {
-        await handleTogglePublish(editingPage, formPublished);
-      } else {
-        // New page: save as published
-        setFormPublished(true);
-        await handleSave();
-      }
-      return true;
+      await handlePublish();
     },
-    hasUnsaved: hasUnsavedChanges,
   }));
 
   const openEditForm = (page: typeof pages[0]) => {
@@ -1248,22 +1121,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormCoverImage(page.cover_image);
     setFormSortOrder(page.sort_order);
     setFormPublished(page.is_published);
+    setHasFormChanges(false);
 
     const translations = LANGUAGES.map(l => {
       const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l);
       return existing || { language: l, title: '', content: '' };
     });
     setFormTranslations(translations);
-    const initialContent = {
-      slug: page.slug,
-      cover_image: page.cover_image,
-      sort_order: page.sort_order,
-      is_published: page.is_published,
-      translations,
-    };
-    setSavedContent(initialContent);
-    setHasUnsavedChanges(false);
-    setLastSavedTime(null);
     setPublishSuccess(false);
     setShowForm(true);
   };
@@ -1274,26 +1138,21 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormCoverImage(null);
     setFormSortOrder(pages.length + 1);
     setFormPublished(true);
+    setHasFormChanges(false);
     const initialTranslations = [
       { language: 'en', title: '', content: '' },
       { language: 'zh', title: '', content: '' },
     ];
     setFormTranslations(initialTranslations);
-    const initialContent = {
-      slug: '',
-      cover_image: null as string | null,
-      sort_order: pages.length + 1,
-      is_published: true,
-      translations: initialTranslations,
-    };
-    setSavedContent(initialContent);
-    setHasUnsavedChanges(true); // New form always has unsaved changes
-    setLastSavedTime(null);
     setPublishSuccess(false);
     setShowForm(true);
   };
 
-  const handleSave = async (): Promise<boolean> => {
+  // Mark form as changed
+  const markChanged = () => setHasFormChanges(true);
+
+  // Publish: save content + set is_published = true
+  const handlePublish = async () => {
     setSaving(true);
     try {
       const body = {
@@ -1302,7 +1161,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         slug: formSlug,
         cover_image: formCoverImage,
         sort_order: formSortOrder,
-        is_published: formPublished,
+        is_published: true,
         translations: formTranslations.map(t => ({
           id: t.id,
           language: t.language,
@@ -1322,32 +1181,22 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         if (!editingPage && json.data?.id) {
           setEditingPage(json.data.id);
         }
-        const now = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        setLastSavedTime(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`);
-        setPublishSuccess(false);
-        setHasUnsavedChanges(false);
-        // Update saved content snapshot so future changes are detected correctly
-        setSavedContent({
-          slug: formSlug,
-          cover_image: formCoverImage,
-          sort_order: formSortOrder,
-          is_published: formPublished,
-          translations: formTranslations.map(t => ({ ...t })),
-        });
-        return true;
+        setFormPublished(true);
+        setHasFormChanges(false);
+        setPublishSuccess(true);
+        setTimeout(() => setPublishSuccess(false), 3000);
+        fetchPages();
       } else {
-        alert(json.error || 'Save failed');
-        return false;
+        alert(json.error || 'Publish failed');
       }
     } catch (err) {
-      console.error('Save error:', err);
-      return false;
+      console.error('Publish error:', err);
     } finally {
       setSaving(false);
     }
   };
 
+  // List-level toggle publish/unpublish
   const handleTogglePublish = async (id: number, currentPublished: boolean) => {
     try {
       const res = await fetch('/api/admin/content-pages', {
@@ -1358,22 +1207,8 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       const json = await res.json();
       if (json.success) {
         fetchPages();
-        // If publishing from edit page
-        if (editingPage === id && showForm) {
-          setFormPublished(!currentPublished);
-          if (!currentPublished) {
-            // Publishing: show success, disable buttons
-            setPublishSuccess(true);
-            // Auto-hide publish success after 3s
-            setTimeout(() => setPublishSuccess(false), 3000);
-          } else {
-            // Unpublishing: re-enable
-          }
-        } else {
-          // List-level toggle
-          setListPublishMsg(!currentPublished ? t('Published successfully!', '发布成功!', lang) : t('Unpublished', '已取消发布', lang));
-          setTimeout(() => setListPublishMsg(null), 3000);
-        }
+        setListPublishMsg(!currentPublished ? t('Published successfully!', '发布成功!', lang) : t('Unpublished', '已取消发布', lang));
+        setTimeout(() => setListPublishMsg(null), 3000);
       }
     } catch (err) {
       console.error('Toggle publish error:', err);
@@ -1403,14 +1238,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         <div className="flex items-center justify-between sticky top-0 z-10 bg-background pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  setPendingBackAction(true);
-                  setShowUnsavedDialog(true);
-                } else {
-                  setShowForm(false);
-                }
-              }}
+              onClick={() => setShowForm(false)}
               className="rounded-lg border border-border p-2 hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -1418,42 +1246,20 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             <h2 className="text-2xl font-bold">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h2>
           </div>
           <div className="flex items-center gap-3">
-            {lastSavedTime && (
-              <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
-            )}
             {publishSuccess && (
               <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
             )}
             <button
               type="button"
-              onClick={() => {
-                if (editingPage) {
-                  handleTogglePublish(editingPage, formPublished);
-                } else {
-                  // New page: save as published
-                  setFormPublished(true);
-                  handleSave();
-                }
-              }}
-              disabled={formPublished && !hasUnsavedChanges}
+              onClick={handlePublish}
+              disabled={saving || (formPublished && !hasFormChanges)}
               className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                (formPublished && !hasUnsavedChanges)
+                saving || (formPublished && !hasFormChanges)
                   ? 'bg-purple-600/50 text-white cursor-default'
                   : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
-              {t('Publish', '发布', lang)}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !hasUnsavedChanges}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-                !hasUnsavedChanges
-                  ? 'bg-purple-700/50 cursor-not-allowed'
-                  : 'bg-purple-700 hover:bg-purple-600'
-              }`}
-            >
-              {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
+              {saving ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
             </button>
           </div>
         </div>
@@ -1462,11 +1268,11 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Slug</label>
-              <input value={formSlug} onChange={e => setFormSlug(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+              <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', lang)}</label>
-              <input type="number" value={formSortOrder} onChange={e => setFormSortOrder(parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              <input type="number" value={formSortOrder} onChange={e => { markChanged(); setFormSortOrder(parseInt(e.target.value) || 0); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
             </div>
           </div>
 
@@ -1495,7 +1301,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
                   <input
                     value={tr.title}
-                    onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                    onChange={e => { markChanged(); const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   />
                 </div>
@@ -1503,66 +1309,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                   <RichTextEditor
                     value={tr.content}
-                    onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                    onChange={(v: string) => { markChanged(); const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
                   />
                 </div>
               </div>
             ) : null)}
           </div>
         </div>
-        {/* Unsaved Changes Dialog */}
-        {showUnsavedDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
-              <h3 className="text-lg font-bold mb-2">{t('Unsaved Changes', '未保存的修改', lang)}</h3>
-              <p className="text-sm text-muted-foreground mb-6">{t('You have unsaved changes. Do you want to publish or save before leaving?', '当前内容有修改，是需要发布还是保存？', lang)}</p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={async () => {
-                    // Publish then go back
-                    if (editingPage) {
-                      await handleTogglePublish(editingPage, formPublished);
-                    }
-                    setShowUnsavedDialog(false);
-                    if (pendingBackAction) {
-                      setPendingBackAction(false);
-                      setShowForm(false);
-                    }
-                  }}
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-                >
-                  {t('Publish', '发布', lang)}
-                </button>
-                <button
-                  onClick={async () => {
-                    // Save then go back (only if save succeeds)
-                    const saved = await handleSave();
-                    if (saved) {
-                      setShowUnsavedDialog(false);
-                      if (pendingBackAction) {
-                        setPendingBackAction(false);
-                        setShowForm(false);
-                      }
-                    }
-                  }}
-                  className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-600"
-                >
-                  {t('Save', '保存', lang)}
-                </button>
-                <button
-                  onClick={() => {
-                    // Cancel navigation, stay on page
-                    setShowUnsavedDialog(false);
-                    setPendingBackAction(false);
-                  }}
-                  className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  {t('Cancel', '取消', lang)}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1628,25 +1381,18 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       {!isFullPage && showForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-3xl shadow-2xl relative">
-            <button onClick={() => {
-              if (hasUnsavedChanges) {
-                setPendingBackAction(true);
-                setShowUnsavedDialog(true);
-              } else {
-                setShowForm(false);
-              }
-            }} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            <button onClick={() => setShowForm(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             <h3 className="text-lg font-bold mb-4">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Slug</label>
-                  <input value={formSlug} onChange={e => setFormSlug(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+                  <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', lang)}</label>
-                  <input type="number" value={formSortOrder} onChange={e => setFormSortOrder(parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                  <input type="number" value={formSortOrder} onChange={e => { markChanged(); setFormSortOrder(parseInt(e.target.value) || 0); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                 </div>
               </div>
 
@@ -1675,7 +1421,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                       <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
                       <input
                         value={tr.title}
-                        onChange={e => { const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                        onChange={e => { markChanged(); const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
                     </div>
@@ -1683,7 +1429,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                       <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                       <RichTextEditor
                         value={tr.content}
-                        onChange={(v: string) => { const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                        onChange={(v: string) => { markChanged(); const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
                       />
                     </div>
                   </div>
@@ -1693,95 +1439,21 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
             <div className="mt-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (editingPage) {
-                      handleTogglePublish(editingPage, formPublished);
-                    } else {
-                      // New page: save as published
-                      setFormPublished(true);
-                      handleSave();
-                    }
-                  }}
-                  disabled={formPublished && !hasUnsavedChanges}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                    (formPublished && !hasUnsavedChanges)
-                      ? 'bg-purple-600/50 text-white cursor-default'
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
-                  }`}
-                >
-                  {t('Publish', '发布', lang)}
-                </button>
-                {lastSavedTime && (
-                  <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
-                )}
                 {publishSuccess && (
                   <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
                 )}
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !hasUnsavedChanges}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-                    !hasUnsavedChanges
-                      ? 'bg-purple-700/50 cursor-not-allowed'
-                      : 'bg-purple-700 hover:bg-purple-600'
-                  }`}
-                >
-                  {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Unsaved Changes Dialog (for modal mode) */}
-      {showUnsavedDialog && !isFullPage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-bold mb-2">{t('Unsaved Changes', '未保存的修改', lang)}</h3>
-            <p className="text-sm text-muted-foreground mb-6">{t('You have unsaved changes. Do you want to publish or save before leaving?', '当前内容有修改，是需要发布还是保存？', lang)}</p>
-            <div className="flex gap-3 justify-end">
               <button
-                onClick={async () => {
-                  if (editingPage) {
-                    await handleTogglePublish(editingPage, formPublished);
-                  }
-                  setShowUnsavedDialog(false);
-                  if (pendingBackAction) {
-                    setPendingBackAction(false);
-                    setShowForm(false);
-                  }
-                }}
-                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+                type="button"
+                onClick={handlePublish}
+                disabled={saving || formPublished}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  saving || formPublished
+                    ? 'bg-purple-600/50 text-white cursor-default'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
               >
-                {t('Publish', '发布', lang)}
-              </button>
-              <button
-                onClick={async () => {
-                  const saved = await handleSave();
-                  if (saved) {
-                    setShowUnsavedDialog(false);
-                    if (pendingBackAction) {
-                      setPendingBackAction(false);
-                      setShowForm(false);
-                    }
-                  }
-                }}
-                className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-600"
-              >
-                {t('Save', '保存', lang)}
-              </button>
-              <button
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  setPendingBackAction(false);
-                }}
-                className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                {t('Cancel', '取消', lang)}
+                {saving ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
               </button>
             </div>
           </div>
@@ -1792,12 +1464,11 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 });
 
 export interface StaticPageEditorRef {
-  save: () => Promise<void>;
   publish: () => Promise<void>;
 }
 
 // ============== Static Page Editor (Privacy Policy / About Us) ==============
-const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: string; lang: string; onUnsavedChange?: (hasChanges: boolean) => void }>(function StaticPageEditor({ slug, title, lang, onUnsavedChange }, ref) {
+const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: string; lang: string }>(function StaticPageEditor({ slug, title, lang }, ref) {
   const [pageData, setPageData] = useState<{
     id: number;
     slug: string;
@@ -1812,57 +1483,13 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   ]);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  // hasDraftNotPublished: true when draft_content differs from published content
-  const [hasDraftNotPublished, setHasDraftNotPublished] = useState(false);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
-  const [savedTranslations, setSavedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
-  const [publishedTranslations, setPublishedTranslations] = useState<Array<{ id?: number; language: string; content: string }> | null>(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [lastSaveTime, setLastSaveTime] = useState<string>('');
   const [publishSuccess, setPublishSuccess] = useState(false);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [originalTranslations, setOriginalTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([]);
 
-  // Normalize Quill HTML for comparison (trim whitespace, remove trailing newlines)
-  const normalizeQuillHtml = (html: string) => html.replace(/\s+$/gm, '').trim();
-
-  // Detect unsaved changes by comparing current translations with saved snapshot
-  useEffect(() => {
-    if (!dataLoaded || !savedTranslations) return;
-    const normalizeTs = (ts: typeof translations) =>
-      ts.map(t => ({ ...t, content: normalizeQuillHtml(t.content) }));
-    const changed = JSON.stringify(normalizeTs(translations)) !== JSON.stringify(normalizeTs(savedTranslations));
-    if (changed !== hasChanges) setHasChanges(changed);
-    // Check if draft differs from published content
-    if (publishedTranslations) {
-      const draftDiffers = JSON.stringify(normalizeTs(translations)) !== JSON.stringify(normalizeTs(publishedTranslations));
-      if (draftDiffers !== hasDraftNotPublished) setHasDraftNotPublished(draftDiffers);
-    }
-  }, [translations, savedTranslations, publishedTranslations, dataLoaded]);
-
-  // Auto-save: when hasChanges becomes true, start a 3-second debounce timer
-  useEffect(() => {
-    if (!dataLoaded || !hasChanges) return;
-    // Clear existing timer
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    // Set new timer
-    autoSaveTimerRef.current = setTimeout(async () => {
-      await handleAutoSave();
-    }, 3000);
-    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [hasChanges, translations]);
-
-  // Notify parent about unsaved/unpublished changes
-  useEffect(() => {
-    onUnsavedChange?.(hasDraftNotPublished || hasChanges);
-  }, [hasDraftNotPublished, hasChanges]);
-
-  // Expose save and publish methods to parent via ref
+  // Expose publish method to parent via ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({
-    save: async () => {
-      await handleManualSave();
-    },
     publish: async () => {
       await handlePublish();
     },
@@ -1876,26 +1503,15 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         const json = await res.json();
         if (json.success && json.data) {
           setPageData(json.data);
-          // Load draft_content if available, otherwise fall back to published content
           const trans = LANGUAGES.map(l => {
-            const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
-            }
-            return { language: l, content: '' };
-          });
-          setTranslations(trans);
-          setSavedTranslations(trans);
-          // Save published content snapshot for publish detection
-          const publishedTrans = LANGUAGES.map(l => {
             const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
             if (existing) {
               return { id: existing.id, language: existing.language, content: existing.content || '' };
             }
             return { language: l, content: '' };
           });
-          setPublishedTranslations(publishedTrans);
-          setDataLoaded(true);
+          setTranslations(trans);
+          setOriginalTranslations(JSON.parse(JSON.stringify(trans)));
         }
       } catch (err) {
         console.error('Failed to fetch static page:', err);
@@ -1906,115 +1522,32 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     fetchPage();
   }, [slug]);
 
-  // Auto-save: save draft content without publishing (called by timer)
-  const handleAutoSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/static-pages', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug,
-          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setHasChanges(false);
-        // Refresh data
-        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
-        const refreshJson = await refreshRes.json();
-        if (refreshJson.success && refreshJson.data) {
-          setPageData(refreshJson.data);
-          const trans = LANGUAGES.map(l => {
-            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
-            }
-            return { language: l, content: '' };
-          });
-          setSavedTranslations(trans);
-          // Update published snapshot (shouldn't change on auto-save, but keep in sync)
-          const pubTrans = LANGUAGES.map(l => {
-            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.content || '' };
-            }
-            return { language: l, content: '' };
-          });
-          setPublishedTranslations(pubTrans);
-        }
-      }
-    } catch (err) {
-      console.error('Auto-save error:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Manual save: save draft + show save time
-  const handleManualSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/static-pages', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug,
-          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setHasChanges(false);
-        const now = new Date();
-        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setLastSaveTime(timeStr);
-        // Refresh data
-        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
-        const refreshJson = await refreshRes.json();
-        if (refreshJson.success && refreshJson.data) {
-          setPageData(refreshJson.data);
-          const trans = LANGUAGES.map(l => {
-            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
-            }
-            return { language: l, content: '' };
-          });
-          setSavedTranslations(trans);
-          const pubTrans = LANGUAGES.map(l => {
-            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
-            if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.content || '' };
-            }
-            return { language: l, content: '' };
-          });
-          setPublishedTranslations(pubTrans);
-        }
-      }
-    } catch (err) {
-      console.error('Save error:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Publish: copy draft_content → content, set is_published = true
+  // Publish: save content + publish in one step
   const handlePublish = async () => {
-    // Auto-save first to ensure draft is saved
-    await handleAutoSave();
     setPublishing(true);
     try {
-      const res = await fetch('/api/admin/static-pages', {
+      // Step 1: Save content first
+      const saveRes = await fetch('/api/admin/static-pages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
+        }),
+      });
+      const saveJson = await saveRes.json();
+      if (!saveJson.success) {
+        alert(saveJson.error || 'Save failed');
+        return;
+      }
+      // Step 2: Publish
+      const pubRes = await fetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug }),
       });
-      const json = await res.json();
-      if (json.success) {
-        setHasChanges(false);
-        setHasDraftNotPublished(false);
+      const pubJson = await pubRes.json();
+      if (pubJson.success) {
         setPublishSuccess(true);
         setTimeout(() => setPublishSuccess(false), 3000);
         // Refresh data
@@ -2025,17 +1558,15 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
           const trans = LANGUAGES.map(l => {
             const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
             if (existing) {
-              return { id: existing.id, language: existing.language, content: existing.draft_content || existing.content || '' };
+              return { id: existing.id, language: existing.language, content: existing.content || '' };
             }
             return { language: l, content: '' };
           });
           setTranslations(trans);
-          setSavedTranslations(trans);
-          // After publish, draft === published, so publishedTranslations = current translations
-          setPublishedTranslations(trans);
+          setOriginalTranslations(JSON.parse(JSON.stringify(trans)));
         }
       } else {
-        alert(json.error || 'Publish failed');
+        alert(pubJson.error || 'Publish failed');
       }
     } catch (err) {
       console.error('Publish error:', err);
@@ -2045,44 +1576,26 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   };
 
   const isPublished = pageData?.is_published ?? false;
+  const hasChanges = JSON.stringify(translations) !== JSON.stringify(originalTranslations);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">{title}</h2>
         <div className="flex items-center gap-3">
-          {lastSaveTime && (
-            <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSaveTime}</span>
-          )}
-          {saving && (
-            <span className="text-xs text-gray-500">{t('Saving...', '保存中...', lang)}</span>
-          )}
           {publishSuccess && (
             <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
           )}
           <button
             onClick={handlePublish}
-            disabled={publishing || !hasDraftNotPublished}
+            disabled={publishing || (!hasChanges && isPublished)}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              publishing
-                ? 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
-                : !hasDraftNotPublished
-                  ? 'bg-purple-600/50 text-white cursor-default'
-                  : 'bg-purple-600 text-white hover:bg-purple-700'
+              publishing || (!hasChanges && isPublished)
+                ? 'bg-purple-600/50 text-white cursor-default'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
           >
             {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
-          </button>
-          <button
-            onClick={handleManualSave}
-            disabled={saving || !hasChanges}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-              !hasChanges
-                ? 'bg-purple-700/50 cursor-not-allowed'
-                : 'bg-purple-700 hover:bg-purple-600'
-            }`}
-          >
-            {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
           </button>
         </div>
       </div>
