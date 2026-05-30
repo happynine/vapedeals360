@@ -1075,6 +1075,10 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   ]);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
   const [saving, setSaving] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [justPublished, setJustPublished] = useState(false);
+  const [publishSuccess, setPublishSuccess] = useState(false);
+  const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
 
   const fetchPages = useCallback(async () => {
     setLoading(true);
@@ -1103,6 +1107,9 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       return existing || { language: l, title: '', content: '' };
     });
     setFormTranslations(translations);
+    setLastSavedTime(null);
+    setJustPublished(false);
+    setPublishSuccess(false);
     setShowForm(true);
   };
 
@@ -1116,6 +1123,9 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       { language: 'en', title: '', content: '' },
       { language: 'zh', title: '', content: '' },
     ]);
+    setLastSavedTime(null);
+    setJustPublished(false);
+    setPublishSuccess(false);
     setShowForm(true);
   };
 
@@ -1144,8 +1154,11 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       });
       const json = await res.json();
       if (json.success) {
-        setShowForm(false);
-        fetchPages();
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        setLastSavedTime(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+        setJustPublished(true);
+        setPublishSuccess(false);
       } else {
         alert(json.error || 'Save failed');
       }
@@ -1164,7 +1177,27 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
         body: JSON.stringify({ id, is_published: !currentPublished }),
       });
       const json = await res.json();
-      if (json.success) fetchPages();
+      if (json.success) {
+        fetchPages();
+        // If publishing from edit page
+        if (editingPage === id && showForm) {
+          setFormPublished(!currentPublished);
+          if (!currentPublished) {
+            // Publishing: show success, disable buttons
+            setPublishSuccess(true);
+            setJustPublished(false);
+            // Auto-hide publish success after 3s
+            setTimeout(() => setPublishSuccess(false), 3000);
+          } else {
+            // Unpublishing: re-enable
+            setJustPublished(false);
+          }
+        } else {
+          // List-level toggle
+          setListPublishMsg(!currentPublished ? t('Published successfully!', '发布成功!', lang) : t('Unpublished', '已取消发布', lang));
+          setTimeout(() => setListPublishMsg(null), 3000);
+        }
+      }
     } catch (err) {
       console.error('Toggle publish error:', err);
     }
@@ -1201,19 +1234,36 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
             <h2 className="text-2xl font-bold">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h2>
           </div>
           <div className="flex items-center gap-3">
+            {lastSavedTime && (
+              <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
+            )}
+            {publishSuccess && (
+              <span className="text-xs text-emerald-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
+            )}
             <button
               type="button"
-              onClick={() => setFormPublished(!formPublished)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                formPublished
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
+              onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
+              disabled={!editingPage || publishSuccess}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                publishSuccess
+                  ? 'bg-emerald-600/50 text-white cursor-not-allowed'
+                  : justPublished
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                    : formPublished
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >
               {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
             </button>
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
-            <button onClick={handleSave} disabled={saving} className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button
+              onClick={handleSave}
+              disabled={saving || publishSuccess}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                publishSuccess ? 'bg-purple-700/50 cursor-not-allowed' : 'bg-purple-700'
+              }`}
+            >
               {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
             </button>
           </div>
@@ -1279,7 +1329,12 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">{title}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">{title}</h2>
+          {listPublishMsg && (
+            <span className="text-xs text-emerald-400 font-medium">{listPublishMsg}</span>
+          )}
+        </div>
         <button
           onClick={openNewForm}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
@@ -1310,7 +1365,12 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleTogglePublish(page.id, page.is_published)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-emerald-800 text-emerald-400 hover:bg-emerald-900/30' : 'border-yellow-800 text-yellow-400 hover:bg-yellow-900/30'}`}>
+                  <button
+                    onClick={async () => {
+                      await handleTogglePublish(page.id, page.is_published);
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${page.is_published ? 'border-emerald-800 text-emerald-400 hover:bg-emerald-900/30' : 'border-yellow-800 text-yellow-400 hover:bg-yellow-900/30'}`}
+                  >
                     {page.is_published ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
                   </button>
                   <button onClick={() => openEditForm(page)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors">{t('Edit', '编辑', lang)}</button>
@@ -1383,20 +1443,39 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setFormPublished(!formPublished)}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  formPublished
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-yellow-500 text-white hover:bg-yellow-600'
-                }`}
-              >
-                {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
+                  disabled={!editingPage || publishSuccess}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    publishSuccess
+                      ? 'bg-emerald-600/50 text-white cursor-not-allowed'
+                      : justPublished
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                        : formPublished
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                  }`}
+                >
+                  {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
+                </button>
+                {lastSavedTime && (
+                  <span className="text-xs text-gray-500">{t('Last saved:', '最后保存时间:', lang)} {lastSavedTime}</span>
+                )}
+                {publishSuccess && (
+                  <span className="text-xs text-emerald-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
+                )}
+              </div>
               <div className="flex gap-3">
                 <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
-                <button onClick={handleSave} disabled={saving} className="rounded-lg bg-purple-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <button
+                  onClick={handleSave}
+                  disabled={saving || publishSuccess}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
+                    publishSuccess ? 'bg-purple-700/50 cursor-not-allowed' : 'bg-purple-700'
+                  }`}
+                >
                   {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
                 </button>
               </div>
