@@ -1078,6 +1078,8 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [justPublished, setJustPublished] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [savedContent, setSavedContent] = useState<{slug: string; cover_image: string | null; sort_order: number; is_published: boolean; translations: typeof formTranslations} | null>(null);
   const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
 
   const fetchPages = useCallback(async () => {
@@ -1095,6 +1097,23 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
 
   useEffect(() => { fetchPages(); }, [fetchPages]);
 
+  // Detect unsaved changes by comparing current form state with saved content
+  useEffect(() => {
+    if (!showForm || !savedContent) {
+      // No form open or new form (no saved content) — skip detection
+      return;
+    }
+    const changed =
+      formSlug !== savedContent.slug ||
+      formCoverImage !== savedContent.cover_image ||
+      formSortOrder !== savedContent.sort_order ||
+      formPublished !== savedContent.is_published ||
+      JSON.stringify(formTranslations) !== JSON.stringify(savedContent.translations);
+    if (changed && !hasUnsavedChanges) setHasUnsavedChanges(true);
+    // If content changed after save, reset justPublished so buttons show correct state
+    if (changed && justPublished) setJustPublished(false);
+  }, [formSlug, formCoverImage, formSortOrder, formPublished, formTranslations, showForm, savedContent]);
+
   const openEditForm = (page: typeof pages[0]) => {
     setEditingPage(page.id);
     setFormSlug(page.slug);
@@ -1107,6 +1126,17 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
       return existing || { language: l, title: '', content: '' };
     });
     setFormTranslations(translations);
+    const initialContent = {
+      slug: page.slug,
+      cover_image: page.cover_image,
+      sort_order: page.sort_order,
+      is_published: page.is_published,
+      translations,
+    };
+    setSavedContent(initialContent);
+    setHasUnsavedChanges(false);
+    setSavedContent(null);
+    setHasUnsavedChanges(true); // New form has unsaved changes by default
     setLastSavedTime(null);
     setJustPublished(false);
     setPublishSuccess(false);
@@ -1159,6 +1189,15 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
         setLastSavedTime(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`);
         setJustPublished(true);
         setPublishSuccess(false);
+        setHasUnsavedChanges(false);
+        // Update saved content snapshot so future changes are detected correctly
+        setSavedContent({
+          slug: formSlug,
+          cover_image: formCoverImage,
+          sort_order: formSortOrder,
+          is_published: formPublished,
+          translations: formTranslations.map(t => ({ ...t })),
+        });
       } else {
         alert(json.error || 'Save failed');
       }
@@ -1244,14 +1283,16 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
               type="button"
               onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
               disabled={!editingPage || publishSuccess}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                 publishSuccess
                   ? 'bg-emerald-600/50 text-white cursor-not-allowed'
-                  : justPublished
-                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
-                    : formPublished
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                  : (!hasUnsavedChanges && !justPublished)
+                    ? 'bg-emerald-600/50 text-white cursor-default'
+                    : justPublished
+                      ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                      : formPublished
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >
               {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
@@ -1259,9 +1300,11 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
             <button
               onClick={handleSave}
-              disabled={saving || publishSuccess}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
-                publishSuccess ? 'bg-purple-700/50 cursor-not-allowed' : 'bg-purple-700'
+              disabled={saving || !hasUnsavedChanges || publishSuccess}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
+                (!hasUnsavedChanges || publishSuccess)
+                  ? 'bg-purple-700/50 cursor-not-allowed'
+                  : 'bg-purple-700 hover:bg-purple-600'
               }`}
             >
               {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
@@ -1448,14 +1491,16 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                   type="button"
                   onClick={() => editingPage && handleTogglePublish(editingPage, formPublished)}
                   disabled={!editingPage || publishSuccess}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                     publishSuccess
                       ? 'bg-emerald-600/50 text-white cursor-not-allowed'
-                      : justPublished
-                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
-                        : formPublished
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                      : (!hasUnsavedChanges && !justPublished)
+                        ? 'bg-emerald-600/50 text-white cursor-default'
+                        : justPublished
+                          ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                          : formPublished
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'bg-yellow-500 text-white hover:bg-yellow-600'
                   }`}
                 >
                   {formPublished ? t('Published', '已发布', lang) : t('Publish', '发布', lang)}
@@ -1471,9 +1516,11 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
                 <button onClick={() => setShowForm(false)} className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground">{t('Cancel', '取消', lang)}</button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || publishSuccess}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
-                    publishSuccess ? 'bg-purple-700/50 cursor-not-allowed' : 'bg-purple-700'
+                  disabled={saving || !hasUnsavedChanges || publishSuccess}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
+                    (!hasUnsavedChanges || publishSuccess)
+                      ? 'bg-purple-700/50 cursor-not-allowed'
+                      : 'bg-purple-700 hover:bg-purple-600'
                   }`}
                 >
                   {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
