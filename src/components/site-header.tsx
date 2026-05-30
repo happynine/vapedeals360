@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
+
+interface SearchResult {
+  slug: string;
+  name: string;
+  image_url: string | null;
+  price: string | null;
+  original_price: string | null;
+}
 
 interface SiteHeaderProps {
   activeTab?: 'vape-deals' | 'best-vapes' | 'news' | '';
@@ -17,7 +25,11 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
 
   const displayName = siteSettings?.site_name || '';
@@ -34,7 +46,18 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   useEffect(() => {
     setMobileMenuOpen(false);
     setMobileSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
   }, [pathname]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Focus search input when mobile search opens
   useEffect(() => {
@@ -42,6 +65,62 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       mobileSearchInputRef.current.focus();
     }
   }, [mobileSearchOpen]);
+
+  // Mobile search with debounce
+  const handleMobileSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    if (!query.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?language=${language}&limit=10`);
+        const json = await res.json();
+        if (json.success) {
+          const q = query.toLowerCase();
+          const filtered = (json.data.products || []).filter((p: Record<string, unknown>) => {
+            const translations = p.product_translations as Record<string, unknown>[] | undefined;
+            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
+            return (t?.name as string)?.toLowerCase().includes(q);
+          }).slice(0, 8).map((p: Record<string, unknown>) => {
+            const translations = p.product_translations as Record<string, unknown>[];
+            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
+            const prices = (p.product_prices as Record<string, unknown>[]) || [];
+            const lowestPrice = prices.length > 0
+              ? prices.reduce((min: Record<string, unknown>, pr: Record<string, unknown>) => {
+                  const curr = parseFloat(pr.current_price as string);
+                  return curr < parseFloat(min.current_price as string) ? pr : min;
+                }, prices[0])
+              : null;
+            return {
+              slug: p.slug as string,
+              name: (t?.name as string) || '',
+              image_url: p.image_url as string | null,
+              price: lowestPrice ? (lowestPrice.current_price as string) : null,
+              original_price: lowestPrice?.original_price ? (lowestPrice.original_price as string) : null,
+            };
+          });
+          setSearchResults(filtered);
+        }
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+  }, [language]);
+
+  const handleSearchResultClick = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setMobileSearchOpen(false);
+  };
 
   const navItems = [
     { href: '/', label: 'Vape Deals', tab: 'vape-deals' },
@@ -245,8 +324,8 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
 
         {/* Mobile Search Bar */}
         {mobileSearchOpen && (
-          <div className="border-t border-gray-800 px-4 py-3">
-            <form action="/" method="get" className="relative">
+          <div className="border-t border-gray-800 px-4 py-3 relative">
+            <div className="relative">
               <svg
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
                 fill="none"
@@ -258,11 +337,80 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               <input
                 ref={mobileSearchInputRef}
                 type="text"
-                name="q"
+                value={searchQuery}
+                onChange={(e) => handleMobileSearch(e.target.value)}
                 placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
-                className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
+                className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
               />
-            </form>
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {/* Search Results Dropdown */}
+            {searchQuery.trim() && (
+              <div className="mt-2 rounded-xl border border-gray-700 bg-[#1a1a24] overflow-hidden max-h-[60vh] overflow-y-auto">
+                {searchLoading ? (
+                  <div className="px-4 py-6 text-center text-sm text-gray-400">
+                    <svg className="animate-spin h-5 w-5 mx-auto mb-2 text-purple-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    {language === "zh" ? "搜索中..." : "Searching..."}
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <ul>
+                    {searchResults.map((result) => (
+                      <li key={result.slug}>
+                        <Link
+                          href={`/product/${result.slug}`}
+                          onClick={handleSearchResultClick}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3a] transition-colors"
+                        >
+                          {result.image_url ? (
+                            <img
+                              src={result.image_url.startsWith("http") ? result.image_url : `/api/image?key=${encodeURIComponent(result.image_url)}`}
+                              alt={result.name}
+                              className="w-10 h-10 rounded-lg object-contain bg-white flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{result.name}</p>
+                            <div className="flex items-center gap-2">
+                              {result.price && (
+                                <span className="text-sm font-semibold text-emerald-400">${result.price}</span>
+                              )}
+                              {result.original_price && result.price && parseFloat(result.original_price) > parseFloat(result.price) && (
+                                <span className="text-xs text-gray-500 line-through">${result.original_price}</span>
+                              )}
+                            </div>
+                          </div>
+                          <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="px-4 py-6 text-center text-sm text-gray-400">
+                    {language === "zh" ? "未找到相关产品" : "No products found"}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
