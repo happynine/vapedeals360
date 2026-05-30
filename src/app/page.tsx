@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useLanguage } from "@/hooks/use-language";
+import { useSiteSettings } from "@/components/site-settings-provider";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { SiteHeader } from "@/components/site-header";
@@ -149,7 +150,8 @@ export default function HomePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
     const [banners, setBanners] = useState<Banner[]>([]);
-    const [siteSettings, setSiteSettings] = useState<SiteSettings>({ site_name: "", logo_url: null });
+    const { siteSettings: contextSiteSettings } = useSiteSettings();
+    const siteSettings = contextSiteSettings || { site_name: "", logo_url: null as string | null };
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
 
@@ -189,12 +191,6 @@ export default function HomePage() {
 
             if (bannerJson.success) {
                 setBanners(bannerJson.data || []);
-            }
-
-            const siteRes = await fetch(`/api/site-settings?language=${language}`);
-            const siteJson = await siteRes.json();
-            if (siteJson.success && siteJson.data) {
-                setSiteSettings({ site_name: siteJson.data.site_name || "", logo_url: siteJson.data.logo_url || null });
             }
 
             const socialRes = await fetch('/api/social-links');

@@ -1,30 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/safe-image';
 import { useLanguage } from '@/hooks/use-language';
-
-interface SiteSettings {
-  site_name: string;
-  logo_url: string;
-}
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface SiteHeaderProps {
   activeTab?: 'vape-deals' | 'best-vapes' | 'news' | '';
 }
 
 export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const { siteSettings } = useSiteSettings();
   const { language, setLanguage } = useLanguage();
   const [langOpen, setLangOpen] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/site-settings')
-      .then(r => r.json())
-      .then(d => { if (d.success) setSiteSettings(d.data); })
-      .catch(() => {});
-  }, []);
 
   const displayName = siteSettings?.site_name || '';
   const displayLogo = siteSettings?.logo_url;
@@ -40,9 +29,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            {siteSettings === null ? (
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">V</div>
-            ) : displayLogo ? (
+            {displayLogo ? (
               <img
                 src={displayLogo.startsWith("http") ? displayLogo : `/api/image?key=${encodeURIComponent(displayLogo)}`}
                 alt={displayName}
@@ -50,7 +37,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">
-                {displayName.charAt(0) || 'V'}
+                {displayName.charAt(0) || '\u00A0'}
               </div>
             )}
             <span className="text-xl font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>

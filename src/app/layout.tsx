@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
+import { SiteSettingsProvider } from '@/components/site-settings-provider';
 
 
 async function getSiteLogo(): Promise<string | null> {
@@ -38,7 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        {children}
+        <SiteSettingsProvider>
+          {children}
+        </SiteSettingsProvider>
       </body>
     </html>
   );
