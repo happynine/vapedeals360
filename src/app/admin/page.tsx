@@ -900,7 +900,7 @@ export default function AdminPage() {
           )}
           {/* News Tab */}
           {activeTab === 'news' && (
-            <ContentPagesManager type="news" title={t('News', '新闻', adminLang)} lang={adminLang} />
+            <ContentPagesManager type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage />
           )}
           {/* Privacy Policy Tab */}
           {activeTab === 'privacy' && (
