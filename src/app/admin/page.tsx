@@ -2125,7 +2125,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                 value={defaultMobileImageKey}
                 onUploadComplete={setDefaultMobileImageKey}
                 aspectRatio={3 / 4}
-                suggestedSize="750x1000px"
+                suggestedSize="750x422px"
                 label={t('Mobile Banner Image (fallback if no language-specific image)', '移动端 Banner 图片（无语言专属图时使用）', lang)}
                 folder="banners"
               />
