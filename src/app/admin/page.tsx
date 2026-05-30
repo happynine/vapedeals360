@@ -1532,6 +1532,7 @@ function StaticPageEditor({ slug, title, lang }: { slug: string; title: string; 
   ]);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
 
   useEffect(() => {
     const fetchPage = async () => {
@@ -1597,35 +1598,49 @@ function StaticPageEditor({ slug, title, lang }: { slug: string; title: string; 
         <h2 className="text-2xl font-bold">{title}</h2>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || !hasChanges}
           className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
             hasChanges
-              ? 'bg-purple-600 text-white hover:bg-purple-700 ring-2 ring-purple-400/50'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          } disabled:opacity-50`}
+              ? 'bg-purple-600 text-white hover:bg-purple-700'
+              : 'bg-purple-600 text-white opacity-50 cursor-not-allowed'
+          }`}
         >
           {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
         </button>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{Array.from({ length: 2 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
+        <div className="space-y-3">{Array.from({ length: 1 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
       ) : (
-        <div className="space-y-6">
-          {translations.map((tr, idx) => (
-            <div key={tr.language} className="border border-border rounded-xl p-4 space-y-3">
-              <h4 className="text-sm font-semibold">{tr.language === 'en' ? 'English' : '中文'}</h4>
-              <RichTextEditor
-                value={tr.content}
-                onChange={(v: string) => {
-                  const newT = [...translations];
-                  newT[idx].content = v;
-                  setTranslations(newT);
-                  setHasChanges(true);
-                }}
-              />
-            </div>
-          ))}
+        <div className="border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setEditLang('en')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'en' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditLang('zh')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'zh' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+            >
+              中文
+            </button>
+          </div>
+          {translations.map((tr, idx) => tr.language === editLang ? (
+            <RichTextEditor
+              key={tr.language}
+              value={tr.content}
+              onChange={(v: string) => {
+                const newT = [...translations];
+                newT[idx].content = v;
+                setTranslations(newT);
+                setHasChanges(true);
+              }}
+            />
+          ) : null)}
         </div>
       )}
     </div>
