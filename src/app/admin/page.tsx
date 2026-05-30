@@ -250,9 +250,9 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="admin-dark min-h-screen bg-background flex">
+    <div className="admin-dark h-screen bg-background flex overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r border-border bg-sidebar">
+      <aside className="w-64 flex-shrink-0 border-r border-border bg-sidebar h-full overflow-y-auto">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2">
             {adminSiteSettings?.logo_url ? (
@@ -1070,8 +1070,8 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
   if (isFullPage && showForm) {
     return (
       <div className="flex flex-col h-full">
-        {/* Top bar with back button */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Top bar with back button - sticky */}
+        <div className="flex items-center justify-between sticky top-0 z-10 bg-background pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowForm(false)}
@@ -1100,7 +1100,7 @@ function ContentPagesManager({ type, title, lang, isFullPage }: { type: string; 
           </div>
         </div>
 
-        <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+        <div className="space-y-4 flex-1 pr-1 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Slug</label>
