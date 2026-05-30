@@ -254,9 +254,9 @@ export default function HomePage() {
             <main className="flex-1 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
                 {}
-                {banners.length > 0 && <div className="mb-8">
+                {banners.length > 0 && <div className="mb-8 -mx-4 sm:mx-0">
                     <div
-                        className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                        className="relative overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border sm:border-gray-200 bg-gray-50">
                         <BannerCarousel banners={banners} language={language} />
                     </div>
                 </div>}
