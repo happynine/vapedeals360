@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       banners.map(async (banner) => {
         const translation = banner.translations?.find((t) => t.language === language) || banner.translations?.[0];
         const imageKey = translation?.image_key || banner.image_key;
-        const mobileImageKey = translation?.mobile_image_key || banner.mobile_image_key;
+        const mobileImageKey = banner.mobile_image_key;
 
         const imageUrl = await getPresignedUrl(imageKey || null);
         const mobileImageUrl = await getPresignedUrl(mobileImageKey || null);

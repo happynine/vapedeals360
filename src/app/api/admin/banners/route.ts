@@ -24,10 +24,8 @@ export async function GET() {
         const translationsWithUrls = await Promise.all(
           translations.map(async (t) => {
             const imgKey = t.image_key as string | null;
-            const mobileImgKey = t.mobile_image_key as string | null;
             const imageUrl = await getPresignedUrl(imgKey);
-            const mobileImageUrl = await getPresignedUrl(mobileImgKey);
-            return { ...t, image_url: imageUrl, mobile_image_url: mobileImageUrl };
+            return { ...t, image_url: imageUrl };
           })
         );
 
@@ -75,11 +73,10 @@ export async function POST(request: NextRequest) {
 
     // Insert translations
     if (translations && Array.isArray(translations) && translations.length > 0) {
-      const translationRecords = translations.map((t: { language: string; image_key?: string; mobile_image_key?: string; title?: string; subtitle?: string }) => ({
+      const translationRecords = translations.map((t: { language: string; image_key?: string; title?: string; subtitle?: string }) => ({
         banner_id: banner.id,
         language: t.language,
         image_key: t.image_key || null,
-        mobile_image_key: t.mobile_image_key || null,
         title: t.title || null,
         subtitle: t.subtitle || null,
       }));
@@ -122,11 +119,10 @@ export async function PUT(request: NextRequest) {
       await client.from('banner_translations').delete().eq('banner_id', id);
 
       if (translations.length > 0) {
-        const translationRecords = translations.map((t: { language: string; image_key?: string; mobile_image_key?: string; title?: string; subtitle?: string }) => ({
+        const translationRecords = translations.map((t: { language: string; image_key?: string; title?: string; subtitle?: string }) => ({
           banner_id: id,
           language: t.language,
           image_key: t.image_key || null,
-          mobile_image_key: t.mobile_image_key || null,
           title: t.title || null,
           subtitle: t.subtitle || null,
         }));
