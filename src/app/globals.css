@@ -182,21 +182,27 @@
   display: flex !important;
 }
 
-/* Show dropdown triangle on color picker label */
+/* Show dropdown triangle on color picker label - positioned to the right of the icon */
+.ql-snow .ql-color-picker .ql-picker-label {
+  position: relative !important;
+  padding-right: 14px !important;
+}
 .ql-snow .ql-color-picker .ql-picker-label::after {
   content: "" !important;
-  display: inline-block !important;
+  position: absolute !important;
+  right: 2px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   width: 0 !important;
   height: 0 !important;
-  border-left: 4px solid transparent !important;
-  border-right: 4px solid transparent !important;
-  border-top: 5px solid #6b7280 !important;
-  margin-left: 4px !important;
-  vertical-align: middle !important;
+  border-left: 3px solid transparent !important;
+  border-right: 3px solid transparent !important;
+  border-top: 4px solid #6b7280 !important;
+  display: inline-block !important;
 }
 
 .ql-snow .ql-color-picker.ql-expanded .ql-picker-label::after {
-  border-top: 5px solid #7c3aed !important;
+  border-top: 4px solid #7c3aed !important;
 }
 
 /* Each color swatch item */
