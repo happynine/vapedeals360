@@ -157,18 +157,46 @@
   border-color: #e5e7eb;
   border-radius: 0.5rem;
   padding: 4px;
+  z-index: 100;
 }
 
 /* ===== Quill Color Picker Customization ===== */
 
-/* Color picker dropdown container - set width for 8 columns */
+/* Color picker dropdown - absolute position so it doesn't block content */
 .ql-snow .ql-color-picker .ql-picker-options {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
   width: auto !important;
-  min-width: 232px !important;
+  min-width: 240px !important;
   padding: 8px !important;
-  display: flex !important;
+  display: none !important;
   flex-wrap: wrap !important;
   gap: 2px !important;
+  z-index: 100 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+}
+
+/* Only show dropdown when expanded */
+.ql-snow .ql-color-picker.ql-expanded .ql-picker-options {
+  display: flex !important;
+}
+
+/* Show dropdown triangle on color picker label */
+.ql-snow .ql-color-picker .ql-picker-label::after {
+  content: "" !important;
+  display: inline-block !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 4px solid transparent !important;
+  border-right: 4px solid transparent !important;
+  border-top: 5px solid #6b7280 !important;
+  margin-left: 4px !important;
+  vertical-align: middle !important;
+}
+
+.ql-snow .ql-color-picker.ql-expanded .ql-picker-label::after {
+  border-top: 5px solid #7c3aed !important;
 }
 
 /* Each color swatch item */
