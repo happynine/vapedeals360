@@ -81,7 +81,7 @@ export default function PrivacyPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-700 text-white font-bold text-sm">V</div>
-                <span className="text-sm font-semibold text-gray-300">siteSettings?.site_name || '\u00A0'</span>
+                <span className="text-sm font-semibold text-gray-300">{siteSettings?.site_name || '\u00A0'}</span>
               </div>
               <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block">Email: info@vapedeals360.com</a>
             </div>

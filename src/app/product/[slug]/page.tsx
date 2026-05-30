@@ -149,7 +149,7 @@ export default function ProductDetailPage() {
             <div className="flex h-16 items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
-                <span className="text-xl font-bold tracking-tight text-white">siteSettings?.site_name || '\u00A0'</span>
+                <span className="text-xl font-bold tracking-tight text-white">{siteSettings?.site_name || '\u00A0'}</span>
               </Link>
             </div>
           </div>
@@ -176,7 +176,7 @@ export default function ProductDetailPage() {
             <div className="flex h-16 items-center justify-between">
               <Link href="/" className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-lg">{(siteSettings?.site_name || 'V').charAt(0)}</div>
-                <span className="text-xl font-bold tracking-tight text-white">siteSettings?.site_name || '\u00A0'</span>
+                <span className="text-xl font-bold tracking-tight text-white">{siteSettings?.site_name || '\u00A0'}</span>
               </Link>
             </div>
           </div>
