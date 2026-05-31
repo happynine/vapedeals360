@@ -132,11 +132,17 @@ html {
   border-radius: 0.5rem 0.5rem 0 0;
 }
 
-/* Quill toolbar sticky in full-page edit mode */
+/* Quill toolbar sticky - floats at top when scrolling */
 .quill-sticky-toolbar .ql-toolbar.ql-snow {
   position: sticky;
-  top: 61px;
+  top: 0;
   z-index: 5;
+  background: #ffffff;
+}
+/* In full-page edit mode, toolbar sticks below the top bar */
+.quill-sticky-toolbar.quill-sticky-offset .ql-toolbar.ql-snow,
+div[class*="h-full"] > .quill-sticky-toolbar .ql-toolbar.ql-snow {
+  top: 61px;
 }
 .admin-dark .ql-container.ql-snow {
   background: #ffffff;
@@ -163,6 +169,28 @@ html {
   border-radius: 0.5rem;
   padding: 4px;
   z-index: 100;
+}
+
+/* ===== Quill Format Painter Button ===== */
+.ql-toolbar .ql-format-painter {
+  width: auto !important;
+  padding: 3px 5px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+.ql-toolbar .ql-format-painter svg {
+  width: 16px;
+  height: 16px;
+}
+.ql-toolbar .ql-format-painter:hover {
+  color: #7c3aed;
+}
+.ql-toolbar .ql-format-painter.ql-active {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 3px;
 }
 
 /* ===== Quill Color Picker Customization ===== */

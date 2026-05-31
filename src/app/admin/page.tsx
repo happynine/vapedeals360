@@ -924,12 +924,94 @@ export default function AdminPage() {
 // ============== Rich Text Editor ==============
 function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [formatPainterActive, setFormatPainterActive] = useState(false);
+  const savedFormatsRef = useRef<Record<string, unknown> | null>(null);
 
+  // Format Painter: copy formats from current cursor position
+  const handleFormatPainterCopy = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || !QuillClass) return;
+    const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+    if (!qlContainer) return;
+    try {
+      const quill = QuillClass.find(qlContainer);
+      if (!quill) return;
+      const range = quill.getSelection();
+      if (!range || range.length === 0) {
+        // No selection - just toggle painter mode with no saved format (will copy on next select)
+        setFormatPainterActive(prev => !prev);
+        savedFormatsRef.current = null;
+        return;
+      }
+      // Copy formats from the selected text
+      const formats = quill.getFormat(range.index, range.length);
+      savedFormatsRef.current = formats;
+      setFormatPainterActive(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Format Painter: apply saved formats on text selection
   useEffect(() => {
-    const injectCustomColorButtons = () => {
+    if (!formatPainterActive || !savedFormatsRef.current) return;
+    const container = containerRef.current;
+    if (!container || !QuillClass) return;
+
+    const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+    if (!qlContainer) return;
+
+    const handleSelectionChange = () => {
+      try {
+        const quill = QuillClass.find(qlContainer);
+        if (!quill) return;
+        const range = quill.getSelection();
+        if (range && range.length > 0) {
+          // Apply saved formats to the selected text
+          quill.format(savedFormatsRef.current as Record<string, unknown>);
+          // Deactivate after applying
+          setFormatPainterActive(false);
+          savedFormatsRef.current = null;
+        }
+      } catch { /* ignore */ }
+    };
+
+    const quill = QuillClass.find(qlContainer);
+    if (quill) {
+      quill.on('selection-change', handleSelectionChange);
+      return () => {
+        quill.off('selection-change', handleSelectionChange);
+      };
+    }
+  }, [formatPainterActive]);
+
+  // Inject format painter button + custom color buttons into toolbar
+  useEffect(() => {
+    const injectCustomToolbarButtons = () => {
       const container = containerRef.current;
       if (!container) return;
 
+      // --- Format Painter Button ---
+      const toolbar = container.querySelector('.ql-toolbar');
+      if (toolbar && !toolbar.querySelector('.ql-format-painter')) {
+        const painterBtn = document.createElement('button');
+        painterBtn.type = 'button';
+        painterBtn.className = 'ql-format-painter';
+        painterBtn.title = '格式刷 (Format Painter)';
+        painterBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 2.76-2.24 5-5 5a5 5 0 0 1-5-5 5 5 0 0 1 5-5z"/><path d="M12 12v10"/><path d="M8 22h8"/></svg>`;
+        painterBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleFormatPainterCopy();
+        });
+        // Insert before the clean button
+        const cleanBtn = toolbar.querySelector('.ql-clean');
+        if (cleanBtn) {
+          toolbar.insertBefore(painterBtn, cleanBtn);
+        } else {
+          toolbar.appendChild(painterBtn);
+        }
+      }
+
+      // --- Custom Color Pickers ---
       const pickers = container.querySelectorAll('.ql-toolbar .ql-color-picker');
       pickers.forEach((picker) => {
         const options = picker.querySelector('.ql-picker-options');
@@ -972,7 +1054,6 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
                     if (quill) quill.format(formatName, colorVal);
                   } catch { /* ignore */ }
                 }
-                // Close picker
                 picker.classList.remove('ql-expanded');
               });
             }
@@ -1009,7 +1090,6 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
               if (quill) quill.format(formatName, color);
             } catch { /* ignore */ }
           }
-          // Save to recent colors
           const stored = localStorage.getItem(storageKey);
           const recentColors: string[] = stored ? JSON.parse(stored) : [];
           const filtered = recentColors.filter((c: string) => c !== color);
@@ -1022,7 +1102,6 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
         options.appendChild(recentWrapper);
         options.appendChild(wrapper);
 
-        // Re-render recent colors when picker opens
         const observer = new MutationObserver(() => {
           if (picker.classList.contains('ql-expanded')) {
             renderRecentColors();
@@ -1032,12 +1111,26 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       });
     };
 
-    const timer = setTimeout(injectCustomColorButtons, 500);
+    const timer = setTimeout(injectCustomToolbarButtons, 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [handleFormatPainterCopy]);
+
+  // Update format painter button active state
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const painterBtn = container.querySelector('.ql-format-painter');
+    if (painterBtn) {
+      if (formatPainterActive) {
+        painterBtn.classList.add('ql-active');
+      } else {
+        painterBtn.classList.remove('ql-active');
+      }
+    }
+  }, [formatPainterActive]);
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className="quill-sticky-toolbar">
       <ReactQuill
         theme="snow"
         value={value}
@@ -1048,11 +1141,12 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
             ['bold', 'italic', 'underline'],
             [{ color: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }, { background: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }],
             [{ list: 'ordered' }, { list: 'bullet' }],
+            [{ align: [] }],
             ['link', 'image'],
             ['clean'],
           ],
         }}
-        formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'link', 'image']}
+        formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'align', 'link', 'image']}
         style={{ minHeight: '300px' }}
       />
     </div>
@@ -1233,7 +1327,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   // Full-page edit view for Best Vapes
   if (isFullPage && showForm) {
     return (
-      <div className="flex flex-col h-full quill-sticky-toolbar">
+      <div className="flex flex-col h-full">
         {/* Top bar with back button - sticky */}
         <div className="flex items-center justify-between sticky top-0 z-10 bg-background pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
