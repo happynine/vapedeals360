@@ -12,13 +12,24 @@ export default function PrivacyPage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Remove empty paragraphs/headings that Quill inserts as spacing
+  const cleanHtml = (html: string) => {
+    return html
+      .replace(/<p[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/p>/gi, '')
+      .replace(/<h[1-6][^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/h[1-6]>/gi, '')
+      .replace(/<div[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/div>/gi, '')
+      .replace(/<p[^>]*>\s*<\/p>/gi, '')
+      .replace(/<h[1-6][^>]*>\s*<\/h[1-6]>/gi, '')
+      .replace(/<div[^>]*>\s*<\/div>/gi, '');
+  };
+
   useEffect(() => {
     setLoading(true);
     fetch(`/api/static-pages?slug=privacy-policy&language=${language}`)
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
-          setContent(d.data.content || '');
+          setContent(cleanHtml(d.data.content || ''));
         }
       })
       .catch(() => {})

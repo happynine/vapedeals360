@@ -442,6 +442,9 @@ body {
 
 /* Rich text content (Quill output) overflow & typography */
 .rich-text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   overflow-wrap: anywhere;
   word-break: normal;
   max-width: 100%;
@@ -449,48 +452,18 @@ body {
   line-height: 1.65;
   color: #374151;
 }
-.rich-text-content > *:first-child {
-  margin-top: 0 !important;
+.rich-text-content > * {
+  margin: 0 !important;
 }
-.rich-text-content h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0 0 0.25rem 0 !important;
-  color: #111827;
-}
-.rich-text-content h2 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: 0 0 0.25rem 0 !important;
-  color: #111827;
-}
-.rich-text-content h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0 !important;
-  color: #111827;
-}
-.rich-text-content p {
-  margin: 0 0 0.5rem 0 !important;
-  line-height: 1.65;
-  color: #374151;
-}
-.rich-text-content ul,
-.rich-text-content ol {
-  margin: 0 0 0.5rem 0 !important;
-  padding-left: 1.5rem;
-}
-.rich-text-content ul {
-  list-style-type: disc;
-}
-.rich-text-content ol {
-  list-style-type: decimal;
-}
-.rich-text-content li {
-  margin: 0 0 0.2rem 0 !important;
-  line-height: 1.65;
-  color: #374151;
-}
+.rich-text-content h1 { font-size: 1.75rem !important; font-weight: 700 !important; color: #111827; }
+.rich-text-content h2 { font-size: 1.375rem !important; font-weight: 700 !important; color: #111827; }
+.rich-text-content h3 { font-size: 1.125rem !important; font-weight: 600 !important; color: #111827; }
+.rich-text-content h4 { font-size: 1rem !important; font-weight: 600 !important; color: #111827; }
+.rich-text-content p { color: #374151; }
+.rich-text-content ul, .rich-text-content ol { padding-left: 1.5rem; }
+.rich-text-content ul { list-style-type: disc; }
+.rich-text-content ol { list-style-type: decimal; }
+.rich-text-content li { color: #374151; }
 .rich-text-content a {
   color: #7c3aed;
   text-decoration: underline;
@@ -520,12 +493,10 @@ body {
   background: #f3f4f6;
   padding: 1rem;
   border-radius: 0.5rem;
-  margin-bottom: 1rem;
 }
 .rich-text-content table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1rem;
   overflow-x: auto;
   display: block;
 }
