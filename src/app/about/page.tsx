@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
+import { cleanRichText } from '@/lib/utils';
 
 interface StaticPageData {
   id: number;
@@ -18,16 +19,6 @@ export default function AboutPage() {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Remove empty paragraphs/headings that Quill inserts as spacing
-  const cleanHtml = (html: string) => {
-    return html
-      // Remove <p> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
-      .replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '')
-      // Remove <h1-6> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
-      .replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '')
-      // Remove <div> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
-      .replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '');
-  };
 
   useEffect(() => {
     setLoading(true);
@@ -35,7 +26,7 @@ export default function AboutPage() {
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
-          setContent(cleanHtml(d.data.content || ''));
+          setContent(cleanRichText(d.data.content || ''));
         }
       })
       .catch(() => {})
