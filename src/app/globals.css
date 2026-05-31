@@ -445,8 +445,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow-wrap: anywhere;
-  word-break: normal;
+  overflow-wrap: break-word;
+  word-break: keep-all;
   max-width: 100%;
   font-size: 0.9375rem;
   line-height: 1.65;
