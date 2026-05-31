@@ -15,12 +15,12 @@ export default function PrivacyPage() {
   // Remove empty paragraphs/headings that Quill inserts as spacing
   const cleanHtml = (html: string) => {
     return html
-      .replace(/<p[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/p>/gi, '')
-      .replace(/<h[1-6][^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/h[1-6]>/gi, '')
-      .replace(/<div[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/div>/gi, '')
-      .replace(/<p[^>]*>\s*<\/p>/gi, '')
-      .replace(/<h[1-6][^>]*>\s*<\/h[1-6]>/gi, '')
-      .replace(/<div[^>]*>\s*<\/div>/gi, '');
+      // Remove <p> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
+      .replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '')
+      // Remove <h1-6> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
+      .replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '')
+      // Remove <div> containing only whitespace, &nbsp;, <br>, <span>&nbsp;</span>, etc.
+      .replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '');
   };
 
   useEffect(() => {

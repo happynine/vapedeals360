@@ -54,7 +54,7 @@ export default function NewsDetailPage() {
               <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
               <div
                 className="rich-text-content"
-                dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/p>/gi, '').replace(/<h[1-6][^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>\s*(<br[^>]*>\s*)*(&nbsp;\s*)*<\/div>/gi, '').replace(/<p[^>]*>\s*<\/p>/gi, '').replace(/<h[1-6][^>]*>\s*<\/h[1-6]>/gi, '').replace(/<div[^>]*>\s*<\/div>/gi, '') }}
+                dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
               />
             </>
           ) : (
