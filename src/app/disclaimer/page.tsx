@@ -6,13 +6,7 @@ import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 
-interface StaticPageData {
-  id: number;
-  slug: string;
-  content: string;
-}
-
-export default function AboutPage() {
+export default function DisclaimerPage() {
   const { language } = useLanguage();
   const { siteSettings } = useSiteSettings();
   const [content, setContent] = useState('');
@@ -31,7 +25,7 @@ export default function AboutPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/static-pages?slug=about-us&language=${language}`)
+    fetch(`/api/static-pages?slug=disclaimer&language=${language}`)
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
@@ -48,7 +42,7 @@ export default function AboutPage() {
 
       <main className="flex-1 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-6">About Us</h1>
+        <h1 className="text-3xl font-bold mb-6">Disclaimer</h1>
         {loading ? (
           <div className="text-center py-20">
             <div className="animate-spin w-8 h-8 border-2 border-purple-700 border-t-transparent rounded-full mx-auto mb-4" />
@@ -60,8 +54,7 @@ export default function AboutPage() {
           />
         ) : (
           <div className="text-gray-500">
-            <p>Welcome to {siteSettings?.site_name || '\u00A0'} - your trusted source for vape price comparison and deals.</p>
-            <p className="mt-4">We help you find the best prices across multiple vape stores, saving you time and money on e-cigarettes, pod systems, mods, and e-liquids.</p>
+            <p>Disclaimer content will be available soon.</p>
           </div>
         )}
       </div>

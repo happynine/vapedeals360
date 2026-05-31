@@ -24,7 +24,8 @@ interface BannerTranslation { id: number; banner_id: number; language: string; i
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'privacy' | 'about';
+type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
+type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer';
 const LANGUAGES = ['en', 'zh'];
 
 // i18n helper
@@ -53,6 +54,10 @@ export default function AdminPage() {
   const newsRef = useRef<ContentPagesManagerRef>(null);
   const privacyRef = useRef<StaticPageEditorRef>(null);
   const aboutRef = useRef<StaticPageEditorRef>(null);
+  const disclaimerRef = useRef<StaticPageEditorRef>(null);
+
+  // Sub-page navigation within Site Settings
+  const [siteSettingsSubPage, setSiteSettingsSubPage] = useState<StaticPageSlug | null>(null);
 
   // Check login state on mount
   useEffect(() => {
@@ -201,8 +206,6 @@ export default function AdminPage() {
     banners: { en: 'Banners', zh: 'Banner' },
     best_vapes: { en: 'Best Vapes', zh: 'Best Vapes' },
     news: { en: 'News', zh: '新闻' },
-    privacy: { en: 'Privacy Policy', zh: '隐私政策' },
-    about: { en: 'About Us', zh: '关于我们' },
     analytics: { en: 'Analytics', zh: '数据统计' },
   };
 
@@ -274,7 +277,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'privacy', 'about', 'analytics'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -287,8 +290,6 @@ export default function AdminPage() {
               {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
               {tab === 'best_vapes' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}
               {tab === 'news' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>}
-              {tab === 'privacy' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>}
-              {tab === 'about' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
               {tab === 'analytics' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
               {t(tabLabels[tab].en, tabLabels[tab].zh, adminLang)}
             </button>
@@ -343,6 +344,28 @@ export default function AdminPage() {
           {/* Site Settings Tab */}
           {activeTab === 'site_settings' && (
             <div>
+              {/* Sub-page: Static Page Editor */}
+              {siteSettingsSubPage ? (
+                <div>
+                  <button
+                    onClick={() => setSiteSettingsSubPage(null)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    {t('Back to Site Settings', '返回站点设置', adminLang)}
+                  </button>
+                  {siteSettingsSubPage === 'privacy-policy' && (
+                    <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} />
+                  )}
+                  {siteSettingsSubPage === 'about-us' && (
+                    <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} />
+                  )}
+                  {siteSettingsSubPage === 'disclaimer' && (
+                    <StaticPageEditor ref={disclaimerRef} slug="disclaimer" title={t('Disclaimer', '免责声明', adminLang)} lang={adminLang} />
+                  )}
+                </div>
+              ) : (
+                <>
               <h2 className="text-2xl font-bold mb-6">{t('Site Settings', '站点设置', adminLang)}</h2>
               <div className="bg-card rounded-xl border border-border p-6 space-y-6">
                 <div>
@@ -560,6 +583,31 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* Static Pages Section */}
+              <div className="bg-card rounded-xl border border-border p-6 space-y-4 mt-6">
+                <h3 className="text-lg font-semibold">{t('Static Pages', '静态页面', adminLang)}</h3>
+                <p className="text-sm text-muted-foreground">{t('Click to edit page content with rich text editor', '点击进入富文本编辑器编辑页面内容', adminLang)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {([
+                    { slug: 'privacy-policy' as StaticPageSlug, title: t('Privacy Policy', '隐私政策', adminLang), icon: '🛡️', desc: t('Site privacy policy', '网站隐私政策', adminLang) },
+                    { slug: 'about-us' as StaticPageSlug, title: t('About Us', '关于我们', adminLang), icon: 'ℹ️', desc: t('About the site', '关于本站', adminLang) },
+                    { slug: 'disclaimer' as StaticPageSlug, title: t('Disclaimer', '免责声明', adminLang), icon: '⚠️', desc: t('Site disclaimer', '网站免责声明', adminLang) },
+                  ]).map((page) => (
+                    <button
+                      key={page.slug}
+                      onClick={() => setSiteSettingsSubPage(page.slug)}
+                      className="flex flex-col items-start gap-2 rounded-xl border border-border bg-background p-4 text-left hover:border-purple-500 hover:bg-purple-500/5 transition-all group"
+                    >
+                      <span className="text-2xl">{page.icon}</span>
+                      <span className="text-sm font-semibold group-hover:text-purple-400 transition-colors">{page.title}</span>
+                      <span className="text-xs text-muted-foreground">{page.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+                </>
+              )}
             </div>
           )}
 
@@ -906,14 +954,6 @@ export default function AdminPage() {
           {/* News Tab */}
           {activeTab === 'news' && (
             <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage />
-          )}
-          {/* Privacy Policy Tab */}
-          {activeTab === 'privacy' && (
-            <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} />
-          )}
-          {/* About Us Tab */}
-          {activeTab === 'about' && (
-            <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} />
           )}
         </div>
       </main>
