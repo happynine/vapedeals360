@@ -442,39 +442,42 @@ body {
 
 /* Rich text content (Quill output) overflow & typography */
 .rich-text-content {
-  overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   max-width: 100%;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: #374151;
 }
 .rich-text-content h1 {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  color: #111827;
-}
-.rich-text-content h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-top: 1.75rem;
+  margin-top: 1.5rem;
   margin-bottom: 0.75rem;
   color: #111827;
 }
+.rich-text-content h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  color: #111827;
+}
 .rich-text-content h3 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   margin-bottom: 0.5rem;
   color: #111827;
 }
 .rich-text-content p {
-  margin-bottom: 1rem;
-  line-height: 1.75;
+  margin-bottom: 0.75rem;
+  line-height: 1.65;
   color: #374151;
 }
 .rich-text-content ul,
 .rich-text-content ol {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   padding-left: 1.5rem;
 }
 .rich-text-content ul {
@@ -484,8 +487,8 @@ body {
   list-style-type: decimal;
 }
 .rich-text-content li {
-  margin-bottom: 0.25rem;
-  line-height: 1.75;
+  margin-bottom: 0.2rem;
+  line-height: 1.65;
   color: #374151;
 }
 .rich-text-content a {
