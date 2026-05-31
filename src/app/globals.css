@@ -449,35 +449,43 @@ body {
   line-height: 1.65;
   color: #374151;
 }
+.rich-text-content > *:first-child {
+  margin-top: 0 !important;
+}
+.rich-text-content h1 + p,
+.rich-text-content h2 + p,
+.rich-text-content h3 + p {
+  margin-top: 0;
+}
 .rich-text-content h1 {
   font-size: 1.75rem;
   font-weight: 700;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
   color: #111827;
 }
 .rich-text-content h2 {
   font-size: 1.375rem;
   font-weight: 700;
-  margin-top: 1.25rem;
-  margin-bottom: 0.625rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
   color: #111827;
 }
 .rich-text-content h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
   margin-bottom: 0.5rem;
   color: #111827;
 }
 .rich-text-content p {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   line-height: 1.65;
   color: #374151;
 }
 .rich-text-content ul,
 .rich-text-content ol {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   padding-left: 1.5rem;
 }
 .rich-text-content ul {
