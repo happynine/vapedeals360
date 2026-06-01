@@ -1,6 +1,8 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

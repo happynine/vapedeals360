@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import { fetchBanners, type Banner } from '@/lib/database';
 import { getPresignedUrl } from '@/lib/storage';
 

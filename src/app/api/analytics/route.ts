@@ -1,5 +1,7 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const supabase = getSupabaseClient();

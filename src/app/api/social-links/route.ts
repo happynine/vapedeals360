@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/social-links - Get active social links for frontend

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/content-pages?type=best_vapes&language=en
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type'); // 'best_vapes' | 'news'
