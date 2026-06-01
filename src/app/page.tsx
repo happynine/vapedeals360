@@ -133,6 +133,7 @@ export default function HomePage() {
     const siteSettings = contextSiteSettings || { site_name: "", logo_url: null as string | null };
     const { socialLinks, getSocialIcon } = useSocialLinks();
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
+    const [salesRegion, setSalesRegion] = useState<string>("不限地区");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -146,6 +147,10 @@ export default function HomePage() {
 
             if (selectedCategory) {
                 params.set("category_id", selectedCategory.toString());
+            }
+
+            if (salesRegion && salesRegion !== "不限地区") {
+                params.set("sales_region", salesRegion);
             }
 
             const res = await fetch(`/api/products?${params}`);
@@ -177,7 +182,7 @@ export default function HomePage() {
         } finally {
             setLoading(false);
         }
-    }, [language, page, selectedCategory]);
+    }, [language, page, selectedCategory, salesRegion]);
 
     useEffect(() => {
         fetchData();
@@ -333,6 +338,17 @@ export default function HomePage() {
                                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                                 {language === "zh" ? "价格从高到低" : "Price High To Low"}
                             </button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
+                            {(["不限地区", "全球", "美国", "加拿大", "英国", "俄罗斯"] as const).map((region) => (
+                                <button
+                                    key={region}
+                                    onClick={() => setSalesRegion(region)}
+                                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                    {region}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

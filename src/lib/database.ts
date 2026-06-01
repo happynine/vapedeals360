@@ -39,6 +39,7 @@ export interface Product {
   category_id: number | null;
   image_url: string | null;
   images: string | null;
+  sales_region: string | null;
   is_active: boolean;
   is_featured: boolean;
   created_at: string;
@@ -114,9 +115,10 @@ export async function fetchProducts(options?: {
   limit?: number;
   offset?: number;
   featured?: boolean;
+  sales_region?: string;
 }) {
   const client = getClient();
-  const { category_id, language = 'en', limit = 20, offset = 0, featured } = options || {};
+  const { category_id, language = 'en', limit = 20, offset = 0, featured, sales_region } = options || {};
 
   let query = client
     .from('products')
@@ -130,6 +132,9 @@ export async function fetchProducts(options?: {
   }
   if (featured) {
     query = query.eq('is_featured', true);
+  }
+  if (sales_region && sales_region !== '不限地区') {
+    query = query.eq('sales_region', sales_region);
   }
 
   const { data, error } = await query;
@@ -193,11 +198,14 @@ export async function fetchProductBySlug(slug: string, language: string = 'en') 
 }
 
 // Count products
-export async function countProducts(category_id?: number) {
+export async function countProducts(category_id?: number, sales_region?: string) {
   const client = getClient();
   let query = client.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true);
   if (category_id) {
     query = query.eq('category_id', category_id);
+  }
+  if (sales_region && sales_region !== '不限地区') {
+    query = query.eq('sales_region', sales_region);
   }
   const { count, error } = await query;
   if (error) throw new Error(`Count products failed: ${error.message}`);

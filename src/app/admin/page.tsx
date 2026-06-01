@@ -22,7 +22,7 @@ interface ProductTranslation { id: number; product_id: number; language: string;
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer';
@@ -753,6 +753,7 @@ export default function AdminPage() {
                               <div className="flex gap-1">
                                 {product.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
                                 {product.is_featured && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{t('Featured', '推荐', adminLang)}</span>}
+                                {product.sales_region && product.sales_region !== '不限地区' && <span className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{product.sales_region}</span>}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -1968,6 +1969,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
+  const [salesRegion, setSalesRegion] = useState<string>(product?.sales_region || '不限地区');
   const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
@@ -2007,6 +2009,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
         image_url: imageKey || null,
         is_active: isActive,
         is_featured: isFeatured,
+        sales_region: salesRegion,
         translations: translations.map((tr) => ({
           language: tr.language,
           name: tr.name,
@@ -2053,6 +2056,14 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                     <option value="">{t('None', '无', lang)}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.category_translations?.find((tr) => tr.language === lang)?.name || c.slug}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
+                  <select value={salesRegion} onChange={(e) => setSalesRegion(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+                    {(["不限地区", "全球", "美国", "加拿大", "英国", "俄罗斯"] as const).map((region) => (
+                      <option key={region} value={region}>{region}</option>
                     ))}
                   </select>
                 </div>

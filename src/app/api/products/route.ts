@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const featured = searchParams.get('featured') === 'true';
+    const salesRegion = searchParams.get('sales_region') || undefined;
     const offset = (page - 1) * limit;
 
     const [categories, products, total] = await Promise.all([
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest) {
         limit,
         offset,
         featured,
+        sales_region: salesRegion,
       }),
-      countProducts(categoryId ? parseInt(categoryId) : undefined),
+      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion),
     ]);
 
     return NextResponse.json({

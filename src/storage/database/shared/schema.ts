@@ -88,6 +88,7 @@ export const products = pgTable(
     category_id: integer("category_id").references(() => categories.id, { onDelete: "set null" }),
     image_url: text("image_url"),
     images: text("images"), // JSON array of image URLs
+    sales_region: varchar("sales_region", { length: 50 }).default("不限地区"),
     is_active: boolean("is_active").default(true).notNull(),
     is_featured: boolean("is_featured").default(false).notNull(),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -98,6 +99,7 @@ export const products = pgTable(
     index("products_category_id_idx").on(table.category_id),
     index("products_is_active_idx").on(table.is_active),
     index("products_is_featured_idx").on(table.is_featured),
+    index("products_sales_region_idx").on(table.sales_region),
   ]
 );
 
