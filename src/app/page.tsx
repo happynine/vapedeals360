@@ -345,14 +345,24 @@ export default function HomePage() {
                     {/* Row 3: Region */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-                        {(["不限地区", "全球", "美国", "加拿大", "英国", "俄罗斯"] as const).map((region) => (
+                        {(["不限地区", "全球", "美国", "加拿大", "英国", "俄罗斯"] as const).map((region) => {
+                            const regionLabels: Record<string, string> = {
+                                "不限地区": language === "zh" ? "不限地区" : "All Regions",
+                                "全球": language === "zh" ? "全球" : "Global",
+                                "美国": language === "zh" ? "美国" : "USA",
+                                "加拿大": language === "zh" ? "加拿大" : "Canada",
+                                "英国": language === "zh" ? "英国" : "UK",
+                                "俄罗斯": language === "zh" ? "俄罗斯" : "Russia",
+                            };
+                            return (
                             <button
                                 key={region}
                                 onClick={() => setSalesRegion(region)}
                                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                                {region}
+                                {regionLabels[region]}
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
                 {}
