@@ -1122,12 +1122,16 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
           e.stopPropagation();
           handleFormatPainterCopy();
         });
-        // Insert before the clean button
-        const cleanBtn = toolbar.querySelector('.ql-clean');
-        if (cleanBtn) {
-          toolbar.insertBefore(painterBtn, cleanBtn);
+        const painterGroup = document.createElement('span');
+        painterGroup.className = 'ql-formats';
+        painterGroup.appendChild(painterBtn);
+        // Find the correct parent for insertion (insert before the last ql-formats group)
+        const allGroups = toolbar.querySelectorAll('.ql-formats');
+        if (allGroups.length > 0) {
+          const lastGroup = allGroups[allGroups.length - 1];
+          lastGroup.parentElement!.insertBefore(painterGroup, lastGroup.nextSibling);
         } else {
-          toolbar.appendChild(painterBtn);
+          toolbar.appendChild(painterGroup);
         }
       }
 
@@ -1143,7 +1147,16 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
           e.stopPropagation();
           handleWordImport();
         });
-        toolbar.appendChild(wordBtn);
+        const wordGroup = document.createElement('span');
+        wordGroup.className = 'ql-formats';
+        wordGroup.appendChild(wordBtn);
+        // Insert after format painter
+        const painterGroupEl = toolbar.querySelector('.ql-format-painter')?.parentElement;
+        if (painterGroupEl) {
+          painterGroupEl.parentElement!.insertBefore(wordGroup, painterGroupEl.nextSibling);
+        } else {
+          toolbar.appendChild(wordGroup);
+        }
       }
 
       // --- Table Insert Button ---
@@ -1158,7 +1171,16 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
           e.stopPropagation();
           setShowTableModal(true);
         });
-        toolbar.appendChild(tableBtn);
+        const tableGroup = document.createElement('span');
+        tableGroup.className = 'ql-formats';
+        tableGroup.appendChild(tableBtn);
+        // Insert after word import
+        const wordGroupEl = toolbar.querySelector('.ql-word-import')?.parentElement;
+        if (wordGroupEl) {
+          wordGroupEl.parentElement!.insertBefore(tableGroup, wordGroupEl.nextSibling);
+        } else {
+          toolbar.appendChild(tableGroup);
+        }
       }
 
       // --- Custom Color Pickers ---
@@ -1261,8 +1283,10 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       });
     };
 
-    const timer = setTimeout(injectCustomToolbarButtons, 500);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(injectCustomToolbarButtons, 300);
+    // Retry injection in case the editor renders later (e.g. tab switch)
+    const retryTimer = setTimeout(injectCustomToolbarButtons, 1500);
+    return () => { clearTimeout(timer); clearTimeout(retryTimer); };
   }, [handleFormatPainterCopy]);
 
   // Update format painter button active state
