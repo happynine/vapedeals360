@@ -136,8 +136,10 @@ html {
 .quill-sticky-toolbar .ql-toolbar.ql-snow {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 10;
   background: #ffffff;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
 }
 /* In full-page edit mode, toolbar sticks below the top bar */
 .quill-sticky-toolbar.quill-sticky-offset .ql-toolbar.ql-snow,

@@ -1738,7 +1738,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       {loading ? (
         <div className="space-y-3">{Array.from({ length: 1 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
       ) : (
-        <div className="border border-border rounded-xl p-4 space-y-3">
+        <div className="border border-border rounded-xl p-4 space-y-3 overflow-visible">
           <div className="flex items-center gap-2">
             <button
               type="button"
