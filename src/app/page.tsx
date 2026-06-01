@@ -291,7 +291,8 @@ export default function HomePage() {
                 </div>}
                 {}
                 <div className="mb-6">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "类型" : "Type"}</span>
                         <button
                             onClick={() => {
                                 setSelectedCategory(null);
@@ -315,29 +316,24 @@ export default function HomePage() {
                                 </button>
                             );
                         })}
-                    </div>
-                </div>
-                {}
-                <div className="mb-4 flex items-center justify-between gap-4">
-                    <div className="text-sm text-gray-500">
-                        {language === "zh" ? `共 ${total} 个产品` : `${total} products found`}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setSortBy("newest")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                            {language === "zh" ? "最新发布" : "Newest"}
-                        </button>
-                        <button
-                            onClick={() => setSortBy("price_low")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                            {language === "zh" ? "价格从低到高" : "Price: Low → High"}
-                        </button>
-                        <button
-                            onClick={() => setSortBy("price_high")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                            {language === "zh" ? "价格从高到低" : "Price: High → Low"}
-                        </button>
+                        <div className="ml-auto flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
+                            <button
+                                onClick={() => setSortBy("newest")}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                {language === "zh" ? "最新发布" : "Newest"}
+                            </button>
+                            <button
+                                onClick={() => setSortBy("price_low")}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                {language === "zh" ? "价格从低到高" : "Price Low To High"}
+                            </button>
+                            <button
+                                onClick={() => setSortBy("price_high")}
+                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                {language === "zh" ? "价格从高到低" : "Price High To Low"}
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {}
