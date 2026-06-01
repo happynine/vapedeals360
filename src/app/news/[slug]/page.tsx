@@ -39,7 +39,7 @@ export default function NewsDetailPage() {
       <SiteHeader activeTab="news" />
 
       <main className="flex-1 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Link href="/news" className="text-purple-400 hover:text-purple-300 text-sm mb-6 inline-block">
             &larr; Back to News
           </Link>
@@ -76,7 +76,7 @@ export default function NewsDetailPage() {
 
       {/* Footer */}
       <footer className="bg-[#0a0a0e] border-t border-gray-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div className="hidden sm:block">
               <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>

@@ -54,7 +54,7 @@ export default function NewsPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold mb-4">News</h1>
             {description && <p className="text-gray-500 mb-8 max-w-3xl">{description}</p>}
 
@@ -92,7 +92,7 @@ export default function NewsPage() {
 
       {/* Footer */}
       <footer className="bg-[#0a0a0e] border-t border-gray-800">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+          <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
                   <div className="hidden sm:block">
                       <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>

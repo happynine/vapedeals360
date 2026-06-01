@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader activeTab="" />
-        <div className="mx-auto max-w-7xl px-4 py-8 bg-white flex-1">
+        <div className="mx-auto max-w-[1380px] px-4 py-8 bg-white flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
             <div className="space-y-4">
@@ -192,7 +192,7 @@ export default function ProductDetailPage() {
     <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="vape-deals" />
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 bg-white flex-1">
+      <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8 bg-white flex-1">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500">
           <Link href="/" className="hover:text-gray-900 transition-colors">{language === 'zh' ? '首页' : 'Home'}</Link>
@@ -477,7 +477,7 @@ export default function ProductDetailPage() {
 
       {/* Footer */}
       <footer className="bg-[#0a0a0e] border-t border-gray-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div className="hidden sm:block">
               <h4 className="text-sm font-semibold text-gray-300 mb-4">Navigation</h4>
@@ -533,7 +533,7 @@ export default function ProductDetailPage() {
           ©Vapedeals360.com All Rights Reserved.
         </div>
       </footer>
-      <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4 max-w-7xl mx-auto">
+      <div className="bg-[#0a0a0e] border-t border-gray-800 py-8 px-4 max-w-[1380px] mx-auto">
         <div className="space-y-4 text-xs text-gray-400">
           <div>
             <h4 className="text-gray-400 font-semibold mb-1">FDA Disclaimer</h4>

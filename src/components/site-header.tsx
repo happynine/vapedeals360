@@ -206,7 +206,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       {/* Desktop Header */}
       <div className="hidden md:block">
         {/* Top row: Logo + Search + Language */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
               {displayLogo ? (
@@ -347,7 +347,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
         </div>
         {/* Tab Navigation: Vape Deals / Best Vapes / News */}
         <div className="border-t border-gray-800">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-6 h-12">
               {navItems.map(item => (
                 <Link

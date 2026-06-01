@@ -231,7 +231,7 @@ export default function HomePage() {
         <div className="min-h-screen flex flex-col">
             <SiteHeader activeTab="vape-deals" />
             <main className="flex-1 bg-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 sm:pt-6 pb-6">
+                <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-6 pb-6">
                 {}
                 {banners.length > 0 && <div className="mb-8 -mx-4 sm:mx-0 sm:mt-0">
                     <div
@@ -519,7 +519,7 @@ export default function HomePage() {
             </main>
             {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
             <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
+                <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 space-y-6">
                     <div>
                         <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
                         <p className="text-xs text-gray-500 leading-relaxed">
@@ -536,7 +536,7 @@ export default function HomePage() {
             </div>
             {/* Footer */}
             <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-0">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+                <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
                         {/* Navigation Column - hidden on mobile (available in hamburger menu) */}
                         <div className="hidden sm:block">
