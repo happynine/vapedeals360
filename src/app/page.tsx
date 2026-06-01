@@ -316,7 +316,7 @@ export default function HomePage() {
                                 </button>
                             );
                         })}
-                        <div className="ml-auto flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
                             <button
                                 onClick={() => setSortBy("newest")}
