@@ -972,7 +972,11 @@ export default function AdminPage() {
 
 // ============== Rich Text Editor ==============
 
-function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export interface RichTextEditorRef {
+  getHTML: () => string;
+}
+
+const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: (v: string) => void }>(function RichTextEditor({ value, onChange }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [formatPainterActive, setFormatPainterActive] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
@@ -980,6 +984,16 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
   const [tableCols, setTableCols] = useState(3);
   const [importingWord, setImportingWord] = useState(false);
   const savedFormatsRef = useRef<Record<string, unknown> | null>(null);
+
+  // Expose getHTML() to parent for reliable content reading on Publish
+  useImperativeHandle(ref, () => ({
+    getHTML: () => {
+      const container = containerRef.current;
+      if (!container) return value;
+      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+      return qlEditor ? qlEditor.innerHTML : value;
+    },
+  }), [value]);
 
   // Format Painter: copy formats from current cursor position
   const handleFormatPainterCopy = useCallback(() => {
@@ -1378,7 +1392,7 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       )}
     </div>
   );
-}
+});
 
 // ============== Content Pages Manager (Best Vapes / News) ==============
 export interface ContentPagesManagerRef {
@@ -1408,6 +1422,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const [saving, setSaving] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
+  const editorRef = useRef<RichTextEditorRef>(null);
 
 
   const fetchPages = useCallback(async () => {
@@ -1476,6 +1491,19 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const handlePublish = async () => {
     setSaving(true);
     try {
+      // Read content directly from Quill editor DOM to avoid React state staleness
+      const publishTranslations = formTranslations.map(t => ({ ...t }));
+      const editorHTML = editorRef.current?.getHTML();
+      if (editorHTML !== undefined) {
+        const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
+        if (currentIdx !== -1) {
+          publishTranslations[currentIdx] = {
+            ...publishTranslations[currentIdx],
+            content: editorHTML,
+          };
+        }
+      }
+
       const body = {
         id: editingPage,
         type,
@@ -1483,7 +1511,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         cover_image: formCoverImage,
         sort_order: formSortOrder,
         is_published: true,
-        translations: formTranslations.map(t => ({
+        translations: publishTranslations.map(t => ({
           id: t.id,
           language: t.language,
           title: t.title,
@@ -1498,9 +1526,26 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       });
       const json = await res.json();
       if (json.success) {
-        // For new pages, capture the returned ID
+        // For new pages, capture the returned ID and translation IDs
         if (!editingPage && json.data?.id) {
           setEditingPage(json.data.id);
+          // Capture translation IDs from the response so future PUTs use update instead of insert
+          if (json.data.content_page_translations) {
+            const newTranslations = LANGUAGES.map(l => {
+              const existing = json.data.content_page_translations.find((t: { language: string }) => t.language === l);
+              const current = publishTranslations.find(t => t.language === l);
+              if (existing) {
+                return { id: existing.id, language: existing.language, title: current?.title || existing.title, content: current?.content || existing.content };
+              }
+              return current || { language: l, title: '', content: '' };
+            });
+            setFormTranslations(newTranslations);
+          } else {
+            setFormTranslations(publishTranslations);
+          }
+        } else {
+          // Sync React state with the actually published content
+          setFormTranslations(publishTranslations);
         }
         setFormPublished(true);
         setHasFormChanges(false);
@@ -1629,6 +1674,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                   <RichTextEditor
+                    ref={editorRef}
                     value={tr.content}
                     onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                   />
@@ -1749,6 +1795,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                       <RichTextEditor
+                        ref={editorRef}
                         value={tr.content}
                         onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                       />
@@ -1767,9 +1814,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
               <button
                 type="button"
                 onClick={handlePublish}
-                disabled={saving || formPublished}
+                disabled={saving || (formPublished && !hasFormChanges)}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                  saving || formPublished
+                  saving || (formPublished && !hasFormChanges)
                     ? 'bg-purple-600/50 text-white cursor-default'
                     : 'bg-purple-600 text-white hover:bg-purple-700'
                 }`}
@@ -1805,6 +1852,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
+  const staticEditorRef = useRef<RichTextEditorRef>(null);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [originalTranslations, setOriginalTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([]);
 
@@ -1847,13 +1895,26 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   const handlePublish = async () => {
     setPublishing(true);
     try {
+      // Read content directly from Quill editor DOM to avoid React state staleness
+      const publishTranslations = translations.map(t => ({ ...t }));
+      const editorHTML = staticEditorRef.current?.getHTML();
+      if (editorHTML !== undefined) {
+        const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
+        if (currentIdx !== -1) {
+          publishTranslations[currentIdx] = {
+            ...publishTranslations[currentIdx],
+            content: editorHTML,
+          };
+        }
+      }
+
       // Step 1: Save content first
       const saveRes = await fetch('/api/admin/static-pages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug,
-          translations: translations.map(t => ({ id: t.id, language: t.language, content: t.content })),
+          translations: publishTranslations.map(t => ({ id: t.id, language: t.language, content: t.content })),
         }),
       });
       const saveJson = await saveRes.json();
@@ -1871,6 +1932,9 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       if (pubJson.success) {
         setPublishSuccess(true);
         setTimeout(() => setPublishSuccess(false), 3000);
+        // Sync React state
+        setTranslations(publishTranslations);
+        setOriginalTranslations(JSON.parse(JSON.stringify(publishTranslations)));
         // Refresh data
         const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
@@ -1945,6 +2009,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
           </div>
           {translations.map((tr, idx) => tr.language === editLang ? (
             <RichTextEditor
+              ref={staticEditorRef}
               key={tr.language}
               value={tr.content}
               onChange={(v: string) => {

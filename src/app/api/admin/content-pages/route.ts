@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/admin/content-pages?type=best_vapes
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -88,13 +90,17 @@ export async function POST(request: NextRequest) {
       content: t.content,
     }));
 
-    const { error: transError } = await supabase
+    const { data: insertedTranslations, error: transError } = await supabase
       .from('content_page_translations')
-      .insert(translationRows);
+      .insert(translationRows)
+      .select();
 
     if (transError) {
       return NextResponse.json({ error: transError.message }, { status: 500 });
     }
+
+    // Return inserted translation IDs so frontend can track them for future updates
+    return NextResponse.json({ success: true, data: { ...page, content_page_translations: insertedTranslations } });
   }
 
   return NextResponse.json({ success: true, data: page });
@@ -107,9 +113,16 @@ export async function PUT(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
+  // Only update fields that are explicitly provided (avoid setting fields to NULL)
+  const updateFields: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (slug !== undefined) updateFields.slug = slug;
+  if (cover_image !== undefined) updateFields.cover_image = cover_image;
+  if (sort_order !== undefined) updateFields.sort_order = sort_order;
+  if (is_published !== undefined) updateFields.is_published = is_published;
+
   const { error: pageError } = await supabase
     .from('content_pages')
-    .update({ slug, cover_image, sort_order, is_published, updated_at: new Date().toISOString() })
+    .update(updateFields)
     .eq('id', id);
 
   if (pageError) {
@@ -124,9 +137,25 @@ export async function PUT(request: NextRequest) {
           .update({ title: t.title, content: t.content })
           .eq('id', t.id);
       } else {
-        await supabase
+        // Check if translation already exists for this page+language
+        const { data: existing } = await supabase
           .from('content_page_translations')
-          .insert({ page_id: id, language: t.language, title: t.title, content: t.content });
+          .select('id')
+          .eq('page_id', id)
+          .eq('language', t.language)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          // Update existing translation
+          await supabase
+            .from('content_page_translations')
+            .update({ title: t.title, content: t.content })
+            .eq('id', existing[0].id);
+        } else {
+          // Insert new translation
+          await supabase
+            .from('content_page_translations')
+            .insert({ page_id: id, language: t.language, title: t.title, content: t.content });
+        }
       }
     }
   }
