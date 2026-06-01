@@ -83,6 +83,23 @@ export function ImageUpload({
           y: cropY,
         };
         setCrop(initialCrop);
+        // Also initialize completedCrop so "Crop & Upload" works without user interaction
+        setCompletedCrop({
+          unit: 'px',
+          width: Math.round(cropW * width / 100),
+          height: Math.round(cropH * height / 100),
+          x: Math.round(cropX * width / 100),
+          y: Math.round(cropY * height / 100),
+        });
+      } else {
+        // No aspect ratio: initialize completedCrop to full image
+        setCompletedCrop({
+          unit: 'px',
+          width,
+          height,
+          x: 0,
+          y: 0,
+        });
       }
     },
     [aspectRatio]
