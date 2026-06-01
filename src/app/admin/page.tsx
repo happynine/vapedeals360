@@ -1622,7 +1622,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
                   <input
                     value={tr.title}
-                    onChange={e => { markChanged(); const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                    onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                   />
                 </div>
@@ -1630,7 +1630,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                   <RichTextEditor
                     value={tr.content}
-                    onChange={(v: string) => { markChanged(); const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                    onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                   />
                 </div>
               </div>
@@ -1742,7 +1742,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                       <label className="block text-xs text-muted-foreground mb-1">{t('Title', '标题', lang)}</label>
                       <input
                         value={tr.title}
-                        onChange={e => { markChanged(); const newT = [...formTranslations]; newT[idx].title = e.target.value; setFormTranslations(newT); }}
+                        onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }}
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                       />
                     </div>
@@ -1750,7 +1750,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                       <label className="block text-xs text-muted-foreground mb-1">{t('Content', '内容', lang)}</label>
                       <RichTextEditor
                         value={tr.content}
-                        onChange={(v: string) => { markChanged(); const newT = [...formTranslations]; newT[idx].content = v; setFormTranslations(newT); }}
+                        onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                       />
                     </div>
                   </div>
@@ -1948,9 +1948,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
               key={tr.language}
               value={tr.content}
               onChange={(v: string) => {
-                const newT = [...translations];
-                newT[idx].content = v;
-                setTranslations(newT);
+                setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t));
               }}
             />
           ) : null)}
@@ -2494,7 +2492,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                     <div className="space-y-2">
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Title', '标题', lang)}</label>
-                        <input value={tr.title} onChange={(e) => { const newT = [...translations]; newT[idx].title = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        <input value={tr.title} onChange={(e) => { setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Subtitle', '副标题', lang)}</label>
