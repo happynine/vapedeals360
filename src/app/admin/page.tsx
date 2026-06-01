@@ -984,6 +984,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const [tableCols, setTableCols] = useState(3);
   const [importingWord, setImportingWord] = useState(false);
   const savedFormatsRef = useRef<Record<string, unknown> | null>(null);
+  // Use ref for onChange to avoid stale closure in useCallback hooks
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   // Expose getHTML() to parent for reliable content reading on Publish
   useImperativeHandle(ref, () => ({
@@ -1044,7 +1047,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         // so we must manually sync the React state with the new editor content
         setTimeout(() => {
           const html = quill.root.innerHTML;
-          onChange(html);
+          console.log('[Word Import] Syncing to React state, HTML length:', html?.length);
+          onChangeRef.current(html);
         }, 0);
       } catch (err) {
         console.error('Word import failed:', err);
@@ -1091,10 +1095,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     // so we must manually sync the React state with the new editor content
     setTimeout(() => {
       const html = quill.root.innerHTML;
-      onChange(html);
+      onChangeRef.current(html);
     }, 0);
     setShowTableModal(false);
-  }, [tableRows, tableCols, onChange]);
+  }, [tableRows, tableCols]);
 
   // Format Painter: apply saved formats on text selection
   useEffect(() => {
@@ -1506,6 +1510,8 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       // Read content directly from Quill editor DOM to avoid React state staleness
       const publishTranslations = formTranslations.map(t => ({ ...t }));
       const editorHTML = editorRef.current?.getHTML();
+      console.log('[handlePublish] formTranslations content lengths:', formTranslations.map(t => ({ lang: t.language, len: t.content?.length })));
+      console.log('[handlePublish] editorHTML length:', editorHTML?.length, 'editLang:', editLang);
       if (editorHTML !== undefined) {
         const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
         if (currentIdx !== -1) {
@@ -1910,6 +1916,8 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       // Read content directly from Quill editor DOM to avoid React state staleness
       const publishTranslations = translations.map(t => ({ ...t }));
       const editorHTML = staticEditorRef.current?.getHTML();
+      console.log('[StaticPage handlePublish] translations content lengths:', translations.map(t => ({ lang: t.language, len: t.content?.length })));
+      console.log('[StaticPage handlePublish] editorHTML length:', editorHTML?.length, 'editLang:', editLang);
       if (editorHTML !== undefined) {
         const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
         if (currentIdx !== -1) {

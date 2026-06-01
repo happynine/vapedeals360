@@ -111,6 +111,9 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { id, slug, cover_image, sort_order, is_published, translations } = body;
 
+  // Debug: log what we receive for content
+  console.log('[PUT /api/admin/content-pages] id:', id, 'translations:', translations?.map((t: { language: string; title: string; content: string }) => ({ language: t.language, title: t.title?.substring(0, 30), contentLength: t.content?.length })));
+
   const supabase = getSupabaseClient();
 
   // Only update fields that are explicitly provided (avoid setting fields to NULL)
