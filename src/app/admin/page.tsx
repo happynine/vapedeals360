@@ -1599,7 +1599,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
           <div>
             <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="800x450px" label={t('Cover', '封面', lang)} lang={lang} />
+            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} lang={lang} />
           </div>
 
           {/* Language toggle + unified editor */}
@@ -1719,7 +1719,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
               <div>
                 <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="800x450px" label={t('Cover', '封面', lang)} lang={lang} />
+                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} lang={lang} />
               </div>
 
               {/* Language toggle + unified editor */}

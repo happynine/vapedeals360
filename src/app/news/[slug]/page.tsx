@@ -46,11 +46,6 @@ export default function NewsDetailPage() {
 
           {page ? (
             <>
-              {page.cover_image && (
-                <div className="aspect-video bg-gray-50 rounded-xl overflow-hidden mb-8">
-                  <SafeImage src={page.cover_image} alt={page.title} width={800} height={450} className="w-full h-full object-cover" />
-                </div>
-              )}
               <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
               <div
                 className="rich-text-content"
