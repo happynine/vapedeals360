@@ -14,16 +14,21 @@ export async function GET(request: NextRequest) {
 
   if (slug) {
     // Get single content page detail (only published)
-    const { data: page, error: pageError } = await supabase
+    const { data: pages, error: pageError } = await supabase
       .from('content_pages')
       .select('*, content_page_translations(*)')
       .eq('slug', slug)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
-      .single();
+      .limit(1);
 
     if (pageError) {
       return NextResponse.json({ error: pageError.message }, { status: 500 });
+    }
+
+    const page = pages?.[0];
+    if (!page) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
     const translation = page.content_page_translations?.[0] || page.content_page_translations;

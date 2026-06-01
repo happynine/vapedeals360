@@ -59,6 +59,17 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
+  // Check for duplicate slug
+  const { data: existing } = await supabase
+    .from('content_pages')
+    .select('id')
+    .eq('slug', slug)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return NextResponse.json({ error: 'A page with this slug already exists' }, { status: 409 });
+  }
+
   const { data: page, error: pageError } = await supabase
     .from('content_pages')
     .insert({ type, slug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
