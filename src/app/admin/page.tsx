@@ -8,6 +8,14 @@ import { ImageUpload } from '@/components/image-upload';
 import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="min-h-[300px] rounded-lg border border-border bg-secondary animate-pulse" /> });
+
+let mammothInstance: typeof import('mammoth') | null = null;
+async function getMammoth() {
+  if (!mammothInstance) {
+    mammothInstance = await import('mammoth');
+  }
+  return mammothInstance;
+}
 // Import Quill class for Quill.find() - needed for custom color picker
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let QuillClass: any = null;
@@ -963,9 +971,14 @@ export default function AdminPage() {
 }
 
 // ============== Rich Text Editor ==============
+
 function RichTextEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [formatPainterActive, setFormatPainterActive] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [importingWord, setImportingWord] = useState(false);
   const savedFormatsRef = useRef<Record<string, unknown> | null>(null);
 
   // Format Painter: copy formats from current cursor position
@@ -990,6 +1003,72 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
       setFormatPainterActive(true);
     } catch { /* ignore */ }
   }, []);
+
+  // Word import: read .docx file and insert HTML into editor
+  const handleWordImport = useCallback(async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.docx';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setImportingWord(true);
+      try {
+        const mammoth = await getMammoth();
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const container = containerRef.current;
+        if (!container || !QuillClass) return;
+        const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+        if (!qlContainer) return;
+        const quill = QuillClass.find(qlContainer);
+        if (!quill) return;
+        const range = quill.getSelection(true);
+        const index = range ? range.index : quill.getLength();
+        quill.clipboard.dangerouslyPasteHTML(index, result.value);
+      } catch (err) {
+        console.error('Word import failed:', err);
+        alert('Failed to import Word document');
+      } finally {
+        setImportingWord(false);
+      }
+    };
+    input.click();
+  }, []);
+
+  // Table insert: create HTML table and insert into editor
+  const handleInsertTable = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || !QuillClass) return;
+    const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+    if (!qlContainer) return;
+    const quill = QuillClass.find(qlContainer);
+    if (!quill) return;
+
+    const rows = Math.max(1, Math.min(tableRows, 20));
+    const cols = Math.max(1, Math.min(tableCols, 10));
+    let tableHtml = '<table style="border-collapse:collapse;width:100%;margin:8px 0;">';
+    // Header row
+    tableHtml += '<tr>';
+    for (let c = 0; c < cols; c++) {
+      tableHtml += `<th style="border:1px solid #d1d5db;padding:8px;background:#f3f4f6;font-weight:600;text-align:left;">Header ${c + 1}</th>`;
+    }
+    tableHtml += '</tr>';
+    // Data rows
+    for (let r = 0; r < rows - 1; r++) {
+      tableHtml += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        tableHtml += `<td style="border:1px solid #d1d5db;padding:8px;">&nbsp;</td>`;
+      }
+      tableHtml += '</tr>';
+    }
+    tableHtml += '</table><p><br></p>';
+
+    const range = quill.getSelection(true);
+    const index = range ? range.index : quill.getLength();
+    quill.clipboard.dangerouslyPasteHTML(index, tableHtml);
+    setShowTableModal(false);
+  }, [tableRows, tableCols]);
 
   // Format Painter: apply saved formats on text selection
   useEffect(() => {
@@ -1050,6 +1129,36 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
         } else {
           toolbar.appendChild(painterBtn);
         }
+      }
+
+      // --- Word Import Button ---
+      if (toolbar && !toolbar.querySelector('.ql-word-import')) {
+        const wordBtn = document.createElement('button');
+        wordBtn.type = 'button';
+        wordBtn.className = 'ql-word-import';
+        wordBtn.title = '导入Word (Import Word)';
+        wordBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>`;
+        wordBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleWordImport();
+        });
+        toolbar.appendChild(wordBtn);
+      }
+
+      // --- Table Insert Button ---
+      if (toolbar && !toolbar.querySelector('.ql-insert-table')) {
+        const tableBtn = document.createElement('button');
+        tableBtn.type = 'button';
+        tableBtn.className = 'ql-insert-table';
+        tableBtn.title = '插入表格 (Insert Table)';
+        tableBtn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`;
+        tableBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowTableModal(true);
+        });
+        toolbar.appendChild(tableBtn);
       }
 
       // --- Custom Color Pickers ---
@@ -1190,6 +1299,59 @@ function RichTextEditor({ value, onChange }: { value: string; onChange: (v: stri
         formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'align', 'link', 'image']}
         style={{ minHeight: '300px' }}
       />
+      {importingWord && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 flex items-center gap-3 shadow-xl">
+            <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium text-gray-700">Importing Word document...</span>
+          </div>
+        </div>
+      )}
+      {showTableModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setShowTableModal(false)}>
+          <div className="bg-white rounded-xl p-6 shadow-xl w-80" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-gray-800 mb-4">Insert Table</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-600 w-16">Rows</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={tableRows}
+                  onChange={(e) => setTableRows(parseInt(e.target.value) || 3)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-600 w-16">Columns</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={tableCols}
+                  onChange={(e) => setTableCols(parseInt(e.target.value) || 3)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setShowTableModal(false)}
+                className="px-4 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleInsertTable}
+                className="px-4 py-1.5 text-sm rounded-lg bg-purple-600 text-white hover:bg-purple-700"
+              >
+                Insert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1368,9 +1530,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   // Full-page edit view for Best Vapes
   if (isFullPage && showForm) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full content-pages-editor">
         {/* Top bar with back button - sticky */}
-        <div className="flex items-center justify-between sticky top-0 z-10 bg-background pt-2 pb-4 border-b border-border">
+        <div className="flex items-center justify-between sticky top-0 z-20 bg-background pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowForm(false)}
@@ -1457,7 +1619,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
   // Default: list view + modal for other tabs
   return (
-    <div>
+    <div className="static-page-editor">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">{title}</h2>
@@ -1715,30 +1877,32 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <div className="flex items-center gap-3">
-          {publishSuccess && (
-            <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
-          )}
-          <button
-            onClick={handlePublish}
-            disabled={publishing || (!hasChanges && isPublished)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              publishing || (!hasChanges && isPublished)
-                ? 'bg-purple-600/50 text-white cursor-default'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
-          </button>
+      <div className="sticky top-0 z-20 bg-card -mx-6 px-6 py-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">{title}</h2>
+          <div className="flex items-center gap-3">
+            {publishSuccess && (
+              <span className="text-xs text-purple-400 font-medium">{t('Published successfully!', '发布成功!', lang)}</span>
+            )}
+            <button
+              onClick={handlePublish}
+              disabled={publishing || (!hasChanges && isPublished)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                publishing || (!hasChanges && isPublished)
+                  ? 'bg-purple-600/50 text-white cursor-default'
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
+              }`}
+            >
+              {publishing ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
+            </button>
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{Array.from({ length: 1 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
+        <div className="space-y-3 mt-4">{Array.from({ length: 1 }).map((_, i) => <div key={i} className="h-48 rounded-lg bg-secondary animate-pulse" />)}</div>
       ) : (
-        <div className="border border-border rounded-xl p-4 space-y-3 overflow-visible">
+        <div className="border border-border rounded-xl p-4 space-y-3 overflow-visible mt-4">
           <div className="flex items-center gap-2">
             <button
               type="button"

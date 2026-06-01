@@ -141,10 +141,12 @@ html {
   border-top-left-radius: 0.5rem;
   border-top-right-radius: 0.5rem;
 }
-/* In full-page edit mode, toolbar sticks below the top bar */
-.quill-sticky-toolbar.quill-sticky-offset .ql-toolbar.ql-snow,
-div[class*="h-full"] > .quill-sticky-toolbar .ql-toolbar.ql-snow {
-  top: 61px;
+/* In editor pages, toolbar sticks below the sticky header */
+.static-page-editor .quill-sticky-toolbar .ql-toolbar.ql-snow {
+  top: 56px;
+}
+.content-pages-editor .quill-sticky-toolbar .ql-toolbar.ql-snow {
+  top: 60px;
 }
 .admin-dark .ql-container.ql-snow {
   background: #ffffff;
@@ -193,6 +195,40 @@ div[class*="h-full"] > .quill-sticky-toolbar .ql-toolbar.ql-snow {
   color: #7c3aed;
   background: rgba(124, 58, 237, 0.1);
   border-radius: 3px;
+}
+
+/* Word Import & Table Insert buttons */
+.ql-toolbar .ql-word-import,
+.ql-toolbar .ql-insert-table {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  padding: 2px;
+}
+.ql-toolbar .ql-word-import:hover,
+.ql-toolbar .ql-insert-table:hover {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 3px;
+}
+
+/* Quill Editor Table Styles */
+.ql-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+.ql-editor th,
+.ql-editor td {
+  border: 1px solid #d1d5db;
+  padding: 6px 8px;
+  text-align: left;
+}
+.ql-editor th {
+  background: #f3f4f6;
+  font-weight: 600;
 }
 
 /* ===== Quill Color Picker Customization ===== */
