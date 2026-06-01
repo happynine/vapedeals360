@@ -1040,6 +1040,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const range = quill.getSelection(true);
         const index = range ? range.index : quill.getLength();
         quill.clipboard.dangerouslyPasteHTML(index, result.value);
+        // dangerouslyPasteHTML does NOT trigger React-Quill's onChange,
+        // so we must manually sync the React state with the new editor content
+        setTimeout(() => {
+          const html = quill.root.innerHTML;
+          onChange(html);
+        }, 0);
       } catch (err) {
         console.error('Word import failed:', err);
         alert('Failed to import Word document');
@@ -1081,8 +1087,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     const range = quill.getSelection(true);
     const index = range ? range.index : quill.getLength();
     quill.clipboard.dangerouslyPasteHTML(index, tableHtml);
+    // dangerouslyPasteHTML does NOT trigger React-Quill's onChange,
+    // so we must manually sync the React state with the new editor content
+    setTimeout(() => {
+      const html = quill.root.innerHTML;
+      onChange(html);
+    }, 0);
     setShowTableModal(false);
-  }, [tableRows, tableCols]);
+  }, [tableRows, tableCols, onChange]);
 
   // Format Painter: apply saved formats on text selection
   useEffect(() => {
