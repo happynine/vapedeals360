@@ -328,17 +328,17 @@ export default function HomePage() {
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
                         <button
                             onClick={() => setSortBy("newest")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "最新发布" : "Newest"}
                         </button>
                         <button
                             onClick={() => setSortBy("price_low")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从低到高" : "Price Low To High"}
                         </button>
                         <button
                             onClick={() => setSortBy("price_high")}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从高到低" : "Price High To Low"}
                         </button>
                     </div>
@@ -358,7 +358,7 @@ export default function HomePage() {
                             <button
                                 key={region}
                                 onClick={() => setSalesRegion(region)}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                                 {regionLabels[region]}
                             </button>
                             );
