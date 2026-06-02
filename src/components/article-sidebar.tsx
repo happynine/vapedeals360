@@ -1,133 +1,110 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
-interface HeadingItem {
-  id: string;
-  text: string;
-  level: number; // h1=1, h2=2, ...
+interface RelatedArticle {
+  id: number;
+  slug: string;
+  cover_image: string | null;
+  title: string;
 }
 
 interface ArticleSidebarProps {
-  content: string; // raw HTML content from the article
+  type: string; // 'best_vapes' | 'news'
+  currentSlug: string;
+  language: string;
 }
 
-export function ArticleSidebar({ content }: ArticleSidebarProps) {
-  const [activeId, setActiveId] = useState<string>('');
+export function ArticleSidebar({ type, currentSlug, language }: ArticleSidebarProps) {
+  const [articles, setArticles] = useState<RelatedArticle[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Extract headings from HTML content
-  const headings = useMemo<HeadingItem[]>(() => {
-    if (!content) return [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(content, 'text/html');
-    const headingElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    const items: HeadingItem[] = [];
-    headingElements.forEach((el, index) => {
-      const text = el.textContent?.trim() || '';
-      if (!text) return;
-      // Use existing id or generate one
-      const id = el.id || `heading-${index}`;
-      const level = parseInt(el.tagName[1], 10);
-      items.push({ id, text, level });
-    });
-    return items;
-  }, [content]);
-
-  // Assign IDs to headings in the actual DOM after content renders
   useEffect(() => {
-    if (!content) return;
-    const container = document.querySelector('.rich-text-content');
-    if (!container) return;
-    const headingElements = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    headingElements.forEach((el, index) => {
-      if (!el.id) {
-        el.id = `heading-${index}`;
-      }
-    });
-  }, [content]);
+    setLoading(true);
+    fetch(`/api/content-pages?type=${type}&language=${language}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          // Exclude current article, limit to 10
+          const related = data.data
+            .filter((a: RelatedArticle) => a.slug !== currentSlug)
+            .slice(0, 10);
+          setArticles(related);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [type, currentSlug, language]);
 
-  // Intersection observer for scroll tracking
-  useEffect(() => {
-    if (headings.length === 0) return;
-
-    const container = document.querySelector('.rich-text-content');
-    if (!container) return;
-
-    const headingElements = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    if (headingElements.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        });
-      },
-      {
-        rootMargin: '-80px 0px -70% 0px',
-        threshold: 0,
-      }
+  if (loading) {
+    return (
+      <aside className="w-full">
+        <div className="sticky top-24">
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-1 pb-3 border-b-2 border-purple-600">
+            {type === 'news' ? 'Latest News' : 'Latest Reviews'}
+          </h3>
+          <div className="mt-4 space-y-4 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex gap-3">
+                <div className="w-16 h-16 bg-gray-200 rounded-md shrink-0" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-3.5 bg-gray-200 rounded w-full" />
+                  <div className="h-3.5 bg-gray-200 rounded w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
     );
+  }
 
-    headingElements.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [headings, content]);
+  if (articles.length === 0) return null;
 
-  const scrollToHeading = useCallback((id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Offset for sticky header
-      window.scrollBy(0, -80);
-    }
-  }, []);
-
-  if (headings.length === 0) return null;
-
-  // Find min heading level for relative indentation
-  const minLevel = Math.min(...headings.map((h) => h.level));
+  const basePath = type === 'news' ? '/news' : '/best-vapes';
+  const sectionTitle = type === 'news' ? 'Latest News' : 'Latest Reviews';
 
   return (
     <aside className="w-full">
       <div className="sticky top-24">
         {/* Section title */}
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-1 pb-3 border-b-2 border-purple-600">
-          Table of Contents
+          {sectionTitle}
         </h3>
 
-        {/* Heading list */}
-        <nav className="mt-3 max-h-[calc(100vh-160px)] overflow-y-auto">
-          <ul className="space-y-0.5">
-            {headings.map((heading) => {
-              const indentLevel = heading.level - minLevel;
-              const isActive = activeId === heading.id;
-              const paddingLeft = 8 + indentLevel * 12; // 8px base + 12px per level
-              return (
-                <li key={heading.id}>
-                  <button
-                    onClick={() => scrollToHeading(heading.id)}
-                    className={`
-                      w-full text-left text-[13px] leading-relaxed py-1.5 rounded-md transition-all duration-150
-                      truncate block
-                      ${isActive
-                        ? 'bg-purple-50 text-purple-700 font-semibold'
-                        : 'text-gray-600 hover:text-purple-700 hover:bg-gray-50'
-                      }
-                    `}
-                    style={{
-                      paddingLeft: `${paddingLeft}px`,
-                      borderLeft: isActive ? '2px solid #7c3aed' : '2px solid transparent',
-                    }}
-                    title={heading.text}
-                  >
-                    {heading.text}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        {/* Article list */}
+        <div className="mt-4 space-y-3">
+          {articles.map((article) => (
+            <Link
+              key={article.id}
+              href={`${basePath}/${encodeURIComponent(article.slug)}`}
+              className="flex gap-3 group rounded-lg p-1.5 -m-1.5 hover:bg-gray-50 transition-colors duration-150"
+            >
+              {/* Thumbnail */}
+              <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-gray-100">
+                {article.cover_image ? (
+                  <img
+                    src={article.cover_image.startsWith('http') ? article.cover_image : `/api/image?key=${encodeURIComponent(article.cover_image)}`}
+                    alt={article.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              {/* Title */}
+              <span className="flex-1 text-[13px] leading-snug text-purple-700 group-hover:text-purple-900 font-medium line-clamp-3 self-center transition-colors duration-150">
+                {article.title || article.slug}
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </aside>
   );

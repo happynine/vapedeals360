@@ -55,9 +55,9 @@ export default function BestVapesDetailPage() {
                   dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
                 />
               </article>
-              {/* Sidebar - Table of Contents */}
+              {/* Sidebar - Related Articles */}
               <div className="hidden lg:block w-72 shrink-0">
-                <ArticleSidebar content={page.content || ''} />
+                <ArticleSidebar type="best_vapes" currentSlug={slug} language={language} />
               </div>
             </div>
           ) : (
