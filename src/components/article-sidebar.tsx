@@ -47,7 +47,7 @@ export function ArticleSidebar({ type, currentSlug, language }: ArticleSidebarPr
           <div className="mt-4 space-y-4 animate-pulse">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex gap-3">
-                <div className="w-16 h-16 bg-gray-200 rounded-md shrink-0" />
+                <div className="w-16 bg-gray-200 rounded-md shrink-0" style={{ aspectRatio: '16/9' }} />
                 <div className="flex-1 space-y-2 py-1">
                   <div className="h-3.5 bg-gray-200 rounded w-full" />
                   <div className="h-3.5 bg-gray-200 rounded w-3/4" />
@@ -81,8 +81,8 @@ export function ArticleSidebar({ type, currentSlug, language }: ArticleSidebarPr
               href={`${basePath}/${encodeURIComponent(article.slug)}`}
               className="flex gap-3 group rounded-lg p-1.5 -m-1.5 hover:bg-gray-50 transition-colors duration-150"
             >
-              {/* Thumbnail */}
-              <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-gray-100">
+              {/* Thumbnail - same aspect-video (16:9) as Best Vapes list */}
+              <div className="w-16 shrink-0 rounded-md overflow-hidden bg-gray-100" style={{ aspectRatio: '16/9' }}>
                 {article.cover_image ? (
                   <img
                     src={article.cover_image.startsWith('http') ? article.cover_image : `/api/image?key=${encodeURIComponent(article.cover_image)}`}
