@@ -1351,7 +1351,128 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     return instance;
   }, []);
 
-  // Custom image handler: upload to object storage instead of base64
+  // Image compression: compress images over 400KB to 200-300KB range
+  const COMPRESS_THRESHOLD = 400 * 1024; // 400KB
+  const COMPRESS_TARGET_MIN = 200 * 1024; // 200KB
+  const COMPRESS_TARGET_MAX = 300 * 1024; // 300KB
+
+  const compressImage = useCallback(async (file: File): Promise<File> => {
+    // Skip if under threshold
+    if (file.size <= COMPRESS_THRESHOLD) return file;
+
+    const imageBitmap = await createImageBitmap(file);
+    const { width, height } = imageBitmap;
+
+    // Draw original to canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(imageBitmap, 0, 0);
+    imageBitmap.close();
+
+    // Determine output format - use JPEG for photos (better compression), keep PNG for transparency
+    const isTransparent = await hasTransparency(file);
+    const outputType = isTransparent ? 'image/png' : 'image/jpeg';
+    const ext = isTransparent ? 'png' : 'jpg';
+
+    // For PNG with transparency, try PNG first then fall back to resizing
+    if (isTransparent) {
+      const pngBlob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), 'image/png');
+      });
+      if (pngBlob.size <= COMPRESS_TARGET_MAX) {
+        return new File([pngBlob], file.name.replace(/\.\w+$/, '.png'), { type: 'image/png' });
+      }
+      // If PNG is still too large, scale down dimensions
+      return await compressByResize(file, canvas, outputType, ext);
+    }
+
+    // For JPEG: binary search on quality to hit 200-300KB target
+    let low = 0.1, high = 0.92, bestBlob: Blob | null = null;
+
+    for (let i = 0; i < 8; i++) {
+      const mid = (low + high) / 2;
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), 'image/jpeg', mid);
+      });
+
+      if (blob.size >= COMPRESS_TARGET_MIN && blob.size <= COMPRESS_TARGET_MAX) {
+        bestBlob = blob;
+        break;
+      }
+
+      if (blob.size < COMPRESS_TARGET_MIN) {
+        low = mid;
+        bestBlob = blob; // keep as fallback
+      } else {
+        high = mid;
+        bestBlob = blob; // keep as fallback
+      }
+    }
+
+    // If quality adjustment alone can't reach target, try resizing
+    if (bestBlob && bestBlob.size <= COMPRESS_TARGET_MAX && bestBlob.size >= COMPRESS_TARGET_MIN * 0.5) {
+      return new File([bestBlob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+    }
+
+    return await compressByResize(file, canvas, outputType, ext);
+  }, []);
+
+  // Helper: check if image has transparency
+  const hasTransparency = useCallback(async (file: File): Promise<boolean> => {
+    if (file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/gif') {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = url; });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      // Check alpha channel - sample every 100th pixel for performance
+      for (let i = 3; i < data.length; i += 400) {
+        if (data[i] < 250) return true; // semi-transparent pixel found
+      }
+    }
+    return false;
+  }, []);
+
+  // Helper: compress by resizing dimensions + quality adjustment
+  const compressByResize = useCallback(async (file: File, originalCanvas: HTMLCanvasElement, outputType: string, ext: string): Promise<File> => {
+    let scale = 0.85;
+    let bestBlob: Blob | null = null;
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const w = Math.round(originalCanvas.width * scale);
+      const h = Math.round(originalCanvas.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(originalCanvas, 0, 0, w, h);
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), outputType, outputType === 'image/jpeg' ? 0.8 : undefined);
+      });
+
+      if (blob.size <= COMPRESS_TARGET_MAX) {
+        bestBlob = blob;
+        if (blob.size >= COMPRESS_TARGET_MIN) break; // in target range
+      } else {
+        bestBlob = blob; // keep as fallback
+      }
+      scale *= 0.8;
+    }
+
+    if (!bestBlob) return file; // fallback to original
+    const fileName = file.name.replace(/\.\w+$/, `.${ext}`);
+    return new File([bestBlob], fileName, { type: outputType });
+  }, []);
+
+  // Custom image handler: compress + upload to object storage instead of base64
   const imageHandler = useCallback(() => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
@@ -1364,8 +1485,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       if (!quill) return;
       const range = quill.getSelection(true);
       try {
+        // Auto-compress if image exceeds 400KB
+        const processedFile = await compressImage(file);
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', processedFile);
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         if (!res.ok) throw new Error('Upload failed');
         const data = await res.json();
@@ -1381,7 +1504,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         alert('Image upload failed. Please try again.');
       }
     };
-  }, []);
+  }, [compressImage, getQuillInstance]);
 
   const quillModules = useMemo(() => ({
     toolbar: {
