@@ -96,7 +96,7 @@ export function ArticleSidebar({ type, currentSlug, language }: ArticleSidebarPr
                 )}
               </div>
               {/* Title - 16px bold, 2 lines max */}
-              <p className="mt-1.5 text-base leading-snug text-purple-700 group-hover:text-purple-900 font-bold line-clamp-2">
+              <p className="mt-1.5 text-base leading-snug text-gray-900 group-hover:text-purple-700 font-bold line-clamp-2">
                 {article.title || article.slug}
               </p>
             </Link>
