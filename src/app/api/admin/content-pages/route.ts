@@ -59,13 +59,18 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { type, slug, cover_image, sort_order, is_published, translations } = body;
 
+  const trimmedSlug = (slug || '').trim();
+  if (!trimmedSlug) {
+    return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
+  }
+
   const supabase = getSupabaseClient();
 
   // Check for duplicate slug
   const { data: existing } = await supabase
     .from('content_pages')
     .select('id')
-    .eq('slug', slug)
+    .eq('slug', trimmedSlug)
     .limit(1);
 
   if (existing && existing.length > 0) {
@@ -74,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   const { data: page, error: pageError } = await supabase
     .from('content_pages')
-    .insert({ type, slug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
+    .insert({ type, slug: trimmedSlug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
     .select()
     .single();
 
@@ -116,9 +121,23 @@ export async function PUT(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
+  // Check for duplicate slug (exclude self)
+  if (slug) {
+    const trimmedSlug = slug.trim();
+    const { data: existingSlug } = await supabase
+      .from('content_pages')
+      .select('id')
+      .eq('slug', trimmedSlug)
+      .neq('id', id)
+      .limit(1);
+    if (existingSlug && existingSlug.length > 0) {
+      return NextResponse.json({ error: 'A page with this slug already exists' }, { status: 409 });
+    }
+  }
+
   // Only update fields that are explicitly provided (avoid setting fields to NULL)
   const updateFields: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (slug !== undefined) updateFields.slug = slug;
+  if (slug !== undefined) updateFields.slug = slug.trim();
   if (cover_image !== undefined) updateFields.cover_image = cover_image;
   if (sort_order !== undefined) updateFields.sort_order = sort_order;
   if (is_published !== undefined) updateFields.is_published = is_published;

@@ -1507,12 +1507,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const handlePublish = async () => {
     setSaving(true);
     try {
-      // Read content directly from Quill editor DOM to avoid React state staleness
+      // 1. Read content directly from Quill editor DOM (bypasses React state staleness)
       const publishTranslations = formTranslations.map(t => ({ ...t }));
       const editorHTML = editorRef.current?.getHTML();
-      console.log('[handlePublish] formTranslations content lengths:', formTranslations.map(t => ({ lang: t.language, len: t.content?.length })));
-      console.log('[handlePublish] editorHTML length:', editorHTML?.length, 'editLang:', editLang);
-      if (editorHTML !== undefined) {
+      console.log('[handlePublish] editingPage:', editingPage, 'editLang:', editLang);
+      console.log('[handlePublish] formTranslations:', formTranslations.map(t => ({ lang: t.language, titleLen: t.title?.length, contentLen: t.content?.length, id: t.id })));
+      console.log('[handlePublish] editorHTML length:', editorHTML?.length);
+      if (editorHTML !== undefined && editorHTML !== '') {
         const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
         if (currentIdx !== -1) {
           publishTranslations[currentIdx] = {
@@ -1522,10 +1523,37 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         }
       }
 
+      // 2. Fallback: if current language content is still empty, try reading from DOM directly
+      const currentLangTrans = publishTranslations.find(t => t.language === editLang);
+      if (!currentLangTrans?.content && editorRef.current) {
+        const fallbackHTML = editorRef.current.getHTML();
+        if (fallbackHTML) {
+          const idx = publishTranslations.findIndex(t => t.language === editLang);
+          if (idx !== -1) {
+            publishTranslations[idx].content = fallbackHTML;
+          }
+        }
+      }
+
+      // 3. Validate: warn if content is empty
+      const enContent = publishTranslations.find(t => t.language === 'en')?.content;
+      if (!enContent || enContent.trim() === '' || enContent === '<p><br></p>') {
+        const proceed = confirm('English content appears to be empty. Publish anyway?');
+        if (!proceed) { setSaving(false); return; }
+      }
+
+      // 4. Trim slug
+      const trimmedSlug = (formSlug || '').trim();
+      if (!trimmedSlug) {
+        alert('Slug is required');
+        setSaving(false);
+        return;
+      }
+
       const body = {
         id: editingPage,
         type,
-        slug: formSlug,
+        slug: trimmedSlug,
         cover_image: formCoverImage,
         sort_order: formSortOrder,
         is_published: true,
@@ -1537,12 +1565,15 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         })),
       };
 
+      console.log('[handlePublish] Sending:', { method: editingPage ? 'PUT' : 'POST', id: editingPage, slug: trimmedSlug, translations: publishTranslations.map(t => ({ lang: t.language, titleLen: t.title?.length, contentLen: t.content?.length })) });
+
       const res = await fetch('/api/admin/content-pages', {
         method: editingPage ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const json = await res.json();
+      console.log('[handlePublish] Response:', json);
       if (json.success) {
         // For new pages, capture the returned ID and translation IDs
         if (!editingPage && json.data?.id) {
@@ -1575,6 +1606,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       }
     } catch (err) {
       console.error('Publish error:', err);
+      alert('Publish error: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
