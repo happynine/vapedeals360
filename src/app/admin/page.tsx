@@ -1510,9 +1510,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       // 1. Read content directly from Quill editor DOM (bypasses React state staleness)
       const publishTranslations = formTranslations.map(t => ({ ...t }));
       const editorHTML = editorRef.current?.getHTML();
-      console.log('[handlePublish] editingPage:', editingPage, 'editLang:', editLang);
-      console.log('[handlePublish] formTranslations:', formTranslations.map(t => ({ lang: t.language, titleLen: t.title?.length, contentLen: t.content?.length, id: t.id })));
-      console.log('[handlePublish] editorHTML length:', editorHTML?.length);
       if (editorHTML !== undefined && editorHTML !== '') {
         const currentIdx = publishTranslations.findIndex(t => t.language === editLang);
         if (currentIdx !== -1) {
@@ -1565,7 +1562,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         })),
       };
 
-      console.log('[handlePublish] Sending:', { method: editingPage ? 'PUT' : 'POST', id: editingPage, slug: trimmedSlug, translations: publishTranslations.map(t => ({ lang: t.language, titleLen: t.title?.length, contentLen: t.content?.length })) });
 
       const res = await fetch('/api/admin/content-pages', {
         method: editingPage ? 'PUT' : 'POST',
@@ -1573,7 +1569,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         body: JSON.stringify(body),
       });
       const json = await res.json();
-      console.log('[handlePublish] Response:', json);
       if (json.success) {
         // For new pages, capture the returned ID and translation IDs
         if (!editingPage && json.data?.id) {

@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
-  // Check for duplicate slug
+  // Check for duplicate slug - if exists, update instead of creating new
   const { data: existing } = await supabase
     .from('content_pages')
     .select('id')
@@ -74,9 +74,57 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    return NextResponse.json({ error: 'A page with this slug already exists' }, { status: 409 });
+    // Slug already exists - update the existing page instead
+    const existingId = existing[0].id;
+    
+    // Update page fields
+    const updateFields: Record<string, unknown> = { 
+      updated_at: new Date().toISOString(),
+      is_published: is_published !== false 
+    };
+    if (cover_image !== undefined) updateFields.cover_image = cover_image;
+    if (sort_order !== undefined) updateFields.sort_order = sort_order;
+    if (type !== undefined) updateFields.type = type;
+    
+    await supabase
+      .from('content_pages')
+      .update(updateFields)
+      .eq('id', existingId);
+
+    // Update or insert translations
+    if (translations && translations.length > 0) {
+      for (const t of translations) {
+        const { data: existingTrans } = await supabase
+          .from('content_page_translations')
+          .select('id')
+          .eq('page_id', existingId)
+          .eq('language', t.language)
+          .limit(1);
+
+        if (existingTrans && existingTrans.length > 0) {
+          await supabase
+            .from('content_page_translations')
+            .update({ title: t.title, content: t.content })
+            .eq('id', existingTrans[0].id);
+        } else {
+          await supabase
+            .from('content_page_translations')
+            .insert({ page_id: existingId, language: t.language, title: t.title, content: t.content });
+        }
+      }
+    }
+
+    // Return the updated page with translations
+    const { data: updatedPage } = await supabase
+      .from('content_pages')
+      .select('*, content_page_translations(*)')
+      .eq('id', existingId)
+      .single();
+
+    return NextResponse.json({ success: true, data: updatedPage });
   }
 
+  // No duplicate - create new page
   const { data: page, error: pageError } = await supabase
     .from('content_pages')
     .insert({ type, slug: trimmedSlug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
@@ -104,7 +152,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: transError.message }, { status: 500 });
     }
 
-    // Return inserted translation IDs so frontend can track them for future updates
     return NextResponse.json({ success: true, data: { ...page, content_page_translations: insertedTranslations } });
   }
 
@@ -117,8 +164,6 @@ export async function PUT(request: NextRequest) {
   const { id, slug, cover_image, sort_order, is_published, translations } = body;
 
   // Debug: log what we receive for content
-  console.log('[PUT /api/admin/content-pages] id:', id, 'translations:', translations?.map((t: { language: string; title: string; content: string }) => ({ language: t.language, title: t.title?.substring(0, 30), contentLength: t.content?.length })));
-
   const supabase = getSupabaseClient();
 
   // Check for duplicate slug (exclude self)
@@ -185,7 +230,7 @@ export async function PUT(request: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-// DELETE - Delete content page
+// DELETE - Delete content page (cascade delete translations)
 export async function DELETE(request: NextRequest) {
   let id: string | null;
   
@@ -203,11 +248,23 @@ export async function DELETE(request: NextRequest) {
   }
 
   const supabase = getSupabaseClient();
+  const pageId = parseInt(id);
 
+  // 1. Delete translations first (cascade)
+  const { error: transError } = await supabase
+    .from('content_page_translations')
+    .delete()
+    .eq('page_id', pageId);
+
+  if (transError) {
+    return NextResponse.json({ error: transError.message }, { status: 500 });
+  }
+
+  // 2. Delete the page itself
   const { error } = await supabase
     .from('content_pages')
     .delete()
-    .eq('id', parseInt(id));
+    .eq('id', pageId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
