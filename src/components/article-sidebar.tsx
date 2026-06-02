@@ -95,8 +95,8 @@ export function ArticleSidebar({ type, currentSlug, language }: ArticleSidebarPr
                   </div>
                 )}
               </div>
-              {/* Title - one line, truncate with ellipsis */}
-              <p className="mt-1.5 text-xs leading-snug text-purple-700 group-hover:text-purple-900 font-medium truncate">
+              {/* Title - 16px bold, 2 lines max */}
+              <p className="mt-1.5 text-base leading-snug text-purple-700 group-hover:text-purple-900 font-bold line-clamp-2">
                 {article.title || article.slug}
               </p>
             </Link>
