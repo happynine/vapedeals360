@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { X, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
@@ -1333,23 +1333,80 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     }
   }, [formatPainterActive]);
 
+  // Quill instance ref - populated lazily
+  const quillInstanceRef = useRef<any>(null);
+
+  // Helper to get the Quill instance from the container DOM
+  const getQuillInstance = useCallback(() => {
+    if (quillInstanceRef.current) return quillInstanceRef.current;
+    const container = containerRef.current;
+    if (!container) return null;
+    // Quill stores the instance on the .ql-container element
+    const qlContainer = container.querySelector('.ql-container') as HTMLElement;
+    if (!qlContainer) return null;
+    // Use the module-level QuillClass that's loaded at the top of this file
+    if (!QuillClass) return null;
+    const instance = QuillClass.find(qlContainer);
+    if (instance) quillInstanceRef.current = instance;
+    return instance;
+  }, []);
+
+  // Custom image handler: upload to object storage instead of base64
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const quill = getQuillInstance();
+      if (!quill) return;
+      const range = quill.getSelection(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        const url = data?.data?.url || data?.data?.key || data?.url || data?.key;
+        if (url) {
+          quill.insertEmbed(range.index, 'image', url);
+          quill.setSelection(range.index + 1);
+          // Sync onChange since insertEmbed doesn't trigger it
+          setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+        }
+      } catch (err) {
+        console.error('Image upload failed:', err);
+        alert('Image upload failed. Please try again.');
+      }
+    };
+  }, []);
+
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ color: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }, { background: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ align: [] }],
+        ['link', 'image'],
+        ['clean'],
+      ],
+      handlers: {
+        image: imageHandler,
+      },
+    },
+  }), [imageHandler]);
+
   return (
     <div ref={containerRef} className="quill-sticky-toolbar">
       <ReactQuill
         theme="snow"
         value={value}
         onChange={onChange}
-        modules={{
-          toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline'],
-            [{ color: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }, { background: ['transparent', '#000000', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#ecf0f1', '#95a5a6', '#f5b7b1', '#fad7a0', '#f9e79f', '#abebc6', '#aed6f1', '#d2b4de', '#bdc3c7', '#7f8c8d', '#e6b0aa', '#f0b27a', '#fdebd0', '#a9dfbf', '#a9cce3', '#bb8fce', '#717d7e', '#515a5a', '#cd6155', '#ca6f1e', '#b7950b', '#1e8449', '#2874a6', '#6c3483'] }],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            [{ align: [] }],
-            ['link', 'image'],
-            ['clean'],
-          ],
-        }}
+        modules={quillModules}
         formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'align', 'link', 'image']}
         style={{ minHeight: '300px' }}
       />

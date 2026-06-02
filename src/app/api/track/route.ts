@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
     // Generate or use session_id
     const sid = session_id || `sid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // Get visitor IP
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    // Get visitor IP (x-forwarded-for may contain multiple IPs, take only the first)
+    const rawIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ip = rawIp.split(',')[0].trim().slice(0, 45);
     const ua = request.headers.get('user-agent') || 'unknown';
 
     const effectiveType = type || event_type;
