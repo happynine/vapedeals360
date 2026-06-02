@@ -1482,26 +1482,39 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
   // Scan HTML content for base64 images, upload them, and replace with URLs
   const uploadBase64Images = useCallback(async (html: string): Promise<string> => {
-    const base64Regex = /<img[^>]+src="(data:image\/[^;]+;base64,[^"]+)"[^>]*>/gi;
+    const base64Regex = /<img[^>]+src="(data:image\/([^;]+);base64,([^"]+))"[^>]*>/gi;
     const matches = [...html.matchAll(base64Regex)];
     if (matches.length === 0) return html;
 
+    console.log(`[uploadBase64Images] Found ${matches.length} base64 image(s), uploading...`);
     let result = html;
-    for (const match of matches) {
+    for (let i = 0; i < matches.length; i++) {
+      const match = matches[i];
       const fullMatch = match[0];
       const dataUrl = match[1];
+      const mimeType = `image/${match[2]}`;
+      const base64Data = match[3];
       try {
-        // Convert base64 data URL to File
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        const ext = blob.type.split('/')[1] || 'png';
-        const file = new File([blob], `paste-image-${Date.now()}.${ext}`, { type: blob.type });
+        // Direct base64 decode (more reliable than fetch(dataUrl) for large images)
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        const ext = mimeType.split('/')[1] || 'png';
+        const file = new File([blob], `paste-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
+        console.log(`[uploadBase64Images] Uploading image ${i + 1}/${matches.length}, size: ${(file.size / 1024).toFixed(0)}KB`);
         const url = await uploadImageFile(file);
         if (url) {
           result = result.replace(fullMatch, fullMatch.replace(dataUrl, url));
+          console.log(`[uploadBase64Images] Image ${i + 1} uploaded: ${url}`);
+        } else {
+          console.error(`[uploadBase64Images] Image ${i + 1} upload returned null`);
         }
       } catch (err) {
-        console.error('Failed to upload base64 image:', err);
+        console.error(`[uploadBase64Images] Failed to upload image ${i + 1}:`, err);
       }
     }
     return result;
@@ -1796,11 +1809,56 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       }
 
       // 3. Scan and upload any base64 images in content (safety net for clipboard paste etc.)
+      // This function is defined inline to avoid dependency on editorRef
+      const scanAndUploadBase64 = async (html: string): Promise<string> => {
+        if (!html || !html.includes('data:image/')) return html;
+        const base64Regex = /<img[^>]+src="(data:image\/([^;]+);base64,([^"]+))"[^>]*>/gi;
+        const matches = [...html.matchAll(base64Regex)];
+        if (matches.length === 0) return html;
+        console.log(`[handlePublish] Found ${matches.length} base64 image(s), uploading...`);
+        let result = html;
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
+          const fullMatch = match[0];
+          const dataUrl = match[1];
+          const mimeType = `image/${match[2]}`;
+          const base64Data = match[3];
+          try {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let j = 0; j < byteCharacters.length; j++) {
+              byteNumbers[j] = byteCharacters.charCodeAt(j);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const ext = mimeType.split('/')[1] || 'png';
+            const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
+            console.log(`[handlePublish] Uploading base64 image ${i + 1}/${matches.length}, size: ${(file.size / 1024).toFixed(0)}KB`);
+            // Upload directly via /api/upload
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+            const uploadData = await uploadRes.json();
+            const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
+            if (url) {
+              result = result.replace(fullMatch, fullMatch.replace(dataUrl, url));
+              console.log(`[handlePublish] Image ${i + 1} uploaded: ${url}`);
+            } else {
+              console.error(`[handlePublish] Image ${i + 1} upload returned no URL:`, uploadData);
+            }
+          } catch (err) {
+            console.error(`[handlePublish] Failed to upload base64 image ${i + 1}:`, err);
+          }
+        }
+        return result;
+      };
+
       for (let i = 0; i < publishTranslations.length; i++) {
         const t = publishTranslations[i];
         if (t.content && t.content.includes('data:image/')) {
           try {
-            const cleanHTML = await editorRef.current?.uploadBase64Images(t.content);
+            const cleanHTML = await scanAndUploadBase64(t.content);
             if (cleanHTML) {
               publishTranslations[i] = { ...t, content: cleanHTML };
             }
@@ -2234,11 +2292,49 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       }
 
       // Scan and upload any base64 images in content (safety net)
+      const scanAndUploadBase64 = async (html: string): Promise<string> => {
+        if (!html || !html.includes('data:image/')) return html;
+        const base64Regex = /<img[^>]+src="(data:image\/([^;]+);base64,([^"]+))"[^>]*>/gi;
+        const matches = [...html.matchAll(base64Regex)];
+        if (matches.length === 0) return html;
+        let result = html;
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
+          const fullMatch = match[0];
+          const dataUrl = match[1];
+          const mimeType = `image/${match[2]}`;
+          const base64Data = match[3];
+          try {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let j = 0; j < byteCharacters.length; j++) {
+              byteNumbers[j] = byteCharacters.charCodeAt(j);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const ext = mimeType.split('/')[1] || 'png';
+            const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+            const uploadData = await uploadRes.json();
+            const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
+            if (url) {
+              result = result.replace(fullMatch, fullMatch.replace(dataUrl, url));
+            }
+          } catch (err) {
+            console.error(`Failed to upload base64 image ${i + 1}:`, err);
+          }
+        }
+        return result;
+      };
+
       for (let i = 0; i < publishTranslations.length; i++) {
         const t = publishTranslations[i];
         if (t.content && t.content.includes('data:image/')) {
           try {
-            const cleanHTML = await staticEditorRef.current?.uploadBase64Images(t.content);
+            const cleanHTML = await scanAndUploadBase64(t.content);
             if (cleanHTML) {
               publishTranslations[i] = { ...t, content: cleanHTML };
             }
