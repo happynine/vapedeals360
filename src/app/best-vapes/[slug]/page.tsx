@@ -56,7 +56,7 @@ export default function BestVapesDetailPage() {
                 />
               </article>
               {/* Sidebar - Related Articles */}
-              <div className="hidden lg:block w-72 shrink-0">
+              <div className="hidden lg:block w-56 shrink-0">
                 <ArticleSidebar type="best_vapes" currentSlug={slug} language={language} />
               </div>
             </div>
