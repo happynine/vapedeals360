@@ -974,6 +974,7 @@ export default function AdminPage() {
 
 export interface RichTextEditorRef {
   getHTML: () => string;
+  uploadBase64Images: (html: string) => Promise<string>;
 }
 
 const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: (v: string) => void }>(function RichTextEditor({ value, onChange }, ref) {
@@ -989,15 +990,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   onChangeRef.current = onChange;
 
   // Expose getHTML() to parent for reliable content reading on Publish
-  useImperativeHandle(ref, () => ({
-    getHTML: () => {
-      const container = containerRef.current;
-      if (!container) return value;
-      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
-      return qlEditor ? qlEditor.innerHTML : value;
-    },
-  }), [value]);
-
   // Format Painter: copy formats from current cursor position
   const handleFormatPainterCopy = useCallback(() => {
     const container = containerRef.current;
@@ -1472,6 +1464,49 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     return new File([bestBlob], fileName, { type: outputType });
   }, []);
 
+  // Upload a single image file to object storage, return URL or null
+  const uploadImageFile = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      const processedFile = await compressImage(file);
+      const formData = new FormData();
+      formData.append('file', processedFile);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      return data?.data?.url || data?.data?.key || data?.url || data?.key || null;
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      return null;
+    }
+  }, [compressImage]);
+
+  // Scan HTML content for base64 images, upload them, and replace with URLs
+  const uploadBase64Images = useCallback(async (html: string): Promise<string> => {
+    const base64Regex = /<img[^>]+src="(data:image\/[^;]+;base64,[^"]+)"[^>]*>/gi;
+    const matches = [...html.matchAll(base64Regex)];
+    if (matches.length === 0) return html;
+
+    let result = html;
+    for (const match of matches) {
+      const fullMatch = match[0];
+      const dataUrl = match[1];
+      try {
+        // Convert base64 data URL to File
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const ext = blob.type.split('/')[1] || 'png';
+        const file = new File([blob], `paste-image-${Date.now()}.${ext}`, { type: blob.type });
+        const url = await uploadImageFile(file);
+        if (url) {
+          result = result.replace(fullMatch, fullMatch.replace(dataUrl, url));
+        }
+      } catch (err) {
+        console.error('Failed to upload base64 image:', err);
+      }
+    }
+    return result;
+  }, [uploadImageFile]);
+
   // Custom image handler: compress + upload to object storage instead of base64
   const imageHandler = useCallback(() => {
     const input = document.createElement('input');
@@ -1485,14 +1520,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       if (!quill) return;
       const range = quill.getSelection(true);
       try {
-        // Auto-compress if image exceeds 400KB
-        const processedFile = await compressImage(file);
-        const formData = new FormData();
-        formData.append('file', processedFile);
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (!res.ok) throw new Error('Upload failed');
-        const data = await res.json();
-        const url = data?.data?.url || data?.data?.key || data?.url || data?.key;
+        const url = await uploadImageFile(file);
         if (url) {
           quill.insertEmbed(range.index, 'image', url);
           quill.setSelection(range.index + 1);
@@ -1504,7 +1532,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         alert('Image upload failed. Please try again.');
       }
     };
-  }, [compressImage, getQuillInstance]);
+  }, [uploadImageFile, getQuillInstance]);
 
   const quillModules = useMemo(() => ({
     toolbar: {
@@ -1521,7 +1549,62 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         image: imageHandler,
       },
     },
+    clipboard: {
+      // Intercept pasted images and upload to object storage instead of base64
+      matchVisual: false,
+    },
   }), [imageHandler]);
+
+  // Handle paste events: intercept pasted images, upload to object storage
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (!file) continue;
+
+          const quill = getQuillInstance();
+          if (!quill) continue;
+          const range = quill.getSelection(true);
+          const savedRange = range ? { index: range.index, length: range.length } : { index: 0, length: 0 };
+
+          (async () => {
+            try {
+              const url = await uploadImageFile(file);
+              if (url) {
+                quill.insertEmbed(savedRange.index, 'image', url);
+                quill.setSelection(savedRange.index + 1);
+                setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+              }
+            } catch (err) {
+              console.error('Paste image upload failed:', err);
+            }
+          })();
+          break; // Only handle the first image
+        }
+      }
+    };
+
+    container.addEventListener('paste', handlePaste, true); // capture phase to intercept before Quill
+    return () => container.removeEventListener('paste', handlePaste, true);
+  }, [getQuillInstance, uploadImageFile]);
+
+  useImperativeHandle(ref, () => ({
+    getHTML: () => {
+      const container = containerRef.current;
+      if (!container) return value;
+      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+      return qlEditor ? qlEditor.innerHTML : value;
+    },
+    uploadBase64Images,
+  }), [value, uploadBase64Images]);
 
   return (
     <div ref={containerRef} className="quill-sticky-toolbar">
@@ -1708,6 +1791,21 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
           const idx = publishTranslations.findIndex(t => t.language === editLang);
           if (idx !== -1) {
             publishTranslations[idx].content = fallbackHTML;
+          }
+        }
+      }
+
+      // 3. Scan and upload any base64 images in content (safety net for clipboard paste etc.)
+      for (let i = 0; i < publishTranslations.length; i++) {
+        const t = publishTranslations[i];
+        if (t.content && t.content.includes('data:image/')) {
+          try {
+            const cleanHTML = await editorRef.current?.uploadBase64Images(t.content);
+            if (cleanHTML) {
+              publishTranslations[i] = { ...t, content: cleanHTML };
+            }
+          } catch (err) {
+            console.error('Failed to upload base64 images for', t.language, err);
           }
         }
       }
@@ -2132,6 +2230,21 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             ...publishTranslations[currentIdx],
             content: editorHTML,
           };
+        }
+      }
+
+      // Scan and upload any base64 images in content (safety net)
+      for (let i = 0; i < publishTranslations.length; i++) {
+        const t = publishTranslations[i];
+        if (t.content && t.content.includes('data:image/')) {
+          try {
+            const cleanHTML = await staticEditorRef.current?.uploadBase64Images(t.content);
+            if (cleanHTML) {
+              publishTranslations[i] = { ...t, content: cleanHTML };
+            }
+          } catch (err) {
+            console.error('Failed to upload base64 images for', t.language, err);
+          }
         }
       }
 
