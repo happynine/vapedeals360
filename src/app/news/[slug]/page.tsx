@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
+import { ArticleSidebar } from '@/components/article-sidebar';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 import { useSocialLinks } from '@/hooks/use-social-links';
@@ -45,13 +46,20 @@ export default function NewsDetailPage() {
           </Link>
 
           {page ? (
-            <>
-              <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
-              <div
-                className="rich-text-content"
-                dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
-              />
-            </>
+            <div className="flex gap-8">
+              {/* Main content */}
+              <article className="flex-1 min-w-0">
+                <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
+                <div
+                  className="rich-text-content"
+                  dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
+                />
+              </article>
+              {/* Sidebar - Table of Contents */}
+              <div className="hidden lg:block w-72 shrink-0">
+                <ArticleSidebar content={page.content || ''} />
+              </div>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-32">
               {siteSettings?.logo_url ? (
