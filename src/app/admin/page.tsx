@@ -67,12 +67,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
-  const [registerError, setRegisterError] = useState('');
-  const [registerLoading, setRegisterLoading] = useState(false);
+
 
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
@@ -127,44 +122,6 @@ export default function AdminPage() {
       setLoginError(t('Login failed', '登录失败', adminLang));
     } finally {
       setLoginLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegisterError('');
-    if (registerPassword !== registerConfirmPassword) {
-      setRegisterError(t('Passwords do not match', '密码不一致', adminLang));
-      return;
-    }
-    if (registerPassword.length < 6) {
-      setRegisterError(t('Password must be at least 6 characters', '密码至少6位', adminLang));
-      return;
-    }
-    setRegisterLoading(true);
-    try {
-      const supabase = await getSupabaseBrowserClientWithRetry();
-      const { data, error } = await supabase.auth.signUp({
-        email: registerEmail,
-        password: registerPassword,
-      });
-      if (error) {
-        setRegisterError(error.message || t('Registration failed', '注册失败', adminLang));
-      } else if (data.session) {
-        setIsLoggedIn(true);
-      } else {
-        // Auto-confirm is on, but session might not be returned immediately
-        setRegisterError('');
-        setIsRegisterMode(false);
-        setLoginEmail(registerEmail);
-        setRegisterEmail('');
-        setRegisterPassword('');
-        setRegisterConfirmPassword('');
-      }
-    } catch {
-      setRegisterError(t('Registration failed', '注册失败', adminLang));
-    } finally {
-      setRegisterLoading(false);
     }
   };
 
@@ -306,10 +263,9 @@ export default function AdminPage() {
                 className="h-14 w-14 rounded-2xl object-cover mb-4"
               />
               <h1 className="text-2xl font-bold">{t('Admin Login', '后台登录', adminLang)}</h1>
-              <p className="text-sm text-muted-foreground mt-1">{isRegisterMode ? t('Create admin account', '创建管理员账号', adminLang) : t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
             </div>
-            {!isRegisterMode ? (
-              <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5">{t('Email', '邮箱', adminLang)}</label>
                   <input
@@ -352,81 +308,7 @@ export default function AdminPage() {
                 >
                   {loginLoading ? t('Logging in...', '登录中...', adminLang) : t('Login', '登录', adminLang)}
                 </button>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => { setIsRegisterMode(true); setLoginError(''); }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {t("Don't have an account? Register", '没有账号？去注册', adminLang)}
-                  </button>
-                </div>
               </form>
-            ) : (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">{t('Email', '邮箱', adminLang)}</label>
-                  <input
-                    type="email"
-                    value={registerEmail}
-                    onChange={(e) => setRegisterEmail(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder={t('Enter email', '输入邮箱', adminLang)}
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">{t('Password', '密码', adminLang)}</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={registerPassword}
-                      onChange={(e) => setRegisterPassword(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder={t('At least 6 characters', '至少6位密码', adminLang)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">{t('Confirm Password', '确认密码', adminLang)}</label>
-                  <input
-                    type="password"
-                    value={registerConfirmPassword}
-                    onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder={t('Re-enter password', '再次输入密码', adminLang)}
-                  />
-                </div>
-                {registerError && (
-                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm text-red-400">
-                    {registerError}
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  disabled={registerLoading}
-                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {registerLoading ? t('Registering...', '注册中...', adminLang) : t('Register', '注册', adminLang)}
-                </button>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => { setIsRegisterMode(false); setRegisterError(''); }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {t('Already have an account? Login', '已有账号？去登录', adminLang)}
-                  </button>
-                </div>
-              </form>
-            )}
           </div>
         </div>
       </div>
