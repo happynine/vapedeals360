@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/social-links - Get active social links for frontend
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('social_links')

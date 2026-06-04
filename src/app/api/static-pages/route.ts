@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/static-pages?slug=privacy-policy&language=en
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get('slug');
   const language = searchParams.get('language') || 'en';

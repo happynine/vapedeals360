@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { uploadFile } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

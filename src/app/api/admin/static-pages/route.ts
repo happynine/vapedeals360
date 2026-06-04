@@ -1,4 +1,5 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
 
 // PUT - Auto-save draft content (does NOT publish)
 export async function PUT(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
   const { slug, translations } = body;
@@ -72,6 +75,8 @@ export async function PUT(request: NextRequest) {
 
 // POST - Publish: copy draft_content to content and set is_published = true
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
   const { slug } = body;

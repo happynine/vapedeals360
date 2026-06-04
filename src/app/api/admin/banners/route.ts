@@ -1,4 +1,5 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
@@ -9,6 +10,8 @@ function getClient() {
 
 // GET - List all banners with translations
 export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getClient();
@@ -52,6 +55,8 @@ export async function GET(request: Request) {
 
 // POST - Create banner
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getClient();
@@ -97,6 +102,8 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update banner
 export async function PUT(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getClient();
@@ -145,6 +152,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete banner
 export async function DELETE(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getClient();

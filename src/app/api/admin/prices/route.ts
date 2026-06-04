@@ -1,4 +1,5 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
 
 // POST create price
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
@@ -60,6 +63,8 @@ export async function POST(request: NextRequest) {
 
 // PUT update price
 export async function PUT(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
@@ -92,6 +97,8 @@ export async function PUT(request: NextRequest) {
 
 // DELETE price
 export async function DELETE(request: NextRequest) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();

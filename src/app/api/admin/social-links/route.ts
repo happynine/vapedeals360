@@ -1,9 +1,12 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/admin/social-links - Get all social links for admin
 export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -20,6 +23,8 @@ export async function GET(request: Request) {
 
 // POST /api/admin/social-links - Create a social link
 export async function POST(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const body = await request.json();
@@ -44,6 +49,8 @@ export async function POST(request: Request) {
 
 // PUT /api/admin/social-links - Update a social link
 export async function PUT(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const body = await request.json();
@@ -76,6 +83,8 @@ export async function PUT(request: Request) {
 
 // DELETE /api/admin/social-links - Delete a social link
 export async function DELETE(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const { searchParams } = new URL(request.url);

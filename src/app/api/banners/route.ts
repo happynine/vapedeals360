@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 import { fetchBanners, type Banner } from '@/lib/database';
 import { getPresignedUrl } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { searchParams } = new URL(request.url);
     const language = searchParams.get('language') || 'en';

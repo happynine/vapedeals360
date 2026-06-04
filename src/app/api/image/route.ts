@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { useVercelBlob } from '@/lib/storage';
 import { getS3Storage } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const key = request.nextUrl.searchParams.get('key');
     if (!key) {

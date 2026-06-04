@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { fetchCategories, fetchProducts, countProducts } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('category_id');

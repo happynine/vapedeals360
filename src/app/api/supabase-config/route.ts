@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseCredentials } from '@/storage/database/supabase-client';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "auth");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { url, anonKey } = getSupabaseCredentials();
 

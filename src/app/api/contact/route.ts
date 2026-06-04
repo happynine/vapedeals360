@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 // POST /api/contact - Send contact form email
 export async function POST(request: Request) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   const body = await request.json();
   const { name, email, subject, message } = body;
 

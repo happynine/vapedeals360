@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const body = await request.json();
     const { type, product_id, store_id, banner_id, session_id, page, referrer, event_type, target_id, metadata } = body as {

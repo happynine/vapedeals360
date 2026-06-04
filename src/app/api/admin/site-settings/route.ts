@@ -1,8 +1,11 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 
 export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const supabase = getSupabaseClient();
@@ -33,6 +36,8 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const rl = checkRateLimit(request, "admin");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const supabase = getSupabaseClient();

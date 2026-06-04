@@ -1,9 +1,12 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getPresignedUrl } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { searchParams } = new URL(request.url);
     const language = searchParams.get('language') || 'en';

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { fetchProductBySlug } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const rl = checkRateLimit(_request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { slug } = await params;
     const language = _request.nextUrl.searchParams.get('language') || 'en';

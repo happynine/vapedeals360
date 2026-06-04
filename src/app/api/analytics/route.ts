@@ -1,8 +1,11 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  const rl = checkRateLimit(request, "public");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);

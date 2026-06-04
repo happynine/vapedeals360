@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'fn491374665';
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(request, "auth");
+  if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const body = await request.json();
     const { username, password } = body as { username: string; password: string };
