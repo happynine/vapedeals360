@@ -52,7 +52,7 @@ interface Banner { id: number; image_key: string | null; mobile_image_key: strin
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
-type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer';
+type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure';
 const LANGUAGES = ['en', 'zh'];
 
 // i18n helper
@@ -647,6 +647,7 @@ export default function AdminPage() {
                     { slug: 'privacy-policy' as StaticPageSlug, title: t('Privacy Policy', '隐私政策', adminLang), icon: '🛡️', desc: t('Site privacy policy', '网站隐私政策', adminLang) },
                     { slug: 'about-us' as StaticPageSlug, title: t('About Us', '关于我们', adminLang), icon: 'ℹ️', desc: t('About the site', '关于本站', adminLang) },
                     { slug: 'disclaimer' as StaticPageSlug, title: t('Disclaimer', '免责声明', adminLang), icon: '⚠️', desc: t('Site disclaimer', '网站免责声明', adminLang) },
+                    { slug: 'affiliate-disclosure' as StaticPageSlug, title: t('Affiliate Disclosure', '联盟披露', adminLang), icon: '🤝', desc: t('Affiliate partnerships disclosure', '联盟合作关系披露', adminLang) },
                   ]).map((page) => (
                     <button
                       key={page.slug}
