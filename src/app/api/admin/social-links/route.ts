@@ -1,8 +1,10 @@
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/admin/social-links - Get all social links for admin
-export async function GET() {
+export async function GET(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('social_links')
@@ -18,6 +20,7 @@ export async function GET() {
 
 // POST /api/admin/social-links - Create a social link
 export async function POST(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const body = await request.json();
   const { platform, url, icon, sort_order } = body;
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
 
 // PUT /api/admin/social-links - Update a social link
 export async function PUT(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const body = await request.json();
   const { id, platform, url, icon, sort_order, is_active } = body;
@@ -72,6 +76,7 @@ export async function PUT(request: Request) {
 
 // DELETE /api/admin/social-links - Delete a social link
 export async function DELETE(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const supabase = getSupabaseClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');

@@ -3,6 +3,7 @@ import './globals.css';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 import { SiteSettingsProvider } from '@/components/site-settings-provider';
+import { SupabaseConfigProvider } from '@/lib/supabase-config-inject';
 import FrontendWrapper from '@/components/frontend-wrapper';
 
 
@@ -40,9 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <SiteSettingsProvider>
-          <FrontendWrapper>{children}</FrontendWrapper>
-        </SiteSettingsProvider>
+        <SupabaseConfigProvider>
+          <SiteSettingsProvider>
+            <FrontendWrapper>{children}</FrontendWrapper>
+          </SiteSettingsProvider>
+        </SupabaseConfigProvider>
       </body>
     </html>
   );

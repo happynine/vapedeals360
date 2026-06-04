@@ -1,13 +1,32 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { X, ArrowLeft } from 'lucide-react';
+import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
+import { useSupabaseConfig } from '@/lib/supabase-config-inject';
+import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
 
 import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="min-h-[300px] rounded-lg border border-border bg-secondary animate-pulse" /> });
+
+// Auth-aware fetch helper: auto-attaches x-session header
+async function adminFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  try {
+    const supabase = await getSupabaseBrowserClientWithRetry();
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string> || {}),
+    };
+    if (session?.access_token) {
+      headers['x-session'] = session.access_token;
+    }
+    return fetch(url, { ...options, headers });
+  } catch {
+    return fetch(url, options);
+  }
+}
 
 let mammothInstance: typeof import('mammoth') | null = null;
 async function getMammoth() {
@@ -43,10 +62,18 @@ function t(en: string, zh: string, lang: string) {
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginUsername, setLoginUsername] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [registerLoading, setRegisterLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
@@ -69,8 +96,16 @@ export default function AdminPage() {
 
   // Check login state on mount
   useEffect(() => {
-    const token = sessionStorage.getItem('admin_token');
-    if (token) setIsLoggedIn(true);
+    const checkSession = async () => {
+      try {
+        const supabase = await getSupabaseBrowserClientWithRetry();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) setIsLoggedIn(true);
+      } catch {
+        // Supabase not ready yet
+      }
+    };
+    checkSession();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -78,17 +113,15 @@ export default function AdminPage() {
     setLoginError('');
     setLoginLoading(true);
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      const supabase = await getSupabaseBrowserClientWithRetry();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
       });
-      const json = await res.json();
-      if (json.success) {
-        sessionStorage.setItem('admin_token', json.token);
+      if (error) {
+        setLoginError(error.message || t('Invalid email or password', '邮箱或密码错误', adminLang));
+      } else if (data.session) {
         setIsLoggedIn(true);
-      } else {
-        setLoginError(t('Invalid username or password', '用户名或密码错误', adminLang));
       }
     } catch {
       setLoginError(t('Login failed', '登录失败', adminLang));
@@ -97,14 +130,57 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('admin_token');
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterError('');
+    if (registerPassword !== registerConfirmPassword) {
+      setRegisterError(t('Passwords do not match', '密码不一致', adminLang));
+      return;
+    }
+    if (registerPassword.length < 6) {
+      setRegisterError(t('Password must be at least 6 characters', '密码至少6位', adminLang));
+      return;
+    }
+    setRegisterLoading(true);
+    try {
+      const supabase = await getSupabaseBrowserClientWithRetry();
+      const { data, error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+      });
+      if (error) {
+        setRegisterError(error.message || t('Registration failed', '注册失败', adminLang));
+      } else if (data.session) {
+        setIsLoggedIn(true);
+      } else {
+        // Auto-confirm is on, but session might not be returned immediately
+        setRegisterError('');
+        setIsRegisterMode(false);
+        setLoginEmail(registerEmail);
+        setRegisterEmail('');
+        setRegisterPassword('');
+        setRegisterConfirmPassword('');
+      }
+    } catch {
+      setRegisterError(t('Registration failed', '注册失败', adminLang));
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const supabase = await getSupabaseBrowserClientWithRetry();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore
+    }
     setIsLoggedIn(false);
   };
 
   useEffect(() => {
     if (isLoggedIn) {
-      fetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
+      adminFetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
       fetch('/api/social-links').then(r => r.json()).then(d => { if (d.success) setSocialLinks(d.data || []); }).catch(() => {});
     }
   }, [isLoggedIn]);
@@ -127,10 +203,10 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [catRes, storeRes, prodRes, bannerRes] = await Promise.all([
-        fetch('/api/admin/categories'),
-        fetch('/api/admin/stores'),
-        fetch('/api/admin/products?limit=100'),
-        fetch('/api/admin/banners'),
+        adminFetch('/api/admin/categories'),
+        adminFetch('/api/admin/stores'),
+        adminFetch('/api/admin/products?limit=100'),
+        adminFetch('/api/admin/banners'),
       ]);
       const catJson = await catRes.json();
       const storeJson = await storeRes.json();
@@ -153,7 +229,7 @@ export default function AdminPage() {
   const handleSeed = async () => {
     if (!confirm(t('This will add demo data. Continue?', '这将添加演示数据。继续吗？', adminLang))) return;
     try {
-      const res = await fetch('/api/admin/seed', { method: 'POST' });
+      const res = await adminFetch('/api/admin/seed', { method: 'POST' });
       const json = await res.json();
       if (json.success) {
         alert(json.message);
@@ -224,45 +300,133 @@ export default function AdminPage() {
         <div className="w-full max-w-sm">
           <div className="bg-card rounded-2xl border border-border p-8 shadow-xl">
             <div className="flex flex-col items-center mb-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl mb-4">V</div>
+              <img
+                src="https://coze-coding-project.tos.coze.site/gen_project_icon/2026-05-22/7642619146919952424_1779436857.png?sign=490260516-fdfb97f369-0-ab44db23aa14bde024c0964b882eb270c4c5ef8fcc30760f2ab0cf3ece075cfe"
+                alt="VapeDeal"
+                className="h-14 w-14 rounded-2xl object-cover mb-4"
+              />
               <h1 className="text-2xl font-bold">{t('Admin Login', '后台登录', adminLang)}</h1>
-              <p className="text-sm text-muted-foreground mt-1">{t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
+              <p className="text-sm text-muted-foreground mt-1">{isRegisterMode ? t('Create admin account', '创建管理员账号', adminLang) : t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
             </div>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">{t('Username', '用户名', adminLang)}</label>
-                <input
-                  type="text"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder={t('Enter username', '输入用户名', adminLang)}
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">{t('Password', '密码', adminLang)}</label>
-                <input
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder={t('Enter password', '输入密码', adminLang)}
-                />
-              </div>
-              {loginError && (
-                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm text-red-400">
-                  {loginError}
+            {!isRegisterMode ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('Email', '邮箱', adminLang)}</label>
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={t('Enter email', '输入邮箱', adminLang)}
+                    autoFocus
+                  />
                 </div>
-              )}
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {loginLoading ? t('Logging in...', '登录中...', adminLang) : t('Login', '登录', adminLang)}
-              </button>
-            </form>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('Password', '密码', adminLang)}</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-background px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder={t('Enter password', '输入密码', adminLang)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                {loginError && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm text-red-400">
+                    {loginError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {loginLoading ? t('Logging in...', '登录中...', adminLang) : t('Login', '登录', adminLang)}
+                </button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setIsRegisterMode(true); setLoginError(''); }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {t("Don't have an account? Register", '没有账号？去注册', adminLang)}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('Email', '邮箱', adminLang)}</label>
+                  <input
+                    type="email"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={t('Enter email', '输入邮箱', adminLang)}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('Password', '密码', adminLang)}</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={registerPassword}
+                      onChange={(e) => setRegisterPassword(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-background px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder={t('At least 6 characters', '至少6位密码', adminLang)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t('Confirm Password', '确认密码', adminLang)}</label>
+                  <input
+                    type="password"
+                    value={registerConfirmPassword}
+                    onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={t('Re-enter password', '再次输入密码', adminLang)}
+                  />
+                </div>
+                {registerError && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-sm text-red-400">
+                    {registerError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={registerLoading}
+                  className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {registerLoading ? t('Registering...', '注册中...', adminLang) : t('Register', '注册', adminLang)}
+                </button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setIsRegisterMode(false); setRegisterError(''); }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {t('Already have an account? Login', '已有账号？去登录', adminLang)}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>
@@ -431,7 +595,7 @@ export default function AdminPage() {
                         <button
                           onClick={async () => {
                             setShowSaveConfirm(false);
-                            const res = await fetch('/api/admin/site-settings', {
+                            const res = await adminFetch('/api/admin/site-settings', {
                               method: 'PUT',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ site_name: editSiteName, logo_url: editSiteLogo }),
@@ -560,13 +724,13 @@ export default function AdminPage() {
                             }
                             let res;
                             if (editingSocial.id) {
-                              res = await fetch('/api/admin/social-links', {
+                              res = await adminFetch('/api/admin/social-links', {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(editingSocial),
                               });
                             } else {
-                              res = await fetch('/api/admin/social-links', {
+                              res = await adminFetch('/api/admin/social-links', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(editingSocial),
@@ -1899,7 +2063,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       };
 
 
-      const res = await fetch('/api/admin/content-pages', {
+      const res = await adminFetch('/api/admin/content-pages', {
         method: editingPage ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -1946,7 +2110,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   // List-level toggle publish/unpublish
   const handleTogglePublish = async (id: number, currentPublished: boolean) => {
     try {
-      const res = await fetch('/api/admin/content-pages', {
+      const res = await adminFetch('/api/admin/content-pages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_published: !currentPublished }),
@@ -1965,7 +2129,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const handleDelete = async (id: number) => {
     if (!confirm(t('Delete this page?', '确定删除此页面？', lang))) return;
     try {
-      const res = await fetch('/api/admin/content-pages', {
+      const res = await adminFetch('/api/admin/content-pages', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -2345,7 +2509,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       }
 
       // Step 1: Save content first
-      const saveRes = await fetch('/api/admin/static-pages', {
+      const saveRes = await adminFetch('/api/admin/static-pages', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2359,7 +2523,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         return;
       }
       // Step 2: Publish
-      const pubRes = await fetch('/api/admin/static-pages', {
+      const pubRes = await adminFetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug }),

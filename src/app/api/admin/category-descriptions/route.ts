@@ -1,8 +1,10 @@
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // PUT /api/admin/category-descriptions
 export async function PUT(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
   const { category_key, language, description } = body;
 

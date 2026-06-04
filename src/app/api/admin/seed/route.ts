@@ -1,7 +1,9 @@
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
 

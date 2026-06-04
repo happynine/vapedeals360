@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 // GET /api/admin/content-pages?type=best_vapes
 export async function GET(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const id = searchParams.get('id');
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new content page
 export async function POST(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
   const { type, slug, cover_image, sort_order, is_published, translations } = body;
 
@@ -159,6 +162,7 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update content page
 export async function PUT(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
   const { id, slug, cover_image, sort_order, is_published, translations } = body;
 
@@ -231,6 +235,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete content page (cascade delete translations)
 export async function DELETE(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   let id: string | null;
   
   // Try to get id from query params first, then from body

@@ -1,7 +1,9 @@
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -31,6 +33,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const supabase = getSupabaseClient();
     const body = await request.json();

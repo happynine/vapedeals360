@@ -1,8 +1,10 @@
+import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET all categories with translations
-export async function GET() {
+export async function GET(request: Request) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
     const { data, error } = await client
@@ -19,6 +21,7 @@ export async function GET() {
 
 // POST create category with translations
 export async function POST(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
     const body = await request.json();
@@ -50,6 +53,7 @@ export async function POST(request: NextRequest) {
 
 // PUT update category
 export async function PUT(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
     const body = await request.json();
@@ -84,6 +88,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE category
 export async function DELETE(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getSupabaseClient();
     const { searchParams } = new URL(request.url);
