@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import AgeVerification from '@/components/age-verification';
+import WarningBar from '@/components/warning-bar';
 
 export default function FrontendWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,9 +14,8 @@ export default function FrontendWrapper({ children }: { children: React.ReactNod
 
   return (
     <>
-      <div className="bg-yellow-500 text-center py-1.5 px-4 text-xs font-bold text-black tracking-wide">
-        WARNING: This product contains nicotine. Nicotine is an addictive chemical.
-      </div>
+      <AgeVerification />
+      <WarningBar />
       {children}
     </>
   );
