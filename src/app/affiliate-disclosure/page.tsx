@@ -33,9 +33,14 @@ export default function AffiliateDisclosurePage() {
       .then(r => r.json())
       .then(d => {
         if (d.success && d.data) {
-          const translations = d.data.static_page_translations || d.data.translations;
-          if (translations?.length > 0) {
-            setContent(translations[0].content || '');
+          // API returns { data: { id, slug, content } } or { data: { ..., static_page_translations: [...] } }
+          if (d.data.content) {
+            setContent(d.data.content);
+          } else {
+            const translations = d.data.static_page_translations || d.data.translations;
+            if (translations?.length > 0) {
+              setContent(translations[0].content || '');
+            }
           }
         }
       })
