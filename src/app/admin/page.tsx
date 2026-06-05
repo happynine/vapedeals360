@@ -85,6 +85,7 @@ export default function AdminPage() {
   const privacyRef = useRef<StaticPageEditorRef>(null);
   const aboutRef = useRef<StaticPageEditorRef>(null);
   const disclaimerRef = useRef<StaticPageEditorRef>(null);
+  const affiliateRef = useRef<StaticPageEditorRef>(null);
 
   // Sub-page navigation within Site Settings
   const [siteSettingsSubPage, setSiteSettingsSubPage] = useState<StaticPageSlug | null>(null);
@@ -202,7 +203,7 @@ export default function AdminPage() {
   const handleDeleteProduct = async (id: number) => {
     if (!confirm(t('Are you sure you want to delete this product?', '确定要删除该产品吗？', adminLang))) return;
     try {
-      const res = await fetch(`/api/admin/products?id=${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/products?id=${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchAllData();
       else alert(t('Error:', '错误：', adminLang) + json.error);
@@ -212,7 +213,7 @@ export default function AdminPage() {
   const handleDeleteCategory = async (id: number) => {
     if (!confirm(t('Are you sure? This will also delete all translations and may affect products.', '确定吗？这将删除所有翻译并可能影响产品。', adminLang))) return;
     try {
-      const res = await fetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchAllData();
       else alert(t('Error:', '错误：', adminLang) + json.error);
@@ -222,7 +223,7 @@ export default function AdminPage() {
   const handleDeleteStore = async (id: number) => {
     if (!confirm(t('Are you sure? This will also delete all translations and prices.', '确定吗？这将删除所有翻译和价格。', adminLang))) return;
     try {
-      const res = await fetch(`/api/admin/stores?id=${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/stores?id=${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchAllData();
       else alert(t('Error:', '错误：', adminLang) + json.error);
@@ -232,7 +233,7 @@ export default function AdminPage() {
   const handleDeleteBanner = async (id: number) => {
     if (!confirm(t('Are you sure you want to delete this banner?', '确定要删除该 Banner 吗？', adminLang))) return;
     try {
-      const res = await fetch(`/api/admin/banners?id=${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/banners?id=${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchAllData();
       else alert(t('Error:', '错误：', adminLang) + json.error);
@@ -417,6 +418,9 @@ export default function AdminPage() {
                   {siteSettingsSubPage === 'disclaimer' && (
                     <StaticPageEditor ref={disclaimerRef} slug="disclaimer" title={t('Disclaimer', '免责声明', adminLang)} lang={adminLang} />
                   )}
+                  {siteSettingsSubPage === 'affiliate-disclosure' && (
+                    <StaticPageEditor ref={affiliateRef} slug="affiliate-disclosure" title={t('Affiliate Disclosure', '联盟披露', adminLang)} lang={adminLang} />
+                  )}
                 </div>
               ) : (
                 <>
@@ -529,7 +533,7 @@ export default function AdminPage() {
                     <button
                       onClick={async () => {
                         if (!confirm(t('Delete this social link?', '确定删除此社媒链接？', adminLang))) return;
-                        const res = await fetch(`/api/admin/social-links?id=${link.id}`, { method: 'DELETE' });
+                        const res = await adminFetch(`/api/admin/social-links?id=${link.id}`, { method: 'DELETE' });
                         const json = await res.json();
                         if (json.success) {
                           setSocialLinks(prev => prev.filter(l => l.id !== link.id));
@@ -1767,7 +1771,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const fetchPages = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/content-pages?type=${type}`);
+      const res = await adminFetch(`/api/admin/content-pages?type=${type}`);
       const json = await res.json();
       if (json.success) setPages(json.data || []);
     } catch (err) {
@@ -2296,7 +2300,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     const fetchPage = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const res = await adminFetch(`/api/admin/static-pages?slug=${slug}`);
         const json = await res.json();
         if (json.success && json.data) {
           setPageData(json.data);
@@ -2419,7 +2423,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         setTranslations(publishTranslations);
         setOriginalTranslations(JSON.parse(JSON.stringify(publishTranslations)));
         // Refresh data
-        const refreshRes = await fetch(`/api/admin/static-pages?slug=${slug}`);
+        const refreshRes = await adminFetch(`/api/admin/static-pages?slug=${slug}`);
         const refreshJson = await refreshRes.json();
         if (refreshJson.success && refreshJson.data) {
           setPageData(refreshJson.data);
@@ -2528,7 +2532,7 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
       const url = '/api/admin/categories';
       const method = isEdit ? 'PUT' : 'POST';
       const body = { id: category?.id, slug, icon: icon || null, sort_order: sortOrder, is_active: isActive, translations };
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) { setOpen(false); onSave(); }
       else alert(t('Error:', '错误：', lang) + json.error);
@@ -2628,7 +2632,7 @@ function StoreFormModal({ store, onSave, lang }: { store?: Store; onSave: () => 
         is_active: isActive,
         translations,
       };
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) { setOpen(false); onSave(); }
       else alert(t('Error:', '错误：', lang) + json.error);
@@ -2759,7 +2763,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
           discount_percent: p.discount_percent ? parseInt(p.discount_percent) : null,
         })),
       };
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) { setOpen(false); onSave(); }
       else alert(t('Error:', '错误：', lang) + json.error);
@@ -2968,7 +2972,7 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
           subtitle: tr.subtitle || null,
         })),
       };
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) { setOpen(false); onSave(); }
       else alert(t('Error:', '错误：', lang) + json.error);

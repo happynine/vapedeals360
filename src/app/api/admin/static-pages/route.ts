@@ -38,14 +38,23 @@ export async function PUT(request: NextRequest) {
   const supabase = getSupabaseClient();
 
   // Get page id
-  const { data: page } = await supabase
+  let { data: page } = await supabase
     .from('static_pages')
     .select('id')
     .eq('slug', slug)
     .single();
 
   if (!page) {
-    return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    // Auto-create the page if it doesn't exist
+    const { data: newPage, error: createError } = await supabase
+      .from('static_pages')
+      .insert({ slug, is_published: true })
+      .select('id')
+      .single();
+    if (createError || !newPage) {
+      return NextResponse.json({ error: 'Failed to create page' }, { status: 500 });
+    }
+    page = newPage;
   }
 
   // Update timestamp
@@ -83,15 +92,25 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabaseClient();
 
-  // Get page
-  const { data: page, error: pageError } = await supabase
+  // Get or create page
+  let { data: page, error: pageError } = await supabase
     .from('static_pages')
     .select('id, static_page_translations(*)')
     .eq('slug', slug)
     .single();
 
   if (pageError || !page) {
-    return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    // Auto-create page if not exists
+    const { data: newPage, error: createError } = await supabase
+      .from('static_pages')
+      .insert({ slug, is_published: false })
+      .select('id, static_page_translations(*)')
+      .single();
+
+    if (createError || !newPage) {
+      return NextResponse.json({ error: 'Failed to create page' }, { status: 500 });
+    }
+    page = newPage;
   }
 
   // Copy draft_content → content for all translations
