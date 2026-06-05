@@ -52,7 +52,7 @@ interface Banner { id: number; image_key: string | null; mobile_image_key: strin
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
-type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure';
+type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
 const LANGUAGES = ['en', 'zh'];
 
 // i18n helper
@@ -86,6 +86,7 @@ export default function AdminPage() {
   const aboutRef = useRef<StaticPageEditorRef>(null);
   const disclaimerRef = useRef<StaticPageEditorRef>(null);
   const affiliateRef = useRef<StaticPageEditorRef>(null);
+  const termsRef = useRef<StaticPageEditorRef>(null);
 
   // Sub-page navigation within Site Settings
   const [siteSettingsSubPage, setSiteSettingsSubPage] = useState<StaticPageSlug | null>(null);
@@ -421,6 +422,9 @@ export default function AdminPage() {
                   {siteSettingsSubPage === 'affiliate-disclosure' && (
                     <StaticPageEditor ref={affiliateRef} slug="affiliate-disclosure" title={t('Affiliate Disclosure', '联盟披露', adminLang)} lang={adminLang} />
                   )}
+                  {siteSettingsSubPage === 'terms-of-service' && (
+                    <StaticPageEditor ref={termsRef} slug="terms-of-service" title={t('Terms of Service', '服务条款', adminLang)} lang={adminLang} />
+                  )}
                 </div>
               ) : (
                 <>
@@ -652,6 +656,7 @@ export default function AdminPage() {
                     { slug: 'about-us' as StaticPageSlug, title: t('About Us', '关于我们', adminLang), icon: 'ℹ️', desc: t('About the site', '关于本站', adminLang) },
                     { slug: 'disclaimer' as StaticPageSlug, title: t('Disclaimer', '免责声明', adminLang), icon: '⚠️', desc: t('Site disclaimer', '网站免责声明', adminLang) },
                     { slug: 'affiliate-disclosure' as StaticPageSlug, title: t('Affiliate Disclosure', '联盟披露', adminLang), icon: '🤝', desc: t('Affiliate partnerships disclosure', '联盟合作关系披露', adminLang) },
+                    { slug: 'terms-of-service' as StaticPageSlug, title: t('Terms of Service', '服务条款', adminLang), icon: '📋', desc: t('Terms and conditions of use', '使用条款与条件', adminLang) },
                   ]).map((page) => (
                     <button
                       key={page.slug}

@@ -111,6 +111,7 @@ export default function BestVapesPage() {
                           <Link href="/privacy" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Privacy Policy</Link>
                           <Link href="/disclaimer" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Disclaimer</Link>
                 <Link href="/affiliate-disclosure" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Affiliate Disclosure</Link>
+                <Link href="/terms-of-service" className="text-sm text-gray-500 hover:text-purple-400 transition-colors">Terms of Service</Link>
                       </div>
                   </div>
                   <div>
