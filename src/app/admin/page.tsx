@@ -1348,20 +1348,33 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const quill = QuillClass.find(qlContainer);
         if (!quill) return;
 
-        // Insert segments one by one
-        let insertIndex = quill.getLength(); // append at end
+        // Build a single Delta that inserts all segments in order
+        // For HTML segments, parse through clipboard to get proper Delta ops,
+        // then combine with table-embed ops into one composite Delta
         const Delta = QuillClass.import('delta');
+        let compositeDelta = new Delta();
+
         for (const seg of segments) {
           if (seg.type === 'table') {
-            // Insert table as a TableEmbed blot
-            const tableDelta = new Delta().insert({ 'table-embed': { html: seg.content } });
-            quill.editor.applyDelta(tableDelta);
+            // Insert table as a TableEmbed blot + newline
+            compositeDelta = compositeDelta
+              .insert({ 'table-embed': { html: seg.content } })
+              .insert('\n');
           } else {
-            // Insert text/HTML using clipboard parser
-            quill.clipboard.dangerouslyPasteHTML(insertIndex, seg.content);
-            insertIndex = quill.getLength();
+            // Parse HTML segment through Quill's clipboard to get proper Delta ops
+            const tempDelta = quill.clipboard.convert({ html: seg.content, text: '' });
+            compositeDelta = compositeDelta.concat(tempDelta);
           }
         }
+
+        // Prepend a retain to skip existing content, so the composite Delta
+        // appends at the end of the document instead of inserting at position 0.
+        // Quill always has a trailing newline, so getLength() - 1 is the actual
+        // content length before the trailing newline.
+        const currentLength = quill.getLength();
+        compositeDelta = new Delta().retain(currentLength - 1).concat(compositeDelta);
+        quill.editor.applyDelta(compositeDelta);
+
         // Sync React state with the new editor content
         setTimeout(() => {
           const newHtml = quill.root.innerHTML;
