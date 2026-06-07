@@ -574,9 +574,6 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
-                <div className="border-t border-gray-800 mt-8 py-6 text-center text-xs text-gray-500">
-                    ©Vapedeals360.com All Rights Reserved.
-                </div>
             </footer>
             {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
             <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
@@ -594,6 +591,10 @@ export default function HomePage() {
                         </p>
                     </div>
                 </div>
+            </div>
+            {/* Copyright */}
+            <div className="bg-[#0a0a0e] border-t border-gray-800 py-6 text-center text-xs text-gray-500">
+                ©Vapedeals360.com All Rights Reserved.
             </div>
         </div>
     );
