@@ -1837,12 +1837,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         });
       }
 
-      // Create a full-size overlay over the ql-editor
+      // Create a full-size overlay on top of the editor area
+      // IMPORTANT: Append to container (NOT qlEditor) because Quill controls its own DOM
+      // and will remove unknown elements appended to .ql-editor
       const editorWrapper = document.createElement('div');
       editorWrapper.className = 'ql-crop-container';
-      editorWrapper.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;cursor:crosshair;';
-      qlEditor.style.position = 'relative';
-      qlEditor.appendChild(editorWrapper);
+      editorWrapper.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:55;cursor:crosshair;';
+      container.style.position = 'relative';
+      container.appendChild(editorWrapper);
 
       // Load the original image for cropping
       const originalImg = new window.Image();
@@ -1852,13 +1854,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       // Selection state (as percentages of displayed image size)
       let selX = 0, selY = 0, selW = 1, selH = 1; // default: full image
 
-      // Helper: get img position relative to qlEditor
+      // Helper: get img position relative to container (since overlay is on container)
       const getImgOffset = (): { left: number; top: number; width: number; height: number } => {
         const imgRect = img.getBoundingClientRect();
-        const editorRect = qlEditor.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
         return {
-          left: imgRect.left - editorRect.left + qlEditor.scrollLeft,
-          top: imgRect.top - editorRect.top + qlEditor.scrollTop,
+          left: imgRect.left - containerRect.left,
+          top: imgRect.top - containerRect.top,
           width: imgRect.width,
           height: imgRect.height,
         };
