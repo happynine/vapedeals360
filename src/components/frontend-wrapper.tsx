@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import AgeVerification from '@/components/age-verification';
 import WarningBar from '@/components/warning-bar';
 import CookieConsent from '@/components/cookie-consent';
+import SiteFooter from '@/components/site-footer';
 
 export default function FrontendWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export default function FrontendWrapper({ children }: { children: React.ReactNod
       <AgeVerification />
       <WarningBar />
       {children}
+      <SiteFooter />
       <CookieConsent />
     </>
   );
