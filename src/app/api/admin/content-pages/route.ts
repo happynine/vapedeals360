@@ -2,8 +2,62 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
+import { deleteFile, extractImageKeysFromHtml } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Resolve an image src from HTML content to a storage key that can be deleted.
+ * - For proxy URLs like /api/image?key=xxx, extract the key param.
+ * - For full URLs (Vercel Blob), return as-is.
+ * - For external URLs, return null (can't delete).
+ */
+function resolveStorageKey(src: string): string | null {
+  // Proxy URL: /api/image?key=xxx
+  const proxyMatch = src.match(/\/api\/image\?key=([^&]+)/);
+  if (proxyMatch) {
+    return decodeURIComponent(proxyMatch[1]);
+  }
+  // Full URL (Vercel Blob) - our storage URLs
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    // Only consider it ours if we're in Vercel Blob mode or it matches known patterns
+    // We'll attempt deletion and it will be skipped if not our storage
+    return src;
+  }
+  return null;
+}
+
+/**
+ * Delete orphaned images: images present in old content but not in new content.
+ */
+async function cleanupOrphanedImages(oldContent: string | null | undefined, newContent: string | null | undefined) {
+  const oldKeys = extractImageKeysFromHtml(oldContent).map(resolveStorageKey).filter((k): k is string => k !== null);
+  const newKeys = new Set(extractImageKeysFromHtml(newContent).map(resolveStorageKey).filter((k): k is string => k !== null));
+
+  const keysToDelete = oldKeys.filter(k => !newKeys.has(k));
+  for (const key of keysToDelete) {
+    try {
+      await deleteFile(key);
+    } catch (err) {
+      console.error('[content-pages] Failed to delete orphaned image:', key, err);
+    }
+  }
+}
+
+/**
+ * Delete all images referenced in content.
+ */
+async function cleanupAllImages(contents: (string | null | undefined)[]) {
+  const allKeys = contents.flatMap(c => extractImageKeysFromHtml(c).map(resolveStorageKey).filter((k): k is string => k !== null));
+  const uniqueKeys = [...new Set(allKeys)];
+  for (const key of uniqueKeys) {
+    try {
+      await deleteFile(key);
+    } catch (err) {
+      console.error('[content-pages] Failed to delete image:', key, err);
+    }
+  }
+}
 // GET /api/admin/content-pages?type=best_vapes
 export async function GET(request: NextRequest) {
   const rl = checkRateLimit(request, "admin");
@@ -84,6 +138,21 @@ export async function POST(request: NextRequest) {
     // Slug already exists - update the existing page instead
     const existingId = existing[0].id;
     
+    // Fetch old content to clean up orphaned images
+    const { data: oldPage } = await supabase
+      .from('content_pages')
+      .select('cover_image, content_page_translations(content)')
+      .eq('id', existingId)
+      .single();
+
+    // Clean up cover image if it's being replaced
+    if (cover_image !== undefined && oldPage?.cover_image && oldPage.cover_image !== cover_image) {
+      const coverKey = resolveStorageKey(oldPage.cover_image);
+      if (coverKey) {
+        try { await deleteFile(coverKey); } catch { /* ignore */ }
+      }
+    }
+
     // Update page fields
     const updateFields: Record<string, unknown> = { 
       updated_at: new Date().toISOString(),
@@ -103,12 +172,14 @@ export async function POST(request: NextRequest) {
       for (const t of translations) {
         const { data: existingTrans } = await supabase
           .from('content_page_translations')
-          .select('id')
+          .select('id, content')
           .eq('page_id', existingId)
           .eq('language', t.language)
           .limit(1);
 
         if (existingTrans && existingTrans.length > 0) {
+          // Clean up orphaned images in old content vs new content
+          await cleanupOrphanedImages(existingTrans[0].content, t.content);
           await supabase
             .from('content_page_translations')
             .update({ title: t.title, content: t.content })
@@ -173,8 +244,14 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { id, slug, cover_image, sort_order, is_published, translations } = body;
 
-  // Debug: log what we receive for content
   const supabase = getSupabaseClient();
+
+  // Fetch old page data to clean up orphaned images
+  const { data: oldPage } = await supabase
+    .from('content_pages')
+    .select('cover_image, content_page_translations(id, language, content)')
+    .eq('id', id)
+    .single();
 
   // Check for duplicate slug (exclude self)
   if (slug) {
@@ -197,6 +274,14 @@ export async function PUT(request: NextRequest) {
   if (sort_order !== undefined) updateFields.sort_order = sort_order;
   if (is_published !== undefined) updateFields.is_published = is_published;
 
+  // Clean up old cover image if it's being replaced
+  if (cover_image !== undefined && oldPage?.cover_image && oldPage.cover_image !== cover_image) {
+    const coverKey = resolveStorageKey(oldPage.cover_image);
+    if (coverKey) {
+      try { await deleteFile(coverKey); } catch { /* ignore */ }
+    }
+  }
+
   const { error: pageError } = await supabase
     .from('content_pages')
     .update(updateFields)
@@ -209,6 +294,13 @@ export async function PUT(request: NextRequest) {
   if (translations) {
     for (const t of translations) {
       if (t.id) {
+        // Find old content for this translation to clean up orphaned images
+        const oldTrans = oldPage?.content_page_translations?.find(
+          (ot: { id: number }) => ot.id === t.id
+        );
+        if (oldTrans) {
+          await cleanupOrphanedImages(oldTrans.content, t.content);
+        }
         await supabase
           .from('content_page_translations')
           .update({ title: t.title, content: t.content })
@@ -217,11 +309,13 @@ export async function PUT(request: NextRequest) {
         // Check if translation already exists for this page+language
         const { data: existing } = await supabase
           .from('content_page_translations')
-          .select('id')
+          .select('id, content')
           .eq('page_id', id)
           .eq('language', t.language)
           .limit(1);
         if (existing && existing.length > 0) {
+          // Clean up orphaned images in old content vs new content
+          await cleanupOrphanedImages(existing[0].content, t.content);
           // Update existing translation
           await supabase
             .from('content_page_translations')
@@ -240,7 +334,7 @@ export async function PUT(request: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-// DELETE - Delete content page (cascade delete translations)
+// DELETE - Delete content page (cascade delete translations + cleanup images)
 export async function DELETE(request: NextRequest) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
@@ -263,7 +357,27 @@ export async function DELETE(request: NextRequest) {
   const supabase = getSupabaseClient();
   const pageId = parseInt(id);
 
-  // 1. Delete translations first (cascade)
+  // 0. Fetch old data to clean up images
+  const { data: oldPage } = await supabase
+    .from('content_pages')
+    .select('cover_image, content_page_translations(content)')
+    .eq('id', pageId)
+    .single();
+
+  // 1. Clean up all images in content translations
+  if (oldPage?.content_page_translations) {
+    await cleanupAllImages(oldPage.content_page_translations.map((t: { content: string }) => t.content));
+  }
+
+  // 2. Clean up cover image
+  if (oldPage?.cover_image) {
+    const coverKey = resolveStorageKey(oldPage.cover_image);
+    if (coverKey) {
+      try { await deleteFile(coverKey); } catch { /* ignore */ }
+    }
+  }
+
+  // 3. Delete translations first (cascade)
   const { error: transError } = await supabase
     .from('content_page_translations')
     .delete()
@@ -273,7 +387,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: transError.message }, { status: 500 });
   }
 
-  // 2. Delete the page itself
+  // 4. Delete the page itself
   const { error } = await supabase
     .from('content_pages')
     .delete()

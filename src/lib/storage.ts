@@ -111,3 +111,59 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
 }
 
 export { useVercelBlob };
+
+/**
+ * Delete a file from storage by its key or URL.
+ * - For S3 keys (dev sandbox), uses S3Storage.deleteFile.
+ * - For Vercel Blob URLs, uses @vercel/blob del.
+ * - For external URLs (http/https not matching Vercel Blob), skip deletion (not our storage).
+ */
+export async function deleteFile(key: string | null | undefined): Promise<boolean> {
+  if (!key) return false;
+
+  if (useVercelBlob) {
+    // Vercel Blob: key is stored as a full URL
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      try {
+        const { del } = await import('@vercel/blob');
+        await del(key);
+        return true;
+      } catch (err) {
+        console.error('[storage] Failed to delete Vercel Blob file:', key, err);
+        return false;
+      }
+    }
+    // Not a URL in Vercel mode - can't delete
+    return false;
+  } else {
+    // Sandbox: key is an S3 key
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      // External URL, not our storage - skip
+      return false;
+    }
+    try {
+      return await getS3Storage().deleteFile({ fileKey: key });
+    } catch (err) {
+      console.error('[storage] Failed to delete S3 file:', key, err);
+      return false;
+    }
+  }
+}
+
+/**
+ * Extract all image URLs/keys from HTML content.
+ * Returns an array of src values from <img> tags.
+ */
+export function extractImageKeysFromHtml(html: string | null | undefined): string[] {
+  if (!html) return [];
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const keys: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = imgRegex.exec(html)) !== null) {
+    const src = match[1];
+    if (src && !src.startsWith('data:')) {
+      keys.push(src);
+    }
+  }
+  return keys;
+}

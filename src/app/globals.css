@@ -147,6 +147,8 @@ html {
 }
 .content-pages-editor .quill-sticky-toolbar .ql-toolbar.ql-snow {
   top: 60px;
+  max-width: 1060px;
+  margin: 0 auto;
 }
 .admin-dark .ql-container.ql-snow {
   background: #ffffff;
@@ -154,6 +156,18 @@ html {
   border-radius: 0 0 0.5rem 0.5rem;
   color: #111827;
   min-height: 200px;
+}
+/* Constrain editor content area to match frontend article width (1060px) */
+.content-pages-editor .ql-container.ql-snow {
+  max-width: 1060px;
+  margin: 0 auto;
+}
+/* Images in editor: display at natural size, scale down only when exceeding editor width */
+.content-pages-editor .ql-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
 }
 .admin-dark .ql-editor {
   color: #111827;
