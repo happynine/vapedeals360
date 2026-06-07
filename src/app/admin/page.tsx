@@ -1045,6 +1045,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  // Use ref for resizeImageToStorage to avoid stale closure in useEffect
+  const resizeImageToStorageRef = useRef<(img: HTMLImageElement, w: number, h: number) => void>(() => {});
+
   // Expose getHTML() to parent for reliable content reading on Publish
   // Format Painter: copy formats from current cursor position
   const handleFormatPainterCopy = useCallback(() => {
@@ -1513,6 +1516,16 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         document.removeEventListener('mouseup', onMouseUp);
         if (resizeOverlay) { resizeOverlay.remove(); resizeOverlay = null; }
 
+        // If image was actually resized, re-upload the resized version
+        const finalWidth = img.offsetWidth;
+        const finalHeight = img.offsetHeight;
+        const wasResized = finalWidth !== startWidth || finalHeight !== startHeight;
+        if (wasResized) {
+          // Copy ref to avoid null issues after async
+          const imgRef = img;
+          resizeImageToStorageRef.current(imgRef, finalWidth, finalHeight);
+        }
+
         // Sync Quill content
         const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
         if (qlContainer && QuillClass) {
@@ -1579,24 +1592,36 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   }, []);
 
   // Image compression: compress images over 400KB to 200-300KB range
+  // Also resize images wider than editor max width (1060px) to save storage
+  const EDITOR_MAX_WIDTH = 1060;
   const COMPRESS_THRESHOLD = 400 * 1024; // 400KB
   const COMPRESS_TARGET_MIN = 200 * 1024; // 200KB
   const COMPRESS_TARGET_MAX = 300 * 1024; // 300KB
 
   const compressImage = useCallback(async (file: File): Promise<File> => {
-    // Skip if under threshold
-    if (file.size <= COMPRESS_THRESHOLD) return file;
-
     const imageBitmap = await createImageBitmap(file);
-    const { width, height } = imageBitmap;
+    let { width, height } = imageBitmap;
 
-    // Draw original to canvas
+    // If image is wider than editor max width, resize to editor width first
+    let needsResize = width > EDITOR_MAX_WIDTH;
+    let skipCompression = file.size <= COMPRESS_THRESHOLD && !needsResize;
+
+    if (needsResize) {
+      const ratio = EDITOR_MAX_WIDTH / width;
+      width = EDITOR_MAX_WIDTH;
+      height = Math.round(height * ratio);
+    }
+
+    // Draw to canvas (possibly resized)
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(imageBitmap, 0, 0);
+    ctx.drawImage(imageBitmap, 0, 0, width, height);
     imageBitmap.close();
+
+    // If no compression needed and no resize happened, return original
+    if (skipCompression) return file;
 
     // Determine output format - use JPEG for photos (better compression), keep PNG for transparency
     const isTransparent = await hasTransparency(file);
@@ -1754,6 +1779,80 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     }
     return result;
   }, [uploadImageFile]);
+
+  // Resize an image in the editor to the given display dimensions and re-upload the resized version.
+  // This replaces the full-size stored image with a smaller one to save storage.
+  const resizeImageToStorage = useCallback(async (imgElement: HTMLImageElement, targetWidth: number, targetHeight: number) => {
+    const src = imgElement.getAttribute('src');
+    if (!src || src.startsWith('data:')) return; // skip base64 or missing
+
+    try {
+      // Load the image into a canvas at the target dimensions
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = src;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+      // Determine format
+      const isJpg = src.includes('.jpg') || src.includes('.jpeg') || !src.includes('.png');
+      const outputType = isJpg ? 'image/jpeg' : 'image/png';
+      const ext = isJpg ? 'jpg' : 'png';
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((b) => resolve(b!), outputType, outputType === 'image/jpeg' ? 0.85 : undefined);
+      });
+
+      const file = new File([blob], `resized-${Date.now()}.${ext}`, { type: outputType });
+      console.log(`[resizeImageToStorage] Resized to ${targetWidth}x${targetHeight}, size: ${(blob.size / 1024).toFixed(0)}KB`);
+
+      // Upload resized image
+      const newUrl = await uploadImageFile(file);
+      if (!newUrl) {
+        console.error('[resizeImageToStorage] Upload failed, keeping original');
+        return;
+      }
+
+      console.log(`[resizeImageToStorage] Uploaded resized image: ${newUrl}`);
+
+      // Replace src in the editor DOM
+      imgElement.setAttribute('src', newUrl);
+
+      // Delete the old image from storage (fire and forget)
+      const oldKey = resolveStorageKeyFromSrc(src);
+      if (oldKey) {
+        console.log(`[resizeImageToStorage] Deleting old image: ${oldKey}`);
+        fetch('/api/admin/cleanup-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: oldKey }),
+        }).catch((err) => console.error('[resizeImageToStorage] Failed to delete old image:', err));
+      }
+    } catch (err) {
+      console.error('[resizeImageToStorage] Failed:', err);
+    }
+  }, [uploadImageFile]);
+
+  // Keep the ref up to date for use in useEffect closures
+  resizeImageToStorageRef.current = resizeImageToStorage;
+
+  // Resolve an image src to a storage key for deletion
+  const resolveStorageKeyFromSrc = (src: string): string | null => {
+    // Proxy URL: /api/image?key=xxx
+    const proxyMatch = src.match(/\/api\/image\?key=([^&]+)/);
+    if (proxyMatch) return decodeURIComponent(proxyMatch[1]);
+    // Full URL (Vercel Blob or other storage)
+    if (src.startsWith('http://') || src.startsWith('https://')) return src;
+    return null;
+  };
 
   // Custom image handler: compress + upload to object storage instead of base64
   const imageHandler = useCallback(() => {
