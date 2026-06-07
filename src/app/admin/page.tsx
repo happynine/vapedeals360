@@ -1388,8 +1388,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
-    if (!qlEditor) return;
 
     const MAX_WIDTH = 1060;
     const MIN_WIDTH = 40;
@@ -1405,14 +1403,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     let naturalHeight = 0;
 
     // Remove existing resize handles from all images
-    const clearAllHandles = () => {
-      qlEditor.querySelectorAll('.ql-img-resize-wrapper').forEach((wrapper) => {
+    const clearAllHandles = (editor: Element) => {
+      editor.querySelectorAll('.ql-img-resize-wrapper').forEach((wrapper) => {
         const img = wrapper.querySelector('img') as HTMLImageElement;
         if (img && wrapper.parentNode) {
           wrapper.parentNode.replaceChild(img, wrapper);
         }
       });
-      qlEditor.querySelectorAll('.ql-image-selected').forEach((el) => {
+      editor.querySelectorAll('.ql-image-selected').forEach((el) => {
         el.classList.remove('ql-image-selected');
       });
       if (resizeOverlay) { resizeOverlay.remove(); resizeOverlay = null; }
@@ -1421,11 +1419,11 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     };
 
     // Wrap an image with resize handles
-    const wrapImageWithHandles = (img: HTMLImageElement) => {
+    const wrapImageWithHandles = (img: HTMLImageElement, editor: Element) => {
       // If already wrapped, skip
       if (img.parentElement?.classList.contains('ql-img-resize-wrapper')) return;
 
-      clearAllHandles();
+      clearAllHandles(editor);
 
       // Record natural dimensions
       naturalWidth = img.naturalWidth || img.width;
@@ -1486,8 +1484,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const deltaX = ev.clientX - startX;
 
         // Determine sign based on which handle is dragged
-        // For bottom-right and top-left: positive delta = larger
-        // For bottom-left and top-right: negative delta = larger
         let effectiveDelta: number;
         if (target.classList.contains('ql-handle-tr') || target.classList.contains('ql-handle-bl')) {
           effectiveDelta = -deltaX;
@@ -1521,7 +1517,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const finalHeight = img.offsetHeight;
         const wasResized = finalWidth !== startWidth || finalHeight !== startHeight;
         if (wasResized) {
-          // Copy ref to avoid null issues after async
           const imgRef = img;
           resizeImageToStorageRef.current(imgRef, finalWidth, finalHeight);
         }
@@ -1542,34 +1537,60 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       document.addEventListener('mouseup', onMouseUp);
     };
 
-    // Handle click on images to select
-    const handleImageClick = (e: MouseEvent) => {
+    // Handle mousedown on images to select (capture phase to intercept before Quill)
+    const handleImageMouseDown = (e: MouseEvent) => {
+      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+      if (!qlEditor) return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'IMG' && target.closest('.ql-editor')) {
         e.preventDefault();
         e.stopPropagation();
-        wrapImageWithHandles(target as HTMLImageElement);
+        wrapImageWithHandles(target as HTMLImageElement, qlEditor);
+      } else if (!target.classList.contains('ql-img-resize-handle') && !target.closest('.ql-img-resize-wrapper')) {
+        clearAllHandles(qlEditor);
       }
     };
 
-    // Handle click outside images to deselect
-    const handleEditorClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName !== 'IMG') {
-        clearAllHandles();
-      }
+    // Use MutationObserver to wait for .ql-editor to appear (dynamic import may delay it)
+    const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+    let listenersAttached = false;
+
+    const attachListeners = (editor: Element) => {
+      if (listenersAttached) return;
+      listenersAttached = true;
+      container.addEventListener('mousedown', handleResizeStart);
+      editor.addEventListener('mousedown', handleImageMouseDown as EventListener, true);
     };
 
-    // Listen for resize handle mousedown on the container
-    container.addEventListener('mousedown', handleResizeStart);
-    qlEditor.addEventListener('click', handleImageClick, true);
-    qlEditor.addEventListener('mousedown', handleEditorClick);
+    const detachListeners = () => {
+      if (!listenersAttached) return;
+      listenersAttached = false;
+      const editor = container.querySelector('.ql-editor') as HTMLElement | null;
+      container.removeEventListener('mousedown', handleResizeStart);
+      if (editor) editor.removeEventListener('mousedown', handleImageMouseDown as EventListener, true);
+    };
+
+    if (qlEditor) {
+      attachListeners(qlEditor);
+    } else {
+      // Watch for Quill editor to be inserted into DOM
+      const observer = new MutationObserver(() => {
+        const editor = container.querySelector('.ql-editor') as HTMLElement | null;
+        if (editor) {
+          observer.disconnect();
+          attachListeners(editor);
+        }
+      });
+      observer.observe(container, { childList: true, subtree: true });
+
+      return () => {
+        observer.disconnect();
+        detachListeners();
+      };
+    }
 
     return () => {
-      container.removeEventListener('mousedown', handleResizeStart);
-      qlEditor.removeEventListener('click', handleImageClick, true);
-      qlEditor.removeEventListener('mousedown', handleEditorClick);
-      clearAllHandles();
+      detachListeners();
     };
   }, []);
 
