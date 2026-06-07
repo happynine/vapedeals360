@@ -1532,18 +1532,21 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const wasResized = finalWidth !== startWidth || finalHeight !== startHeight;
         if (wasResized) {
           const imgRef = activeImg;
+          // resizeImageToStorage will sync Quill content after uploading the resized image
+          // (syncing here would cause ReactQuill to re-render and strip inline styles,
+          //  reverting the image to its natural size before the upload completes)
           resizeImageToStorageRef.current(imgRef, finalWidth, finalHeight);
-        }
-
-        // Sync Quill content
-        const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
-        if (qlContainer && QuillClass) {
-          try {
-            const quill = QuillClass.find(qlContainer);
-            if (quill) {
-              setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
-            }
-          } catch { /* ignore */ }
+        } else {
+          // No resize happened, just sync content normally
+          const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+          if (qlContainer && QuillClass) {
+            try {
+              const quill = QuillClass.find(qlContainer);
+              if (quill) {
+                setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+              }
+            } catch { /* ignore */ }
+          }
         }
 
         // Reposition selection box after resize
@@ -1854,8 +1857,29 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       console.log(`[resizeImageToStorage] Uploaded resized image: ${newUrl}`);
 
-      // Replace src in the editor DOM
+      // Replace src in the editor DOM and remove inline styles
+      // The new image has naturalWidth=targetWidth, naturalHeight=targetHeight,
+      // so inline width/height are no longer needed and would cause issues
+      // when Quill re-renders from Delta (stripping inline styles)
       imgElement.setAttribute('src', newUrl);
+      imgElement.removeAttribute('width');
+      imgElement.removeAttribute('height');
+      imgElement.style.width = '';
+      imgElement.style.height = '';
+
+      // Sync Quill content so state reflects the new src (without inline styles)
+      const container = containerRef.current;
+      if (container) {
+        const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+        if (qlContainer && QuillClass) {
+          try {
+            const quill = QuillClass.find(qlContainer);
+            if (quill) {
+              onChangeRef.current(quill.root.innerHTML);
+            }
+          } catch { /* ignore */ }
+        }
+      }
 
       // Delete the old image from storage (fire and forget)
       const oldKey = resolveStorageKeyFromSrc(src);
