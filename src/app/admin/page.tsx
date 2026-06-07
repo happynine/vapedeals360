@@ -1796,133 +1796,249 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       } catch { /* ignore */ }
     };
 
-    // Open image crop modal
+    // Open inline image crop UI (dark overlay + dashed selection + handles + buttons)
     const openImageCrop = (img: HTMLImageElement) => {
       const src = img.getAttribute('src');
       if (!src) return;
 
-      // Create crop overlay
-      const cropOverlay = document.createElement('div');
-      cropOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+      const imgRect = img.getBoundingClientRect();
+      const editorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+      if (!editorEl) return;
 
-      const cropModal = document.createElement('div');
-      cropModal.style.cssText = 'background:#fff;border-radius:12px;padding:16px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;gap:12px;';
+      // Hide the selection box and toolbar while cropping
+      if (selectionBox) selectionBox.style.display = 'none';
+      if (imgToolbar) imgToolbar.style.display = 'none';
 
-      const titleBar = document.createElement('div');
-      titleBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
-      titleBar.innerHTML = '<span style="font-weight:600;font-size:14px;color:#111827">Crop Image</span>';
+      // Create crop container positioned over the image in the editor
+      const cropContainer = document.createElement('div');
+      cropContainer.className = 'ql-crop-container';
+      cropContainer.style.cssText = 'position:relative;display:inline-block;line-height:0;';
 
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '✕';
-      closeBtn.style.cssText = 'border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;';
-      closeBtn.addEventListener('click', () => cropOverlay.remove());
+      // Insert crop container before the image, move image into it
+      img.parentNode!.insertBefore(cropContainer, img);
+      cropContainer.appendChild(img);
 
-      titleBar.appendChild(closeBtn);
+      // Create dark overlay on top of the image
+      const overlay = document.createElement('div');
+      overlay.className = 'ql-crop-overlay';
+      overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;cursor:crosshair;';
+      cropContainer.appendChild(overlay);
 
-      const canvasWrapper = document.createElement('div');
-      canvasWrapper.style.cssText = 'overflow:auto;max-height:60vh;position:relative;';
+      // Load the original image for cropping
+      const originalImg = new window.Image();
+      originalImg.crossOrigin = 'anonymous';
+      originalImg.src = src;
 
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
+      // Selection state (as percentages of displayed image size)
+      let selX = 0, selY = 0, selW = 1, selH = 1; // default: full image
 
-      const imgEl = new window.Image();
-      imgEl.crossOrigin = 'anonymous';
-      imgEl.onload = () => {
-        // Scale image to fit in viewport
-        const maxW = Math.min(imgEl.naturalWidth, window.innerWidth * 0.8);
-        const maxH = Math.min(imgEl.naturalHeight, window.innerHeight * 0.5);
-        let scale = Math.min(maxW / imgEl.naturalWidth, maxH / imgEl.naturalHeight, 1);
-        canvas.width = Math.round(imgEl.naturalWidth * scale);
-        canvas.height = Math.round(imgEl.naturalHeight * scale);
-        ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
-      };
-      imgEl.src = src;
+      // Dark masks (top, bottom, left, right) around the selection
+      const maskTop = document.createElement('div');
+      const maskBottom = document.createElement('div');
+      const maskLeft = document.createElement('div');
+      const maskRight = document.createElement('div');
+      [maskTop, maskBottom, maskLeft, maskRight].forEach(m => {
+        m.style.cssText = 'position:absolute;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;';
+        overlay.appendChild(m);
+      });
 
-      canvasWrapper.appendChild(canvas);
+      // Selection border
+      const selBorder = document.createElement('div');
+      selBorder.className = 'ql-crop-selection';
+      selBorder.style.cssText = 'position:absolute;border:2px dashed rgba(255,255,255,0.9);z-index:12;pointer-events:none;';
+      overlay.appendChild(selBorder);
 
-      const instruction = document.createElement('div');
-      instruction.style.cssText = 'font-size:12px;color:#6b7280;';
-      instruction.textContent = 'Click and drag on the image to select crop area.';
+      // Corner handles
+      const handles: HTMLDivElement[] = [];
+      const handlePositions = ['nw-resize','ne-resize','sw-resize','se-resize'];
+      for (let i = 0; i < 4; i++) {
+        const h = document.createElement('div');
+        h.className = 'ql-crop-handle';
+        h.dataset.handle = ['nw','ne','sw','se'][i];
+        h.style.cssText = `position:absolute;width:10px;height:10px;background:#fff;border:2px solid #7c3aed;z-index:15;cursor:${handlePositions[i]};`;
+        overlay.appendChild(h);
+        handles.push(h);
+      }
 
+      // Button bar below the image
       const btnBar = document.createElement('div');
-      btnBar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+      btnBar.style.cssText = 'position:absolute;bottom:-44px;left:0;right:0;display:flex;justify-content:flex-end;gap:8px;z-index:20;';
 
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = 'Cancel';
       cancelBtn.style.cssText = 'padding:6px 16px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#374151;';
-      cancelBtn.addEventListener('click', () => cropOverlay.remove());
-
-      const applyBtn = document.createElement('button');
-      applyBtn.textContent = 'Apply Crop';
-      applyBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:6px;background:#7c3aed;cursor:pointer;font-size:13px;color:#fff;';
-
       btnBar.appendChild(cancelBtn);
-      btnBar.appendChild(applyBtn);
 
-      cropModal.appendChild(titleBar);
-      cropModal.appendChild(canvasWrapper);
-      cropModal.appendChild(instruction);
-      cropModal.appendChild(btnBar);
-      cropOverlay.appendChild(cropModal);
-      document.body.appendChild(cropOverlay);
+      const cropBtn = document.createElement('button');
+      cropBtn.textContent = 'Crop & Upload';
+      cropBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:6px;background:#7c3aed;cursor:pointer;font-size:13px;color:#fff;font-weight:500;';
+      btnBar.appendChild(cropBtn);
 
-      // Crop selection state
-      let cropStartX = 0, cropStartY = 0, cropEndX = 0, cropEndY = 0;
-      let isCropping = false;
-      let cropRect: HTMLDivElement | null = null;
+      cropContainer.appendChild(btnBar);
 
-      canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        cropStartX = e.clientX - rect.left;
-        cropStartY = e.clientY - rect.top;
-        isCropping = true;
+      // Update mask and handle positions
+      const updateSelection = () => {
+        const imgW = img.clientWidth;
+        const imgH = img.clientHeight;
 
-        if (cropRect) cropRect.remove();
-        cropRect = document.createElement('div');
-        cropRect.style.cssText = 'position:absolute;border:2px dashed #7c3aed;background:rgba(124,58,237,0.1);pointer-events:none;';
-        canvasWrapper.appendChild(cropRect);
+        const sx = selX * imgW, sy = selY * imgH;
+        const sw = selW * imgW, sh = selH * imgH;
+
+        // Masks
+        maskTop.style.cssText = `position:absolute;top:0;left:0;width:100%;height:${sy}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
+        maskBottom.style.cssText = `position:absolute;top:${sy+sh}px;left:0;width:100%;height:${imgH-sy-sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
+        maskLeft.style.cssText = `position:absolute;top:${sy}px;left:0;width:${sx}px;height:${sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
+        maskRight.style.cssText = `position:absolute;top:${sy}px;left:${sx+sw}px;width:${imgW-sx-sw}px;height:${sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
+
+        // Selection border
+        selBorder.style.left = sx + 'px';
+        selBorder.style.top = sy + 'px';
+        selBorder.style.width = sw + 'px';
+        selBorder.style.height = sh + 'px';
+
+        // Corner handles
+        const hh = 5; // half handle size
+        handles[0].style.left = (sx - hh) + 'px'; handles[0].style.top = (sy - hh) + 'px'; // nw
+        handles[1].style.left = (sx + sw - hh) + 'px'; handles[1].style.top = (sy - hh) + 'px'; // ne
+        handles[2].style.left = (sx - hh) + 'px'; handles[2].style.top = (sy + sh - hh) + 'px'; // sw
+        handles[3].style.left = (sx + sw - hh) + 'px'; handles[3].style.top = (sy + sh - hh) + 'px'; // se
+      };
+
+      updateSelection();
+
+      // Drag handling
+      let dragType: string | null = null;
+      let dragStartX = 0, dragStartY = 0;
+      let startSelX = 0, startSelY = 0, startSelW = 0, startSelH = 0;
+
+      const getMousePos = (e: MouseEvent) => {
+        const rect = img.getBoundingClientRect();
+        return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+      };
+
+      const onMouseDown = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const target = e.target as HTMLElement;
+
+        if (target.dataset.handle) {
+          dragType = target.dataset.handle;
+        } else {
+          // Check if inside selection -> move
+          const pos = getMousePos(e);
+          if (pos.x >= selX && pos.x <= selX + selW && pos.y >= selY && pos.y <= selY + selH) {
+            dragType = 'move';
+          } else {
+            // Start new selection from this point
+            dragType = 'new';
+            selX = pos.x; selY = pos.y; selW = 0; selH = 0;
+          }
+        }
+
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        startSelX = selX; startSelY = selY; startSelW = selW; startSelH = selH;
+      };
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!dragType) return;
+        e.preventDefault();
+
+        const dx = (e.clientX - dragStartX) / img.clientWidth;
+        const dy = (e.clientY - dragStartY) / img.clientHeight;
+
+        if (dragType === 'move') {
+          selX = Math.max(0, Math.min(1 - selW, startSelX + dx));
+          selY = Math.max(0, Math.min(1 - selH, startSelY + dy));
+        } else if (dragType === 'new') {
+          const pos = getMousePos(e);
+          selX = Math.min(startSelX, pos.x);
+          selY = Math.min(startSelY, pos.y);
+          selW = Math.abs(pos.x - startSelX);
+          selH = Math.abs(pos.y - startSelY);
+          // Clamp
+          selW = Math.min(selW, 1 - selX);
+          selH = Math.min(selH, 1 - selY);
+        } else {
+          // Resize from handle
+          let newX = startSelX, newY = startSelY, newW = startSelW, newH = startSelH;
+
+          if (dragType.includes('w')) { newX = startSelX + dx; newW = startSelW - dx; }
+          if (dragType.includes('e')) { newW = startSelW + dx; }
+          if (dragType.includes('n')) { newY = startSelY + dy; newH = startSelH - dy; }
+          if (dragType.includes('s')) { newH = startSelH + dy; }
+
+          // Clamp minimum size
+          if (newW < 0.02) { newW = 0.02; if (dragType.includes('w')) newX = startSelX + startSelW - 0.02; }
+          if (newH < 0.02) { newH = 0.02; if (dragType.includes('n')) newY = startSelY + startSelH - 0.02; }
+          // Clamp to image bounds
+          if (newX < 0) { newW += newX; newX = 0; }
+          if (newY < 0) { newH += newY; newY = 0; }
+          if (newX + newW > 1) newW = 1 - newX;
+          if (newY + newH > 1) newH = 1 - newY;
+
+          selX = newX; selY = newY; selW = newW; selH = newH;
+        }
+
+        updateSelection();
+      };
+
+      const onMouseUp = () => {
+        dragType = null;
+      };
+
+      overlay.addEventListener('mousedown', onMouseDown);
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+
+      // Cleanup function
+      const cleanup = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        // Move image back out of crop container
+        cropContainer.parentNode!.insertBefore(img, cropContainer);
+        cropContainer.remove();
+        // Restore selection box and toolbar
+        if (selectionBox) selectionBox.style.display = '';
+        if (imgToolbar) imgToolbar.style.display = '';
+        requestAnimationFrame(() => positionSelectionBox());
+      };
+
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cleanup();
       });
 
-      canvas.addEventListener('mousemove', (e) => {
-        if (!isCropping || !cropRect) return;
-        const rect = canvas.getBoundingClientRect();
-        cropEndX = e.clientX - rect.left;
-        cropEndY = e.clientY - rect.top;
+      cropBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
 
-        const x = Math.min(cropStartX, cropEndX);
-        const y = Math.min(cropStartY, cropEndY);
-        const w = Math.abs(cropEndX - cropStartX);
-        const h = Math.abs(cropEndY - cropStartY);
+        if (selW < 0.01 || selH < 0.01) return; // too small
 
-        cropRect.style.left = x + 'px';
-        cropRect.style.top = y + 'px';
-        cropRect.style.width = w + 'px';
-        cropRect.style.height = h + 'px';
-      });
+        // Wait for image to load if not yet
+        if (!originalImg.complete) {
+          await new Promise<void>((resolve) => {
+            originalImg.onload = () => resolve();
+            originalImg.onerror = () => resolve();
+          });
+        }
 
-      canvas.addEventListener('mouseup', () => {
-        isCropping = false;
-      });
+        const natW = originalImg.naturalWidth;
+        const natH = originalImg.naturalHeight;
 
-      applyBtn.addEventListener('click', async () => {
-        if (!cropRect) return;
+        // Convert selection percentages to pixel coordinates on original image
+        const cx = Math.round(selX * natW);
+        const cy = Math.round(selY * natH);
+        const cw = Math.round(selW * natW);
+        const ch = Math.round(selH * natH);
 
-        const x = Math.min(cropStartX, cropEndX);
-        const y = Math.min(cropStartY, cropEndY);
-        const w = Math.abs(cropEndX - cropStartX);
-        const h = Math.abs(cropEndY - cropStartY);
+        if (cw < 5 || ch < 5) return;
 
-        if (w < 5 || h < 5) return; // too small
-
-        // Calculate scale factor from canvas to original image
-        const scaleX = imgEl.naturalWidth / canvas.width;
-        const scaleY = imgEl.naturalHeight / canvas.height;
-
+        // Draw cropped region to canvas
         const cropCanvas = document.createElement('canvas');
-        cropCanvas.width = Math.round(w * scaleX);
-        cropCanvas.height = Math.round(h * scaleY);
+        cropCanvas.width = cw;
+        cropCanvas.height = ch;
         const cropCtx = cropCanvas.getContext('2d')!;
-        cropCtx.drawImage(imgEl, x * scaleX, y * scaleY, w * scaleX, h * scaleY, 0, 0, cropCanvas.width, cropCanvas.height);
+        cropCtx.drawImage(originalImg, cx, cy, cw, ch, 0, 0, cw, ch);
 
         // Determine format
         const isJpg = src.includes('.jpg') || src.includes('.jpeg') || !src.includes('.png');
@@ -1937,14 +2053,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
         try {
           const newUrl = await uploadImageFileRef.current(file);
-          if (newUrl && activeImg) {
-            activeImg.setAttribute('src', newUrl);
-            activeImg.removeAttribute('width');
-            activeImg.removeAttribute('height');
-            activeImg.style.width = '';
-            activeImg.style.height = '';
+          if (newUrl) {
+            img.setAttribute('src', newUrl);
+            img.removeAttribute('width');
+            img.removeAttribute('height');
+            img.style.width = '';
+            img.style.height = '';
             // Persist image formats (class/style) via Quill's Delta model
-            persistImageFormats(activeImg);
+            persistImageFormats(img);
 
             // Delete old image
             const oldKey = resolveStorageKeyFromSrc(src);
@@ -1955,15 +2071,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
                 body: JSON.stringify({ key: oldKey }),
               }).catch(() => {});
             }
-
-            // Reposition
-            requestAnimationFrame(() => positionSelectionBox());
           }
         } catch (err) {
           console.error('[Crop] Failed:', err);
         }
 
-        cropOverlay.remove();
+        cleanup();
       });
     };
 
