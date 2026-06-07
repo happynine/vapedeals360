@@ -1551,6 +1551,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     let activeImg: HTMLImageElement | null = null;
     let dragOverlay: HTMLDivElement | null = null;
     let selectionBox: HTMLDivElement | null = null;
+    let isCropping = false;
+    let cropCleanup: (() => void) | null = null;
+    let cropConfirmCallback: (() => void) | null = null;
     let startX = 0;
     let startWidth = 0;
     let startHeight = 0;
@@ -1582,6 +1585,11 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
     // Remove selection overlay
     const clearSelection = () => {
+      if (isCropping && cropCleanup) {
+        // If in crop mode, cancel the crop instead
+        cropCleanup();
+        return;
+      }
       if (selectionBox) { selectionBox.remove(); selectionBox = null; }
       if (dragOverlay) { dragOverlay.remove(); dragOverlay = null; }
       if (imgToolbar) { imgToolbar.remove(); imgToolbar = null; }
@@ -1713,9 +1721,15 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       cropBtn.title = 'Crop Image';
       cropBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>`;
       cropBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
-      cropBtn.addEventListener('click', () => {
-        if (!activeImg) return;
-        openImageCrop(activeImg);
+      cropBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isCropping) {
+          // Confirm crop — trigger the confirm callback
+          if (cropConfirmCallback) cropConfirmCallback();
+        } else {
+          if (!activeImg) return;
+          openImageCrop(activeImg);
+        }
       });
 
       cropGroup.appendChild(cropBtn);
@@ -1792,7 +1806,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       } catch { /* ignore */ }
     };
 
-    // Open inline image crop UI (dark overlay + dashed selection + handles + buttons)
+    // Open inline image crop UI (Word-style: toolbar crop icon becomes ✓, blue dashed selection, dim masks)
     const openImageCrop = (img: HTMLImageElement) => {
       const src = img.getAttribute('src');
       if (!src) return;
@@ -1800,12 +1814,30 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
       if (!qlEditor) return;
 
-      // Hide the selection box and toolbar while cropping
-      if (selectionBox) selectionBox.style.display = 'none';
-      if (imgToolbar) imgToolbar.style.display = 'none';
+      // Set cropping state
+      isCropping = true;
 
-      // Create a full-size overlay over the ql-editor, positioned absolutely
-      // so we don't move the img element out of the Quill DOM
+      // Hide the selection box while cropping (keep toolbar visible)
+      if (selectionBox) selectionBox.style.display = 'none';
+
+      // Transform toolbar crop button into ✓ confirm button
+      if (imgToolbar) {
+        const cropBtnEl = imgToolbar.querySelector('.ql-img-toolbar-group:last-child button') as HTMLElement | null;
+        if (cropBtnEl) {
+          cropBtnEl.title = 'Confirm Crop';
+          cropBtnEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+          cropBtnEl.style.background = '#059669';
+          cropBtnEl.style.color = '#fff';
+        }
+        // Disable alignment and border buttons during crop
+        imgToolbar.querySelectorAll('.ql-img-toolbar-group:not(:last-child) button').forEach(b => {
+          (b as HTMLButtonElement).disabled = true;
+          (b as HTMLElement).style.opacity = '0.4';
+          (b as HTMLElement).style.pointerEvents = 'none';
+        });
+      }
+
+      // Create a full-size overlay over the ql-editor
       const editorWrapper = document.createElement('div');
       editorWrapper.className = 'ql-crop-container';
       editorWrapper.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;cursor:crosshair;';
@@ -1838,43 +1870,38 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const maskLeft = document.createElement('div');
       const maskRight = document.createElement('div');
       [maskTop, maskBottom, maskLeft, maskRight].forEach(m => {
-        m.style.cssText = 'position:absolute;background:rgba(0,0,0,0.55);pointer-events:none;';
+        m.style.cssText = 'position:absolute;background:rgba(0,0,0,0.5);pointer-events:none;';
         editorWrapper.appendChild(m);
       });
 
-      // Selection border
+      // Selection border (blue dashed like Word)
       const selBorder = document.createElement('div');
       selBorder.className = 'ql-crop-selection';
-      selBorder.style.cssText = 'position:absolute;border:2px dashed rgba(255,255,255,0.9);pointer-events:none;';
+      selBorder.style.cssText = 'position:absolute;border:2px dashed #2b7cd8;pointer-events:none;box-shadow:0 0 0 1px rgba(43,124,216,0.3);';
       editorWrapper.appendChild(selBorder);
 
-      // Corner handles
+      // 8 handles: 4 corners + 4 edge midpoints (like Word)
       const handles: HTMLDivElement[] = [];
-      const handlePositions = ['nw-resize','ne-resize','sw-resize','se-resize'];
-      for (let i = 0; i < 4; i++) {
+      const handleConfigs = [
+        { id: 'nw', cursor: 'nw-resize' },
+        { id: 'n',  cursor: 'n-resize' },
+        { id: 'ne', cursor: 'ne-resize' },
+        { id: 'e',  cursor: 'e-resize' },
+        { id: 'se', cursor: 'se-resize' },
+        { id: 's',  cursor: 's-resize' },
+        { id: 'sw', cursor: 'sw-resize' },
+        { id: 'w',  cursor: 'w-resize' },
+      ];
+      for (const cfg of handleConfigs) {
         const h = document.createElement('div');
         h.className = 'ql-crop-handle';
-        h.dataset.handle = ['nw','ne','sw','se'][i];
-        h.style.cssText = `position:absolute;width:10px;height:10px;background:#fff;border:2px solid #7c3aed;cursor:${handlePositions[i]};z-index:15;`;
+        h.dataset.handle = cfg.id;
+        const isCorner = ['nw', 'ne', 'sw', 'se'].includes(cfg.id);
+        const size = isCorner ? 10 : 8;
+        h.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:#fff;border:2px solid #2b7cd8;cursor:${cfg.cursor};z-index:15;${isCorner ? 'border-radius:1px;' : 'border-radius:1px;'}`;
         editorWrapper.appendChild(h);
         handles.push(h);
       }
-
-      // Button bar
-      const btnBar = document.createElement('div');
-      btnBar.style.cssText = 'position:absolute;display:flex;justify-content:flex-end;gap:8px;z-index:20;';
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.textContent = 'Cancel';
-      cancelBtn.style.cssText = 'padding:6px 16px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#374151;';
-      btnBar.appendChild(cancelBtn);
-
-      const cropBtn = document.createElement('button');
-      cropBtn.textContent = 'Crop & Upload';
-      cropBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:6px;background:#7c3aed;cursor:pointer;font-size:13px;color:#fff;font-weight:500;';
-      btnBar.appendChild(cropBtn);
-
-      editorWrapper.appendChild(btnBar);
 
       // Update mask and handle positions based on img position and selection
       const updateSelection = () => {
@@ -1888,10 +1915,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const sw = selW * imgW, sh = selH * imgH;
 
         // Masks (positioned relative to editorWrapper which is over qlEditor)
-        maskTop.style.cssText = `position:absolute;top:${oy}px;left:${ox}px;width:${imgW}px;height:${sy}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
-        maskBottom.style.cssText = `position:absolute;top:${oy+sy+sh}px;left:${ox}px;width:${imgW}px;height:${imgH-sy-sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
-        maskLeft.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox}px;width:${sx}px;height:${sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
-        maskRight.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox+sx+sw}px;width:${imgW-sx-sw}px;height:${sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
+        maskTop.style.cssText = `position:absolute;top:${oy}px;left:${ox}px;width:${imgW}px;height:${sy}px;background:rgba(0,0,0,0.5);pointer-events:none;z-index:11;`;
+        maskBottom.style.cssText = `position:absolute;top:${oy+sy+sh}px;left:${ox}px;width:${imgW}px;height:${imgH-sy-sh}px;background:rgba(0,0,0,0.5);pointer-events:none;z-index:11;`;
+        maskLeft.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox}px;width:${sx}px;height:${sh}px;background:rgba(0,0,0,0.5);pointer-events:none;z-index:11;`;
+        maskRight.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox+sx+sw}px;width:${imgW-sx-sw}px;height:${sh}px;background:rgba(0,0,0,0.5);pointer-events:none;z-index:11;`;
 
         // Selection border
         selBorder.style.left = (ox + sx) + 'px';
@@ -1900,17 +1927,24 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         selBorder.style.height = sh + 'px';
         selBorder.style.zIndex = '12';
 
-        // Corner handles
-        const hh = 5;
+        // Handles: 8 positions [nw, n, ne, e, se, s, sw, w]
+        const hh = 5; // half handle size for offset
+        // nw (top-left)
         handles[0].style.left = (ox + sx - hh) + 'px'; handles[0].style.top = (oy + sy - hh) + 'px';
-        handles[1].style.left = (ox + sx + sw - hh) + 'px'; handles[1].style.top = (oy + sy - hh) + 'px';
-        handles[2].style.left = (ox + sx - hh) + 'px'; handles[2].style.top = (oy + sy + sh - hh) + 'px';
-        handles[3].style.left = (ox + sx + sw - hh) + 'px'; handles[3].style.top = (oy + sy + sh - hh) + 'px';
-
-        // Button bar below the image
-        btnBar.style.left = ox + 'px';
-        btnBar.style.top = (oy + imgH + 8) + 'px';
-        btnBar.style.width = imgW + 'px';
+        // n (top-center)
+        handles[1].style.left = (ox + sx + sw/2 - hh) + 'px'; handles[1].style.top = (oy + sy - hh) + 'px';
+        // ne (top-right)
+        handles[2].style.left = (ox + sx + sw - hh) + 'px'; handles[2].style.top = (oy + sy - hh) + 'px';
+        // e (mid-right)
+        handles[3].style.left = (ox + sx + sw - hh) + 'px'; handles[3].style.top = (oy + sy + sh/2 - hh) + 'px';
+        // se (bottom-right)
+        handles[4].style.left = (ox + sx + sw - hh) + 'px'; handles[4].style.top = (oy + sy + sh - hh) + 'px';
+        // s (bottom-center)
+        handles[5].style.left = (ox + sx + sw/2 - hh) + 'px'; handles[5].style.top = (oy + sy + sh - hh) + 'px';
+        // sw (bottom-left)
+        handles[6].style.left = (ox + sx - hh) + 'px'; handles[6].style.top = (oy + sy + sh - hh) + 'px';
+        // w (mid-left)
+        handles[7].style.left = (ox + sx - hh) + 'px'; handles[7].style.top = (oy + sy + sh/2 - hh) + 'px';
       };
 
       updateSelection();
@@ -1921,7 +1955,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       let startSelX = 0, startSelY = 0, startSelW = 0, startSelH = 0;
 
       const getMousePos = (e: MouseEvent) => {
-        const off = getImgOffset();
         const imgRect = img.getBoundingClientRect();
         return { x: (e.clientX - imgRect.left) / imgRect.width, y: (e.clientY - imgRect.top) / imgRect.height };
       };
@@ -1933,8 +1966,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
         if (target.dataset.handle) {
           dragType = target.dataset.handle;
-        } else if (target === cancelBtn || target === cropBtn) {
-          return; // let button clicks pass through
         } else {
           const pos = getMousePos(e);
           if (pos.x >= selX && pos.x <= selX + selW && pos.y >= selY && pos.y <= selY + selH) {
@@ -1998,28 +2029,58 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
 
-      // Cleanup function
+      // Cleanup function: restore toolbar and remove crop overlay
       const cleanup = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+        if (onKeyDownRef) document.removeEventListener('keydown', onKeyDownRef);
         editorWrapper.remove();
-        // Restore selection box and toolbar
+        isCropping = false;
+        cropCleanup = null;
+        cropConfirmCallback = null;
+
+        // Restore toolbar crop button to original crop icon
+        if (imgToolbar) {
+          const cropBtnEl = imgToolbar.querySelector('.ql-img-toolbar-group:last-child button') as HTMLElement | null;
+          if (cropBtnEl) {
+            cropBtnEl.title = 'Crop Image';
+            cropBtnEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>`;
+            cropBtnEl.style.background = '';
+            cropBtnEl.style.color = '';
+          }
+          // Re-enable alignment and border buttons
+          imgToolbar.querySelectorAll('.ql-img-toolbar-group:not(:last-child) button').forEach(b => {
+            (b as HTMLButtonElement).disabled = false;
+            (b as HTMLElement).style.opacity = '';
+            (b as HTMLElement).style.pointerEvents = '';
+          });
+        }
+
+        // Restore selection box
         if (selectionBox) selectionBox.style.display = '';
-        if (imgToolbar) imgToolbar.style.display = '';
         requestAnimationFrame(() => positionSelectionBox());
       };
 
-      cancelBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        cleanup();
-      });
+      cropCleanup = cleanup;
 
-      cropBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
+      // Escape key to cancel crop
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup();
+        }
+      };
+      let onKeyDownRef: ((e: KeyboardEvent) => void) | null = onKeyDown;
+      document.addEventListener('keydown', onKeyDown);
 
-        if (selW < 0.01 || selH < 0.01) return;
+      // Confirm crop callback (triggered by ✓ button in toolbar)
+      cropConfirmCallback = async () => {
+        if (selW < 0.01 || selH < 0.01) {
+          // Selection too small, just cancel
+          cleanup();
+          return;
+        }
 
         if (!originalImg.complete) {
           await new Promise<void>((resolve) => {
@@ -2036,7 +2097,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const cw = Math.round(selW * natW);
         const ch = Math.round(selH * natH);
 
-        if (cw < 5 || ch < 5) return;
+        if (cw < 5 || ch < 5) {
+          cleanup();
+          return;
+        }
 
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = cw;
@@ -2078,18 +2142,19 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         }
 
         cleanup();
-      });
+      };
     };
 
     // Handle click on images to select
     const handleClick = (e: MouseEvent) => {
+      if (isCropping) return; // Don't interfere with crop mode
       const target = e.target as HTMLElement;
       const qlEditor = container.querySelector('.ql-editor');
       if (!qlEditor) return;
 
       if (target.tagName === 'IMG' && target.closest('.ql-editor')) {
         showSelectionBox(target as HTMLImageElement);
-      } else if (!target.closest('.ql-img-resize-selection') && !target.closest('.ql-img-toolbar')) {
+      } else if (!target.closest('.ql-img-resize-selection') && !target.closest('.ql-img-toolbar') && !target.closest('.ql-crop-container')) {
         clearSelection();
       }
     };

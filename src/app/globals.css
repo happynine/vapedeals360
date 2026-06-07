@@ -307,48 +307,31 @@ html {
 }
 .ql-crop-dim {
   position: absolute;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.5);
 }
 .ql-crop-selection {
   position: absolute;
-  border: 2px dashed #fff;
+  border: 2px dashed #2b7cd8;
   cursor: move;
   z-index: 101;
+  box-shadow: 0 0 0 1px rgba(43,124,216,0.3);
 }
 .ql-crop-handle {
   position: absolute;
-  width: 12px; height: 12px;
+  width: 10px; height: 10px;
   background: #fff;
-  border: 2px solid #333;
-  border-radius: 2px;
+  border: 2px solid #2b7cd8;
+  border-radius: 1px;
   z-index: 102;
 }
-.ql-crop-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
-.ql-crop-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
-.ql-crop-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
-.ql-crop-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
-.ql-crop-actions {
-  position: absolute;
-  bottom: -48px; left: 0;
-  display: flex; gap: 8px;
-  z-index: 103;
-}
-.ql-crop-actions button {
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  border: none;
-  font-weight: 500;
-}
-.ql-crop-cancel {
-  background: #374151; color: #fff;
-}
-.ql-crop-cancel:hover { background: #4b5563; }
-.ql-crop-apply {
-  background: #7c3aed; color: #fff;
-}
-.ql-crop-apply:hover { background: #6d28d9; }
+.ql-crop-handle.nw { cursor: nw-resize; }
+.ql-crop-handle.ne { cursor: ne-resize; }
+.ql-crop-handle.sw { cursor: sw-resize; }
+.ql-crop-handle.se { cursor: se-resize; }
+.ql-crop-handle.n { cursor: n-resize; }
+.ql-crop-handle.s { cursor: s-resize; }
+.ql-crop-handle.e { cursor: e-resize; }
+.ql-crop-handle.w { cursor: w-resize; }
 
 /* ===== Editor Table Styles (matches frontend display) ===== */
 .content-pages-editor .ql-editor .table-wrapper {
