@@ -36,6 +36,7 @@ VapeDeal - 电子烟比价网站，提供多商城价格对比、降价信息展
 │   │           ├── prices/route.ts         # CRUD 价格
 │   │           └── seed/route.ts           # POST 种子数据
 │   ├── components/ui/      # shadcn/ui 组件库
+│   ├── components/cookie-consent.tsx  # Cookie 同意横幅
 │   ├── hooks/
 │   ├── lib/
 │   │   ├── utils.ts        # 通用工具 (cn)
