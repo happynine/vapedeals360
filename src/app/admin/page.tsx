@@ -40,11 +40,15 @@ async function getMammoth() {
 let QuillClass: any = null;
 // Register a custom StyledImage blot that preserves inline styles (class, style, width, height)
 // so that image alignment/border/resize survive Quill re-renders
+// Also register a TableEmbed blot to preserve table HTML from Word imports
 let customBlotRegistered = false;
 import('quill').then((mod) => {
   QuillClass = mod.default;
   if (!customBlotRegistered && QuillClass) {
     const Embed = QuillClass.import('blots/embed');
+    const BlockEmbed = QuillClass.import('blots/block/embed');
+
+    // ===== StyledImage blot (preserves class/style/width/height on images) =====
     class StyledImage extends Embed {
       static blotName = 'image';
       static tagName = 'IMG';
@@ -120,15 +124,53 @@ import('quill').then((mod) => {
     }
     QuillClass.register(StyledImage, true);
 
-    // Also patch the clipboard parser to preserve img attributes when pasting/parsing HTML
+    // ===== TableEmbed blot (preserves full table HTML as a block embed) =====
+    class TableEmbed extends (BlockEmbed as any) {
+      static blotName = 'table-embed';
+      static tagName = 'DIV';
+      static className = 'table-wrapper';
+
+      static create(value: any) {
+        const node = (BlockEmbed as any).create.call(this) as HTMLDivElement;
+        node.classList.add('table-wrapper');
+        if (typeof value === 'string') {
+          node.innerHTML = value;
+        } else if (typeof value === 'object' && value !== null && value.html) {
+          node.innerHTML = value.html;
+        }
+        return node;
+      }
+
+      static value(domNode: HTMLElement) {
+        return { html: domNode.innerHTML };
+      }
+
+      static formats() {
+        return undefined; // no custom formats
+      }
+    }
+    QuillClass.register(TableEmbed, true);
+
+    // ===== Patch the clipboard to preserve img attrs and table-wrapper divs =====
     const Clipboard = QuillClass.import('modules/clipboard');
     const Delta = QuillClass.import('delta');
     const originalConvert = Clipboard.prototype.convert;
 
     Clipboard.prototype.convert = function(html: any) {
       if (typeof html === 'string') {
-        // Parse img tags and encode their extra attrs into a data attribute before Quill processes it
-        const processed = html.replace(/<img([^>]*)>/gi, (_match: string, attrs: string) => {
+        // Step 1: Extract table-wrapper blocks and replace with placeholders
+        const tables: Array<string> = [];
+        const placeholder = '___TABLE_EMBED_PLACEHOLDER___';
+        const tableExtractor = /<div class="table-wrapper"[\s>]([\s\S]*?)<\/div>\s*/gi;
+        let processed = html.replace(tableExtractor, (_fullMatch: string, innerContent: string) => {
+          // Store only the inner HTML (without the wrapper div) since TableEmbed.create()
+          // already adds <div class="table-wrapper"> as the container
+          tables.push(innerContent.trim());
+          return `<p>${placeholder}${tables.length - 1}${placeholder}</p>`;
+        });
+
+        // Step 2: Process img tags to encode extra attrs
+        processed = processed.replace(/<img([^>]*)>/gi, (_match: string, attrs: string) => {
           const srcMatch = attrs.match(/src=["']([^"']*)["']/);
           const classMatch = attrs.match(/class=["']([^"']*)["']/);
           const styleMatch = attrs.match(/style=["']([^"']*)["']/);
@@ -143,13 +185,44 @@ import('quill').then((mod) => {
           
           const src = srcMatch ? srcMatch[1] : '';
           if (Object.keys(extras).length > 0) {
-            // Encode extras as data-styled attribute so the blot can read them
             const dataStyled = encodeURIComponent(JSON.stringify({ src, ...extras }));
             return `<img src="${src}" data-styled="${dataStyled}">`;
           }
           return `<img src="${src}">`;
         });
-        return originalConvert.call(this, processed);
+
+        // Step 3: Let Quill process the modified HTML
+        const delta = originalConvert.call(this, processed);
+
+        // Step 4: Replace placeholder text in delta with table-embed inserts
+        if (tables.length > 0 && delta && delta.ops) {
+          const newOps: any[] = [];
+          for (const op of delta.ops) {
+            if (typeof op.insert === 'string') {
+              const text = op.insert;
+              const parts = text.split(new RegExp(`${placeholder}(\\d+)${placeholder}`, 'g'));
+              for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                  // Regular text
+                  if (parts[i]) {
+                    newOps.push({ insert: parts[i], ...(op.attributes || {}) });
+                  }
+                } else {
+                  // Table placeholder index
+                  const tableIndex = parseInt(parts[i], 10);
+                  if (tableIndex >= 0 && tableIndex < tables.length) {
+                    newOps.push({ insert: { 'table-embed': { html: tables[tableIndex] } } });
+                  }
+                }
+              }
+            } else {
+              newOps.push(op);
+            }
+          }
+          return new Delta(newOps);
+        }
+
+        return delta;
       }
       return originalConvert.call(this, html);
     };
@@ -1240,17 +1313,56 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           });
           return `<div class="table-wrapper"><table>${tableContent}</table></div>`;
         });
+        // Split HTML into segments: text blocks and table blocks
+        // Tables must be inserted as TableEmbed blots because Quill's clipboard
+        // parser strips <table>/<div class="table-wrapper"> tags
+        const segments: Array<{ type: 'html' | 'table'; content: string }> = [];
+        const tableRegex = /<div class="table-wrapper">([\s\S]*?)<\/div>\s*/gi;
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = tableRegex.exec(html)) !== null) {
+          // Text before this table
+          if (match.index > lastIndex) {
+            const textBefore = html.slice(lastIndex, match.index).trim();
+            if (textBefore) segments.push({ type: 'html', content: textBefore });
+          }
+          // The table itself (strip outer wrapper since TableEmbed creates it)
+          const innerHtml = match[1].trim(); // captured group: content inside <div class="table-wrapper">
+          segments.push({ type: 'table', content: innerHtml });
+          lastIndex = match.index + match[0].length;
+        }
+        // Remaining text after last table
+        if (lastIndex < html.length) {
+          const textAfter = html.slice(lastIndex).trim();
+          if (textAfter) segments.push({ type: 'html', content: textAfter });
+        }
+        // If no tables found, just insert all as HTML
+        if (segments.length === 0 && html.trim()) {
+          segments.push({ type: 'html', content: html.trim() });
+        }
+
         const container = containerRef.current;
         if (!container || !QuillClass) return;
         const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
         if (!qlContainer) return;
         const quill = QuillClass.find(qlContainer);
         if (!quill) return;
-        const range = quill.getSelection(true);
-        const index = range ? range.index : quill.getLength();
-        quill.clipboard.dangerouslyPasteHTML(index, html);
-        // dangerouslyPasteHTML does NOT trigger React-Quill's onChange,
-        // so we must manually sync the React state with the new editor content
+
+        // Insert segments one by one
+        let insertIndex = quill.getLength(); // append at end
+        const Delta = QuillClass.import('delta');
+        for (const seg of segments) {
+          if (seg.type === 'table') {
+            // Insert table as a TableEmbed blot
+            const tableDelta = new Delta().insert({ 'table-embed': { html: seg.content } });
+            quill.editor.applyDelta(tableDelta);
+          } else {
+            // Insert text/HTML using clipboard parser
+            quill.clipboard.dangerouslyPasteHTML(insertIndex, seg.content);
+            insertIndex = quill.getLength();
+          }
+        }
+        // Sync React state with the new editor content
         setTimeout(() => {
           const newHtml = quill.root.innerHTML;
           console.log('[Word Import] Syncing to React state, HTML length:', newHtml?.length);
@@ -1277,28 +1389,28 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
     const rows = Math.max(1, Math.min(tableRows, 20));
     const cols = Math.max(1, Math.min(tableCols, 10));
-    let tableHtml = '<table style="border-collapse:collapse;width:100%;margin:8px 0;">';
+    let tableContent = '<table>';
     // Header row
-    tableHtml += '<tr>';
+    tableContent += '<tr>';
     for (let c = 0; c < cols; c++) {
-      tableHtml += `<th style="border:1px solid #d1d5db;padding:8px;background:#f3f4f6;font-weight:600;text-align:left;">Header ${c + 1}</th>`;
+      tableContent += `<th>Header ${c + 1}</th>`;
     }
-    tableHtml += '</tr>';
+    tableContent += '</tr>';
     // Data rows
     for (let r = 0; r < rows - 1; r++) {
-      tableHtml += '<tr>';
+      tableContent += '<tr>';
       for (let c = 0; c < cols; c++) {
-        tableHtml += `<td style="border:1px solid #d1d5db;padding:8px;">&nbsp;</td>`;
+        tableContent += `<td>&nbsp;</td>`;
       }
-      tableHtml += '</tr>';
+      tableContent += '</tr>';
     }
-    tableHtml += '</table><p><br></p>';
-
-    const range = quill.getSelection(true);
-    const index = range ? range.index : quill.getLength();
-    quill.clipboard.dangerouslyPasteHTML(index, tableHtml);
-    // dangerouslyPasteHTML does NOT trigger React-Quill's onChange,
-    // so we must manually sync the React state with the new editor content
+    tableContent += '</table>';
+    // TableEmbed's create() already adds <div class="table-wrapper"> wrapper,
+    // so we only pass the inner table HTML
+    const Delta = QuillClass.import('delta');
+    const tableDelta = new Delta().insert({ 'table-embed': { html: tableContent } });
+    quill.editor.applyDelta(tableDelta);
+    // Sync React state with the new editor content
     setTimeout(() => {
       const html = quill.root.innerHTML;
       onChangeRef.current(html);
@@ -2726,7 +2838,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         value={value}
         onChange={onChange}
         modules={quillModules}
-        formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'align', 'link', 'image']}
+        formats={['header', 'bold', 'italic', 'underline', 'color', 'background', 'list', 'bullet', 'align', 'link', 'image', 'table-embed']}
         style={{ minHeight: '300px' }}
       />
       {importingWord && (

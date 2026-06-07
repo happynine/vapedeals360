@@ -365,6 +365,14 @@ html {
 .content-pages-editor .ql-editor .table-wrapper tbody tr:hover {
   background: #f3f4f6;
 }
+/* TableEmbed blot: ensure it renders as a block element in the editor */
+.content-pages-editor .ql-editor div.table-wrapper {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 1rem 0;
+  cursor: default;
+}
 .admin-dark .ql-editor {
   color: #111827;
 }
