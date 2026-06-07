@@ -72,7 +72,7 @@ export default function AgeVerification() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-gray-700 bg-[#1a1a24] p-8">
+      <div className="mx-4 w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-700 bg-[#1a1a24] p-8">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/20">
             <svg className="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -80,8 +80,8 @@ export default function AgeVerification() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-white">Age Verification</h2>
-          <p className="mt-2 text-sm text-gray-400">
-            You must be 21 or older to enter this site. Please verify your age.
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            This website contains information about vaping products intended for adults aged 21 and older. By entering this site, you confirm that you are at least 21 years of age and that you understand the health risks associated with nicotine and vaping products.
           </p>
         </div>
 
@@ -140,9 +140,14 @@ export default function AgeVerification() {
           Verify Age
         </button>
 
-        <p className="mt-4 text-center text-xs text-gray-500">
-          By entering this site, you confirm you are of legal age to purchase tobacco products in your jurisdiction.
-        </p>
+        <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">
+            Warning
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-300/80">
+            Vaping products contain nicotine, a highly addictive substance. Not intended for use by persons under the age of 21, pregnant or nursing women, or persons with heart disease or high blood pressure. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
+          </p>
+        </div>
       </div>
     </div>
   );
