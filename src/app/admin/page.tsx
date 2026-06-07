@@ -1384,7 +1384,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     }
   }, [formatPainterActive]);
 
-  // ===== Image Resize: click to select, drag handles to resize =====
+  // ===== Image Resize: click to select, drag handles to resize (overlay approach — no DOM mutation inside editor) =====
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -1394,38 +1394,38 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
     // State for active resize
     let activeImg: HTMLImageElement | null = null;
-    let resizeHandle: HTMLDivElement | null = null;
-    let resizeOverlay: HTMLDivElement | null = null;
+    let dragOverlay: HTMLDivElement | null = null;
+    let selectionBox: HTMLDivElement | null = null;
     let startX = 0;
     let startWidth = 0;
     let startHeight = 0;
     let naturalWidth = 0;
     let naturalHeight = 0;
 
-    // Remove existing resize handles from all images
-    const clearAllHandles = (editor: Element) => {
-      editor.querySelectorAll('.ql-img-resize-wrapper').forEach((wrapper) => {
-        const img = wrapper.querySelector('img') as HTMLImageElement;
-        if (img && wrapper.parentNode) {
-          wrapper.parentNode.replaceChild(img, wrapper);
-        }
-      });
-      editor.querySelectorAll('.ql-image-selected').forEach((el) => {
-        el.classList.remove('ql-image-selected');
-      });
-      if (resizeOverlay) { resizeOverlay.remove(); resizeOverlay = null; }
-      if (resizeHandle) { resizeHandle.remove(); resizeHandle = null; }
+    // Position the selection box overlay on top of the active image
+    const positionSelectionBox = () => {
+      if (!selectionBox || !activeImg || !container) return;
+      const containerRect = container.getBoundingClientRect();
+      const imgRect = activeImg.getBoundingClientRect();
+      selectionBox.style.top = (imgRect.top - containerRect.top) + 'px';
+      selectionBox.style.left = (imgRect.left - containerRect.left) + 'px';
+      selectionBox.style.width = imgRect.width + 'px';
+      selectionBox.style.height = imgRect.height + 'px';
+      selectionBox.style.display = 'block';
+    };
+
+    // Remove selection overlay
+    const clearSelection = () => {
+      if (selectionBox) { selectionBox.remove(); selectionBox = null; }
+      if (dragOverlay) { dragOverlay.remove(); dragOverlay = null; }
       activeImg = null;
     };
 
-    // Wrap an image with resize handles
-    const wrapImageWithHandles = (img: HTMLImageElement, editor: Element) => {
-      // If already wrapped, skip
-      if (img.parentElement?.classList.contains('ql-img-resize-wrapper')) return;
+    // Show selection box around an image
+    const showSelectionBox = (img: HTMLImageElement) => {
+      clearSelection();
 
-      clearAllHandles(editor);
-
-      // Record natural dimensions
+      activeImg = img;
       naturalWidth = img.naturalWidth || img.width;
       naturalHeight = img.naturalHeight || img.height;
 
@@ -1435,52 +1435,61 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       img.style.width = currentWidth + 'px';
       img.style.height = currentHeight + 'px';
 
-      // Add selection class
-      img.classList.add('ql-image-selected');
-
-      // Create wrapper
-      const wrapper = document.createElement('div');
-      wrapper.className = 'ql-img-resize-wrapper';
-      img.parentNode?.insertBefore(wrapper, img);
-      wrapper.appendChild(img);
+      // Create selection box (absolute positioned overlay, OUTSIDE .ql-editor)
+      selectionBox = document.createElement('div');
+      selectionBox.className = 'ql-img-resize-selection';
 
       // Create 4 corner handles
       const handlePositions = ['ql-handle-tl', 'ql-handle-tr', 'ql-handle-bl', 'ql-handle-br'];
       handlePositions.forEach((pos) => {
         const handle = document.createElement('div');
         handle.className = `ql-img-resize-handle ${pos}`;
-        wrapper.appendChild(handle);
+        selectionBox!.appendChild(handle);
       });
 
-      activeImg = img;
+      // Make container position:relative so the overlay can use absolute positioning
+      const originalPosition = container.style.position;
+      if (!originalPosition || originalPosition === 'static') {
+        container.style.position = 'relative';
+      }
+      container.appendChild(selectionBox);
+      positionSelectionBox();
+    };
+
+    // Handle click on images to select
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const qlEditor = container.querySelector('.ql-editor');
+      if (!qlEditor) return;
+
+      if (target.tagName === 'IMG' && target.closest('.ql-editor')) {
+        showSelectionBox(target as HTMLImageElement);
+      } else if (!target.closest('.ql-img-resize-selection')) {
+        clearSelection();
+      }
     };
 
     // Handle mousedown on resize handle
     const handleResizeStart = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.classList.contains('ql-img-resize-handle')) return;
+      if (!target.classList.contains('ql-img-resize-handle') || !activeImg) return;
 
       e.preventDefault();
       e.stopPropagation();
 
-      const wrapper = target.parentElement;
-      if (!wrapper) return;
-      const img = wrapper.querySelector('img') as HTMLImageElement;
-      if (!img) return;
-
       // Create overlay to capture mouse events during drag
-      resizeOverlay = document.createElement('div');
-      resizeOverlay.className = 'ql-img-resize-overlay';
-      document.body.appendChild(resizeOverlay);
+      dragOverlay = document.createElement('div');
+      dragOverlay.className = 'ql-img-resize-overlay';
+      document.body.appendChild(dragOverlay);
 
       startX = e.clientX;
-      startWidth = img.offsetWidth;
-      startHeight = img.offsetHeight;
-      naturalWidth = img.naturalWidth || startWidth;
-      naturalHeight = img.naturalHeight || startHeight;
-      resizeHandle = target as HTMLDivElement;
+      startWidth = activeImg.offsetWidth;
+      startHeight = activeImg.offsetHeight;
+      naturalWidth = activeImg.naturalWidth || startWidth;
+      naturalHeight = activeImg.naturalHeight || startHeight;
 
       const onMouseMove = (ev: MouseEvent) => {
+        if (!activeImg) return;
         const deltaX = ev.clientX - startX;
 
         // Determine sign based on which handle is dragged
@@ -1503,21 +1512,26 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const aspectRatio = naturalHeight / naturalWidth;
         const newHeight = Math.round(newWidth * aspectRatio);
 
-        img.style.width = newWidth + 'px';
-        img.style.height = newHeight + 'px';
+        activeImg.style.width = newWidth + 'px';
+        activeImg.style.height = newHeight + 'px';
+
+        // Update selection box position
+        positionSelectionBox();
       };
 
       const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-        if (resizeOverlay) { resizeOverlay.remove(); resizeOverlay = null; }
+        if (dragOverlay) { dragOverlay.remove(); dragOverlay = null; }
+
+        if (!activeImg) return;
 
         // If image was actually resized, re-upload the resized version
-        const finalWidth = img.offsetWidth;
-        const finalHeight = img.offsetHeight;
+        const finalWidth = activeImg.offsetWidth;
+        const finalHeight = activeImg.offsetHeight;
         const wasResized = finalWidth !== startWidth || finalHeight !== startHeight;
         if (wasResized) {
-          const imgRef = img;
+          const imgRef = activeImg;
           resizeImageToStorageRef.current(imgRef, finalWidth, finalHeight);
         }
 
@@ -1531,54 +1545,50 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
             }
           } catch { /* ignore */ }
         }
+
+        // Reposition selection box after resize
+        requestAnimationFrame(() => positionSelectionBox());
       };
 
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
 
-    // Handle mousedown on images to select (capture phase to intercept before Quill)
-    const handleImageMouseDown = (e: MouseEvent) => {
-      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
-      if (!qlEditor) return;
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'IMG' && target.closest('.ql-editor')) {
-        e.preventDefault();
-        e.stopPropagation();
-        wrapImageWithHandles(target as HTMLImageElement, qlEditor);
-      } else if (!target.classList.contains('ql-img-resize-handle') && !target.closest('.ql-img-resize-wrapper')) {
-        clearAllHandles(qlEditor);
-      }
-    };
+    // Reposition on scroll / resize
+    const reposition = () => positionSelectionBox();
 
     // Use MutationObserver to wait for .ql-editor to appear (dynamic import may delay it)
     const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
     let listenersAttached = false;
 
-    const attachListeners = (editor: Element) => {
+    const attachListeners = () => {
       if (listenersAttached) return;
       listenersAttached = true;
+      container.addEventListener('click', handleClick, true);
       container.addEventListener('mousedown', handleResizeStart);
-      editor.addEventListener('mousedown', handleImageMouseDown as EventListener, true);
+      container.addEventListener('scroll', reposition, true);
+      window.addEventListener('resize', reposition);
     };
 
     const detachListeners = () => {
       if (!listenersAttached) return;
       listenersAttached = false;
-      const editor = container.querySelector('.ql-editor') as HTMLElement | null;
+      container.removeEventListener('click', handleClick, true);
       container.removeEventListener('mousedown', handleResizeStart);
-      if (editor) editor.removeEventListener('mousedown', handleImageMouseDown as EventListener, true);
+      container.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+      clearSelection();
     };
 
     if (qlEditor) {
-      attachListeners(qlEditor);
+      attachListeners();
     } else {
       // Watch for Quill editor to be inserted into DOM
       const observer = new MutationObserver(() => {
         const editor = container.querySelector('.ql-editor') as HTMLElement | null;
         if (editor) {
           observer.disconnect();
-          attachListeners(editor);
+          attachListeners();
         }
       });
       observer.observe(container, { childList: true, subtree: true });
