@@ -52,13 +52,15 @@ import('quill').then((mod) => {
       static create(value: any) {
         let node: HTMLImageElement;
         if (typeof value === 'string') {
-          node = super.create(value) as HTMLImageElement;
+          node = super.create() as HTMLImageElement;
+          node.setAttribute('src', value);
         } else if (typeof value === 'object' && value !== null) {
           // Check for data-styled from clipboard parser
           if (value['data-styled']) {
             try {
               const decoded = JSON.parse(decodeURIComponent(value['data-styled']));
-              node = super.create(decoded.src || '') as HTMLImageElement;
+              node = super.create() as HTMLImageElement;
+              if (decoded.src) node.setAttribute('src', decoded.src);
               if (decoded.class) node.setAttribute('class', decoded.class);
               if (decoded.style) node.setAttribute('style', decoded.style);
               if (decoded.width) node.setAttribute('width', String(decoded.width));
@@ -66,7 +68,7 @@ import('quill').then((mod) => {
               return node;
             } catch { /* fall through */ }
           }
-          node = super.create(value.src || '') as HTMLImageElement;
+          node = super.create() as HTMLImageElement;
           if (value.src) node.setAttribute('src', value.src);
           if (value.class) node.setAttribute('class', value.class);
           if (value.style) node.setAttribute('style', value.style);
@@ -1246,13 +1248,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (!quill) return;
         const range = quill.getSelection(true);
         const index = range ? range.index : quill.getLength();
-        quill.clipboard.dangerouslyPasteHTML(index, result.value);
+        quill.clipboard.dangerouslyPasteHTML(index, html);
         // dangerouslyPasteHTML does NOT trigger React-Quill's onChange,
         // so we must manually sync the React state with the new editor content
         setTimeout(() => {
-          const html = quill.root.innerHTML;
-          console.log('[Word Import] Syncing to React state, HTML length:', html?.length);
-          onChangeRef.current(html);
+          const newHtml = quill.root.innerHTML;
+          console.log('[Word Import] Syncing to React state, HTML length:', newHtml?.length);
+          onChangeRef.current(newHtml);
         }, 0);
       } catch (err) {
         console.error('Word import failed:', err);
