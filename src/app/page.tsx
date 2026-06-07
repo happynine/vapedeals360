@@ -517,23 +517,6 @@ export default function HomePage() {
                 </div>}
                 </div>
             </main>
-            {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
-            <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
-                <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 space-y-6">
-                    <div>
-                        <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
-                        <p className="text-xs text-gray-500 leading-relaxed">
-                            The statements made regarding these products have not been evaluated by the Food and Drug Administration. The efficacy of these products has not been confirmed by FDA-approved research. These products are not intended to diagnose, treat, cure or prevent any disease. All information presented here is not meant as a substitute for or alternative to information from health care practitioners. Please consult your health care professional about potential interactions or other possible complications before using any product. The Federal Food, Drug, and Cosmetic Act requires this notice.
-                        </p>
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-gray-400 mb-2">NIXODINE DISCLAIMER</h3>
-                        <p className="text-xs text-gray-500 leading-relaxed">
-                            Nixodine products contain nicotine which is a highly addictive substance. This product is intended for use by adults over the age of 21. It is not intended for use by women who are pregnant or breastfeeding, or persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. Keep out of reach of children and pets. Ingestion of the non-vaporized concentrated ingredients in the liquid can be poisonous. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
-                        </p>
-                    </div>
-                </div>
-            </div>
             {/* Footer */}
             <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-0">
                 <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
@@ -595,6 +578,23 @@ export default function HomePage() {
                     ©Vapedeals360.com All Rights Reserved.
                 </div>
             </footer>
+            {/* FDA & NIXODINE Disclaimer - Left aligned with logo */}
+            <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
+                <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 space-y-6">
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            The statements made regarding these products have not been evaluated by the Food and Drug Administration. The efficacy of these products has not been confirmed by FDA-approved research. These products are not intended to diagnose, treat, cure or prevent any disease. All information presented here is not meant as a substitute for or alternative to information from health care practitioners. Please consult your health care professional about potential interactions or other possible complications before using any product. The Federal Food, Drug, and Cosmetic Act requires this notice.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-400 mb-2">NIXODINE DISCLAIMER</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                            Nixodine products contain nicotine which is a highly addictive substance. This product is intended for use by adults over the age of 21. It is not intended for use by women who are pregnant or breastfeeding, or persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. Keep out of reach of children and pets. Ingestion of the non-vaporized concentrated ingredients in the liquid can be poisonous. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
