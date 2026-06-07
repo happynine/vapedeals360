@@ -1047,6 +1047,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
   // Use ref for resizeImageToStorage to avoid stale closure in useEffect
   const resizeImageToStorageRef = useRef<(img: HTMLImageElement, w: number, h: number) => void>(() => {});
+  const uploadImageFileRef = useRef<(file: File) => Promise<string | null>>(async () => null);
 
   // Expose getHTML() to parent for reliable content reading on Publish
   // Format Painter: copy formats from current cursor position
@@ -1085,6 +1086,42 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const mammoth = await getMammoth();
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
+        // Post-process: style tables to match the site's table design
+        let html = result.value;
+        html = html.replace(/<table([^>]*)>/gi, (match, attrs: string) => {
+          // Remove any existing border/width attributes from Word
+          const cleanAttrs = attrs
+            .replace(/border="[^"]*"/gi, '')
+            .replace(/cellspacing="[^"]*"/gi, '')
+            .replace(/cellpadding="[^"]*"/gi, '')
+            .replace(/width="[^"]*"/gi, '')
+            .replace(/style="[^"]*"/gi, '')
+            .trim();
+          return `<table${cleanAttrs ? ' ' + cleanAttrs : ''}>`;
+        });
+        // Wrap tables in a scrollable container and apply consistent styling
+        html = html.replace(/<table([^>]*)>([\s\S]*?)<\/table>/gi, (_match, attrs: string, content: string) => {
+          // Detect if the table has a header row (first row has <th> or first <td> looks like header)
+          const hasHeader = /<th[\s>]/i.test(content);
+          let tableContent = content;
+          if (!hasHeader) {
+            // Convert first <tr>'s <td>s to <th>s
+            tableContent = tableContent.replace(/<tr([^>]*)>([\s\S]*?)<\/tr>/i, (_m: string, trAttrs: string, rowContent: string) => {
+              const convertedRow = rowContent.replace(/<td([^>]*)>([\s\S]*?)<\/td>/gi, '<th$1>$2</th>');
+              return `<tr${trAttrs ? ' ' + trAttrs : ''}>${convertedRow}</tr>`;
+            });
+          }
+          // Clean inline styles from all cells
+          tableContent = tableContent.replace(/<(td|th)([^>]*)>/gi, (_m: string, tag: string, cellAttrs: string) => {
+            const cleanCellAttrs = cellAttrs
+              .replace(/style="[^"]*"/gi, '')
+              .replace(/width="[^"]*"/gi, '')
+              .replace(/valign="[^"]*"/gi, '')
+              .trim();
+            return `<${tag}${cleanCellAttrs ? ' ' + cleanCellAttrs : ''}>`;
+          });
+          return `<div class="table-wrapper"><table>${tableContent}</table></div>`;
+        });
         const container = containerRef.current;
         if (!container || !QuillClass) return;
         const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
@@ -1412,16 +1449,27 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       selectionBox.style.width = imgRect.width + 'px';
       selectionBox.style.height = imgRect.height + 'px';
       selectionBox.style.display = 'block';
+
+      // Position toolbar above the selection box
+      if (imgToolbar) {
+        const toolbarTop = imgRect.top - containerRect.top - 36;
+        imgToolbar.style.top = (toolbarTop < 0 ? imgRect.top - containerRect.top + imgRect.height + 4 : toolbarTop) + 'px';
+        imgToolbar.style.left = (imgRect.left - containerRect.left) + 'px';
+        imgToolbar.style.display = 'flex';
+      }
     };
+
+    // Show selection box and toolbar around an image
+    let imgToolbar: HTMLDivElement | null = null;
 
     // Remove selection overlay
     const clearSelection = () => {
       if (selectionBox) { selectionBox.remove(); selectionBox = null; }
       if (dragOverlay) { dragOverlay.remove(); dragOverlay = null; }
+      if (imgToolbar) { imgToolbar.remove(); imgToolbar = null; }
       activeImg = null;
     };
 
-    // Show selection box around an image
     const showSelectionBox = (img: HTMLImageElement) => {
       clearSelection();
 
@@ -1435,6 +1483,140 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       img.style.width = currentWidth + 'px';
       img.style.height = currentHeight + 'px';
 
+      // Make container position:relative so the overlay can use absolute positioning
+      const originalPosition = container.style.position;
+      if (!originalPosition || originalPosition === 'static') {
+        container.style.position = 'relative';
+      }
+
+      // Create floating toolbar
+      imgToolbar = document.createElement('div');
+      imgToolbar.className = 'ql-img-toolbar';
+
+      // Alignment group
+      const alignGroup = document.createElement('div');
+      alignGroup.className = 'ql-img-toolbar-group';
+
+      const alignLeftBtn = document.createElement('button');
+      alignLeftBtn.title = 'Align Left';
+      alignLeftBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="4" rx="1"/><rect x="3" y="10" width="18" height="2" rx="0.5"/><rect x="3" y="14" width="18" height="2" rx="0.5"/><rect x="3" y="18" width="12" height="2" rx="0.5"/></svg>`;
+      alignLeftBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const alignCenterBtn = document.createElement('button');
+      alignCenterBtn.title = 'Align Center';
+      alignCenterBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="4" rx="1"/><rect x="3" y="10" width="18" height="2" rx="0.5"/><rect x="3" y="14" width="18" height="2" rx="0.5"/><rect x="5" y="18" width="14" height="2" rx="0.5"/></svg>`;
+      alignCenterBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const alignRightBtn = document.createElement('button');
+      alignRightBtn.title = 'Align Right';
+      alignRightBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="3" width="14" height="4" rx="1"/><rect x="3" y="10" width="18" height="2" rx="0.5"/><rect x="3" y="14" width="18" height="2" rx="0.5"/><rect x="9" y="18" width="12" height="2" rx="0.5"/></svg>`;
+      alignRightBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const applyAlignment = (alignClass: string) => {
+        if (!activeImg) return;
+        activeImg.classList.remove('img-align-left', 'img-align-center', 'img-align-right');
+        activeImg.classList.add(alignClass);
+        // Update toolbar active state
+        [alignLeftBtn, alignCenterBtn, alignRightBtn].forEach(b => b.classList.remove('active'));
+        if (alignClass === 'img-align-left') alignLeftBtn.classList.add('active');
+        else if (alignClass === 'img-align-center') alignCenterBtn.classList.add('active');
+        else if (alignClass === 'img-align-right') alignRightBtn.classList.add('active');
+        // Clear float after aligned image
+        let nextSibling = activeImg.nextElementSibling;
+        if (!nextSibling || nextSibling.tagName !== 'BR' || !(nextSibling as HTMLElement).style.clear) {
+          const clearer = document.createElement('br');
+          clearer.style.clear = 'both';
+          activeImg.parentElement?.insertBefore(clearer, activeImg.nextSibling);
+        }
+        syncQuillContent();
+        requestAnimationFrame(() => positionSelectionBox());
+      };
+
+      alignLeftBtn.addEventListener('click', () => applyAlignment('img-align-left'));
+      alignCenterBtn.addEventListener('click', () => applyAlignment('img-align-center'));
+      alignRightBtn.addEventListener('click', () => applyAlignment('img-align-right'));
+
+      alignGroup.appendChild(alignLeftBtn);
+      alignGroup.appendChild(alignCenterBtn);
+      alignGroup.appendChild(alignRightBtn);
+
+      // Border group
+      const borderGroup = document.createElement('div');
+      borderGroup.className = 'ql-img-toolbar-group';
+
+      const borderNoneBtn = document.createElement('button');
+      borderNoneBtn.title = 'No Border';
+      borderNoneBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/></svg>`;
+      borderNoneBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const borderThinBtn = document.createElement('button');
+      borderThinBtn.title = 'Thin Border';
+      borderThinBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
+      borderThinBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const borderRoundedBtn = document.createElement('button');
+      borderRoundedBtn.title = 'Rounded Border';
+      borderRoundedBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="6"/></svg>`;
+      borderRoundedBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const borderShadowBtn = document.createElement('button');
+      borderShadowBtn.title = 'Shadow';
+      borderShadowBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="16" height="16" rx="4"/><rect x="3" y="3" width="16" height="16" rx="4" opacity="0.3"/></svg>`;
+      borderShadowBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+      const applyBorder = (borderClass: string) => {
+        if (!activeImg) return;
+        activeImg.classList.remove('img-border-none', 'img-border-thin', 'img-border-rounded', 'img-border-shadow');
+        activeImg.classList.add(borderClass);
+        [borderNoneBtn, borderThinBtn, borderRoundedBtn, borderShadowBtn].forEach(b => b.classList.remove('active'));
+        if (borderClass === 'img-border-none') borderNoneBtn.classList.add('active');
+        else if (borderClass === 'img-border-thin') borderThinBtn.classList.add('active');
+        else if (borderClass === 'img-border-rounded') borderRoundedBtn.classList.add('active');
+        else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
+        syncQuillContent();
+      };
+
+      borderNoneBtn.addEventListener('click', () => applyBorder('img-border-none'));
+      borderThinBtn.addEventListener('click', () => applyBorder('img-border-thin'));
+      borderRoundedBtn.addEventListener('click', () => applyBorder('img-border-rounded'));
+      borderShadowBtn.addEventListener('click', () => applyBorder('img-border-shadow'));
+
+      borderGroup.appendChild(borderNoneBtn);
+      borderGroup.appendChild(borderThinBtn);
+      borderGroup.appendChild(borderRoundedBtn);
+      borderGroup.appendChild(borderShadowBtn);
+
+      // Crop group
+      const cropGroup = document.createElement('div');
+      cropGroup.className = 'ql-img-toolbar-group';
+
+      const cropBtn = document.createElement('button');
+      cropBtn.title = 'Crop Image';
+      cropBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>`;
+      cropBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+      cropBtn.addEventListener('click', () => {
+        if (!activeImg) return;
+        openImageCrop(activeImg);
+      });
+
+      cropGroup.appendChild(cropBtn);
+
+      imgToolbar.appendChild(alignGroup);
+      imgToolbar.appendChild(borderGroup);
+      imgToolbar.appendChild(cropGroup);
+
+      // Set initial active states based on current classes
+      if (img.classList.contains('img-align-left')) alignLeftBtn.classList.add('active');
+      else if (img.classList.contains('img-align-right')) alignRightBtn.classList.add('active');
+      else alignCenterBtn.classList.add('active'); // default center
+
+      if (img.classList.contains('img-border-thin')) borderThinBtn.classList.add('active');
+      else if (img.classList.contains('img-border-rounded')) borderRoundedBtn.classList.add('active');
+      else if (img.classList.contains('img-border-shadow')) borderShadowBtn.classList.add('active');
+      else borderNoneBtn.classList.add('active'); // default none
+
+      container.appendChild(imgToolbar);
+
       // Create selection box (absolute positioned overlay, OUTSIDE .ql-editor)
       selectionBox = document.createElement('div');
       selectionBox.className = 'ql-img-resize-selection';
@@ -1447,13 +1629,191 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         selectionBox!.appendChild(handle);
       });
 
-      // Make container position:relative so the overlay can use absolute positioning
-      const originalPosition = container.style.position;
-      if (!originalPosition || originalPosition === 'static') {
-        container.style.position = 'relative';
-      }
       container.appendChild(selectionBox);
       positionSelectionBox();
+    };
+
+    // Helper: sync Quill content to state
+    const syncQuillContent = () => {
+      const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+      if (qlContainer && QuillClass) {
+        try {
+          const quill = QuillClass.find(qlContainer);
+          if (quill) {
+            setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+          }
+        } catch { /* ignore */ }
+      }
+    };
+
+    // Open image crop modal
+    const openImageCrop = (img: HTMLImageElement) => {
+      const src = img.getAttribute('src');
+      if (!src) return;
+
+      // Create crop overlay
+      const cropOverlay = document.createElement('div');
+      cropOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+      const cropModal = document.createElement('div');
+      cropModal.style.cssText = 'background:#fff;border-radius:12px;padding:16px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;gap:12px;';
+
+      const titleBar = document.createElement('div');
+      titleBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+      titleBar.innerHTML = '<span style="font-weight:600;font-size:14px;color:#111827">Crop Image</span>';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '✕';
+      closeBtn.style.cssText = 'border:none;background:none;font-size:18px;cursor:pointer;color:#6b7280;';
+      closeBtn.addEventListener('click', () => cropOverlay.remove());
+
+      titleBar.appendChild(closeBtn);
+
+      const canvasWrapper = document.createElement('div');
+      canvasWrapper.style.cssText = 'overflow:auto;max-height:60vh;position:relative;';
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+
+      const imgEl = new window.Image();
+      imgEl.crossOrigin = 'anonymous';
+      imgEl.onload = () => {
+        // Scale image to fit in viewport
+        const maxW = Math.min(imgEl.naturalWidth, window.innerWidth * 0.8);
+        const maxH = Math.min(imgEl.naturalHeight, window.innerHeight * 0.5);
+        let scale = Math.min(maxW / imgEl.naturalWidth, maxH / imgEl.naturalHeight, 1);
+        canvas.width = Math.round(imgEl.naturalWidth * scale);
+        canvas.height = Math.round(imgEl.naturalHeight * scale);
+        ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+      };
+      imgEl.src = src;
+
+      canvasWrapper.appendChild(canvas);
+
+      const instruction = document.createElement('div');
+      instruction.style.cssText = 'font-size:12px;color:#6b7280;';
+      instruction.textContent = 'Click and drag on the image to select crop area.';
+
+      const btnBar = document.createElement('div');
+      btnBar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.style.cssText = 'padding:6px 16px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#374151;';
+      cancelBtn.addEventListener('click', () => cropOverlay.remove());
+
+      const applyBtn = document.createElement('button');
+      applyBtn.textContent = 'Apply Crop';
+      applyBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:6px;background:#7c3aed;cursor:pointer;font-size:13px;color:#fff;';
+
+      btnBar.appendChild(cancelBtn);
+      btnBar.appendChild(applyBtn);
+
+      cropModal.appendChild(titleBar);
+      cropModal.appendChild(canvasWrapper);
+      cropModal.appendChild(instruction);
+      cropModal.appendChild(btnBar);
+      cropOverlay.appendChild(cropModal);
+      document.body.appendChild(cropOverlay);
+
+      // Crop selection state
+      let cropStartX = 0, cropStartY = 0, cropEndX = 0, cropEndY = 0;
+      let isCropping = false;
+      let cropRect: HTMLDivElement | null = null;
+
+      canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        cropStartX = e.clientX - rect.left;
+        cropStartY = e.clientY - rect.top;
+        isCropping = true;
+
+        if (cropRect) cropRect.remove();
+        cropRect = document.createElement('div');
+        cropRect.style.cssText = 'position:absolute;border:2px dashed #7c3aed;background:rgba(124,58,237,0.1);pointer-events:none;';
+        canvasWrapper.appendChild(cropRect);
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isCropping || !cropRect) return;
+        const rect = canvas.getBoundingClientRect();
+        cropEndX = e.clientX - rect.left;
+        cropEndY = e.clientY - rect.top;
+
+        const x = Math.min(cropStartX, cropEndX);
+        const y = Math.min(cropStartY, cropEndY);
+        const w = Math.abs(cropEndX - cropStartX);
+        const h = Math.abs(cropEndY - cropStartY);
+
+        cropRect.style.left = x + 'px';
+        cropRect.style.top = y + 'px';
+        cropRect.style.width = w + 'px';
+        cropRect.style.height = h + 'px';
+      });
+
+      canvas.addEventListener('mouseup', () => {
+        isCropping = false;
+      });
+
+      applyBtn.addEventListener('click', async () => {
+        if (!cropRect) return;
+
+        const x = Math.min(cropStartX, cropEndX);
+        const y = Math.min(cropStartY, cropEndY);
+        const w = Math.abs(cropEndX - cropStartX);
+        const h = Math.abs(cropEndY - cropStartY);
+
+        if (w < 5 || h < 5) return; // too small
+
+        // Calculate scale factor from canvas to original image
+        const scaleX = imgEl.naturalWidth / canvas.width;
+        const scaleY = imgEl.naturalHeight / canvas.height;
+
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = Math.round(w * scaleX);
+        cropCanvas.height = Math.round(h * scaleY);
+        const cropCtx = cropCanvas.getContext('2d')!;
+        cropCtx.drawImage(imgEl, x * scaleX, y * scaleY, w * scaleX, h * scaleY, 0, 0, cropCanvas.width, cropCanvas.height);
+
+        // Determine format
+        const isJpg = src.includes('.jpg') || src.includes('.jpeg') || !src.includes('.png');
+        const outputType = isJpg ? 'image/jpeg' : 'image/png';
+        const ext = isJpg ? 'jpg' : 'png';
+
+        const blob = await new Promise<Blob>((resolve) => {
+          cropCanvas.toBlob((b) => resolve(b!), outputType, outputType === 'image/jpeg' ? 0.85 : undefined);
+        });
+
+        const file = new File([blob], `cropped-${Date.now()}.${ext}`, { type: outputType });
+
+        try {
+          const newUrl = await uploadImageFileRef.current(file);
+          if (newUrl && activeImg) {
+            activeImg.setAttribute('src', newUrl);
+            activeImg.removeAttribute('width');
+            activeImg.removeAttribute('height');
+            activeImg.style.width = '';
+            activeImg.style.height = '';
+            syncQuillContent();
+
+            // Delete old image
+            const oldKey = resolveStorageKeyFromSrc(src);
+            if (oldKey) {
+              fetch('/api/admin/cleanup-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: oldKey }),
+              }).catch(() => {});
+            }
+
+            // Reposition
+            requestAnimationFrame(() => positionSelectionBox());
+          }
+        } catch (err) {
+          console.error('[Crop] Failed:', err);
+        }
+
+        cropOverlay.remove();
+      });
     };
 
     // Handle click on images to select
@@ -1773,6 +2133,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       return null;
     }
   }, [compressImage]);
+
+  // Keep ref in sync
+  uploadImageFileRef.current = uploadImageFile;
 
   // Scan HTML content for base64 images, upload them, and replace with URLs
   const uploadBase64Images = useCallback(async (html: string): Promise<string> => {
