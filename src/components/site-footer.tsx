@@ -97,12 +97,18 @@ export default function SiteFooter() {
               Nixodine products contain nicotine which is a highly addictive substance. This product is intended for use by adults over the age of 21. It is not intended for use by women who are pregnant or breastfeeding, or persons with or at risk of heart disease, high blood pressure, diabetes, or taking medicine for depression or asthma. Keep out of reach of children and pets. Ingestion of the non-vaporized concentrated ingredients in the liquid can be poisonous. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
             </p>
           </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-400 mb-2">CALIFORNIA PROPOSITION 65 WARNING</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              This product can expose you to chemicals including nicotine, which is known to the State of California to cause birth defects or other reproductive harm, and which is known to the State of California to cause cancer. For more information, go to www.P65Warnings.ca.gov.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Copyright */}
       <div className="bg-[#0a0a0e] border-t border-gray-800 py-6 text-center text-xs text-gray-500">
-        ©Vapedeals360.com All Rights Reserved.
+        21+ ONLY | © Vapedeals360.com All Rights Reserved.
       </div>
     </>
   );
