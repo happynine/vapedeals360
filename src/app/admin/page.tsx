@@ -1640,14 +1640,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (alignClass === 'img-align-left') alignLeftBtn.classList.add('active');
         else if (alignClass === 'img-align-center') alignCenterBtn.classList.add('active');
         else if (alignClass === 'img-align-right') alignRightBtn.classList.add('active');
-        // Add a clearing BR after image if left/right aligned
-        if (alignClass !== 'img-align-center') {
-          let nextSibling = activeImg.nextElementSibling;
-          if (!nextSibling || nextSibling.tagName !== 'BR' || !(nextSibling as HTMLElement).style.clear) {
-            const clearer = document.createElement('br');
-            clearer.style.clear = 'both';
-            activeImg.parentElement?.insertBefore(clearer, activeImg.nextSibling);
-          }
+        // Remove any clearing BR that may have been added
+        const nextSibling = activeImg.nextElementSibling;
+        if (nextSibling && nextSibling.tagName === 'BR' && (nextSibling as HTMLElement).style.clear) {
+          nextSibling.remove();
         }
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
@@ -1801,28 +1797,20 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const src = img.getAttribute('src');
       if (!src) return;
 
-      const imgRect = img.getBoundingClientRect();
-      const editorEl = container.querySelector('.ql-editor') as HTMLElement | null;
-      if (!editorEl) return;
+      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+      if (!qlEditor) return;
 
       // Hide the selection box and toolbar while cropping
       if (selectionBox) selectionBox.style.display = 'none';
       if (imgToolbar) imgToolbar.style.display = 'none';
 
-      // Create crop container positioned over the image in the editor
-      const cropContainer = document.createElement('div');
-      cropContainer.className = 'ql-crop-container';
-      cropContainer.style.cssText = 'position:relative;display:inline-block;line-height:0;';
-
-      // Insert crop container before the image, move image into it
-      img.parentNode!.insertBefore(cropContainer, img);
-      cropContainer.appendChild(img);
-
-      // Create dark overlay on top of the image
-      const overlay = document.createElement('div');
-      overlay.className = 'ql-crop-overlay';
-      overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;cursor:crosshair;';
-      cropContainer.appendChild(overlay);
+      // Create a full-size overlay over the ql-editor, positioned absolutely
+      // so we don't move the img element out of the Quill DOM
+      const editorWrapper = document.createElement('div');
+      editorWrapper.className = 'ql-crop-container';
+      editorWrapper.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;cursor:crosshair;';
+      qlEditor.style.position = 'relative';
+      qlEditor.appendChild(editorWrapper);
 
       // Load the original image for cropping
       const originalImg = new window.Image();
@@ -1832,21 +1820,33 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       // Selection state (as percentages of displayed image size)
       let selX = 0, selY = 0, selW = 1, selH = 1; // default: full image
 
+      // Helper: get img position relative to qlEditor
+      const getImgOffset = (): { left: number; top: number; width: number; height: number } => {
+        const imgRect = img.getBoundingClientRect();
+        const editorRect = qlEditor.getBoundingClientRect();
+        return {
+          left: imgRect.left - editorRect.left + qlEditor.scrollLeft,
+          top: imgRect.top - editorRect.top + qlEditor.scrollTop,
+          width: imgRect.width,
+          height: imgRect.height,
+        };
+      };
+
       // Dark masks (top, bottom, left, right) around the selection
       const maskTop = document.createElement('div');
       const maskBottom = document.createElement('div');
       const maskLeft = document.createElement('div');
       const maskRight = document.createElement('div');
       [maskTop, maskBottom, maskLeft, maskRight].forEach(m => {
-        m.style.cssText = 'position:absolute;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;';
-        overlay.appendChild(m);
+        m.style.cssText = 'position:absolute;background:rgba(0,0,0,0.55);pointer-events:none;';
+        editorWrapper.appendChild(m);
       });
 
       // Selection border
       const selBorder = document.createElement('div');
       selBorder.className = 'ql-crop-selection';
-      selBorder.style.cssText = 'position:absolute;border:2px dashed rgba(255,255,255,0.9);z-index:12;pointer-events:none;';
-      overlay.appendChild(selBorder);
+      selBorder.style.cssText = 'position:absolute;border:2px dashed rgba(255,255,255,0.9);pointer-events:none;';
+      editorWrapper.appendChild(selBorder);
 
       // Corner handles
       const handles: HTMLDivElement[] = [];
@@ -1855,14 +1855,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const h = document.createElement('div');
         h.className = 'ql-crop-handle';
         h.dataset.handle = ['nw','ne','sw','se'][i];
-        h.style.cssText = `position:absolute;width:10px;height:10px;background:#fff;border:2px solid #7c3aed;z-index:15;cursor:${handlePositions[i]};`;
-        overlay.appendChild(h);
+        h.style.cssText = `position:absolute;width:10px;height:10px;background:#fff;border:2px solid #7c3aed;cursor:${handlePositions[i]};z-index:15;`;
+        editorWrapper.appendChild(h);
         handles.push(h);
       }
 
-      // Button bar below the image
+      // Button bar
       const btnBar = document.createElement('div');
-      btnBar.style.cssText = 'position:absolute;bottom:-44px;left:0;right:0;display:flex;justify-content:flex-end;gap:8px;z-index:20;';
+      btnBar.style.cssText = 'position:absolute;display:flex;justify-content:flex-end;gap:8px;z-index:20;';
 
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = 'Cancel';
@@ -1874,34 +1874,43 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       cropBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:6px;background:#7c3aed;cursor:pointer;font-size:13px;color:#fff;font-weight:500;';
       btnBar.appendChild(cropBtn);
 
-      cropContainer.appendChild(btnBar);
+      editorWrapper.appendChild(btnBar);
 
-      // Update mask and handle positions
+      // Update mask and handle positions based on img position and selection
       const updateSelection = () => {
-        const imgW = img.clientWidth;
-        const imgH = img.clientHeight;
+        const off = getImgOffset();
+        const imgW = off.width;
+        const imgH = off.height;
+        const ox = off.left;
+        const oy = off.top;
 
         const sx = selX * imgW, sy = selY * imgH;
         const sw = selW * imgW, sh = selH * imgH;
 
-        // Masks
-        maskTop.style.cssText = `position:absolute;top:0;left:0;width:100%;height:${sy}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
-        maskBottom.style.cssText = `position:absolute;top:${sy+sh}px;left:0;width:100%;height:${imgH-sy-sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
-        maskLeft.style.cssText = `position:absolute;top:${sy}px;left:0;width:${sx}px;height:${sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
-        maskRight.style.cssText = `position:absolute;top:${sy}px;left:${sx+sw}px;width:${imgW-sx-sw}px;height:${sh}px;background:rgba(0,0,0,0.55);z-index:11;pointer-events:none;`;
+        // Masks (positioned relative to editorWrapper which is over qlEditor)
+        maskTop.style.cssText = `position:absolute;top:${oy}px;left:${ox}px;width:${imgW}px;height:${sy}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
+        maskBottom.style.cssText = `position:absolute;top:${oy+sy+sh}px;left:${ox}px;width:${imgW}px;height:${imgH-sy-sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
+        maskLeft.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox}px;width:${sx}px;height:${sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
+        maskRight.style.cssText = `position:absolute;top:${oy+sy}px;left:${ox+sx+sw}px;width:${imgW-sx-sw}px;height:${sh}px;background:rgba(0,0,0,0.55);pointer-events:none;z-index:11;`;
 
         // Selection border
-        selBorder.style.left = sx + 'px';
-        selBorder.style.top = sy + 'px';
+        selBorder.style.left = (ox + sx) + 'px';
+        selBorder.style.top = (oy + sy) + 'px';
         selBorder.style.width = sw + 'px';
         selBorder.style.height = sh + 'px';
+        selBorder.style.zIndex = '12';
 
         // Corner handles
-        const hh = 5; // half handle size
-        handles[0].style.left = (sx - hh) + 'px'; handles[0].style.top = (sy - hh) + 'px'; // nw
-        handles[1].style.left = (sx + sw - hh) + 'px'; handles[1].style.top = (sy - hh) + 'px'; // ne
-        handles[2].style.left = (sx - hh) + 'px'; handles[2].style.top = (sy + sh - hh) + 'px'; // sw
-        handles[3].style.left = (sx + sw - hh) + 'px'; handles[3].style.top = (sy + sh - hh) + 'px'; // se
+        const hh = 5;
+        handles[0].style.left = (ox + sx - hh) + 'px'; handles[0].style.top = (oy + sy - hh) + 'px';
+        handles[1].style.left = (ox + sx + sw - hh) + 'px'; handles[1].style.top = (oy + sy - hh) + 'px';
+        handles[2].style.left = (ox + sx - hh) + 'px'; handles[2].style.top = (oy + sy + sh - hh) + 'px';
+        handles[3].style.left = (ox + sx + sw - hh) + 'px'; handles[3].style.top = (oy + sy + sh - hh) + 'px';
+
+        // Button bar below the image
+        btnBar.style.left = ox + 'px';
+        btnBar.style.top = (oy + imgH + 8) + 'px';
+        btnBar.style.width = imgW + 'px';
       };
 
       updateSelection();
@@ -1912,8 +1921,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       let startSelX = 0, startSelY = 0, startSelW = 0, startSelH = 0;
 
       const getMousePos = (e: MouseEvent) => {
-        const rect = img.getBoundingClientRect();
-        return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+        const off = getImgOffset();
+        const imgRect = img.getBoundingClientRect();
+        return { x: (e.clientX - imgRect.left) / imgRect.width, y: (e.clientY - imgRect.top) / imgRect.height };
       };
 
       const onMouseDown = (e: MouseEvent) => {
@@ -1923,13 +1933,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
         if (target.dataset.handle) {
           dragType = target.dataset.handle;
+        } else if (target === cancelBtn || target === cropBtn) {
+          return; // let button clicks pass through
         } else {
-          // Check if inside selection -> move
           const pos = getMousePos(e);
           if (pos.x >= selX && pos.x <= selX + selW && pos.y >= selY && pos.y <= selY + selH) {
             dragType = 'move';
           } else {
-            // Start new selection from this point
             dragType = 'new';
             selX = pos.x; selY = pos.y; selW = 0; selH = 0;
           }
@@ -1944,8 +1954,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (!dragType) return;
         e.preventDefault();
 
-        const dx = (e.clientX - dragStartX) / img.clientWidth;
-        const dy = (e.clientY - dragStartY) / img.clientHeight;
+        const imgRect = img.getBoundingClientRect();
+        const dx = (e.clientX - dragStartX) / imgRect.width;
+        const dy = (e.clientY - dragStartY) / imgRect.height;
 
         if (dragType === 'move') {
           selX = Math.max(0, Math.min(1 - selW, startSelX + dx));
@@ -1956,11 +1967,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           selY = Math.min(startSelY, pos.y);
           selW = Math.abs(pos.x - startSelX);
           selH = Math.abs(pos.y - startSelY);
-          // Clamp
           selW = Math.min(selW, 1 - selX);
           selH = Math.min(selH, 1 - selY);
         } else {
-          // Resize from handle
           let newX = startSelX, newY = startSelY, newW = startSelW, newH = startSelH;
 
           if (dragType.includes('w')) { newX = startSelX + dx; newW = startSelW - dx; }
@@ -1968,10 +1977,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           if (dragType.includes('n')) { newY = startSelY + dy; newH = startSelH - dy; }
           if (dragType.includes('s')) { newH = startSelH + dy; }
 
-          // Clamp minimum size
           if (newW < 0.02) { newW = 0.02; if (dragType.includes('w')) newX = startSelX + startSelW - 0.02; }
           if (newH < 0.02) { newH = 0.02; if (dragType.includes('n')) newY = startSelY + startSelH - 0.02; }
-          // Clamp to image bounds
           if (newX < 0) { newW += newX; newX = 0; }
           if (newY < 0) { newH += newY; newY = 0; }
           if (newX + newW > 1) newW = 1 - newX;
@@ -1987,7 +1994,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         dragType = null;
       };
 
-      overlay.addEventListener('mousedown', onMouseDown);
+      editorWrapper.addEventListener('mousedown', onMouseDown);
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
 
@@ -1995,9 +2002,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const cleanup = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-        // Move image back out of crop container
-        cropContainer.parentNode!.insertBefore(img, cropContainer);
-        cropContainer.remove();
+        editorWrapper.remove();
         // Restore selection box and toolbar
         if (selectionBox) selectionBox.style.display = '';
         if (imgToolbar) imgToolbar.style.display = '';
@@ -2006,15 +2011,16 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       cancelBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        e.preventDefault();
         cleanup();
       });
 
       cropBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        e.preventDefault();
 
-        if (selW < 0.01 || selH < 0.01) return; // too small
+        if (selW < 0.01 || selH < 0.01) return;
 
-        // Wait for image to load if not yet
         if (!originalImg.complete) {
           await new Promise<void>((resolve) => {
             originalImg.onload = () => resolve();
@@ -2025,7 +2031,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const natW = originalImg.naturalWidth;
         const natH = originalImg.naturalHeight;
 
-        // Convert selection percentages to pixel coordinates on original image
         const cx = Math.round(selX * natW);
         const cy = Math.round(selY * natH);
         const cw = Math.round(selW * natW);
@@ -2033,14 +2038,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
         if (cw < 5 || ch < 5) return;
 
-        // Draw cropped region to canvas
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = cw;
         cropCanvas.height = ch;
         const cropCtx = cropCanvas.getContext('2d')!;
         cropCtx.drawImage(originalImg, cx, cy, cw, ch, 0, 0, cw, ch);
 
-        // Determine format
         const isJpg = src.includes('.jpg') || src.includes('.jpeg') || !src.includes('.png');
         const outputType = isJpg ? 'image/jpeg' : 'image/png';
         const ext = isJpg ? 'jpg' : 'png';
@@ -2059,10 +2062,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
             img.removeAttribute('height');
             img.style.width = '';
             img.style.height = '';
-            // Persist image formats (class/style) via Quill's Delta model
             persistImageFormats(img);
 
-            // Delete old image
             const oldKey = resolveStorageKeyFromSrc(src);
             if (oldKey) {
               fetch('/api/admin/cleanup-image', {

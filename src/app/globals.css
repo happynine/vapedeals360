@@ -261,8 +261,11 @@ html {
 
 /* ===== Editor Image Alignment & Border Styles ===== */
 .content-pages-editor .ql-editor img.img-align-left {
-  float: left;
-  margin: 0.5rem 1rem 0.5rem 0;
+  display: block;
+  float: none;
+  margin: 0.5rem 0;
+  margin-left: 0;
+  margin-right: auto;
 }
 .content-pages-editor .ql-editor img.img-align-center {
   display: block;
@@ -271,8 +274,11 @@ html {
   float: none;
 }
 .content-pages-editor .ql-editor img.img-align-right {
-  float: right;
-  margin: 0.5rem 0 0.5rem 1rem;
+  display: block;
+  float: none;
+  margin: 0.5rem 0;
+  margin-left: auto;
+  margin-right: 0;
 }
 .content-pages-editor .ql-editor img.img-border-none {
   border: none;
@@ -749,8 +755,11 @@ body {
   margin: 1rem 0;
 }
 .rich-text-content img.img-align-left {
-  float: left;
-  margin: 0.5rem 1rem 0.5rem 0;
+  display: block;
+  float: none;
+  margin: 0.5rem 0;
+  margin-left: 0;
+  margin-right: auto;
 }
 .rich-text-content img.img-align-center {
   display: block;
@@ -759,8 +768,11 @@ body {
   float: none;
 }
 .rich-text-content img.img-align-right {
-  float: right;
-  margin: 0.5rem 0 0.5rem 1rem;
+  display: block;
+  float: none;
+  margin: 0.5rem 0;
+  margin-left: auto;
+  margin-right: 0;
 }
 .rich-text-content img.img-border-none {
   border: none;
