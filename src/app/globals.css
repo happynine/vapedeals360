@@ -169,6 +169,47 @@ html {
   border-radius: 0.5rem;
   margin: 1rem 0;
 }
+
+/* ===== Image Resize Handles in Quill Editor ===== */
+.ql-editor img.ql-image-selected {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
+.ql-img-resize-wrapper {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.ql-img-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #7c3aed;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  z-index: 10;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.ql-img-resize-handle.ql-handle-tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.ql-img-resize-handle.ql-handle-tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.ql-img-resize-handle.ql-handle-bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.ql-img-resize-handle.ql-handle-br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+.ql-img-resize-handle:hover {
+  background: #6d28d9;
+  transform: scale(1.2);
+}
+
+.ql-img-resize-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  cursor: nwse-resize;
+}
 .admin-dark .ql-editor {
   color: #111827;
 }
