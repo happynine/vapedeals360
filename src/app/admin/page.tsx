@@ -38,7 +38,123 @@ async function getMammoth() {
 // Import Quill class for Quill.find() - needed for custom color picker
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let QuillClass: any = null;
-import('quill').then((mod) => { QuillClass = mod.default; }).catch(() => {});
+// Register a custom StyledImage blot that preserves inline styles (class, style, width, height)
+// so that image alignment/border/resize survive Quill re-renders
+let customBlotRegistered = false;
+import('quill').then((mod) => {
+  QuillClass = mod.default;
+  if (!customBlotRegistered && QuillClass) {
+    const Embed = QuillClass.import('blots/embed');
+    class StyledImage extends Embed {
+      static blotName = 'image';
+      static tagName = 'IMG';
+
+      static create(value: any) {
+        let node: HTMLImageElement;
+        if (typeof value === 'string') {
+          node = super.create(value) as HTMLImageElement;
+        } else if (typeof value === 'object' && value !== null) {
+          // Check for data-styled from clipboard parser
+          if (value['data-styled']) {
+            try {
+              const decoded = JSON.parse(decodeURIComponent(value['data-styled']));
+              node = super.create(decoded.src || '') as HTMLImageElement;
+              if (decoded.class) node.setAttribute('class', decoded.class);
+              if (decoded.style) node.setAttribute('style', decoded.style);
+              if (decoded.width) node.setAttribute('width', String(decoded.width));
+              if (decoded.height) node.setAttribute('height', String(decoded.height));
+              return node;
+            } catch { /* fall through */ }
+          }
+          node = super.create(value.src || '') as HTMLImageElement;
+          if (value.src) node.setAttribute('src', value.src);
+          if (value.class) node.setAttribute('class', value.class);
+          if (value.style) node.setAttribute('style', value.style);
+          if (value.width) node.setAttribute('width', String(value.width));
+          if (value.height) node.setAttribute('height', String(value.height));
+        } else {
+          node = super.create(value) as HTMLImageElement;
+        }
+        return node;
+      }
+
+      static formats(domNode: HTMLElement) {
+        const formats: Record<string, string> = {};
+        const cls = domNode.getAttribute('class');
+        if (cls) formats['class'] = cls;
+        const style = domNode.getAttribute('style');
+        if (style) formats['style'] = style;
+        const w = domNode.getAttribute('width');
+        if (w) formats['width'] = w;
+        const h = domNode.getAttribute('height');
+        if (h) formats['height'] = h;
+        return Object.keys(formats).length > 0 ? formats : undefined;
+      }
+
+      format(name: string, value: any) {
+        if (['class', 'style', 'width', 'height'].includes(name)) {
+          if (value) {
+            this.domNode.setAttribute(name, String(value));
+          } else {
+            this.domNode.removeAttribute(name);
+          }
+        } else {
+          super.format(name, value);
+        }
+      }
+
+      static value(domNode: HTMLElement) {
+        const src = domNode.getAttribute('src') || '';
+        const cls = domNode.getAttribute('class') || '';
+        const style = domNode.getAttribute('style') || '';
+        const w = domNode.getAttribute('width') || '';
+        const h = domNode.getAttribute('height') || '';
+        // Return object if any extra attrs exist, else just src string for compat
+        if (cls || style || w || h) {
+          return { src, class: cls, style, width: w, height: h };
+        }
+        return src;
+      }
+    }
+    QuillClass.register(StyledImage, true);
+
+    // Also patch the clipboard parser to preserve img attributes when pasting/parsing HTML
+    const Clipboard = QuillClass.import('modules/clipboard');
+    const Delta = QuillClass.import('delta');
+    const originalConvert = Clipboard.prototype.convert;
+
+    Clipboard.prototype.convert = function(html: any) {
+      if (typeof html === 'string') {
+        // Parse img tags and encode their extra attrs into a data attribute before Quill processes it
+        const processed = html.replace(/<img([^>]*)>/gi, (_match: string, attrs: string) => {
+          const srcMatch = attrs.match(/src=["']([^"']*)["']/);
+          const classMatch = attrs.match(/class=["']([^"']*)["']/);
+          const styleMatch = attrs.match(/style=["']([^"']*)["']/);
+          const widthMatch = attrs.match(/width=["']([^"']*)["']/);
+          const heightMatch = attrs.match(/height=["']([^"']*)["']/);
+          
+          const extras: Record<string, string> = {};
+          if (classMatch) extras.class = classMatch[1];
+          if (styleMatch) extras.style = styleMatch[1];
+          if (widthMatch) extras.width = widthMatch[1];
+          if (heightMatch) extras.height = heightMatch[1];
+          
+          const src = srcMatch ? srcMatch[1] : '';
+          if (Object.keys(extras).length > 0) {
+            // Encode extras as data-styled attribute so the blot can read them
+            const dataStyled = encodeURIComponent(JSON.stringify({ src, ...extras }));
+            return `<img src="${src}" data-styled="${dataStyled}">`;
+          }
+          return `<img src="${src}">`;
+        });
+        return originalConvert.call(this, processed);
+      }
+      return originalConvert.call(this, html);
+    };
+
+    customBlotRegistered = true;
+  }
+}).catch(() => {});
 
 // Types
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
@@ -1514,6 +1630,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyAlignment = (alignClass: string) => {
         if (!activeImg) return;
+        // Remove old alignment classes
         activeImg.classList.remove('img-align-left', 'img-align-center', 'img-align-right');
         activeImg.classList.add(alignClass);
         // Update toolbar active state
@@ -1521,14 +1638,17 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (alignClass === 'img-align-left') alignLeftBtn.classList.add('active');
         else if (alignClass === 'img-align-center') alignCenterBtn.classList.add('active');
         else if (alignClass === 'img-align-right') alignRightBtn.classList.add('active');
-        // Clear float after aligned image
-        let nextSibling = activeImg.nextElementSibling;
-        if (!nextSibling || nextSibling.tagName !== 'BR' || !(nextSibling as HTMLElement).style.clear) {
-          const clearer = document.createElement('br');
-          clearer.style.clear = 'both';
-          activeImg.parentElement?.insertBefore(clearer, activeImg.nextSibling);
+        // Add a clearing BR after image if left/right aligned
+        if (alignClass !== 'img-align-center') {
+          let nextSibling = activeImg.nextElementSibling;
+          if (!nextSibling || nextSibling.tagName !== 'BR' || !(nextSibling as HTMLElement).style.clear) {
+            const clearer = document.createElement('br');
+            clearer.style.clear = 'both';
+            activeImg.parentElement?.insertBefore(clearer, activeImg.nextSibling);
+          }
         }
-        syncQuillContent();
+        // Persist the class via Quill's format API so it survives re-renders
+        persistImageFormats(activeImg);
         requestAnimationFrame(() => positionSelectionBox());
       };
 
@@ -1573,7 +1693,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         else if (borderClass === 'img-border-thin') borderThinBtn.classList.add('active');
         else if (borderClass === 'img-border-rounded') borderRoundedBtn.classList.add('active');
         else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
-        syncQuillContent();
+        // Persist the class via Quill's format API so it survives re-renders
+        persistImageFormats(activeImg);
       };
 
       borderNoneBtn.addEventListener('click', () => applyBorder('img-border-none'));
@@ -1644,6 +1765,33 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           }
         } catch { /* ignore */ }
       }
+    };
+
+    // Persist image class/style/width/height attributes through Quill's Delta model
+    // so they survive React re-renders. Uses Quill.format() on the image blot.
+    const persistImageFormats = (img: HTMLImageElement) => {
+      const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+      if (!qlContainer || !QuillClass) return;
+      try {
+        const quill = QuillClass.find(qlContainer);
+        if (!quill) return;
+        const blot = QuillClass.find(img);
+        if (!blot) return;
+        const offset = blot.offset(quill.scroll);
+        const cls = img.getAttribute('class') || '';
+        const style = img.getAttribute('style') || '';
+        const w = img.getAttribute('width') || '';
+        const h = img.getAttribute('height') || '';
+        // Use quill.formatText to store extra attrs in the Delta
+        const formats: Record<string, string> = {};
+        if (cls) formats['class'] = cls;
+        if (style) formats['style'] = style;
+        if (w) formats['width'] = w;
+        if (h) formats['height'] = h;
+        quill.formatText(offset, 1, formats, 'silent');
+        // Also sync the HTML to React state
+        setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+      } catch { /* ignore */ }
     };
 
     // Open image crop modal
@@ -1793,7 +1941,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
             activeImg.removeAttribute('height');
             activeImg.style.width = '';
             activeImg.style.height = '';
-            syncQuillContent();
+            // Persist image formats (class/style) via Quill's Delta model
+            persistImageFormats(activeImg);
 
             // Delete old image
             const oldKey = resolveStorageKeyFromSrc(src);
@@ -1824,7 +1973,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       if (target.tagName === 'IMG' && target.closest('.ql-editor')) {
         showSelectionBox(target as HTMLImageElement);
-      } else if (!target.closest('.ql-img-resize-selection')) {
+      } else if (!target.closest('.ql-img-resize-selection') && !target.closest('.ql-img-toolbar')) {
         clearSelection();
       }
     };
@@ -2231,6 +2380,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       imgElement.style.height = '';
 
       // Sync Quill content so state reflects the new src (without inline styles)
+      // Use quill.formatText to persist class/style attrs in the Delta model
       const container = containerRef.current;
       if (container) {
         const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
@@ -2238,6 +2388,21 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           try {
             const quill = QuillClass.find(qlContainer);
             if (quill) {
+              // Persist image class/style via the custom StyledImage blot
+              try {
+                const blot = QuillClass.find(imgElement);
+                if (blot) {
+                  const offset = blot.offset(quill.scroll);
+                  const formats: Record<string, string> = {};
+                  const cls = imgElement.getAttribute('class') || '';
+                  const style = imgElement.getAttribute('style') || '';
+                  if (cls) formats['class'] = cls;
+                  if (style) formats['style'] = style;
+                  if (Object.keys(formats).length > 0) {
+                    quill.formatText(offset, 1, formats, 'silent');
+                  }
+                }
+              } catch { /* ignore blot persist */ }
               onChangeRef.current(quill.root.innerHTML);
             }
           } catch { /* ignore */ }
