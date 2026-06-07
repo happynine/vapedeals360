@@ -3,29 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
-
-interface SiteSettings {
-  site_name?: string;
-  logo_url?: string;
-}
+import { useLanguage } from '@/hooks/use-language';
+import { useSiteSettings } from '@/components/site-settings-provider';
 
 export default function TermsOfServicePage() {
+  const { language } = useLanguage();
+  const { siteSettings } = useSiteSettings();
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState('en');
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('language');
-    if (saved) setLanguage(saved);
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/site-settings')
-      .then(r => r.json())
-      .then(d => d?.data && setSiteSettings(d.data))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     setLoading(true);
