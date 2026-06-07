@@ -133,7 +133,14 @@ export default function AgeVerification() {
           </div>
         )}
 
-        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+        <button
+          onClick={handleVerify}
+          className="w-full rounded-lg bg-purple-600 py-3 text-base font-semibold text-white transition-colors hover:bg-purple-700 active:bg-purple-800"
+        >
+          Verify Age
+        </button>
+
+        <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-400">
             Warning
           </p>
@@ -141,13 +148,6 @@ export default function AgeVerification() {
             Vaping products contain nicotine, a highly addictive substance. Not intended for use by persons under the age of 21, pregnant or nursing women, or persons with heart disease or high blood pressure. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
           </p>
         </div>
-
-        <button
-          onClick={handleVerify}
-          className="w-full rounded-lg bg-purple-600 py-3 text-base font-semibold text-white transition-colors hover:bg-purple-700 active:bg-purple-800"
-        >
-          Verify Age
-        </button>
       </div>
     </div>
   );
