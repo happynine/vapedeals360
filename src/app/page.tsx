@@ -155,6 +155,18 @@ export default function HomePage() {
                 params.set("sales_region", salesRegion);
             }
 
+            // Pass sort params to API for server-side sorting
+            if (sortBy === "newest") {
+                params.set("sort_by", "id");
+                params.set("sort_order", "desc");
+            } else if (sortBy === "price_low") {
+                params.set("sort_by", "id");
+                params.set("sort_order", "desc"); // price sort done client-side
+            } else if (sortBy === "price_high") {
+                params.set("sort_by", "id");
+                params.set("sort_order", "desc"); // price sort done client-side
+            }
+
             const res = await fetch(`/api/products?${params}`);
             const json = await res.json();
 
@@ -184,7 +196,7 @@ export default function HomePage() {
         } finally {
             setLoading(false);
         }
-    }, [language, page, selectedCategory, salesRegion, searchQuery]);
+    }, [language, page, selectedCategory, salesRegion, searchQuery, sortBy]);
 
     // Sync search query from URL
     useEffect(() => {
@@ -226,9 +238,8 @@ export default function HomePage() {
                 const bPrice = getLowestPrice(b.prices);
                 return (bPrice ? parseFloat(bPrice.current_price) : 0) - (aPrice ? parseFloat(aPrice.current_price) : 0);
             });
-        } else {
-            list = [...list].sort((a, b) => (b.id as number) - (a.id as number));
         }
+        // "newest" sort is handled server-side (sort_by=id, sort_order=desc)
 
         return list;
     })();
@@ -333,17 +344,17 @@ export default function HomePage() {
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
                         <button
-                            onClick={() => setSortBy("newest")}
+                            onClick={() => { setSortBy("newest"); setPage(1); }}
                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "最新发布" : "Newest"}
                         </button>
                         <button
-                            onClick={() => setSortBy("price_low")}
+                            onClick={() => { setSortBy("price_low"); setPage(1); }}
                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从低到高" : "Price Low To High"}
                         </button>
                         <button
-                            onClick={() => setSortBy("price_high")}
+                            onClick={() => { setSortBy("price_high"); setPage(1); }}
                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从高到低" : "Price High To Low"}
                         </button>

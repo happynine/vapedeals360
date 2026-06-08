@@ -116,9 +116,11 @@ export async function fetchProducts(options?: {
   offset?: number;
   featured?: boolean;
   sales_region?: string;
+  sort_by?: string;
+  sort_order?: string;
 }) {
   const client = getClient();
-  const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region } = options || {};
+  const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region, sort_by = 'id', sort_order = 'desc' } = options || {};
 
   // If search keyword provided, find matching product IDs from translations table first
   let matchingProductIds: number[] | null = null;
@@ -138,7 +140,7 @@ export async function fetchProducts(options?: {
     .from('products')
     .select('*, product_translations(*), product_prices(*, stores(*, store_translations(*)))')
     .eq('is_active', true)
-    .order('created_at', { ascending: false })
+    .order(sort_by, { ascending: sort_order === 'asc' })
     .range(offset, offset + limit - 1);
 
   if (matchingProductIds) {
