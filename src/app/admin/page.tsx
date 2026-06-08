@@ -251,6 +251,71 @@ function t(en: string, zh: string, lang: string) {
   return lang === 'zh' ? zh : en;
 }
 
+function StoreSelect({ stores, value, onChange, lang }: {
+  stores: Array<{ id: number; slug: string; logo_url: string | null; store_translations?: Array<{ name: string; language: string }> }>;
+  value: string;
+  onChange: (value: string) => void;
+  lang: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedStore = stores.find(s => String(s.id) === value);
+  const getStoreName = (store: typeof stores[0]) => {
+    const t2 = store.store_translations?.find((tr: { language: string }) => tr.language === lang);
+    return t2?.name || store.slug;
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-600 bg-[#1e1e2e] cursor-pointer hover:border-purple-500 transition-colors"
+      >
+        {selectedStore?.logo_url ? (
+          <img src={selectedStore.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
+        ) : (
+          <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
+        )}
+        <span className="text-white text-sm flex-1">
+          {selectedStore ? getStoreName(selectedStore) : t('Select Store', '选择商城', lang)}
+        </span>
+        <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-600 bg-[#1e1e2e] shadow-lg max-h-60 overflow-y-auto">
+          {stores.map((store) => (
+            <div
+              key={store.id}
+              onClick={() => { onChange(String(store.id)); setOpen(false); }}
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-purple-500/20 transition-colors ${String(store.id) === value ? 'bg-purple-500/30' : ''}`}
+            >
+              {store.logo_url ? (
+                <img src={store.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
+              )}
+              <span className="text-white text-sm">{getStoreName(store)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -4070,12 +4135,12 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
                         <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
-                        <select value={p.store_id} onChange={(e) => { const newP = [...prices]; newP[idx].store_id = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm">
-                          <option value="">{t('Select store', '选择商城', lang)}</option>
-                          {stores.map((s) => (
-                            <option key={s.id} value={s.id}>{s.store_translations?.find((tr) => tr.language === lang)?.name || s.slug}</option>
-                          ))}
-                        </select>
+                        <StoreSelect
+                          stores={stores}
+                          value={p.store_id}
+                          lang={lang}
+                          onChange={(val) => { const newP = [...prices]; newP[idx].store_id = val; setPrices(newP); }}
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground">{t('Current Price ($)', '现价 ($)', lang)}</label>
