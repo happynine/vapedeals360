@@ -345,6 +345,9 @@ export default function AdminPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productSortOrder, setProductSortOrder] = useState<'asc' | 'desc'>('desc');
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
+  }, [products, productSortOrder]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
@@ -1001,9 +1004,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(() => {
-                        const sorted = [...products].sort((a, b) => productSortOrder === 'asc' ? (a.id as number) - (b.id as number) : (b.id as number) - (a.id as number));
-                        return sorted.map((product, pIndex) => {
+                      {sortedProducts.map((product, pIndex) => {
                         const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
@@ -1037,7 +1038,7 @@ export default function AdminPage() {
                             </td>
                           </tr>
                         );
-                      })})()}
+                      })}
                     </tbody>
                   </table>
                   {products.length === 0 && (
