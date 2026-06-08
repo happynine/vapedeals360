@@ -118,7 +118,21 @@ export async function fetchProducts(options?: {
   sales_region?: string;
 }) {
   const client = getClient();
-  const { category_id, language = 'en', limit = 20, offset = 0, featured, sales_region } = options || {};
+  const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region } = options || {};
+
+  // If search keyword provided, find matching product IDs from translations table first
+  let matchingProductIds: number[] | null = null;
+  if (search && search.trim()) {
+    const q = search.trim();
+    const { data: transData, error: transError } = await client
+      .from('product_translations')
+      .select('product_id')
+      .ilike('name', `%${q}%`);
+    if (transError) throw new Error(`Search translations failed: ${transError.message}`);
+    matchingProductIds = [...new Set((transData || []).map((t: Record<string, unknown>) => t.product_id as number))];
+    // No matching products found
+    if (matchingProductIds.length === 0) return [];
+  }
 
   let query = client
     .from('products')
@@ -127,6 +141,9 @@ export async function fetchProducts(options?: {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (matchingProductIds) {
+    query = query.in('id', matchingProductIds);
+  }
   if (category_id) {
     query = query.eq('category_id', category_id);
   }
@@ -198,9 +215,26 @@ export async function fetchProductBySlug(slug: string, language: string = 'en') 
 }
 
 // Count products
-export async function countProducts(category_id?: number, sales_region?: string) {
+export async function countProducts(category_id?: number, sales_region?: string, search?: string) {
   const client = getClient();
+
+  // If search keyword provided, find matching product IDs first
+  let matchingProductIds: number[] | null = null;
+  if (search && search.trim()) {
+    const q = search.trim();
+    const { data: transData, error: transError } = await client
+      .from('product_translations')
+      .select('product_id')
+      .ilike('name', `%${q}%`);
+    if (transError) throw new Error(`Search translations failed: ${transError.message}`);
+    matchingProductIds = [...new Set((transData || []).map((t: Record<string, unknown>) => t.product_id as number))];
+    if (matchingProductIds.length === 0) return 0;
+  }
+
   let query = client.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true);
+  if (matchingProductIds) {
+    query = query.in('id', matchingProductIds);
+  }
   if (category_id) {
     query = query.eq('category_id', category_id);
   }

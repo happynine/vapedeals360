@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
@@ -120,11 +121,13 @@ export default function HomePage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
     const { language } = useLanguage();
+    const searchParams = useSearchParams();
+    const urlSearch = searchParams.get('search') || '';
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(urlSearch);
     const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
     const [banners, setBanners] = useState<Banner[]>([]);
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
@@ -142,6 +145,10 @@ export default function HomePage() {
 
             if (selectedCategory) {
                 params.set("category_id", selectedCategory.toString());
+            }
+
+            if (searchQuery) {
+                params.set("search", searchQuery);
             }
 
             if (salesRegion && salesRegion !== "不限地区") {
@@ -177,7 +184,14 @@ export default function HomePage() {
         } finally {
             setLoading(false);
         }
-    }, [language, page, selectedCategory, salesRegion]);
+    }, [language, page, selectedCategory, salesRegion, searchQuery]);
+
+    // Sync search query from URL
+    useEffect(() => {
+        if (urlSearch !== searchQuery) {
+            setSearchQuery(urlSearch);
+        }
+    }, [urlSearch]);
 
     useEffect(() => {
         fetchData();
@@ -198,10 +212,7 @@ export default function HomePage() {
     }, []);
 
     const filteredProducts = (() => {
-        let list = searchQuery ? products.filter(p => {
-            const t = getTranslation(p.translations, language);
-            return t?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-        }) : products;
+        let list = products;
 
         if (sortBy === "price_low") {
             list = [...list].sort((a, b) => {
@@ -360,7 +371,20 @@ export default function HomePage() {
                         })}
                     </div>
                 </div>
-                {}
+                {searchQuery && !loading && (
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className="text-lg font-semibold text-gray-900">
+                            {language === "zh" ? `搜索"${searchQuery}"的结果` : `Search results for "${searchQuery}"`}
+                        </span>
+                        <span className="text-sm text-gray-500">({total} {language === "zh" ? "个产品" : "products"})</span>
+                        <button
+                            onClick={() => { setSearchQuery(""); setPage(1); }}
+                            className="ml-auto text-sm text-purple-600 hover:text-purple-800 font-medium"
+                        >
+                            {language === "zh" ? "清除搜索" : "Clear search"}
+                        </button>
+                    </div>
+                )}
                 {loading ? <div
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Array.from({

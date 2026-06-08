@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const featured = searchParams.get('featured') === 'true';
+    const search = searchParams.get('search') || undefined;
     const salesRegion = searchParams.get('sales_region') || undefined;
     const offset = (page - 1) * limit;
 
@@ -22,12 +23,13 @@ export async function GET(request: NextRequest) {
       fetchProducts({
         category_id: categoryId ? parseInt(categoryId) : undefined,
         language,
+        search,
         limit,
         offset,
         featured,
         sales_region: salesRegion,
       }),
-      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion),
+      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion, search),
     ]);
 
     return NextResponse.json({

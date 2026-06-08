@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 
@@ -37,6 +37,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   const displayName = siteSettings?.site_name || '';
   const displayLogo = siteSettings?.logo_url;
@@ -89,15 +90,10 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setSearchLoading(true);
     searchDebounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/products?language=${language}&limit=10`);
+        const res = await fetch(`/api/products?language=${language}&limit=8&search=${encodeURIComponent(query.trim())}`);
         const json = await res.json();
         if (json.success) {
-          const q = query.toLowerCase();
-          const filtered = (json.data.products || []).filter((p: Record<string, unknown>) => {
-            const translations = p.product_translations as Record<string, unknown>[] | undefined;
-            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
-            return (t?.name as string)?.toLowerCase().includes(q);
-          }).slice(0, 8).map((p: Record<string, unknown>) => {
+          const filtered = (json.data.products || []).slice(0, 8).map((p: Record<string, unknown>) => {
             const translations = p.product_translations as Record<string, unknown>[];
             const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
             const prices = (p.product_prices as Record<string, unknown>[]) || [];
@@ -148,15 +144,10 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setDesktopSearchLoading(true);
     desktopDebounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/products?language=${language}&limit=10`);
+        const res = await fetch(`/api/products?language=${language}&limit=8&search=${encodeURIComponent(query.trim())}`);
         const json = await res.json();
         if (json.success) {
-          const q = query.toLowerCase();
-          const filtered = (json.data.products || []).filter((p: Record<string, unknown>) => {
-            const translations = p.product_translations as Record<string, unknown>[] | undefined;
-            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
-            return (t?.name as string)?.toLowerCase().includes(q);
-          }).slice(0, 8).map((p: Record<string, unknown>) => {
+          const filtered = (json.data.products || []).slice(0, 8).map((p: Record<string, unknown>) => {
             const translations = p.product_translations as Record<string, unknown>[];
             const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
             const prices = (p.product_prices as Record<string, unknown>[]) || [];
@@ -239,6 +230,13 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                     value={desktopSearchQuery}
                     onChange={(e) => handleDesktopSearch(e.target.value)}
                     onFocus={() => { if (desktopSearchQuery.trim()) handleDesktopSearch(desktopSearchQuery); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && desktopSearchQuery.trim()) {
+                        e.preventDefault();
+                        router.push(`/?search=${encodeURIComponent(desktopSearchQuery.trim())}`);
+                        setDesktopSearchFocused(false);
+                      }
+                    }}
                     placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
                     className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-8 py-2 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
                   />
@@ -470,6 +468,13 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleMobileSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    e.preventDefault();
+                    router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                    setMobileSearchOpen(false);
+                  }
+                }}
                 placeholder={language === "zh" ? "搜索产品..." : "Search products..."}
                 className="w-full rounded-xl border border-gray-700 bg-[#1a1a24] pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
               />
