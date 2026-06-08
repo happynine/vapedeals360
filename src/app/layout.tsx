@@ -9,6 +9,9 @@ import FrontendWrapper from '@/components/frontend-wrapper';
 
 async function getSiteLogo(): Promise<string | null> {
   try {
+    if (!process.env.COZE_SUPABASE_URL || !process.env.COZE_SUPABASE_SERVICE_ROLE_KEY) {
+      return null;
+    }
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('site_settings')
@@ -36,6 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: logoUrl ? [{ url: logoUrl, type: 'image/png' }] : undefined,
   };
 }
+
+// Force dynamic rendering - don't prerender during build
+export const dynamic = 'force-dynamic';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
