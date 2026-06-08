@@ -528,25 +528,133 @@ export default function HomePage() {
                     })}
                 </div>}
                 {}
-                {totalPages > 1 && <div className="mt-8 flex items-center justify-center gap-2">
-                    <button
-                        onClick={() => setPage(Math.max(1, page - 1))}
-                        disabled={page === 1}
-                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        {language === "zh" ? "上一页" : "Previous"}
-                    </button>
-                    <span className="px-4 py-2 text-sm text-gray-500">
-                        {page}/ {totalPages}
-                    </span>
-                    <button
-                        onClick={() => setPage(Math.min(totalPages, page + 1))}
-                        disabled={page === totalPages}
-                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                        {language === "zh" ? "下一页" : "Next"}
-                    </button>
-                </div>}
+                {totalPages > 1 && <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    total={total}
+                    onPageChange={setPage}
+                    language={language}
+                />}
                 </div>
             </main>
+        </div>
+    );
+}
+
+function Pagination({
+    currentPage,
+    totalPages,
+    total,
+    onPageChange,
+    language,
+}: {
+    currentPage: number;
+    totalPages: number;
+    total: number;
+    onPageChange: (page: number) => void;
+    language: string;
+}) {
+    const [jumpValue, setJumpValue] = useState("");
+
+    const getPageNumbers = (): (number | "...")[] => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        const pages: (number | "...")[] = [];
+        pages.push(1);
+        if (currentPage > 4) {
+            pages.push("...");
+        }
+        const start = Math.max(2, currentPage - 2);
+        const end = Math.min(totalPages - 1, currentPage + 2);
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        if (currentPage < totalPages - 3) {
+            pages.push("...");
+        }
+        pages.push(totalPages);
+        return pages;
+    };
+
+    const handleJump = () => {
+        const num = parseInt(jumpValue, 10);
+        if (!isNaN(num) && num >= 1 && num <= totalPages) {
+            onPageChange(num);
+        }
+        setJumpValue("");
+    };
+
+    const handleJumpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            handleJump();
+        }
+    };
+
+    return (
+        <div className="mt-8 flex items-center justify-center gap-1 select-none">
+            {/* Previous button */}
+            <button
+                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center justify-center w-8 h-8 rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-purple-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-600 transition-colors text-xs"
+                aria-label="Previous"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+            </button>
+
+            {/* Page numbers */}
+            {getPageNumbers().map((p, idx) =>
+                p === "..." ? (
+                    <span key={`ellipsis-${idx}`} className="flex items-center justify-center w-8 h-8 text-gray-400 text-sm">
+                        ...
+                    </span>
+                ) : (
+                    <button
+                        key={p}
+                        onClick={() => onPageChange(p)}
+                        className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium transition-colors ${
+                            currentPage === p
+                                ? "bg-purple-600 text-white border border-purple-600"
+                                : "border border-gray-200 bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300"
+                        }`}
+                    >
+                        {p}
+                    </button>
+                )
+            )}
+
+            {/* Next button */}
+            <button
+                onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center justify-center w-8 h-8 rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-purple-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-600 transition-colors text-xs"
+                aria-label="Next"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                    <polyline points="9 18 15 12 9 6" />
+                </svg>
+            </button>
+
+            {/* Jump to */}
+            <div className="flex items-center gap-1.5 ml-3 text-sm text-gray-500">
+                <span>{language === "zh" ? "跳至" : "Go to"}</span>
+                <input
+                    type="text"
+                    value={jumpValue}
+                    onChange={(e) => setJumpValue(e.target.value.replace(/\D/g, ""))}
+                    onKeyDown={handleJumpKeyDown}
+                    className="w-10 h-8 rounded border border-gray-200 bg-white text-center text-sm text-gray-700 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
+                />
+                <span>{language === "zh" ? "页" : ""}</span>
+            </div>
+
+            {/* Total count */}
+            <span className="ml-3 text-sm text-gray-400">
+                {language === "zh" ? `共 ${total} 条` : `${total} items`}
+            </span>
         </div>
     );
 }
