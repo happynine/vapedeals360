@@ -227,7 +227,7 @@ export default function HomePage() {
                 return (bPrice ? parseFloat(bPrice.current_price) : 0) - (aPrice ? parseFloat(aPrice.current_price) : 0);
             });
         } else {
-            list = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            list = [...list].sort((a, b) => (b.id as number) - (a.id as number));
         }
 
         return list;
