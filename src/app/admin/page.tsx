@@ -344,6 +344,7 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productSortOrder, setProductSortOrder] = useState<'asc' | 'desc'>('desc');
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
@@ -983,7 +984,15 @@ export default function AdminPage() {
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => setProductSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                          <span className="inline-flex items-center gap-1">
+                            {t('ID', 'ID', adminLang)}
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="inline-block">
+                              <path d="M6 2L9.5 5.5H2.5L6 2Z" fill={productSortOrder === 'asc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                              <path d="M6 10L2.5 6.5H9.5L6 10Z" fill={productSortOrder === 'desc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                            </svg>
+                          </span>
+                        </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
@@ -992,7 +1001,9 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((product, pIndex) => {
+                      {(() => {
+                        const sorted = [...products].sort((a, b) => productSortOrder === 'asc' ? (a.id as number) - (b.id as number) : (b.id as number) - (a.id as number));
+                        return sorted.map((product, pIndex) => {
                         const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
@@ -1026,7 +1037,7 @@ export default function AdminPage() {
                             </td>
                           </tr>
                         );
-                      })}
+                      })})()}
                     </tbody>
                   </table>
                   {products.length === 0 && (
