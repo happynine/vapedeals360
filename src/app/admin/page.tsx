@@ -982,6 +982,7 @@ export default function AdminPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
@@ -991,12 +992,13 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((product) => {
+                      {products.map((product, pIndex) => {
                         const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
                         return (
                           <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{pIndex + 1}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
                             <td className="px-4 py-3">
                               <div className="text-sm font-medium">{enName}</div>
