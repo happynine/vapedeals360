@@ -299,7 +299,8 @@ export default function HomePage() {
                                                 className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors">{t?.name}</h3>
                                             <div className="mt-2 flex items-baseline gap-2">
                                                 <span className="text-xl font-bold text-emerald-600 tabular-nums">${lowest?.current_price || "—"}</span>
-                                                {highestOrig && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>}
+                                                {highestOrig && product.prices.length >= 2 && <span className="text-xs text-emerald-600 font-medium ml-0.5">{language === "zh" ? "最低价" : "Lowest"}</span>}
+                                                {highestOrig && product.prices.length < 2 && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>}
                                             </div>
                                             <p className="mt-1 text-xs text-gray-500">
                                                 {product.prices.length} {language === "zh" ? "家商城比价" : "stores compared"}
@@ -476,7 +477,8 @@ export default function HomePage() {
                                     <div className="mt-2 flex items-baseline gap-2">
                                         <span className="text-2xl font-bold text-emerald-600 tabular-nums">${lowest?.current_price || "—"}
                                         </span>
-                                        {highestOrig && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}
+                                        {highestOrig && product.prices.length >= 2 && <span className="text-xs text-emerald-600 font-medium ml-0.5">{language === "zh" ? "最低价" : "Lowest"}</span>}
+                                        {highestOrig && product.prices.length < 2 && <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}
                                         </span>}
                                     </div>
                                     {}

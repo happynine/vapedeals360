@@ -244,9 +244,14 @@ export default function ProductDetailPage() {
                 <span className="text-4xl font-bold text-emerald-600 tabular-nums">
                   ${lowestPrice?.current_price || '—'}
                 </span>
-                {highestOriginal > 0 && (
+                {highestOriginal > 0 && product.prices.length < 2 && (
                   <span className="text-lg text-gray-400 line-through tabular-nums">
                     ${highestOriginal.toFixed(2)}
+                  </span>
+                )}
+                {highestOriginal > 0 && product.prices.length >= 2 && (
+                  <span className="text-xs text-emerald-600 font-medium ml-0.5">
+                    {language === 'zh' ? '最低价' : 'Lowest'}
                   </span>
                 )}
               </div>
