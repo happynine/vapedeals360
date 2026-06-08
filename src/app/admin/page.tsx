@@ -4016,7 +4016,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Description', '描述', lang)}</label>
-                        <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[40px]" />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
@@ -4027,7 +4027,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                           onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].features = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
                           rows={4}
                           placeholder={lang === 'zh' ? '每行输入一条特性\n例如：\n大烟雾量\n便携设计' : 'One feature per line\nExample:\nLarge vapor\nPortable design'}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[80px]"
                         />
                       </div>
                       <div>
@@ -4039,7 +4039,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                           onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].specs = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
                           rows={5}
                           placeholder={lang === 'zh' ? '每行输入一条规格\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'One spec per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[100px]"
                         />
                       </div>
                     </div>
