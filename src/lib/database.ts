@@ -152,8 +152,24 @@ export async function fetchProducts(options?: {
   if (featured) {
     query = query.eq('is_featured', true);
   }
-  if (sales_region && sales_region !== '不限地区') {
-    query = query.eq('sales_region', sales_region);
+  if (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') {
+    // Find store IDs that have this region in their regions array
+    const { data: storeData, error: storeError } = await client
+      .from('stores')
+      .select('id')
+      .contains('regions', [{ region: sales_region }]);
+    if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
+    const storeIds = (storeData || []).map((s: Record<string, unknown>) => s.id as number);
+    if (storeIds.length === 0) return [];
+    // Find product IDs that have prices from these stores
+    const { data: priceData, error: priceError } = await client
+      .from('product_prices')
+      .select('product_id')
+      .in('store_id', storeIds);
+    if (priceError) throw new Error(`Filter prices by store failed: ${priceError.message}`);
+    const productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    if (productIds.length === 0) return [];
+    query = query.in('id', productIds);
   }
 
   const { data, error } = await query;
@@ -240,8 +256,22 @@ export async function countProducts(category_id?: number, sales_region?: string,
   if (category_id) {
     query = query.eq('category_id', category_id);
   }
-  if (sales_region && sales_region !== '不限地区') {
-    query = query.eq('sales_region', sales_region);
+  if (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') {
+    const { data: storeData, error: storeError } = await client
+      .from('stores')
+      .select('id')
+      .contains('regions', [{ region: sales_region }]);
+    if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
+    const storeIds = (storeData || []).map((s: Record<string, unknown>) => s.id as number);
+    if (storeIds.length === 0) return 0;
+    const { data: priceData, error: priceError } = await client
+      .from('product_prices')
+      .select('product_id')
+      .in('store_id', storeIds);
+    if (priceError) throw new Error(`Filter prices by store failed: ${priceError.message}`);
+    const productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    if (productIds.length === 0) return 0;
+    query = query.in('id', productIds);
   }
   const { count, error } = await query;
   if (error) throw new Error(`Count products failed: ${error.message}`);

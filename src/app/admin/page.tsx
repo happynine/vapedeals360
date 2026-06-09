@@ -235,7 +235,7 @@ import('quill').then((mod) => {
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
 interface Category { id: number; slug: string; icon: string | null; sort_order: number; is_active: boolean; category_translations: CategoryTranslation[]; }
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
-interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; store_type: string; is_active: boolean; store_translations: StoreTranslation[]; }
+interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; store_type: string; is_active: boolean; regions: Array<{region: string; currency: string}>; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
@@ -1201,7 +1201,9 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (EN)', '名称 (英文)', adminLang)}</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (ZH)', '名称 (中文)', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Regions', '地区', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Currencies', '货币', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Website', '网址', adminLang)}</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
                       </tr>
@@ -1230,7 +1232,9 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'en')?.name || '—'}</td>
-                          <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'zh')?.name || '—'}</td>
+                          <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.region).join(', ') || '—' : '—'}</td>
+                          <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.currency).join(', ') || '—' : '—'}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-32" title={store.notes || ''}>{store.notes || '—'}</td>
                           <td className="px-4 py-3 text-sm text-accent truncate max-w-48">{store.website_url || '—'}</td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -3887,6 +3891,37 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
   const [websiteUrl, setWebsiteUrl] = useState(store?.website_url || '');
   const [storeType, setStoreType] = useState<'store' | 'official'>((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
   const [isActive, setIsActive] = useState(store?.is_active !== false);
+  const [regions, setRegions] = useState<Array<{region: string; currency: string}>>(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
+  const [notes, setNotes] = useState(store?.notes || '');
+  const [regionDropdownOpen, setRegionDropdownOpen] = useState(false);
+  const [regionDropdownIdx, setRegionDropdownIdx] = useState<number | null>(null);
+
+  const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Russia'];
+  const CURRENCY_OPTIONS = [
+    { value: '$', label: 'USD ($)' },
+    { value: '€', label: 'EUR (€)' },
+    { value: '£', label: 'GBP (£)' },
+    { value: 'Fr.', label: 'CHF (Fr.)' },
+    { value: '₽', label: 'RUB (₽)' },
+    { value: '¥', label: 'JPY (¥)' },
+    { value: '₩', label: 'KRW (₩)' },
+  ];
+  const DEFAULT_CURRENCY_MAP: Record<string, string> = { Global: '$', USA: '$', Canada: '$', UK: '£', Russia: '₽' };
+
+  const addRegion = () => {
+    setRegions([...regions, { region: '', currency: '' }]);
+  };
+  const removeRegion = (idx: number) => {
+    setRegions(regions.filter((_, i) => i !== idx));
+  };
+  const updateRegion = (idx: number, field: 'region' | 'currency', value: string) => {
+    const newRegions = [...regions];
+    newRegions[idx] = { ...newRegions[idx], [field]: value };
+    if (field === 'region') {
+      newRegions[idx].currency = DEFAULT_CURRENCY_MAP[value] || '';
+    }
+    setRegions(newRegions);
+  };
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
     store?.store_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || [
       { language: 'en', name: '' },
@@ -3908,6 +3943,8 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
         website_url: websiteUrl || null,
         store_type: storeType,
         is_active: isActive,
+        regions,
+        notes,
         translations,
       };
       const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -3963,6 +4000,65 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
               <div>
                 <label className="text-xs text-muted-foreground">{t('Website URL', '网站地址', lang)}</label>
                 <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
+                <div className="mt-1 space-y-2">
+                  {regions.map((r, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <button
+                          type="button"
+                          onClick={() => { setRegionDropdownOpen(regionDropdownOpen && regionDropdownIdx === idx ? false : true); setRegionDropdownIdx(idx); }}
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-left flex items-center justify-between"
+                        >
+                          <span>{r.region || t('Select Region', '选择地区', lang)}</span>
+                          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {regionDropdownOpen && regionDropdownIdx === idx && (
+                          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg">
+                            {REGION_OPTIONS.map((opt) => {
+                              const hasGlobal = regions.some((rr, ii) => ii !== idx && rr.region === 'Global');
+                              const disabled = (opt === 'Global' && regions.some((rr, ii) => ii !== idx && rr.region !== '')) || (opt !== 'Global' && hasGlobal) || regions.some((rr, ii) => ii !== idx && rr.region === opt);
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => { updateRegion(idx, 'region', opt); setRegionDropdownOpen(false); setRegionDropdownIdx(null); }}
+                                  className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'} ${r.region === opt ? 'bg-secondary' : ''}`}
+                                >
+                                  {r.region === opt && <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                  <span className={r.region === opt ? '' : 'ml-6'}>{opt}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <select
+                          value={r.currency}
+                          onChange={(e) => updateRegion(idx, 'currency', e.target.value)}
+                          className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                        >
+                          <option value="">{t('Currency', '货币', lang)}</option>
+                          {CURRENCY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                      </div>
+                      <button type="button" onClick={() => removeRegion(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addRegion} className="text-xs text-primary hover:underline">
+                    + {t('Add Sales Region', '添加售卖地区', lang)}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">{t('Notes', '备注', lang)}</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y" placeholder={t('Internal notes (not shown on frontend)', '内部备注（不在前端展示）', lang)} />
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />

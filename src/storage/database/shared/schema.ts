@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, index, unique, varchar, integer, boolean, foreignKey, numeric, text } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, index, unique, varchar, integer, boolean, foreignKey, numeric, text, jsonb } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -74,6 +74,8 @@ export const stores = pgTable("stores", {
 	logoUrl: text("logo_url"),
 	websiteUrl: text("website_url"),
 	storeType: varchar("store_type", { length: 20 }).default("store").notNull(),
+	regions: jsonb("regions").$type<Array<{region: string; currency: string}>>().default([]).notNull(),
+	notes: text("notes").default(""),
 	isActive: boolean("is_active").default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
