@@ -1238,7 +1238,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-sm text-accent truncate max-w-48">{store.website_url || '—'}</td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} />
+                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} />
                               <button onClick={() => handleDeleteStore(store.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                                 {t('Delete', '删除', adminLang)}
                               </button>
