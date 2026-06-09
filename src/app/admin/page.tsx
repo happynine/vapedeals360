@@ -969,11 +969,11 @@ export default function AdminPage() {
                     <button
                       onClick={async () => {
                         const newHidden = !lang.is_hidden;
-                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_hidden: newHidden } : l));
+                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_hidden: newHidden, is_active: newHidden ? false : l.is_active } : l));
                         await adminFetch('/api/admin/languages', {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: lang.id, is_hidden: newHidden }),
+                          body: JSON.stringify({ id: lang.id, is_hidden: newHidden, is_active: newHidden ? false : lang.is_active }),
                         });
                       }}
                       className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_hidden ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
@@ -983,11 +983,11 @@ export default function AdminPage() {
                     <button
                       onClick={async () => {
                         const newActive = !lang.is_active;
-                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_active: newActive } : l));
+                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_active: newActive, is_hidden: newActive ? false : l.is_hidden } : l));
                         await adminFetch('/api/admin/languages', {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: lang.id, is_active: newActive }),
+                          body: JSON.stringify({ id: lang.id, is_active: newActive, is_hidden: newActive ? false : lang.is_hidden }),
                         });
                       }}
                       className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_active ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}

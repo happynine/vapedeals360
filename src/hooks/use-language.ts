@@ -20,6 +20,11 @@ const DEFAULT_LANGUAGES: LanguageInfo[] = [
 let languagesCache: LanguageInfo[] | null = null;
 let languagesFetchPromise: Promise<LanguageInfo[]> | null = null;
 
+export function invalidateLanguagesCache() {
+  languagesCache = null;
+  languagesFetchPromise = null;
+}
+
 export async function fetchActiveLanguages(): Promise<LanguageInfo[]> {
   if (languagesCache) return languagesCache;
   if (languagesFetchPromise) return languagesFetchPromise;
@@ -28,9 +33,16 @@ export async function fetchActiveLanguages(): Promise<LanguageInfo[]> {
     try {
       const res = await fetch('/api/languages');
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          languagesCache = data.filter((l: LanguageInfo) => l.is_active);
+        const json = await res.json();
+        const langs = json.data || json;
+        if (Array.isArray(langs) && langs.length > 0) {
+          languagesCache = langs.map((l: { code: string; name: string }) => ({
+            code: l.code,
+            name: l.name,
+            is_active: true,
+            is_hidden: false,
+            sort_order: 0,
+          }));
           return languagesCache;
         }
       }
@@ -58,7 +70,17 @@ export function useLanguage() {
 
   // Load active languages from API
   useEffect(() => {
-    fetchActiveLanguages().then(setActiveLanguages);
+    invalidateLanguagesCache();
+    fetchActiveLanguages().then((langs) => {
+      setActiveLanguages(langs);
+      // If current language is no longer available, switch to first available
+      setLanguageState(prev => {
+        if (prev && langs.some(l => l.code === prev)) return prev;
+        const first = langs[0]?.code || 'en';
+        localStorage.setItem('language', first);
+        return first;
+      });
+    });
   }, []);
 
   // Initialize from localStorage on mount
