@@ -4146,7 +4146,20 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
               />
               <div>
                 <label className="text-xs text-muted-foreground">{t('Website URL', '网站地址', lang)}</label>
-                <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                {websiteUrl ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                    <button type="button" onClick={() => setWebsiteUrl('')} className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    <button type="button" onClick={() => setWebsiteUrl('https://')} className="text-xs text-primary hover:underline">
+                      + {t('Add Website URL', '添加网站地址', lang)}
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
