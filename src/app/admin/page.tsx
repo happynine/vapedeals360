@@ -420,6 +420,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
   const [languages, setLanguages] = useState<Language[]>(DEFAULT_LANGUAGES);
+  const [langEditing, setLangEditing] = useState(false);
   const activeLanguages = useMemo(() => languages.filter(l => l.is_active && !l.is_hidden).sort((a, b) => a.sort_order - b.sort_order), [languages]);
 
   // Fetch all data
@@ -918,28 +919,47 @@ export default function AdminPage() {
                     <h3 className="text-lg font-semibold">{t('Languages', '语言管理', adminLang)}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{t('Manage site languages. Active languages will appear in frontend language selector and determine translation fields in forms.', '管理网站语言。启用的语言将出现在前台语言选择器中，并决定表单中的翻译字段。', adminLang)}</p>
                   </div>
-                  <button
-                    onClick={async () => {
-                      const code = prompt(t('Enter language code (e.g. ja, ko, fr):', '输入语言代码（如 ja, ko, fr）:', adminLang));
-                      if (!code?.trim()) return;
-                      const name = prompt(t('Enter language display name (e.g. Japanese):', '输入语言显示名称（如 日语）:', adminLang));
-                      if (!name?.trim()) return;
-                      const res = await adminFetch('/api/admin/languages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code: code.trim().toLowerCase(), name: name.trim(), is_active: true, sort_order: languages.length }),
-                      });
-                      const json = await res.json();
-                      if (json.success) {
-                        setLanguages(prev => [...prev, json.data]);
-                      } else {
-                        alert(json.error || t('Failed to add language', '添加语言失败', adminLang));
-                      }
-                    }}
-                    className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    + {t('Add Language', '添加语言', adminLang)}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {langEditing ? (
+                      <>
+                        <button
+                          onClick={async () => {
+                            const code = prompt(t('Enter language code (e.g. ja, ko, fr):', '输入语言代码（如 ja, ko, fr）:', adminLang));
+                            if (!code?.trim()) return;
+                            const name = prompt(t('Enter language display name (e.g. Japanese):', '输入语言显示名称（如 日语）:', adminLang));
+                            if (!name?.trim()) return;
+                            const res = await adminFetch('/api/admin/languages', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ code: code.trim().toLowerCase(), name: name.trim(), is_active: true, sort_order: languages.length }),
+                            });
+                            const json = await res.json();
+                            if (json.success) {
+                              setLanguages(prev => [...prev, json.data]);
+                            } else {
+                              alert(json.error || t('Failed to add language', '添加语言失败', adminLang));
+                            }
+                          }}
+                          className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                        >
+                          + {t('Add Language', '添加语言', adminLang)}
+                        </button>
+                        <button
+                          onClick={() => setLangEditing(false)}
+                          className="rounded-lg bg-gray-200 dark:bg-gray-700 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                        >
+                          {t('Done', '完成', adminLang)}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setLangEditing(true)}
+                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                      >
+                        {t('Edit', '编辑', adminLang)}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {languages.length === 0 && (
@@ -949,66 +969,81 @@ export default function AdminPage() {
                 {languages.sort((a, b) => a.sort_order - b.sort_order).map((lang) => (
                   <div key={lang.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
                     <span className="text-sm font-medium uppercase min-w-[36px]">{lang.code}</span>
-                    <input
-                      value={lang.name}
-                      onChange={async (e) => {
-                        const newName = e.target.value;
-                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, name: newName } : l));
-                      }}
-                      onBlur={async () => {
-                        const current = languages.find(l => l.id === lang.id);
-                        if (!current) return;
-                        await adminFetch('/api/admin/languages', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: lang.id, name: current.name }),
-                        });
-                      }}
-                      className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <button
-                      onClick={async () => {
-                        const newHidden = !lang.is_hidden;
-                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_hidden: newHidden, is_active: newHidden ? false : l.is_active } : l));
-                        await adminFetch('/api/admin/languages', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: lang.id, is_hidden: newHidden, is_active: newHidden ? false : lang.is_active }),
-                        });
-                      }}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_hidden ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
-                    >
-                      {lang.is_hidden ? t('Hidden', '已隐藏', adminLang) : t('Hide', '隐藏', adminLang)}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const newActive = !lang.is_active;
-                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_active: newActive, is_hidden: newActive ? false : l.is_hidden } : l));
-                        await adminFetch('/api/admin/languages', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: lang.id, is_active: newActive, is_hidden: newActive ? false : lang.is_hidden }),
-                        });
-                      }}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_active ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
-                    >
-                      {lang.is_active ? t('Active', '启用', adminLang) : t('Inactive', '停用', adminLang)}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!confirm(t('Delete this language? This may affect existing translations.', '确定删除此语言？这可能会影响现有翻译。', adminLang))) return;
-                        const res = await adminFetch(`/api/admin/languages?id=${lang.id}`, { method: 'DELETE' });
-                        const json = await res.json();
-                        if (json.success) {
-                          setLanguages(prev => prev.filter(l => l.id !== lang.id));
-                        } else {
-                          alert(json.error || t('Delete failed', '删除失败', adminLang));
-                        }
-                      }}
-                      className="p-1 rounded hover:bg-red-950/50 text-red-400 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {langEditing ? (
+                      <>
+                        <input
+                          value={lang.name}
+                          onChange={async (e) => {
+                            const newName = e.target.value;
+                            setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, name: newName } : l));
+                          }}
+                          onBlur={async () => {
+                            const current = languages.find(l => l.id === lang.id);
+                            if (!current) return;
+                            await adminFetch('/api/admin/languages', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: lang.id, name: current.name }),
+                            });
+                          }}
+                          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <button
+                          onClick={async () => {
+                            const newHidden = !lang.is_hidden;
+                            setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_hidden: newHidden, is_active: newHidden ? false : l.is_active } : l));
+                            await adminFetch('/api/admin/languages', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: lang.id, is_hidden: newHidden, is_active: newHidden ? false : lang.is_active }),
+                            });
+                          }}
+                          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_hidden ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
+                        >
+                          {lang.is_hidden ? t('Hidden', '已隐藏', adminLang) : t('Hide', '隐藏', adminLang)}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const newActive = !lang.is_active;
+                            setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_active: newActive, is_hidden: newActive ? false : l.is_hidden } : l));
+                            await adminFetch('/api/admin/languages', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: lang.id, is_active: newActive, is_hidden: newActive ? false : lang.is_hidden }),
+                            });
+                          }}
+                          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_active ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
+                        >
+                          {lang.is_active ? t('Active', '启用', adminLang) : t('Inactive', '停用', adminLang)}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(t('Delete this language? This may affect existing translations.', '确定删除此语言？这可能会影响现有翻译。', adminLang))) return;
+                            const res = await adminFetch(`/api/admin/languages?id=${lang.id}`, { method: 'DELETE' });
+                            const json = await res.json();
+                            if (json.success) {
+                              setLanguages(prev => prev.filter(l => l.id !== lang.id));
+                            } else {
+                              alert(json.error || t('Delete failed', '删除失败', adminLang));
+                            }
+                          }}
+                          className="p-1 rounded hover:bg-red-950/50 text-red-400 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm">{lang.name}</span>
+                        {lang.is_hidden ? (
+                          <span className="rounded-md px-3 py-1.5 text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-700">{t('Hidden', '已隐藏', adminLang)}</span>
+                        ) : lang.is_active ? (
+                          <span className="rounded-md px-3 py-1.5 text-xs font-medium bg-green-900/50 text-green-400 border border-green-700">{t('Active', '启用', adminLang)}</span>
+                        ) : (
+                          <span className="rounded-md px-3 py-1.5 text-xs font-medium bg-gray-800 text-gray-500 border border-gray-600">{t('Inactive', '停用', adminLang)}</span>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
