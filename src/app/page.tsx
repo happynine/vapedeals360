@@ -134,7 +134,7 @@ export default function HomePage() {
     const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
     const [banners, setBanners] = useState<Banner[]>([]);
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
-    const [salesRegion, setSalesRegion] = useState<string>("All Regions");
+    const [salesRegion, setSalesRegion] = useState<string>("USA");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -154,7 +154,7 @@ export default function HomePage() {
                 params.set("search", searchQuery);
             }
 
-            if (salesRegion && salesRegion !== "All Regions") {
+            if (salesRegion) {
                 params.set("sales_region", salesRegion);
             }
 
@@ -317,7 +317,28 @@ export default function HomePage() {
                 </div>}
                 {}
                 <div className="mb-6 space-y-3">
-                    {/* Row 1: Type */}
+                    {/* Row 1: Region */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
+                        {(["USA", "UK", "Canada", "Russia", "Global"] as const).map((region) => {
+                            const regionLabels: Record<string, string> = {
+                                "Global": language === "zh" ? "全球" : "Global",
+                                "USA": language === "zh" ? "美国" : "USA",
+                                "Canada": language === "zh" ? "加拿大" : "Canada",
+                                "UK": language === "zh" ? "英国" : "UK",
+                                "Russia": language === "zh" ? "俄罗斯" : "Russia",
+                            };
+                            return (
+                            <button
+                                key={region}
+                                onClick={() => { setSalesRegion(region); setPage(1); }}
+                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                {regionLabels[region]}
+                            </button>
+                            );
+                        })}
+                    </div>
+                    {/* Row 2: Type */}
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "类型" : "Type"}</span>
                         <button
@@ -344,7 +365,7 @@ export default function HomePage() {
                             );
                         })}
                     </div>
-                    {/* Row 2: Sort By */}
+                    {/* Row 3: Sort By */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
                         <button
@@ -362,28 +383,6 @@ export default function HomePage() {
                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                             {language === "zh" ? "价格从高到低" : "Price High To Low"}
                         </button>
-                    </div>
-                    {/* Row 3: Region */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-                        {(["All Regions", "Global", "USA", "Canada", "UK", "Russia"] as const).map((region) => {
-                            const regionLabels: Record<string, string> = {
-                                "All Regions": language === "zh" ? "不限地区" : "All Regions",
-                                "Global": language === "zh" ? "全球" : "Global",
-                                "USA": language === "zh" ? "美国" : "USA",
-                                "Canada": language === "zh" ? "加拿大" : "Canada",
-                                "UK": language === "zh" ? "英国" : "UK",
-                                "Russia": language === "zh" ? "俄罗斯" : "Russia",
-                            };
-                            return (
-                            <button
-                                key={region}
-                                onClick={() => { setSalesRegion(region); setPage(1); }}
-                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                                {regionLabels[region]}
-                            </button>
-                            );
-                        })}
                     </div>
                 </div>
                 {searchQuery && !loading && (
