@@ -152,16 +152,25 @@ export async function fetchProducts(options?: {
   if (featured) {
     query = query.eq('is_featured', true);
   }
-  if (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') {
-    // Find store IDs that have this region in their regions array
+  // Track the active sales_region for price filtering
+  const activeRegion = (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') ? sales_region : null;
+
+  // Fetch stores for region filtering if needed (reused later for storeRegionMap)
+  let allStores: Record<string, unknown>[] | null = null;
+  if (activeRegion) {
     const { data: storeData, error: storeError } = await client
       .from('stores')
-      .select('id')
-      .contains('regions', [{ region: sales_region }]);
+      .select('id, regions');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
-    const storeIds = (storeData || []).map((s: Record<string, unknown>) => s.id as number);
+    allStores = (storeData || []) as Record<string, unknown>[];
+    const storeIds = allStores
+      .filter((s: Record<string, unknown>) => {
+        const regions = s.regions as { region: string; currency: string }[] | null;
+        return Array.isArray(regions) && regions.some(r => r.region === activeRegion);
+      })
+      .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return [];
-    // Find product IDs that have prices from these stores
+    // Find product IDs that have prices from these stores (include prices with or without region)
     const { data: priceData, error: priceError } = await client
       .from('product_prices')
       .select('product_id')
@@ -175,10 +184,36 @@ export async function fetchProducts(options?: {
   const { data, error } = await query;
   if (error) throw new Error(`Fetch products failed: ${error.message}`);
 
+  // Build a map of store regions for currency filtering
+  let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
+  if (activeRegion && allStores) {
+    for (const s of allStores) {
+      const regions = s.regions as { region: string; currency: string }[] | null;
+      if (Array.isArray(regions) && regions.some(r => r.region === activeRegion)) {
+        storeRegionMap[s.id as number] = regions;
+      }
+    }
+  }
+
   return (data || []).map((product: Record<string, unknown>) => ({
     ...product,
     translations: product.product_translations as ProductTranslation[],
-    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => {
+    prices: (product.product_prices as Record<string, unknown>[] || [])
+      .filter((p) => {
+        if (!activeRegion) return true;
+        const pStoreId = (p as Record<string, unknown>).store_id as number;
+        const pRegion = (p as Record<string, unknown>).region as string | null;
+        // Include prices that match the region, or have no region set (backward compat)
+        if (pRegion === activeRegion) return true;
+        if (!pRegion) {
+          // For prices without region, check if the store only has one region (backward compat)
+          const storeRegions = storeRegionMap[pStoreId];
+          if (storeRegions && storeRegions.length === 1 && storeRegions[0].region === activeRegion) return true;
+          return false;
+        }
+        return false;
+      })
+      .map((p) => {
       const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
       return {
         ...p,
@@ -257,13 +292,19 @@ export async function countProducts(category_id?: number, sales_region?: string,
     query = query.eq('category_id', category_id);
   }
   if (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') {
+    // Cannot use .contains() or .like() on jsonb column, fetch and filter in JS
     const { data: storeData, error: storeError } = await client
       .from('stores')
-      .select('id')
-      .contains('regions', [{ region: sales_region }]);
+      .select('id, regions');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
-    const storeIds = (storeData || []).map((s: Record<string, unknown>) => s.id as number);
+    const storeIds = (storeData || [])
+      .filter((s: Record<string, unknown>) => {
+        const regions = s.regions as { region: string; currency: string }[] | null;
+        return Array.isArray(regions) && regions.some(r => r.region === sales_region);
+      })
+      .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return 0;
+    // Include all prices from these stores (with or without region) for counting
     const { data: priceData, error: priceError } = await client
       .from('product_prices')
       .select('product_id')
