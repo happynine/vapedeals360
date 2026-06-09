@@ -30,11 +30,11 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { slug, logo_url, website_url, is_active, store_type, regions, notes, translations } = body;
+    const { slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
 
     const { data: store, error: storeError } = await client
       .from('stores')
-      .insert({ slug, logo_url, website_url, is_active: is_active !== false, store_type: store_type || 'store', regions: regions || [], notes: notes || '' })
+      .insert({ slug, logo_url, website_url, website_urls: website_urls || [], is_active: is_active !== false, store_type: store_type || 'store', regions: regions || [], notes: notes || '' })
       .select()
       .single();
     if (storeError) throw new Error(`Create store failed: ${storeError.message}`);
@@ -64,11 +64,11 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { id, slug, logo_url, website_url, is_active, store_type, regions, notes, translations } = body;
+    const { id, slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
 
     const { data: store, error: storeError } = await client
       .from('stores')
-      .update({ slug, logo_url, website_url, is_active, store_type, regions, notes, updated_at: new Date().toISOString() })
+      .update({ slug, logo_url, website_url, website_urls: website_urls || [], is_active, store_type, regions, notes, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();

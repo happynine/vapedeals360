@@ -235,7 +235,7 @@ import('quill').then((mod) => {
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
 interface Category { id: number; slug: string; icon: string | null; sort_order: number; is_active: boolean; category_translations: CategoryTranslation[]; }
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
-interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; store_type: string; is_active: boolean; regions: Array<{region: string; currency: string}>; notes: string; store_translations: StoreTranslation[]; }
+interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; website_urls: Array<{url: string; label?: string}>; store_type: string; is_active: boolean; regions: Array<{region: string; currency: string}>; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
@@ -1384,7 +1384,18 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.region).join(', ') || '—' : '—'}</td>
                           <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.currency).join(', ') || '—' : '—'}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-32" title={store.notes || ''}>{store.notes || '—'}</td>
-                          <td className="px-4 py-3 text-sm truncate max-w-48">{store.website_url ? <a href={store.website_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{store.website_url}</a> : '—'}</td>
+                          <td className="px-4 py-3 text-sm truncate max-w-48">
+                            {Array.isArray(store.website_urls) && store.website_urls.length > 0
+                              ? store.website_urls.map((w: {url: string; label?: string}, i: number) => (
+                                  <a key={i} href={w.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline block truncate">
+                                    {w.label ? `${w.label}: ${w.url}` : w.url}
+                                  </a>
+                                ))
+                              : store.website_url
+                                ? <a href={store.website_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{store.website_url}</a>
+                                : '—'
+                            }
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
@@ -4028,7 +4039,11 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(store?.slug || '');
   const [logoKey, setLogoKey] = useState(store?.logo_key || store?.logo_url || '');
-  const [websiteUrl, setWebsiteUrl] = useState(store?.website_url || '');
+  const [websiteUrls, setWebsiteUrls] = useState<Array<{url: string; label?: string}>>(() => {
+    if (Array.isArray(store?.website_urls) && store.website_urls.length > 0) return store.website_urls;
+    if (store?.website_url) return [{ url: store.website_url }];
+    return [];
+  });
   const [storeType, setStoreType] = useState<'store' | 'official'>((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
   const [isActive, setIsActive] = useState(store?.is_active !== false);
   const [regions, setRegions] = useState<Array<{region: string; currency: string}>>(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
@@ -4087,7 +4102,8 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
         id: store?.id,
         slug,
         logo_url: logoKey || null,
-        website_url: websiteUrl || null,
+        website_url: websiteUrls.length > 0 ? websiteUrls[0].url : null,
+        website_urls: websiteUrls,
         store_type: storeType,
         is_active: isActive,
         regions,
@@ -4146,20 +4162,38 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
               />
               <div>
                 <label className="text-xs text-muted-foreground">{t('Website URL', '网站地址', lang)}</label>
-                {websiteUrl ? (
-                  <div className="mt-1 flex items-center gap-2">
-                    <input value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://..." className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
-                    <button type="button" onClick={() => setWebsiteUrl('')} className="p-1 rounded hover:bg-destructive/10 text-destructive">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-1">
-                    <button type="button" onClick={() => setWebsiteUrl('https://')} className="text-xs text-primary hover:underline">
-                      + {t('Add Website URL', '添加网站地址', lang)}
-                    </button>
-                  </div>
-                )}
+                <div className="mt-1 space-y-2">
+                  {websiteUrls.map((w, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        value={w.url}
+                        onChange={(e) => {
+                          const newUrls = [...websiteUrls];
+                          newUrls[idx] = { ...newUrls[idx], url: e.target.value };
+                          setWebsiteUrls(newUrls);
+                        }}
+                        placeholder="https://..."
+                        className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={w.label || ''}
+                        onChange={(e) => {
+                          const newUrls = [...websiteUrls];
+                          newUrls[idx] = { ...newUrls[idx], label: e.target.value };
+                          setWebsiteUrls(newUrls);
+                        }}
+                        placeholder={t('Label', '标签', lang)}
+                        className="w-24 rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                      />
+                      <button type="button" onClick={() => setWebsiteUrls(websiteUrls.filter((_, i) => i !== idx))} className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setWebsiteUrls([...websiteUrls, { url: '', label: '' }])} className="text-xs text-primary hover:underline">
+                    + {t('Add Website URL', '添加网站地址', lang)}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
