@@ -332,6 +332,7 @@ export default function AdminPage() {
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [siteEditing, setSiteEditing] = useState(false);
   const [socialLinks, setSocialLinks] = useState<Array<{ id: number; platform: string; url: string; icon: string | null; sort_order: number; is_active: boolean }>>([]);
   const [editingSocial, setEditingSocial] = useState<{ id: number | null; platform: string; url: string; sort_order: number }>({ id: null, platform: '', url: '', sort_order: 0 });
   const [showSocialForm, setShowSocialForm] = useState(false);
@@ -695,45 +696,83 @@ export default function AdminPage() {
               ) : (
                 <>
               <h2 className="text-2xl font-bold mb-6">{t('Site Settings', '站点设置', adminLang)}</h2>
-              <div className="bg-card rounded-xl border border-border p-6 space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">{t('Site Name', '网站名称', adminLang)}</label>
-                  <input
-                    type="text"
-                    value={editSiteName}
-                    onChange={(e) => setEditSiteName(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder={t('Enter site name', '输入网站名称', adminLang)}
-                  />
+              <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('Site Name & Logo', '网站名称与Logo', adminLang)}</h3>
+                  {!siteEditing ? (
+                    <button
+                      onClick={() => setSiteEditing(true)}
+                      className="text-xs px-3 py-1 rounded-md border border-border hover:bg-secondary transition-colors"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSiteEditing(false);
+                        // Revert to saved values
+                        setEditSiteName(adminSiteSettings?.site_name || '');
+                        setEditSiteLogo(adminSiteSettings?.logo_url || null);
+                      }}
+                      className="text-xs px-3 py-1 rounded-md border border-border hover:bg-secondary transition-colors"
+                    >
+                      Done
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    {t('Site Logo', '网站 Logo', adminLang)}
-                    <span className="ml-2 text-xs text-muted-foreground">({t('Recommended: 36x36px, 1:1 ratio', '建议尺寸: 36x36px, 1:1 比例', adminLang)})</span>
-                  </label>
-                  <ImageUpload
-                    value={editSiteLogo}
-                    onChange={setEditSiteLogo}
-                    aspectRatio={1}
-                    recommendedSize="36x36px"
-                    label={t('Logo', 'Logo', adminLang)}
-                    lang={adminLang}
-                  />
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <button
-                    onClick={async () => {
-                      setShowSaveConfirm(true);
-                    }}
-                    className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
-                      editSiteName !== (adminSiteSettings?.site_name || '') || editSiteLogo !== (adminSiteSettings?.logo_url || null)
-                        ? 'bg-purple-600 text-white hover:bg-purple-700 ring-2 ring-purple-400/50'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    }`}
-                  >
-                    {t('Save Settings', '保存设置', adminLang)}
-                  </button>
-                </div>
+                {!siteEditing ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      {adminSiteSettings?.logo_url ? (
+                        <img src={adminSiteSettings.logo_url} alt="Logo" className="w-9 h-9 rounded object-contain border border-border" />
+                      ) : (
+                        <div className="w-9 h-9 rounded border border-border bg-secondary flex items-center justify-center text-muted-foreground text-xs">N/A</div>
+                      )}
+                      <span className="text-sm font-medium">{adminSiteSettings?.site_name || '—'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">{t('Site Name', '网站名称', adminLang)}</label>
+                      <input
+                        type="text"
+                        value={editSiteName}
+                        onChange={(e) => setEditSiteName(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder={t('Enter site name', '输入网站名称', adminLang)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {t('Site Logo', '网站 Logo', adminLang)}
+                        <span className="ml-2 text-xs text-muted-foreground">({t('Recommended: 36x36px, 1:1 ratio', '建议尺寸: 36x36px, 1:1 比例', adminLang)})</span>
+                      </label>
+                      <ImageUpload
+                        value={editSiteLogo}
+                        onChange={setEditSiteLogo}
+                        aspectRatio={1}
+                        recommendedSize="36x36px"
+                        label={t('Logo', 'Logo', adminLang)}
+                        lang={adminLang}
+                      />
+                    </div>
+                    <div className="pt-2 flex gap-3">
+                      <button
+                        onClick={async () => {
+                          setShowSaveConfirm(true);
+                        }}
+                        className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+                          editSiteName !== (adminSiteSettings?.site_name || '') || editSiteLogo !== (adminSiteSettings?.logo_url || null)
+                            ? 'bg-purple-600 text-white hover:bg-purple-700 ring-2 ring-purple-400/50'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        }`}
+                      >
+                        {t('Save Settings', '保存设置', adminLang)}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Save Confirmation Dialog */}
                 {showSaveConfirm && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
