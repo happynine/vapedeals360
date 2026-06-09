@@ -304,12 +304,13 @@ export default function ProductDetailPage() {
           </h2>
           <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
             {/* Table Header - hidden on mobile, shown on md+ */}
-            <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              <div className="col-span-4">{language === 'zh' ? '商城' : 'Store'}</div>
-              <div className="col-span-2 text-center">{language === 'zh' ? '现价' : 'Price'}</div>
-              <div className="col-span-2 text-center">{language === 'zh' ? '原价' : 'Original'}</div>
-              <div className="col-span-2 text-center">{language === 'zh' ? '折扣' : 'Discount'}</div>
-              <div className="col-span-2 text-center">{language === 'zh' ? '操作' : 'Action'}</div>
+            <div className="hidden md:grid grid-cols-14 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr' }}>
+              <div>{language === 'zh' ? '商城' : 'Store'}</div>
+              <div className="text-center">{language === 'zh' ? '现价' : 'Price'}</div>
+              <div className="text-center">{language === 'zh' ? '原价' : 'Original'}</div>
+              <div className="text-center">{language === 'zh' ? '折扣' : 'Discount'}</div>
+              <div className="text-center">{language === 'zh' ? '类型' : 'Type'}</div>
+              <div className="text-center">{language === 'zh' ? '操作' : 'Action'}</div>
             </div>
             {/* Table Rows */}
             {sortedPrices.map((price, idx) => {
@@ -323,8 +324,8 @@ export default function ProductDetailPage() {
                   className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? 'bg-emerald-50/50' : ''}`}
                 >
                   {/* Desktop row */}
-                  <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-4 items-center">
-                    <div className="col-span-4 flex items-center gap-3">
+                  <div className="hidden md:grid gap-4 px-5 py-4 items-center" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr' }}>
+                    <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
                         {price.store?.logo_url ? (
                           <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
@@ -341,19 +342,19 @@ export default function ProductDetailPage() {
                         )}
                       </div>
                     </div>
-                    <div className="col-span-2 text-center">
+                    <div className="text-center">
                       <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                         ${price.current_price}
                       </span>
                     </div>
-                    <div className="col-span-2 text-center">
+                    <div className="text-center">
                       {price.original_price ? (
                         <span className="text-sm text-gray-400 line-through tabular-nums">${price.original_price}</span>
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
                     </div>
-                    <div className="col-span-2 text-center">
+                    <div className="text-center">
                       {priceDiscount ? (
                         <span className="inline-block rounded-md bg-red-50 px-2 py-0.5 text-sm font-semibold text-red-600">
                           -{priceDiscount}%
@@ -361,11 +362,13 @@ export default function ProductDetailPage() {
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
-                      <span className="ml-1.5 text-sm text-gray-400">
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm text-gray-400">
                         {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                       </span>
                     </div>
-                    <div className="col-span-2 text-center">
+                    <div className="text-center">
                       <a
                         href={price.product_url}
                         target="_blank"
@@ -415,17 +418,19 @@ export default function ProductDetailPage() {
                             -{priceDiscount}%
                           </span>
                         ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {price.original_price ? (
+                          <span className="text-xs text-gray-400 line-through tabular-nums">${price.original_price}</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                         <span className="text-sm text-gray-400">
                           {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                         </span>
                       </div>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      {price.original_price ? (
-                        <span className="text-xs text-gray-400 line-through tabular-nums">${price.original_price}</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
                       <a
                         href={price.product_url}
                         target="_blank"
