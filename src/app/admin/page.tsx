@@ -971,25 +971,7 @@ export default function AdminPage() {
                     <span className="text-sm font-medium uppercase min-w-[36px]">{lang.code}</span>
                     {langEditing ? (
                       <>
-                        <input
-                          value={lang.name || ''}
-                          onChange={(e) => {
-                            const newName = e.target.value;
-                            setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, name: newName } : l));
-                          }}
-                          onBlur={async () => {
-                            const current = languages.find(l => l.id === lang.id);
-                            if (!current?.name) return;
-                            try {
-                              await adminFetch('/api/admin/languages', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: lang.id, name: current.name }),
-                              });
-                            } catch {}
-                          }}
-                          className="flex-1 rounded-md border border-input bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
+                        <span className="flex-1 text-sm font-medium">{lang.name}</span>
                         <button
                           onClick={async () => {
                             const newHidden = !lang.is_hidden;
