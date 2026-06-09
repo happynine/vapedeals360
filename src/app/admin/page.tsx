@@ -4266,82 +4266,131 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
               {/* Prices */}
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Store Prices', '商城价格', lang)}</h3>
-                {prices.map((p, idx) => {
-                  const currencyLabel = p.currency || '$';
-                  return (
-                    <div key={idx} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}{p.region ? ` - ${p.region}` : ''}</label>
+                {(() => {
+                  // Group prices by store_id
+                  const storeGroups: Array<{ storeId: string; indices: number[] }> = [];
+                  prices.forEach((p, idx) => {
+                    const gid = p.store_id || '__empty__' + idx;
+                    let group = storeGroups.find(g => g.storeId === (p.store_id || '__empty__' + idx));
+                    if (!group) {
+                      group = { storeId: gid, indices: [] };
+                      storeGroups.push(group);
+                    }
+                    group.indices.push(idx);
+                  });
+                  return storeGroups.map((group) => {
+                    const firstP = prices[group.indices[0]];
+                    const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
+                    const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
+                    const hasMultipleCurrencies = group.indices.length > 1 || storeRegions.length > 1;
+                    return (
+                      <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
+                        <div className="mb-2">
+                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
                           <StoreSelect
                             stores={stores}
-                            value={p.store_id}
+                            value={firstP.store_id}
                             lang={lang}
                             onChange={(val) => {
                               const newP = [...prices];
                               const s = stores.find(st => st.id === Number(val));
                               const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
-                              newP[idx].store_id = val;
-                              if (sRegions.length === 1) {
-                                newP[idx].currency = sRegions[0].currency || '$';
-                                newP[idx].region = sRegions[0].region || '';
-                              } else if (sRegions.length > 1) {
-                                // For multi-region stores, replace this entry with first region
-                                // and add additional entries for other regions
-                                const firstRegion = sRegions[0];
-                                newP[idx].currency = firstRegion.currency || '$';
-                                newP[idx].region = firstRegion.region || '';
-                                newP[idx].current_price = '';
-                                newP[idx].original_price = '';
-                                newP[idx].discount_percent = '';
-                                newP[idx].product_url = '';
-                                // Add entries for remaining regions
-                                for (let ri = 1; ri < sRegions.length; ri++) {
-                                  newP.splice(idx + ri, 0, {
+                              // Remove all existing entries for this store group
+                              const removeIndices = group.indices;
+                              const remaining = newP.filter((_, i) => !removeIndices.includes(i));
+                              if (sRegions.length <= 1) {
+                                const r = sRegions[0] || { region: '', currency: '$' };
+                                remaining.push({
+                                  store_id: val,
+                                  current_price: '',
+                                  original_price: '',
+                                  product_url: '',
+                                  discount_percent: '',
+                                  currency: r.currency,
+                                  region: r.region,
+                                });
+                              } else {
+                                for (const sr of sRegions) {
+                                  remaining.push({
                                     store_id: val,
                                     current_price: '',
                                     original_price: '',
                                     product_url: '',
                                     discount_percent: '',
-                                    currency: sRegions[ri].currency || '$',
-                                    region: sRegions[ri].region || '',
+                                    currency: sr.currency || '$',
+                                    region: sr.region || '',
                                   });
                                 }
-                              } else {
-                                newP[idx].currency = '$';
-                                newP[idx].region = '';
                               }
-                              setPrices(newP);
+                              setPrices(remaining);
                             }}
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
-                          <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[idx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                        </div>
+                        {hasMultipleCurrencies ? (
+                          <div className="space-y-2">
+                            {group.indices.map((pIdx) => {
+                              const p = prices[pIdx];
+                              const currencyLabel = p.currency || '$';
+                              return (
+                                <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
+                                  <div className="text-xs font-medium text-primary mb-1.5">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
+                                  <div className="grid grid-cols-2 gap-2 mb-1.5">
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
+                                      <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
+                                      <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                                      <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[pIdx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                                      <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[pIdx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="grid grid-cols-2 gap-2 mb-1.5">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({firstP.currency || '$'})</label>
+                                <input value={firstP.current_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({firstP.currency || '$'})</label>
+                                <input value={firstP.original_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                                <input value={firstP.discount_percent} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                                <input value={firstP.product_url} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {prices.length > 1 && (
+                          <button onClick={() => setPrices(prices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
+                            {t('Remove Store', '移除商城', lang)}
+                          </button>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
-                          <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[idx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
-                          <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[idx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
-                          <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[idx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
-                        </div>
-                      </div>
-                      {prices.length > 1 && (
-                        <button onClick={() => setPrices(prices.filter((_, i) => i !== idx))} className="mt-2 text-[10px] text-destructive hover:underline">
-                          {t('Remove', '移除', lang)}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
                 <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格', lang)}
                 </button>
