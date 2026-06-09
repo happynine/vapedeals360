@@ -345,9 +345,6 @@ export default function ProductDetailPage() {
                       <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                         ${price.current_price}
                       </span>
-                      <span className="ml-1 text-sm text-gray-400">
-                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
-                      </span>
                     </div>
                     <div className="col-span-2 text-center">
                       {price.original_price ? (
@@ -364,6 +361,9 @@ export default function ProductDetailPage() {
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
+                      <span className="ml-1.5 text-sm text-gray-400">
+                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
+                      </span>
                     </div>
                     <div className="col-span-2 text-center">
                       <a
@@ -379,7 +379,7 @@ export default function ProductDetailPage() {
                         }}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-800 transition-all hover:scale-105"
                       >
-                        {language === 'zh' ? '前往购买' : 'Visit Store'}
+                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '前往官网' : 'Visit Official') : (language === 'zh' ? '前往购买' : 'Visit Store')}
                         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
                     </div>
@@ -410,14 +410,14 @@ export default function ProductDetailPage() {
                         <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                           ${price.current_price}
                         </span>
-                        <span className="text-sm text-gray-400">
-                          {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
-                        </span>
                         {priceDiscount ? (
                           <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
                             -{priceDiscount}%
                           </span>
                         ) : null}
+                        <span className="text-sm text-gray-400">
+                          {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center justify-between">
@@ -439,7 +439,7 @@ export default function ProductDetailPage() {
                         }}
                         className="inline-flex items-center gap-1 rounded-xl bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-800 transition-all"
                       >
-                        {language === 'zh' ? '前往购买' : 'Visit Store'}
+                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '前往官网' : 'Visit Official') : (language === 'zh' ? '前往购买' : 'Visit Store')}
                         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
                     </div>
