@@ -30,6 +30,8 @@ export const productPrices = pgTable("product_prices", {
 	productUrl: text("product_url").notNull(),
 	inStock: boolean("in_stock").default(true).notNull(),
 	discountPercent: integer("discount_percent"),
+	currency: varchar("currency", { length: 10 }).default("$"),
+	region: varchar("region", { length: 50 }).default(""),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [

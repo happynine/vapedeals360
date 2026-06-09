@@ -237,7 +237,7 @@ interface Category { id: number; slug: string; icon: string | null; sort_order: 
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
 interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; store_type: string; is_active: boolean; regions: Array<{region: string; currency: string}>; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
-interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
+interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
@@ -4116,14 +4116,16 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
       { language: 'zh', name: '', description: '', features: '', specs: '' },
     ]
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string }[]>(
     product?.product_prices?.map((p) => ({
       store_id: p.store_id.toString(),
       current_price: p.current_price,
       original_price: p.original_price || '',
       product_url: p.product_url,
       discount_percent: p.discount_percent?.toString() || '',
-    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '' }]
+      currency: p.currency || '$',
+      region: p.region || '',
+    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
@@ -4154,6 +4156,8 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
           original_price: p.original_price || null,
           product_url: p.product_url,
           discount_percent: p.discount_percent ? parseInt(p.discount_percent) : null,
+          currency: p.currency || '$',
+          region: p.region || '',
         })),
       };
       const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -4270,45 +4274,159 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
               {/* Prices */}
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Store Prices', '商城价格', lang)}</h3>
-                {prices.map((p, idx) => (
-                  <div key={idx} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
-                        <StoreSelect
-                          stores={stores}
-                          value={p.store_id}
-                          lang={lang}
-                          onChange={(val) => { const newP = [...prices]; newP[idx].store_id = val; setPrices(newP); }}
-                        />
+                {prices.map((p, idx) => {
+                  const selectedStore = stores.find(s => s.id === Number(p.store_id));
+                  const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [{ region: '', currency: '$' }];
+                  const hasMultipleCurrencies = storeRegions.length > 1;
+                  return (
+                    <div key={idx} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
+                          <StoreSelect
+                            stores={stores}
+                            value={p.store_id}
+                            lang={lang}
+                            onChange={(val) => {
+                              const newP = [...prices];
+                              const s = stores.find(st => st.id === Number(val));
+                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [{ region: '', currency: '$' }];
+                              newP[idx].store_id = val;
+                              if (sRegions.length === 1) {
+                                newP[idx].currency = sRegions[0].currency || '$';
+                                newP[idx].region = sRegions[0].region || '';
+                              } else {
+                                newP[idx].currency = sRegions[0].currency || '$';
+                                newP[idx].region = sRegions[0].region || '';
+                              }
+                              setPrices(newP);
+                            }}
+                          />
+                        </div>
+                        {!hasMultipleCurrencies && (
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({p.currency || storeRegions[0].currency || '$'})</label>
+                            <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[idx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">{t('Current Price ($)', '现价 ($)', lang)}</label>
-                        <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[idx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                      </div>
+                      {hasMultipleCurrencies ? (
+                        <div className="space-y-3">
+                          {storeRegions.map((sr, rIdx) => (
+                            <div key={rIdx} className="rounded-md border border-border/50 bg-card p-2">
+                              <div className="text-xs font-medium text-primary mb-1.5">{sr.region} ({sr.currency})</div>
+                              <div className="grid grid-cols-2 gap-2 mb-1.5">
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({sr.currency})</label>
+                                  <input
+                                    value={p.region === sr.region && p.currency === sr.currency ? p.current_price : ''}
+                                    onChange={(e) => {
+                                      const newP = [...prices];
+                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
+                                      if (existing >= 0) {
+                                        newP[existing].current_price = e.target.value;
+                                      } else {
+                                        newP[idx].current_price = e.target.value;
+                                        newP[idx].currency = sr.currency;
+                                        newP[idx].region = sr.region;
+                                      }
+                                      setPrices(newP);
+                                    }}
+                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({sr.currency})</label>
+                                  <input
+                                    value={p.region === sr.region && p.currency === sr.currency ? (p.original_price || '') : ''}
+                                    onChange={(e) => {
+                                      const newP = [...prices];
+                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
+                                      if (existing >= 0) {
+                                        newP[existing].original_price = e.target.value;
+                                      } else {
+                                        newP[idx].original_price = e.target.value;
+                                        newP[idx].currency = sr.currency;
+                                        newP[idx].region = sr.region;
+                                      }
+                                      setPrices(newP);
+                                    }}
+                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                                  <input
+                                    value={p.region === sr.region && p.currency === sr.currency ? (p.discount_percent || '') : ''}
+                                    onChange={(e) => {
+                                      const newP = [...prices];
+                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
+                                      if (existing >= 0) {
+                                        newP[existing].discount_percent = e.target.value;
+                                      } else {
+                                        newP[idx].discount_percent = e.target.value;
+                                        newP[idx].currency = sr.currency;
+                                        newP[idx].region = sr.region;
+                                      }
+                                      setPrices(newP);
+                                    }}
+                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                                    placeholder="0"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)} ({sr.region})</label>
+                                  <input
+                                    value={p.region === sr.region && p.currency === sr.currency ? p.product_url : ''}
+                                    onChange={(e) => {
+                                      const newP = [...prices];
+                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
+                                      if (existing >= 0) {
+                                        newP[existing].product_url = e.target.value;
+                                      } else {
+                                        newP[idx].product_url = e.target.value;
+                                        newP[idx].currency = sr.currency;
+                                        newP[idx].region = sr.region;
+                                      }
+                                      setPrices(newP);
+                                    }}
+                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({p.currency || storeRegions[0].currency || '$'})</label>
+                            <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[idx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                            <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[idx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                            <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[idx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
+                          </div>
+                        </div>
+                      )}
+                      {prices.length > 1 && (
+                        <button onClick={() => setPrices(prices.filter((_, i) => i !== idx))} className="mt-2 text-[10px] text-destructive hover:underline">
+                          {t('Remove', '移除', lang)}
+                        </button>
+                      )}
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">{t('Original Price ($)', '原价 ($)', lang)}</label>
-                        <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[idx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
-                        <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[idx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
-                        <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[idx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
-                      </div>
-                    </div>
-                    {prices.length > 1 && (
-                      <button onClick={() => setPrices(prices.filter((_, i) => i !== idx))} className="mt-2 text-[10px] text-destructive hover:underline">
-                        {t('Remove', '移除', lang)}
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '' }])} className="text-xs text-primary hover:underline">
+                  );
+                })}
+                <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格', lang)}
                 </button>
               </div>

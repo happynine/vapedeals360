@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { product_id, store_id, current_price, original_price, product_url, in_stock, discount_percent } = body;
+    const { product_id, store_id, current_price, original_price, product_url, in_stock, discount_percent, currency, region } = body;
 
     const { data, error } = await client
       .from('product_prices')
@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
         product_url,
         in_stock: in_stock !== false,
         discount_percent: discount_percent || null,
+        currency: currency || '$',
+        region: region || '',
       })
       .select()
       .single();
@@ -69,7 +71,7 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { id, product_id, store_id, current_price, original_price, product_url, in_stock, discount_percent } = body;
+    const { id, product_id, store_id, current_price, original_price, product_url, in_stock, discount_percent, currency, region } = body;
 
     const { data, error } = await client
       .from('product_prices')
@@ -81,6 +83,8 @@ export async function PUT(request: NextRequest) {
         product_url,
         in_stock,
         discount_percent: discount_percent || null,
+        currency: currency || '$',
+        region: region || '',
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

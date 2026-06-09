@@ -33,6 +33,8 @@ interface ProductPrice {
   product_url: string;
   in_stock: boolean;
   discount_percent: number | null;
+  currency?: string;
+  region?: string;
   store?: Store;
 }
 
@@ -243,7 +245,7 @@ export default function ProductDetailPage() {
             <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-5">
               <div className="flex items-baseline gap-3">
                 <span className="text-4xl font-bold text-emerald-600 tabular-nums">
-                  ${lowestPrice?.current_price || '—'}
+                  {lowestPrice?.currency || '$'}{lowestPrice?.current_price || '—'}
                 </span>
                 {highestOriginal > 0 && product.prices.length < 2 && (
                   <span className="text-lg text-gray-400 line-through tabular-nums">
@@ -262,7 +264,7 @@ export default function ProductDetailPage() {
               {discount && (
                 <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
-                  {language === 'zh' ? `省 $${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}` : `Save $${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}`}
+                  {language === 'zh' ? `省 ${lowestPrice?.currency || '$'}${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}` : `Save ${lowestPrice?.currency || '$'}${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}`}
                 </div>
               )}
             </div>
@@ -344,12 +346,12 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="text-center">
                       <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
-                        ${price.current_price}
+                        {price.currency || '$'}{price.current_price}
                       </span>
                     </div>
                     <div className="text-center">
                       {price.original_price ? (
-                        <span className="text-sm text-gray-400 line-through tabular-nums">${price.original_price}</span>
+                        <span className="text-sm text-gray-400 line-through tabular-nums">{price.currency || '$'}{price.original_price}</span>
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
@@ -411,7 +413,7 @@ export default function ProductDetailPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
-                          ${price.current_price}
+                          {price.currency || '$'}{price.current_price}
                         </span>
                         {priceDiscount ? (
                           <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
@@ -423,7 +425,7 @@ export default function ProductDetailPage() {
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {price.original_price ? (
-                          <span className="text-xs text-gray-400 line-through tabular-nums">${price.original_price}</span>
+                          <span className="text-xs text-gray-400 line-through tabular-nums">{price.currency || '$'}{price.original_price}</span>
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
                         )}

@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
         product_url: p.product_url,
         in_stock: p.in_stock !== false,
         discount_percent: p.discount_percent || null,
+        currency: p.currency || '$',
+        region: p.region || '',
       }));
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Create prices failed: ${priceError.message}`);
@@ -152,6 +154,8 @@ export async function PUT(request: NextRequest) {
         product_url: p.product_url,
         in_stock: p.in_stock !== false,
         discount_percent: p.discount_percent || null,
+        currency: p.currency || '$',
+        region: p.region || '',
       }));
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Update prices failed: ${priceError.message}`);
