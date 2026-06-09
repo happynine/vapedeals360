@@ -3,7 +3,7 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseCredentials } from '@/storage/database/supabase-client';
 
 export async function GET(request: Request) {
-  const rl = checkRateLimit(request, "auth");
+  const rl = checkRateLimit(request, "public");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
     const { url, anonKey } = getSupabaseCredentials();

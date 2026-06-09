@@ -40,7 +40,10 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const router = useRouter();
 
   const displayName = siteSettings?.site_name || '';
-  const displayLogo = siteSettings?.logo_url;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  // SSR and first client render must match; only use real logo after mount
+  const displayLogo = mounted ? siteSettings?.logo_url : undefined;
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);

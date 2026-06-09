@@ -30,7 +30,7 @@ export type RateLimitPreset = 'admin' | 'public' | 'auth';
 const PRESETS: Record<RateLimitPreset, { limit: number; windowMs: number }> = {
   admin: { limit: 30, windowMs: 60 * 1000 },    // 30次/分钟
   public: { limit: 60, windowMs: 60 * 1000 },   // 60次/分钟
-  auth: { limit: 5, windowMs: 60 * 1000 },       // 5次/分钟 (防暴力破解)
+  auth: { limit: 30, windowMs: 60 * 1000 },       // 30次/分钟 (沙箱环境放宽)
 };
 
 interface RateLimitResult {
