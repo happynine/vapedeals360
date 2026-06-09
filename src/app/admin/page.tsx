@@ -1384,7 +1384,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.region).join(', ') || '—' : '—'}</td>
                           <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.currency).join(', ') || '—' : '—'}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-32" title={store.notes || ''}>{store.notes || '—'}</td>
-                          <td className="px-4 py-3 text-sm text-accent truncate max-w-48">{store.website_url || '—'}</td>
+                          <td className="px-4 py-3 text-sm truncate max-w-48">{store.website_url ? <a href={store.website_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{store.website_url}</a> : '—'}</td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
