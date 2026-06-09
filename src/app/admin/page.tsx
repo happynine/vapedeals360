@@ -4100,7 +4100,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
-  const [salesRegion, setSalesRegion] = useState<string>(product?.sales_region || '不限地区');
+
   const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
@@ -4142,7 +4142,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
         image_url: imageKey || null,
         is_active: isActive,
         is_featured: isFeatured,
-        sales_region: salesRegion,
+
         translations: translations.map((tr) => ({
           language: tr.language,
           name: tr.name,
@@ -4191,14 +4191,6 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                     <option value="">{t('None', '无', lang)}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.category_translations?.find((tr) => tr.language === lang)?.name || c.slug}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
-                  <select value={salesRegion} onChange={(e) => setSalesRegion(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
-                    {(["不限地区", "全球", "美国", "加拿大", "英国", "俄罗斯"] as const).map((region) => (
-                      <option key={region} value={region}>{region}</option>
                     ))}
                   </select>
                 </div>
