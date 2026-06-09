@@ -4267,14 +4267,12 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Store Prices', '商城价格', lang)}</h3>
                 {prices.map((p, idx) => {
-                  const selectedStore = stores.find(s => s.id === Number(p.store_id));
-                  const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [{ region: '', currency: '$' }];
-                  const hasMultipleCurrencies = storeRegions.length > 1;
+                  const currencyLabel = p.currency || '$';
                   return (
                     <div key={idx} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                       <div className="grid grid-cols-2 gap-2 mb-2">
                         <div>
-                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}{p.region ? ` - ${p.region}` : ''}</label>
                           <StoreSelect
                             stores={stores}
                             value={p.store_id}
@@ -4282,134 +4280,60 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                             onChange={(val) => {
                               const newP = [...prices];
                               const s = stores.find(st => st.id === Number(val));
-                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [{ region: '', currency: '$' }];
+                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
                               newP[idx].store_id = val;
                               if (sRegions.length === 1) {
                                 newP[idx].currency = sRegions[0].currency || '$';
                                 newP[idx].region = sRegions[0].region || '';
+                              } else if (sRegions.length > 1) {
+                                // For multi-region stores, replace this entry with first region
+                                // and add additional entries for other regions
+                                const firstRegion = sRegions[0];
+                                newP[idx].currency = firstRegion.currency || '$';
+                                newP[idx].region = firstRegion.region || '';
+                                newP[idx].current_price = '';
+                                newP[idx].original_price = '';
+                                newP[idx].discount_percent = '';
+                                newP[idx].product_url = '';
+                                // Add entries for remaining regions
+                                for (let ri = 1; ri < sRegions.length; ri++) {
+                                  newP.splice(idx + ri, 0, {
+                                    store_id: val,
+                                    current_price: '',
+                                    original_price: '',
+                                    product_url: '',
+                                    discount_percent: '',
+                                    currency: sRegions[ri].currency || '$',
+                                    region: sRegions[ri].region || '',
+                                  });
+                                }
                               } else {
-                                newP[idx].currency = sRegions[0].currency || '$';
-                                newP[idx].region = sRegions[0].region || '';
+                                newP[idx].currency = '$';
+                                newP[idx].region = '';
                               }
                               setPrices(newP);
                             }}
                           />
                         </div>
-                        {!hasMultipleCurrencies && (
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({p.currency || storeRegions[0].currency || '$'})</label>
-                            <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[idx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                          </div>
-                        )}
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
+                          <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[idx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                        </div>
                       </div>
-                      {hasMultipleCurrencies ? (
-                        <div className="space-y-3">
-                          {storeRegions.map((sr, rIdx) => (
-                            <div key={rIdx} className="rounded-md border border-border/50 bg-card p-2">
-                              <div className="text-xs font-medium text-primary mb-1.5">{sr.region} ({sr.currency})</div>
-                              <div className="grid grid-cols-2 gap-2 mb-1.5">
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({sr.currency})</label>
-                                  <input
-                                    value={p.region === sr.region && p.currency === sr.currency ? p.current_price : ''}
-                                    onChange={(e) => {
-                                      const newP = [...prices];
-                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
-                                      if (existing >= 0) {
-                                        newP[existing].current_price = e.target.value;
-                                      } else {
-                                        newP[idx].current_price = e.target.value;
-                                        newP[idx].currency = sr.currency;
-                                        newP[idx].region = sr.region;
-                                      }
-                                      setPrices(newP);
-                                    }}
-                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                                    placeholder="0.00"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({sr.currency})</label>
-                                  <input
-                                    value={p.region === sr.region && p.currency === sr.currency ? (p.original_price || '') : ''}
-                                    onChange={(e) => {
-                                      const newP = [...prices];
-                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
-                                      if (existing >= 0) {
-                                        newP[existing].original_price = e.target.value;
-                                      } else {
-                                        newP[idx].original_price = e.target.value;
-                                        newP[idx].currency = sr.currency;
-                                        newP[idx].region = sr.region;
-                                      }
-                                      setPrices(newP);
-                                    }}
-                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                                    placeholder="0.00"
-                                  />
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
-                                  <input
-                                    value={p.region === sr.region && p.currency === sr.currency ? (p.discount_percent || '') : ''}
-                                    onChange={(e) => {
-                                      const newP = [...prices];
-                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
-                                      if (existing >= 0) {
-                                        newP[existing].discount_percent = e.target.value;
-                                      } else {
-                                        newP[idx].discount_percent = e.target.value;
-                                        newP[idx].currency = sr.currency;
-                                        newP[idx].region = sr.region;
-                                      }
-                                      setPrices(newP);
-                                    }}
-                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)} ({sr.region})</label>
-                                  <input
-                                    value={p.region === sr.region && p.currency === sr.currency ? p.product_url : ''}
-                                    onChange={(e) => {
-                                      const newP = [...prices];
-                                      const existing = prices.findIndex((pp, ii) => ii !== idx && pp.store_id === p.store_id && pp.region === sr.region && pp.currency === sr.currency);
-                                      if (existing >= 0) {
-                                        newP[existing].product_url = e.target.value;
-                                      } else {
-                                        newP[idx].product_url = e.target.value;
-                                        newP[idx].currency = sr.currency;
-                                        newP[idx].region = sr.region;
-                                      }
-                                      setPrices(newP);
-                                    }}
-                                    className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                                    placeholder="https://..."
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
+                          <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[idx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({p.currency || storeRegions[0].currency || '$'})</label>
-                            <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[idx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
-                            <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[idx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
-                            <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[idx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
-                          </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                          <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[idx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
                         </div>
-                      )}
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                          <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[idx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
+                        </div>
+                      </div>
                       {prices.length > 1 && (
                         <button onClick={() => setPrices(prices.filter((_, i) => i !== idx))} className="mt-2 text-[10px] text-destructive hover:underline">
                           {t('Remove', '移除', lang)}
@@ -4421,8 +4345,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                 <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格', lang)}
                 </button>
-              </div>
-            </div>
+              </div>            </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
               <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
