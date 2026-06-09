@@ -4051,7 +4051,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
   const [regionDropdownOpen, setRegionDropdownOpen] = useState(false);
   const [regionDropdownIdx, setRegionDropdownIdx] = useState<number | null>(null);
 
-  const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Russia'];
+  const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Russia', 'Japan', 'Europe'];
   const CURRENCY_OPTIONS = [
     { value: '$', label: 'USD ($)' },
     { value: '€', label: 'EUR (€)' },
@@ -4061,7 +4061,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
     { value: '¥', label: 'JPY (¥)' },
     { value: '₩', label: 'KRW (₩)' },
   ];
-  const DEFAULT_CURRENCY_MAP: Record<string, string> = { Global: '$', USA: '$', Canada: '$', UK: '£', Russia: '₽' };
+  const DEFAULT_CURRENCY_MAP: Record<string, string> = { Global: '$', USA: '$', Canada: '$', UK: '£', Russia: '₽', Japan: '¥', Europe: '€' };
 
   const addRegion = () => {
     setRegions([...regions, { region: '', currency: '' }]);
