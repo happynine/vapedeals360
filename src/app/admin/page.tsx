@@ -1016,21 +1016,6 @@ export default function AdminPage() {
                         >
                           {lang.is_active ? t('Active', '启用', adminLang) : t('Inactive', '停用', adminLang)}
                         </button>
-                        <button
-                          onClick={async () => {
-                            if (!confirm(t('Delete this language? This may affect existing translations.', '确定删除此语言？这可能会影响现有翻译。', adminLang))) return;
-                            const res = await adminFetch(`/api/admin/languages?id=${lang.id}`, { method: 'DELETE' });
-                            const json = await res.json();
-                            if (json.success) {
-                              setLanguages(prev => prev.filter(l => l.id !== lang.id));
-                            } else {
-                              alert(json.error || t('Delete failed', '删除失败', adminLang));
-                            }
-                          }}
-                          className="p-1 rounded hover:bg-red-950/50 text-red-400 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
                       </>
                     ) : (
                       <>
