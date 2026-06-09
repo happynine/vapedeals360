@@ -345,7 +345,7 @@ export default function ProductDetailPage() {
                       <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                         ${price.current_price}
                       </span>
-                      <span className="ml-1 text-lg font-bold text-gray-900">
+                      <span className="ml-1 text-sm text-gray-400">
                         {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                       </span>
                     </div>
@@ -410,7 +410,7 @@ export default function ProductDetailPage() {
                         <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                           ${price.current_price}
                         </span>
-                        <span className="text-lg font-bold text-gray-900">
+                        <span className="text-sm text-gray-400">
                           {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                         </span>
                         {priceDiscount ? (
