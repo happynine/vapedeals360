@@ -9,6 +9,7 @@ export async function GET() {
       .from('languages')
       .select('code, name')
       .eq('is_active', true)
+      .eq('is_hidden', false)
       .order('sort_order', { ascending: true });
     if (error) throw new Error(`Fetch failed: ${error.message}`);
     return NextResponse.json({ success: true, data });

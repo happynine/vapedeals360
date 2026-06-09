@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const body = await request.json();
-    const { code, name, is_active, sort_order } = body;
+    const { code, name, is_active, is_hidden, sort_order } = body;
     if (!code || !name) {
       return NextResponse.json({ success: false, error: 'Code and name are required' }, { status: 400 });
     }
     const client = getSupabaseClient();
     const { data, error } = await client
       .from('languages')
-      .insert({ code, name, is_active: is_active !== false, sort_order: sort_order || 0 })
+      .insert({ code, name, is_active: is_active !== false, is_hidden: is_hidden === true, sort_order: sort_order || 0 })
       .select()
       .single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const body = await request.json();
-    const { id, code, name, is_active, sort_order } = body;
+    const { id, code, name, is_active, is_hidden, sort_order } = body;
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
@@ -63,6 +63,7 @@ export async function PUT(request: NextRequest) {
     if (code !== undefined) updateData.code = code;
     if (name !== undefined) updateData.name = name;
     if (is_active !== undefined) updateData.is_active = is_active;
+    if (is_hidden !== undefined) updateData.is_hidden = is_hidden;
     if (sort_order !== undefined) updateData.sort_order = sort_order;
     const { data, error } = await client
       .from('languages')

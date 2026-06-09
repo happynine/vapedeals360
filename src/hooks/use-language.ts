@@ -6,13 +6,14 @@ export interface LanguageInfo {
   code: string;
   name: string;
   is_active: boolean;
+  is_hidden: boolean;
   sort_order: number;
 }
 
 // Default fallback languages
 const DEFAULT_LANGUAGES: LanguageInfo[] = [
-  { code: 'en', name: 'English', is_active: true, sort_order: 0 },
-  { code: 'zh', name: '中文', is_active: true, sort_order: 1 },
+  { code: 'en', name: 'English', is_active: true, is_hidden: false, sort_order: 0 },
+  { code: 'zh', name: '中文', is_active: true, is_hidden: false, sort_order: 1 },
 ];
 
 // Singleton cache for languages

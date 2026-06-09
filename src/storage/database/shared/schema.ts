@@ -306,6 +306,7 @@ export const languages = pgTable("languages", {
 	code: varchar({ length: 10 }).notNull(),
 	name: varchar({ length: 100 }).notNull(),
 	isActive: boolean("is_active").default(true).notNull(),
+	isHidden: boolean("is_hidden").default(false).notNull(),
 	sortOrder: integer("sort_order").default(0).notNull(),
 }, (table) => [
 	unique("languages_code_unique").on(table.code),

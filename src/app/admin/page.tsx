@@ -244,8 +244,8 @@ interface Product { id: number; slug: string; category_id: number | null; image_
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
-interface Language { id: number; code: string; name: string; is_active: boolean; sort_order: number; }
-const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, sort_order: 1 }];
+interface Language { id: number; code: string; name: string; is_active: boolean; is_hidden: boolean; sort_order: number; }
+const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, is_hidden: false, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, is_hidden: false, sort_order: 1 }];
 
 // i18n helper
 function t(en: string, zh: string, lang: string) {
@@ -420,7 +420,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
   const [languages, setLanguages] = useState<Language[]>(DEFAULT_LANGUAGES);
-  const activeLanguages = useMemo(() => languages.filter(l => l.is_active).sort((a, b) => a.sort_order - b.sort_order), [languages]);
+  const activeLanguages = useMemo(() => languages.filter(l => l.is_active && !l.is_hidden).sort((a, b) => a.sort_order - b.sort_order), [languages]);
 
   // Fetch all data
   const fetchAllData = useCallback(async () => {
@@ -966,6 +966,20 @@ export default function AdminPage() {
                       }}
                       className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
+                    <button
+                      onClick={async () => {
+                        const newHidden = !lang.is_hidden;
+                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_hidden: newHidden } : l));
+                        await adminFetch('/api/admin/languages', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: lang.id, is_hidden: newHidden }),
+                        });
+                      }}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_hidden ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
+                    >
+                      {lang.is_hidden ? t('Hidden', '已隐藏', adminLang) : t('Hide', '隐藏', adminLang)}
+                    </button>
                     <button
                       onClick={async () => {
                         const newActive = !lang.is_active;
