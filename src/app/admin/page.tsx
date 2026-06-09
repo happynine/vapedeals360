@@ -991,9 +991,9 @@ export default function AdminPage() {
                           alert(json.error || t('Delete failed', '删除失败', adminLang));
                         }
                       }}
-                      className="rounded-md border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-950/50 transition-colors"
+                      className="p-1 rounded hover:bg-red-950/50 text-red-400 transition-colors"
                     >
-                      {t('Delete', '删除', adminLang)}
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
