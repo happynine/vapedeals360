@@ -3855,7 +3855,7 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => (
-                  <div key={idx} className="grid grid-cols-[60px_1fr] gap-2 mb-2">
+                  <div key={idx} className="grid grid-cols-[60px_1fr_28px] gap-2 mb-2 items-center">
                     <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-2 text-sm">
                       {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                     </select>
@@ -3863,6 +3863,9 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
                       <label className="text-[10px] text-muted-foreground mb-0.5 block">{t('Name', '名称', lang)}</label>
                       <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                     </div>
+                    {translations.length > 1 && (
+                      <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 text-lg leading-none" title={t('Remove', '删除', lang)}>×</button>
+                    )}
                   </div>
                 ))}
                 <button onClick={() => setTranslations([...translations, { language: 'en', name: '' }])} className="text-xs text-primary hover:underline">
@@ -4067,7 +4070,7 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => (
-                  <div key={idx} className="grid grid-cols-[60px_1fr] gap-2 mb-2">
+                  <div key={idx} className="grid grid-cols-[60px_1fr_28px] gap-2 mb-2 items-center">
                     <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-2 text-sm">
                       {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                     </select>
@@ -4075,6 +4078,9 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
                       <label className="text-[10px] text-muted-foreground mb-0.5 block">{t('Name', '名称', lang)}</label>
                       <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                     </div>
+                    {translations.length > 1 && (
+                      <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 text-lg leading-none" title={t('Remove', '删除', lang)}>×</button>
+                    )}
                   </div>
                 ))}
                 <button onClick={() => setTranslations([...translations, { language: 'en', name: '' }])} className="text-xs text-primary hover:underline">
@@ -4221,6 +4227,9 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
                         {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                       </select>
                       <span className="text-xs text-muted-foreground">{t('Translation', '翻译', lang)}</span>
+                      {translations.length > 1 && (
+                        <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="ml-auto text-red-500 hover:text-red-700 text-sm leading-none px-1" title={t('Remove', '删除', lang)}>×</button>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <div>
@@ -4515,6 +4524,9 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                         {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                       </select>
                       <span className="text-xs text-muted-foreground">{t('Language Banner', '语言 Banner', lang)}</span>
+                      {translations.length > 1 && (
+                        <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="ml-auto text-red-500 hover:text-red-700 text-sm leading-none px-1" title={t('Remove', '删除', lang)}>×</button>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <div>
