@@ -20,7 +20,7 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const { siteSettings } = useSiteSettings();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, activeLanguages } = useLanguage();
   const [langOpen, setLangOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -42,7 +42,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const displayName = siteSettings?.site_name || '';
   const displayLogo = siteSettings?.logo_url;
 
-  const handleLanguageChange = (lang: 'en' | 'zh') => {
+  const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     setLangOpen(false);
     setMobileLangOpen(false);
@@ -305,7 +305,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                   </svg>
-                  {language === "en" ? "EN" : "中"}
+                  {activeLanguages.find(l => l.code === language)?.name || language.toUpperCase()}
                   <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -314,28 +314,20 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
                     <div className="absolute right-0 mt-2 z-50 w-36 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg overflow-hidden">
-                      <button
-                        onClick={() => handleLanguageChange("en")}
-                        className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "en" ? "text-purple-400 font-semibold" : "text-gray-300"}`}
-                      >
-                        🇺🇸 English
-                        {language === "en" && (
-                          <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleLanguageChange("zh")}
-                        className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "zh" ? "text-purple-400 font-semibold" : "text-gray-300"}`}
-                      >
-                        🇨🇳 中文
-                        {language === "zh" && (
-                          <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
+                      {activeLanguages.map((langInfo) => (
+                        <button
+                          key={langInfo.code}
+                          onClick={() => handleLanguageChange(langInfo.code)}
+                          className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === langInfo.code ? "text-purple-400 font-semibold" : "text-gray-300"}`}
+                        >
+                          {langInfo.name}
+                          {language === langInfo.code && (
+                            <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </>
                 )}
@@ -425,28 +417,20 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMobileLangOpen(false)} />
             <div className="absolute right-4 top-14 z-50 w-36 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg overflow-hidden">
-              <button
-                onClick={() => handleLanguageChange("en")}
-                className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "en" ? "text-purple-400 font-semibold" : "text-gray-300"}`}
-              >
-                🇺🇸 English
-                {language === "en" && (
-                  <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-              <button
-                onClick={() => handleLanguageChange("zh")}
-                className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === "zh" ? "text-purple-400 font-semibold" : "text-gray-300"}`}
-              >
-                🇨🇳 中文
-                {language === "zh" && (
-                  <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
+              {activeLanguages.map((langInfo) => (
+                <button
+                  key={langInfo.code}
+                  onClick={() => handleLanguageChange(langInfo.code)}
+                  className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${language === langInfo.code ? "text-purple-400 font-semibold" : "text-gray-300"}`}
+                >
+                  {langInfo.name}
+                  {language === langInfo.code && (
+                    <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
             </div>
           </>
         )}

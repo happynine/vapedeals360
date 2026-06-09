@@ -244,7 +244,8 @@ interface Product { id: number; slug: string; category_id: number | null; image_
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
-const LANGUAGES = ['en', 'zh'];
+interface Language { id: number; code: string; name: string; is_active: boolean; sort_order: number; }
+const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, sort_order: 1 }];
 
 // i18n helper
 function t(en: string, zh: string, lang: string) {
@@ -398,6 +399,7 @@ export default function AdminPage() {
     if (isLoggedIn) {
       adminFetch('/api/admin/site-settings').then(r => r.json()).then(d => { if (d.success) { setAdminSiteSettings(d.data); setEditSiteName(d.data.site_name); setEditSiteLogo(d.data.logo_url); } }).catch(() => {});
       fetch('/api/social-links').then(r => r.json()).then(d => { if (d.success) setSocialLinks(d.data || []); }).catch(() => {});
+      adminFetch('/api/admin/languages').then(r => r.json()).then(d => { if (d.success) setLanguages(d.data || []); }).catch(() => {});
     }
   }, [isLoggedIn]);
 
@@ -417,6 +419,8 @@ export default function AdminPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
+  const [languages, setLanguages] = useState<Language[]>(DEFAULT_LANGUAGES);
+  const activeLanguages = useMemo(() => languages.filter(l => l.is_active).sort((a, b) => a.sort_order - b.sort_order), [languages]);
 
   // Fetch all data
   const fetchAllData = useCallback(async () => {
@@ -672,19 +676,19 @@ export default function AdminPage() {
                     {t('Back to Site Settings', '返回站点设置', adminLang)}
                   </button>
                   {siteSettingsSubPage === 'privacy-policy' && (
-                    <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} />
+                    <StaticPageEditor ref={privacyRef} slug="privacy-policy" title={t('Privacy Policy', '隐私政策', adminLang)} lang={adminLang} activeLanguages={activeLanguages} />
                   )}
                   {siteSettingsSubPage === 'about-us' && (
-                    <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} />
+                    <StaticPageEditor ref={aboutRef} slug="about-us" title={t('About Us', '关于我们', adminLang)} lang={adminLang} activeLanguages={activeLanguages} />
                   )}
                   {siteSettingsSubPage === 'disclaimer' && (
-                    <StaticPageEditor ref={disclaimerRef} slug="disclaimer" title={t('Disclaimer', '免责声明', adminLang)} lang={adminLang} />
+                    <StaticPageEditor ref={disclaimerRef} slug="disclaimer" title={t('Disclaimer', '免责声明', adminLang)} lang={adminLang} activeLanguages={activeLanguages} />
                   )}
                   {siteSettingsSubPage === 'affiliate-disclosure' && (
-                    <StaticPageEditor ref={affiliateRef} slug="affiliate-disclosure" title={t('Affiliate Disclosure', '联盟披露', adminLang)} lang={adminLang} />
+                    <StaticPageEditor ref={affiliateRef} slug="affiliate-disclosure" title={t('Affiliate Disclosure', '联盟披露', adminLang)} lang={adminLang} activeLanguages={activeLanguages} />
                   )}
                   {siteSettingsSubPage === 'terms-of-service' && (
-                    <StaticPageEditor ref={termsRef} slug="terms-of-service" title={t('Terms of Service', '服务条款', adminLang)} lang={adminLang} />
+                    <StaticPageEditor ref={termsRef} slug="terms-of-service" title={t('Terms of Service', '服务条款', adminLang)} lang={adminLang} activeLanguages={activeLanguages} />
                   )}
                 </div>
               ) : (
@@ -907,6 +911,94 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* Languages Section */}
+              <div className="bg-card rounded-xl border border-border p-6 space-y-4 mt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">{t('Languages', '语言管理', adminLang)}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{t('Manage site languages. Active languages will appear in frontend language selector and determine translation fields in forms.', '管理网站语言。启用的语言将出现在前台语言选择器中，并决定表单中的翻译字段。', adminLang)}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const code = prompt(t('Enter language code (e.g. ja, ko, fr):', '输入语言代码（如 ja, ko, fr）:', adminLang));
+                      if (!code?.trim()) return;
+                      const name = prompt(t('Enter language display name (e.g. Japanese):', '输入语言显示名称（如 日语）:', adminLang));
+                      if (!name?.trim()) return;
+                      const res = await adminFetch('/api/admin/languages', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code.trim().toLowerCase(), name: name.trim(), is_active: true, sort_order: languages.length }),
+                      });
+                      const json = await res.json();
+                      if (json.success) {
+                        setLanguages(prev => [...prev, json.data]);
+                      } else {
+                        alert(json.error || t('Failed to add language', '添加语言失败', adminLang));
+                      }
+                    }}
+                    className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    + {t('Add Language', '添加语言', adminLang)}
+                  </button>
+                </div>
+
+                {languages.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t('No languages configured.', '暂无语言配置。', adminLang)}</p>
+                )}
+
+                {languages.sort((a, b) => a.sort_order - b.sort_order).map((lang) => (
+                  <div key={lang.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                    <span className="text-sm font-medium uppercase min-w-[36px]">{lang.code}</span>
+                    <input
+                      value={lang.name}
+                      onChange={async (e) => {
+                        const newName = e.target.value;
+                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, name: newName } : l));
+                      }}
+                      onBlur={async () => {
+                        const current = languages.find(l => l.id === lang.id);
+                        if (!current) return;
+                        await adminFetch('/api/admin/languages', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: lang.id, name: current.name }),
+                        });
+                      }}
+                      className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      onClick={async () => {
+                        const newActive = !lang.is_active;
+                        setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, is_active: newActive } : l));
+                        await adminFetch('/api/admin/languages', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: lang.id, is_active: newActive }),
+                        });
+                      }}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${lang.is_active ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-gray-800 text-gray-500 border border-gray-600'}`}
+                    >
+                      {lang.is_active ? t('Active', '启用', adminLang) : t('Inactive', '停用', adminLang)}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(t('Delete this language? This may affect existing translations.', '确定删除此语言？这可能会影响现有翻译。', adminLang))) return;
+                        const res = await adminFetch(`/api/admin/languages?id=${lang.id}`, { method: 'DELETE' });
+                        const json = await res.json();
+                        if (json.success) {
+                          setLanguages(prev => prev.filter(l => l.id !== lang.id));
+                        } else {
+                          alert(json.error || t('Delete failed', '删除失败', adminLang));
+                        }
+                      }}
+                      className="rounded-md border border-red-800 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-950/50 transition-colors"
+                    >
+                      {t('Delete', '删除', adminLang)}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               {/* Static Pages Section */}
               <div className="bg-card rounded-xl border border-border p-6 space-y-4 mt-6">
                 <h3 className="text-lg font-semibold">{t('Static Pages', '静态页面', adminLang)}</h3>
@@ -1043,7 +1135,7 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">{t('Products', '产品', adminLang)}</h1>
-                <ProductFormModal categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} />
+                <ProductFormModal categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1093,7 +1185,7 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <ProductFormModal product={product} categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} />
+                                <ProductFormModal product={product} categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
                                 <button
                                   onClick={() => handleDeleteProduct(product.id)}
                                   className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
@@ -1122,7 +1214,7 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">{t('Categories', '分类', adminLang)}</h1>
-                <CategoryFormModal onSave={fetchAllData} lang={adminLang} />
+                <CategoryFormModal onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1151,7 +1243,7 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <CategoryFormModal category={cat} onSave={fetchAllData} lang={adminLang} />
+                              <CategoryFormModal category={cat} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
                               <button onClick={() => handleDeleteCategory(cat.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                                 {t('Delete', '删除', adminLang)}
                               </button>
@@ -1187,7 +1279,7 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-                <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} />
+                <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1238,7 +1330,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-sm text-accent truncate max-w-48">{store.website_url || '—'}</td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} />
+                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
                               <button onClick={() => handleDeleteStore(store.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                                 {t('Delete', '删除', adminLang)}
                               </button>
@@ -1258,7 +1350,7 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">{t('Banners', 'Banner', adminLang)}</h1>
-                <BannerFormModal onSave={fetchAllData} lang={adminLang} />
+                <BannerFormModal onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1296,7 +1388,7 @@ export default function AdminPage() {
                             {banner.link_url && <div className="text-accent truncate">{t('Link:', '链接：', adminLang)} {banner.link_url}</div>}
                           </div>
                           <div className="flex items-center justify-end gap-2">
-                            <BannerFormModal banner={banner} onSave={fetchAllData} lang={adminLang} />
+                            <BannerFormModal banner={banner} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
                             <button onClick={() => handleDeleteBanner(banner.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                               {t('Delete', '删除', adminLang)}
                             </button>
@@ -1311,11 +1403,11 @@ export default function AdminPage() {
           )}
           {/* Best Vapes Tab */}
           {activeTab === 'best_vapes' && (
-            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage />
+            <ContentPagesManager ref={bestVapesRef} type="best_vapes" title={t('Best Vapes', 'Best Vapes', adminLang)} lang={adminLang} isFullPage activeLanguages={activeLanguages} />
           )}
           {/* News Tab */}
           {activeTab === 'news' && (
-            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage />
+            <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage activeLanguages={activeLanguages} />
           )}
         </div>
       </main>
@@ -3022,7 +3114,7 @@ export interface ContentPagesManagerRef {
   publish: () => Promise<void>;
 }
 
-const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean }>(function ContentPagesManager({ type, title, lang, isFullPage }, ref) {
+const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean; activeLanguages: Language[] }>(function ContentPagesManager({ type, title, lang, isFullPage, activeLanguages }, ref) {
   const [pages, setPages] = useState<Array<{
     id: number; slug: string; cover_image: string | null; sort_order: number; is_published: boolean;
     content_page_translations: Array<{ id: number; language: string; title: string; content: string }>;
@@ -3037,11 +3129,8 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formPublished, setFormPublished] = useState(true);
   const [hasFormChanges, setHasFormChanges] = useState(false);
-  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([
-    { language: 'en', title: '', content: '' },
-    { language: 'zh', title: '', content: '' },
-  ]);
-  const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
+  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([]);
+  const [editLang, setEditLang] = useState<string>('en');
   const [saving, setSaving] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
@@ -3082,9 +3171,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormPublished(page.is_published);
     setHasFormChanges(false);
 
-    const translations = LANGUAGES.map(l => {
-      const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l);
-      return existing || { language: l, title: '', content: '' };
+    const translations = activeLanguages.map(l => {
+      const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l.code);
+      return existing || { language: l.code, title: '', content: '' };
     });
     setFormTranslations(translations);
     setPublishSuccess(false);
@@ -3242,13 +3331,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
           setEditingPage(json.data.id);
           // Capture translation IDs from the response so future PUTs use update instead of insert
           if (json.data.content_page_translations) {
-            const newTranslations = LANGUAGES.map(l => {
-              const existing = json.data.content_page_translations.find((t: { language: string }) => t.language === l);
-              const current = publishTranslations.find(t => t.language === l);
+            const newTranslations = activeLanguages.map(l => {
+              const existing = json.data.content_page_translations.find((t: { language: string }) => t.language === l.code);
+              const current = publishTranslations.find(t => t.language === l.code);
               if (existing) {
                 return { id: existing.id, language: existing.language, title: current?.title || existing.title, content: current?.content || existing.content };
               }
-              return current || { language: l, title: '', content: '' };
+              return current || { language: l.code, title: '', content: '' };
             });
             setFormTranslations(newTranslations);
           } else {
@@ -3362,16 +3451,14 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
           {/* Language toggle + unified editor */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditLang('en')}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'en' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-              >English</button>
-              <button
-                type="button"
-                onClick={() => setEditLang('zh')}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'zh' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-              >中文</button>
+              {activeLanguages.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setEditLang(l.code)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === l.code ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                >{l.name}</button>
+              ))}
             </div>
             {formTranslations.map((tr, idx) => tr.language === editLang ? (
               <div key={tr.language} className="space-y-3">
@@ -3483,16 +3570,14 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
               {/* Language toggle + unified editor */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditLang('en')}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'en' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-                  >English</button>
-                  <button
-                    type="button"
-                    onClick={() => setEditLang('zh')}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'zh' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-                  >中文</button>
+                  {activeLanguages.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setEditLang(l.code)}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === l.code ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                    >{l.name}</button>
+                  ))}
                 </div>
                 {formTranslations.map((tr, idx) => tr.language === editLang ? (
                   <div key={tr.language} className="space-y-3">
@@ -3548,7 +3633,7 @@ export interface StaticPageEditorRef {
 }
 
 // ============== Static Page Editor (Privacy Policy / About Us) ==============
-const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: string; lang: string }>(function StaticPageEditor({ slug, title, lang }, ref) {
+const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: string; lang: string; activeLanguages: Language[] }>(function StaticPageEditor({ slug, title, lang, activeLanguages }, ref) {
   const [pageData, setPageData] = useState<{
     id: number;
     slug: string;
@@ -3557,13 +3642,10 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
   } | null>(null);
   const [loading, setLoading] = useState(true);
   // Draft content being edited (starts from draft_content or content)
-  const [translations, setTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([
-    { language: 'en', content: '' },
-    { language: 'zh', content: '' },
-  ]);
+  const [translations, setTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [editLang, setEditLang] = useState<'en' | 'zh'>('en');
+  const [editLang, setEditLang] = useState<string>('en');
   const staticEditorRef = useRef<RichTextEditorRef>(null);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [originalTranslations, setOriginalTranslations] = useState<Array<{ id?: number; language: string; content: string }>>([]);
@@ -3584,12 +3666,12 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         const json = await res.json();
         if (json.success && json.data) {
           setPageData(json.data);
-          const trans = LANGUAGES.map(l => {
-            const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+          const trans = activeLanguages.map(l => {
+            const existing = json.data.static_page_translations?.find((t: { language: string }) => t.language === l.code);
             if (existing) {
               return { id: existing.id, language: existing.language, content: existing.content || '' };
             }
-            return { language: l, content: '' };
+            return { language: l.code, content: '' };
           });
           setTranslations(trans);
           setOriginalTranslations(JSON.parse(JSON.stringify(trans)));
@@ -3707,12 +3789,12 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
         const refreshJson = await refreshRes.json();
         if (refreshJson.success && refreshJson.data) {
           setPageData(refreshJson.data);
-          const trans = LANGUAGES.map(l => {
-            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l);
+          const trans = activeLanguages.map(l => {
+            const existing = refreshJson.data.static_page_translations?.find((t: { language: string }) => t.language === l.code);
             if (existing) {
               return { id: existing.id, language: existing.language, content: existing.content || '' };
             }
-            return { language: l, content: '' };
+            return { language: l.code, content: '' };
           });
           setTranslations(trans);
           setOriginalTranslations(JSON.parse(JSON.stringify(trans)));
@@ -3759,20 +3841,16 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
       ) : (
         <div className="border border-border rounded-xl p-4 space-y-3 overflow-visible mt-4">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setEditLang('en')}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'en' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-            >
-              English
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditLang('zh')}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === 'zh' ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
-            >
-              中文
-            </button>
+            {activeLanguages.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => setEditLang(l.code)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${editLang === l.code ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                {l.name}
+              </button>
+            ))}
           </div>
           {translations.map((tr, idx) => tr.language === editLang ? (
             <RichTextEditor
@@ -3791,20 +3869,27 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
 });
 
 // ============== Category Form Modal ==============
-function CategoryFormModal({ category, onSave, lang }: { category?: Category; onSave: () => void; lang: string }) {
+function CategoryFormModal({ category, onSave, lang, activeLanguages }: { category?: Category; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(category?.slug || '');
   const [icon, setIcon] = useState(category?.icon || '');
   const [sortOrder, setSortOrder] = useState(category?.sort_order || 0);
   const [isActive, setIsActive] = useState(category?.is_active !== false);
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
-    category?.category_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || [
-      { language: 'en', name: '' },
-      { language: 'zh', name: '' },
-    ]
+    category?.category_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || activeLanguages.map(l => ({ language: l.code, name: '' }))
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!category;
+
+  // Sync translations with active languages when opening
+  useEffect(() => {
+    if (open) {
+      setTranslations(prev => {
+        const existing = new Map(prev.map(t => [t.language, t.name]));
+        return activeLanguages.map(l => ({ language: l.code, name: existing.get(l.code) || '' }));
+      });
+    }
+  }, [open, activeLanguages]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -3854,23 +3939,18 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
               </div>
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
-                {translations.map((tr, idx) => (
-                  <div key={idx} className="grid grid-cols-[60px_1fr_28px] gap-2 mb-2 items-center">
-                    <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-2 text-sm">
-                      {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-                    </select>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-0.5 block">{t('Name', '名称', lang)}</label>
-                      <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                {translations.map((tr, idx) => {
+                  const langInfo = activeLanguages.find(l => l.code === tr.language);
+                  return (
+                    <div key={tr.language} className="grid grid-cols-[60px_1fr] gap-2 mb-2 items-center">
+                      <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">{langInfo?.name || tr.language}</label>
+                        <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                      </div>
                     </div>
-                    {translations.length > 1 && (
-                      <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 text-lg leading-none" title={t('Remove', '删除', lang)}>×</button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', name: '' }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Translation', '添加翻译', lang)}
-                </button>
+                  );
+                })}
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -3887,7 +3967,7 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
 }
 
 // ============== Store Form Modal ==============
-function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official' }) {
+function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official'; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(store?.slug || '');
   const [logoKey, setLogoKey] = useState(store?.logo_key || store?.logo_url || '');
@@ -3926,13 +4006,20 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
     setRegions(newRegions);
   };
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
-    store?.store_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || [
-      { language: 'en', name: '' },
-      { language: 'zh', name: '' },
-    ]
+    store?.store_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || activeLanguages.map(l => ({ language: l.code, name: '' }))
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!store;
+
+  // Sync translations with active languages when opening
+  useEffect(() => {
+    if (open) {
+      setTranslations(prev => {
+        const existing = new Map(prev.map(t => [t.language, t.name]));
+        return activeLanguages.map(l => ({ language: l.code, name: existing.get(l.code) || '' }));
+      });
+    }
+  }, [open, activeLanguages]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -4069,23 +4156,18 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
               </label>
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
-                {translations.map((tr, idx) => (
-                  <div key={idx} className="grid grid-cols-[60px_1fr_28px] gap-2 mb-2 items-center">
-                    <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-2 text-sm">
-                      {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-                    </select>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-0.5 block">{t('Name', '名称', lang)}</label>
-                      <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                {translations.map((tr, idx) => {
+                  const langInfo = activeLanguages.find(l => l.code === tr.language);
+                  return (
+                    <div key={tr.language} className="grid grid-cols-[60px_1fr] gap-2 mb-2 items-center">
+                      <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">{langInfo?.name || tr.language}</label>
+                        <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                      </div>
                     </div>
-                    {translations.length > 1 && (
-                      <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 text-lg leading-none" title={t('Remove', '删除', lang)}>×</button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', name: '' }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Translation', '添加翻译', lang)}
-                </button>
+                  );
+                })}
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -4102,7 +4184,7 @@ function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; o
 }
 
 // ============== Product Form Modal ==============
-function ProductFormModal({ product, categories, stores, onSave, lang }: { product?: Product; categories: Category[]; stores: Store[]; onSave: () => void; lang: string }) {
+function ProductFormModal({ product, categories, stores, onSave, lang, activeLanguages }: { product?: Product; categories: Category[]; stores: Store[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
@@ -4117,10 +4199,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
       description: tr.description || '',
       features: tr.features || '',
       specs: tr.specs || '',
-    })) || [
-      { language: 'en', name: '', description: '', features: '', specs: '' },
-      { language: 'zh', name: '', description: '', features: '', specs: '' },
-    ]
+    })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
   const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string }[]>(
     product?.product_prices?.map((p) => ({
@@ -4135,6 +4214,19 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
+
+  // Sync translations with active languages when opening
+  useEffect(() => {
+    if (open) {
+      setTranslations(prev => {
+        const existing = new Map(prev.map(t => [t.language, t]));
+        return activeLanguages.map(l => {
+          const ex = existing.get(l.code);
+          return ex || { language: l.code, name: '', description: '', features: '', specs: '' };
+        });
+      });
+    }
+  }, [open, activeLanguages]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -4220,56 +4312,51 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
               {/* Translations */}
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
-                {translations.map((tr, idx) => (
-                  <div key={idx} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
-                    <div className="flex items-center gap-2 mb-2">
-                      <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-1 text-xs">
-                        {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-                      </select>
-                      <span className="text-xs text-muted-foreground">{t('Translation', '翻译', lang)}</span>
-                      {translations.length > 1 && (
-                        <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="ml-auto text-red-500 hover:text-red-700 text-sm leading-none px-1" title={t('Remove', '删除', lang)}>×</button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Product Name', '产品名称', lang)}</label>
-                        <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                {translations.map((tr, idx) => {
+                  const langInfo = activeLanguages.find(l => l.code === tr.language);
+                  return (
+                    <div key={tr.language} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
+                        <span className="text-xs text-muted-foreground">{langInfo?.name || ''}</span>
                       </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Description', '描述', lang)}</label>
-                        <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[40px]" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
-                        <textarea
-                          value={(() => {
-                            try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
-                          })()}
-                          onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].features = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
-                          rows={4}
-                          placeholder={lang === 'zh' ? '每行输入一条特性\n例如：\n大烟雾量\n便携设计' : 'One feature per line\nExample:\nLarge vapor\nPortable design'}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[80px]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)：必须为英文格式', lang)}</label>
-                        <textarea
-                          value={(() => {
-                            try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
-                          })()}
-                          onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].specs = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
-                          rows={5}
-                          placeholder={lang === 'zh' ? '每行输入一条规格\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'One spec per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[100px]"
-                        />
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Product Name', '产品名称', lang)}</label>
+                          <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Description', '描述', lang)}</label>
+                          <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[40px]" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
+                          <textarea
+                            value={(() => {
+                              try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
+                            })()}
+                            onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].features = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
+                            rows={4}
+                            placeholder={lang === 'zh' ? '每行输入一条特性\n例如：\n大烟雾量\n便携设计' : 'One feature per line\nExample:\nLarge vapor\nPortable design'}
+                            className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[80px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)：必须为英文格式', lang)}</label>
+                          <textarea
+                            value={(() => {
+                              try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
+                            })()}
+                            onChange={(e) => { const newT = [...translations]; const lines = e.target.value.split('\n').filter(l => l.trim()); newT[idx].specs = lines.length > 0 ? JSON.stringify(lines) : ''; setTranslations(newT); }}
+                            rows={5}
+                            placeholder={lang === 'zh' ? '每行输入一条规格\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'One spec per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
+                            className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[100px]"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', name: '', description: '', features: '', specs: '' }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Translation', '添加翻译', lang)}
-                </button>
+                  );
+                })}
               </div>
 
               {/* Prices */}
@@ -4418,7 +4505,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang }: { produ
 }
 
 // ============== Banner Form Modal ==============
-function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: () => void; lang: string }) {
+function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: Banner; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState(banner?.link_url || '');
   const [sortOrder, setSortOrder] = useState(banner?.sort_order || 0);
@@ -4430,13 +4517,23 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
       language: tr.language,
       title: tr.title || '',
       subtitle: tr.subtitle || '',
-    })) || [
-      { language: 'en', title: '', subtitle: '' },
-      { language: 'zh', title: '', subtitle: '' },
-    ]
+    })) || activeLanguages.map(l => ({ language: l.code, title: '', subtitle: '' }))
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!banner;
+
+  // Sync translations with active languages when opening
+  useEffect(() => {
+    if (open) {
+      setTranslations(prev => {
+        const existing = new Map(prev.map(t => [t.language, t]));
+        return activeLanguages.map(l => {
+          const ex = existing.get(l.code);
+          return ex || { language: l.code, title: '', subtitle: '' };
+        });
+      });
+    }
+  }, [open, activeLanguages]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -4517,32 +4614,27 @@ function BannerFormModal({ banner, onSave, lang }: { banner?: Banner; onSave: ()
                 <p className="text-xs text-muted-foreground mb-3">
                   {t('Upload different banner images for each language. If no language-specific image is set, the default image will be used.', '为每种语言上传不同的 Banner 图片。如未设置语言专属图，将使用默认图片。', lang)}
                 </p>
-                {translations.map((tr, idx) => (
-                  <div key={idx} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
-                    <div className="flex items-center gap-2 mb-3">
-                      <select value={tr.language} onChange={(e) => { const newT = [...translations]; newT[idx].language = e.target.value; setTranslations(newT); }} className="rounded-lg border border-border bg-secondary px-2 py-1 text-xs">
-                        {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-                      </select>
-                      <span className="text-xs text-muted-foreground">{t('Language Banner', '语言 Banner', lang)}</span>
-                      {translations.length > 1 && (
-                        <button onClick={() => setTranslations(translations.filter((_, i) => i !== idx))} className="ml-auto text-red-500 hover:text-red-700 text-sm leading-none px-1" title={t('Remove', '删除', lang)}>×</button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Title', '标题', lang)}</label>
-                        <input value={tr.title} onChange={(e) => { setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                {translations.map((tr, idx) => {
+                  const langInfo = activeLanguages.find(l => l.code === tr.language);
+                  return (
+                    <div key={tr.language} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
+                        <span className="text-xs text-muted-foreground">{langInfo?.name || ''}</span>
                       </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Subtitle', '副标题', lang)}</label>
-                        <input value={tr.subtitle} onChange={(e) => { const newT = [...translations]; newT[idx].subtitle = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Title', '标题', lang)}</label>
+                          <input value={tr.title} onChange={(e) => { setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Subtitle', '副标题', lang)}</label>
+                          <input value={tr.subtitle} onChange={(e) => { const newT = [...translations]; newT[idx].subtitle = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                <button onClick={() => setTranslations([...translations, { language: 'en', title: '', subtitle: '' }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Language Banner', '添加语言 Banner', lang)}
-                </button>
+                  );
+                })}
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">

@@ -301,6 +301,16 @@ export const staticPageTranslations = pgTable("static_page_translations", {
 		}).onDelete("cascade"),
 ]);
 
+export const languages = pgTable("languages", {
+	id: serial().primaryKey().notNull(),
+	code: varchar({ length: 10 }).notNull(),
+	name: varchar({ length: 100 }).notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	sortOrder: integer("sort_order").default(0).notNull(),
+}, (table) => [
+	unique("languages_code_unique").on(table.code),
+]);
+
 export const categoryDescriptions = pgTable("category_descriptions", {
 	id: serial().primaryKey().notNull(),
 	categoryKey: varchar("category_key", { length: 50 }).notNull(),

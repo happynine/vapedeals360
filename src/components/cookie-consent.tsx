@@ -109,7 +109,7 @@ const CATEGORY_META: {
 
 export default function CookieConsent() {
   const { language } = useLanguage();
-  const t = i18n[language];
+  const t = i18n[language as keyof typeof i18n] || i18n.en;
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
