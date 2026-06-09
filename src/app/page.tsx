@@ -35,6 +35,7 @@ interface Store {
     slug: string;
     logo_url: string | null;
     website_url: string | null;
+    store_type: string;
     is_active: boolean;
     translations: StoreTranslation[];
 }
@@ -499,6 +500,9 @@ export default function HomePage() {
                                                                 className="w-full h-full object-contain" /> : <span className="text-[10px] font-bold text-purple-600">{st?.name?.charAt(0) || "?"}</span>}
                                                         </div>
                                                         <span className="text-xs text-gray-500 truncate">{st?.name || "Store"}</span>
+                                                        <span className={`inline-block rounded px-1 py-0 text-[9px] font-semibold ${(price.store?.store_type || 'store') === 'official' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                                            {(price.store?.store_type || 'store') === 'official' ? (language === "zh" ? "官网" : "Off") : (language === "zh" ? "商城" : "Sto")}
+                                                        </span>
                                                     </div>
                                                     <div className="flex items-center gap-2 flex-shrink-0">
                                                         <span className="text-xs font-semibold text-emerald-600 tabular-nums">${price.current_price}</span>

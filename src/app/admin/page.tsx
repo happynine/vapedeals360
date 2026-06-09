@@ -235,7 +235,7 @@ import('quill').then((mod) => {
 interface CategoryTranslation { id: number; category_id: number; language: string; name: string; }
 interface Category { id: number; slug: string; icon: string | null; sort_order: number; is_active: boolean; category_translations: CategoryTranslation[]; }
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
-interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; is_active: boolean; store_translations: StoreTranslation[]; }
+interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; store_type: string; is_active: boolean; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
@@ -326,6 +326,7 @@ export default function AdminPage() {
 
 
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
+  const [storeTypeTab, setStoreTypeTab] = useState<'store' | 'official'>('store');
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
@@ -1169,8 +1170,24 @@ export default function AdminPage() {
           {activeTab === 'stores' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold">{t('Stores', '商城', adminLang)}</h1>
-                <StoreFormModal onSave={fetchAllData} lang={adminLang} />
+                <div className="flex items-center gap-4">
+                  <h1 className="text-2xl font-bold">{t('Stores', '商城', adminLang)}</h1>
+                  <div className="flex rounded-lg border border-border overflow-hidden">
+                    <button
+                      onClick={() => setStoreTypeTab('store')}
+                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${storeTypeTab === 'store' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
+                    >
+                      {t('Store', '商城', adminLang)}
+                    </button>
+                    <button
+                      onClick={() => setStoreTypeTab('official')}
+                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${storeTypeTab === 'official' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
+                    >
+                      {t('Official Website', '官网', adminLang)}
+                    </button>
+                  </div>
+                </div>
+                <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1182,6 +1199,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Logo', 'Logo', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (EN)', '名称 (英文)', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (ZH)', '名称 (中文)', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Website', '网址', adminLang)}</th>
@@ -1189,7 +1207,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stores.map((store) => (
+                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab).map((store) => (
                         <tr key={store.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                           <td className="px-4 py-3 text-sm text-muted-foreground">{store.id}</td>
                           <td className="px-4 py-3">
@@ -1206,6 +1224,11 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono">{store.slug}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${(store.store_type || 'store') === 'official' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                              {(store.store_type || 'store') === 'official' ? t('Official', '官网', adminLang) : t('Store', '商城', adminLang)}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'en')?.name || '—'}</td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'zh')?.name || '—'}</td>
                           <td className="px-4 py-3 text-sm text-accent truncate max-w-48">{store.website_url || '—'}</td>
@@ -3857,11 +3880,12 @@ function CategoryFormModal({ category, onSave, lang }: { category?: Category; on
 }
 
 // ============== Store Form Modal ==============
-function StoreFormModal({ store, onSave, lang }: { store?: Store; onSave: () => void; lang: string }) {
+function StoreFormModal({ store, onSave, lang, defaultType }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official' }) {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(store?.slug || '');
   const [logoKey, setLogoKey] = useState(store?.logo_key || store?.logo_url || '');
   const [websiteUrl, setWebsiteUrl] = useState(store?.website_url || '');
+  const [storeType, setStoreType] = useState<'store' | 'official'>((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
   const [isActive, setIsActive] = useState(store?.is_active !== false);
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
     store?.store_translations?.map((tr) => ({ language: tr.language, name: tr.name })) || [
@@ -3882,6 +3906,7 @@ function StoreFormModal({ store, onSave, lang }: { store?: Store; onSave: () => 
         slug,
         logo_url: logoKey || null,
         website_url: websiteUrl || null,
+        store_type: storeType,
         is_active: isActive,
         translations,
       };
@@ -3896,17 +3921,36 @@ function StoreFormModal({ store, onSave, lang }: { store?: Store; onSave: () => 
   return (
     <>
       <button onClick={() => setOpen(true)} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-        {isEdit ? t('Edit', '编辑', lang) : t('Add Store', '添加商城', lang)}
+        {isEdit ? t('Edit', '编辑', lang) : (storeType === 'official' ? t('Add Official', '添加官网', lang) : t('Add Store', '添加商城', lang))}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
             <button onClick={() => setOpen(false)} className="absolute top-3 left-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground z-10"><X className="w-4 h-4" /></button>
-            <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Store', '编辑商城', lang) : t('Add Store', '添加商城', lang)}</h2>
+            <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-muted-foreground">{t('Slug', '标识', lang)}</label>
                 <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">{t('Type', '类型', lang)}</label>
+                <div className="mt-1 flex rounded-lg border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setStoreType('store')}
+                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${storeType === 'store' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
+                  >
+                    {t('Store', '商城', lang)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStoreType('official')}
+                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${storeType === 'official' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
+                  >
+                    {t('Official Website', '官网', lang)}
+                  </button>
+                </div>
               </div>
               <ImageUpload
                 value={logoKey}
