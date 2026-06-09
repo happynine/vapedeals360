@@ -364,7 +364,7 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                     <div className="col-span-1 text-center">
-                      <span className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${(price.store?.store_type || 'store') === 'official' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                      <span className="inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium text-gray-400">
                         {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                       </span>
                     </div>
@@ -406,7 +406,7 @@ export default function ProductDetailPage() {
                                 {language === 'zh' ? '最低价' : 'LOWEST'}
                               </span>
                             )}
-                            <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${(price.store?.store_type || 'store') === 'official' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                            <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
                               {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                             </span>
                           </div>
