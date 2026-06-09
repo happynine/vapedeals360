@@ -972,21 +972,23 @@ export default function AdminPage() {
                     {langEditing ? (
                       <>
                         <input
-                          value={lang.name}
-                          onChange={async (e) => {
+                          value={lang.name || ''}
+                          onChange={(e) => {
                             const newName = e.target.value;
                             setLanguages(prev => prev.map(l => l.id === lang.id ? { ...l, name: newName } : l));
                           }}
                           onBlur={async () => {
                             const current = languages.find(l => l.id === lang.id);
-                            if (!current) return;
-                            await adminFetch('/api/admin/languages', {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ id: lang.id, name: current.name }),
-                            });
+                            if (!current?.name) return;
+                            try {
+                              await adminFetch('/api/admin/languages', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: lang.id, name: current.name }),
+                              });
+                            } catch {}
                           }}
-                          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="flex-1 rounded-md border border-input bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                         <button
                           onClick={async () => {
