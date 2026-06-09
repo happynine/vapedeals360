@@ -305,11 +305,10 @@ export default function ProductDetailPage() {
           <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
             {/* Table Header - hidden on mobile, shown on md+ */}
             <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              <div className="col-span-3">{language === 'zh' ? '商城' : 'Store'}</div>
+              <div className="col-span-4">{language === 'zh' ? '商城' : 'Store'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '现价' : 'Price'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '原价' : 'Original'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '折扣' : 'Discount'}</div>
-              <div className="col-span-1 text-center">{language === 'zh' ? '类型' : 'Type'}</div>
               <div className="col-span-2 text-center">{language === 'zh' ? '操作' : 'Action'}</div>
             </div>
             {/* Table Rows */}
@@ -325,7 +324,7 @@ export default function ProductDetailPage() {
                 >
                   {/* Desktop row */}
                   <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-4 items-center">
-                    <div className="col-span-3 flex items-center gap-3">
+                    <div className="col-span-4 flex items-center gap-3">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
                         {price.store?.logo_url ? (
                           <img src={price.store.logo_url.startsWith('http') ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`} alt="" className="w-full h-full object-contain" />
@@ -346,6 +345,9 @@ export default function ProductDetailPage() {
                       <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                         ${price.current_price}
                       </span>
+                      <span className="ml-1 text-lg font-bold text-gray-900">
+                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
+                      </span>
                     </div>
                     <div className="col-span-2 text-center">
                       {price.original_price ? (
@@ -362,11 +364,6 @@ export default function ProductDetailPage() {
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
-                    </div>
-                    <div className="col-span-1 text-center">
-                      <span className="inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium text-gray-400">
-                        {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
-                      </span>
                     </div>
                     <div className="col-span-2 text-center">
                       <a
@@ -406,15 +403,15 @@ export default function ProductDetailPage() {
                                 {language === 'zh' ? '最低价' : 'LOWEST'}
                               </span>
                             )}
-                            <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
-                              {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
-                            </span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className={`text-lg font-bold tabular-nums ${isLowest ? 'text-emerald-600' : 'text-gray-900'}`}>
                           ${price.current_price}
+                        </span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {(price.store?.store_type || 'store') === 'official' ? (language === 'zh' ? '官网' : 'Official') : (language === 'zh' ? '商城' : 'Store')}
                         </span>
                         {priceDiscount ? (
                           <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
