@@ -4495,28 +4495,37 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                               const newP = [...prices];
                               const s = stores.find(st => st.id === Number(val));
                               const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
+                              // Preserve existing price data for this store group by region
+                              const existingByRegion: Record<string, typeof prices[0]> = {};
+                              for (const idx of group.indices) {
+                                const p = prices[idx];
+                                const key = p.region || '__default__';
+                                existingByRegion[key] = { ...p };
+                              }
                               // Remove all existing entries for this store group
                               const removeIndices = group.indices;
                               const remaining = newP.filter((_, i) => !removeIndices.includes(i));
                               if (sRegions.length <= 1) {
                                 const r = sRegions[0] || { region: '', currency: '$' };
+                                const existing = existingByRegion[r.region] || existingByRegion['__default__'];
                                 remaining.push({
                                   store_id: val,
-                                  current_price: '',
-                                  original_price: '',
-                                  product_url: '',
-                                  discount_percent: '',
+                                  current_price: existing?.current_price || '',
+                                  original_price: existing?.original_price || '',
+                                  product_url: existing?.product_url || '',
+                                  discount_percent: existing?.discount_percent || '',
                                   currency: r.currency,
                                   region: r.region,
                                 });
                               } else {
                                 for (const sr of sRegions) {
+                                  const existing = existingByRegion[sr.region] || existingByRegion['__default__'];
                                   remaining.push({
                                     store_id: val,
-                                    current_price: '',
-                                    original_price: '',
-                                    product_url: '',
-                                    discount_percent: '',
+                                    current_price: existing?.current_price || '',
+                                    original_price: existing?.original_price || '',
+                                    product_url: existing?.product_url || '',
+                                    discount_percent: existing?.discount_percent || '',
                                     currency: sr.currency || '$',
                                     region: sr.region || '',
                                   });
