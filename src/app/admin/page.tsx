@@ -4502,13 +4502,13 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                 const key = p.region || '__default__';
                                 existingByRegion[key] = { ...p };
                               }
-                              // Remove all existing entries for this store group
-                              const removeIndices = group.indices;
-                              const remaining = newP.filter((_, i) => !removeIndices.includes(i));
+                              // Replace entries in-place to preserve position
+                              const firstIdx = group.indices[0];
+                              const newEntries: typeof prices = [];
                               if (sRegions.length <= 1) {
                                 const r = sRegions[0] || { region: '', currency: '$' };
                                 const existing = existingByRegion[r.region] || existingByRegion['__default__'];
-                                remaining.push({
+                                newEntries.push({
                                   store_id: val,
                                   current_price: existing?.current_price || '',
                                   original_price: existing?.original_price || '',
@@ -4520,7 +4520,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                               } else {
                                 for (const sr of sRegions) {
                                   const existing = existingByRegion[sr.region] || existingByRegion['__default__'];
-                                  remaining.push({
+                                  newEntries.push({
                                     store_id: val,
                                     current_price: existing?.current_price || '',
                                     original_price: existing?.original_price || '',
@@ -4531,7 +4531,13 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                   });
                                 }
                               }
-                              setPrices(remaining);
+                              // Remove old entries, then splice new ones at the original position
+                              const sortedDesc = [...group.indices].sort((a, b) => b - a);
+                              for (const idx of sortedDesc) {
+                                newP.splice(idx, 1);
+                              }
+                              newP.splice(firstIdx, 0, ...newEntries);
+                              setPrices(newP);
                             }}
                           />
                         </div>
