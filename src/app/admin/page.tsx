@@ -1345,6 +1345,7 @@ export default function AdminPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Logo', 'Logo', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
@@ -1358,8 +1359,9 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab).map((store) => (
+                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab).map((store, idx) => (
                         <tr key={store.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{idx + 1}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{store.id}</td>
                           <td className="px-4 py-3">
                             {store.logo_url || store.logo_key ? (
