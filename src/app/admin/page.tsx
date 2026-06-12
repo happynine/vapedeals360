@@ -416,6 +416,8 @@ export default function AdminPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productSortOrder, setProductSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [productSearch, setProductSearch] = useState('');
+  const [productSearchInput, setProductSearchInput] = useState('');
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
   }, [products, productSortOrder]);
@@ -1193,7 +1195,25 @@ export default function AdminPage() {
           {activeTab === 'products' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold">{t('Products', '产品', adminLang)}</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold">{t('Products', '产品', adminLang)}</h1>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={productSearchInput}
+                      onChange={(e) => setProductSearchInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setProductSearch(productSearchInput); }}
+                      placeholder="Search product name..."
+                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 w-48"
+                    />
+                    <button
+                      onClick={() => setProductSearch(productSearchInput)}
+                      className="px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors"
+                    >
+                      {t('Confirm', '确认', adminLang)}
+                    </button>
+                  </div>
+                </div>
                 <ProductFormModal categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
@@ -1221,7 +1241,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedProducts.map((product, pIndex) => {
+                      {sortedProducts.filter(p => !productSearch || (p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase())).map((product, pIndex) => {
                         const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
