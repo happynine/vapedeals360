@@ -328,6 +328,8 @@ export default function AdminPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
   const [storeTypeTab, setStoreTypeTab] = useState<'store' | 'official'>('store');
+  const [storeSearchInput, setStoreSearchInput] = useState('');
+  const [storeSearch, setStoreSearch] = useState('');
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
@@ -1335,6 +1337,22 @@ export default function AdminPage() {
                       {t('Official Website', '官网', adminLang)}
                     </button>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={storeSearchInput}
+                      onChange={(e) => setStoreSearchInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setStoreSearch(storeSearchInput.trim()); }}
+                      placeholder={t('Search name...', '搜索名称...', adminLang)}
+                      className="h-8 rounded-md border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                    />
+                    <button
+                      onClick={() => setStoreSearch(storeSearchInput.trim())}
+                      className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      {t('Confirm', '确认', adminLang)}
+                    </button>
+                  </div>
                 </div>
                 <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
               </div>
@@ -1359,7 +1377,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab).map((store, idx) => (
+                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab && (!storeSearch || (s.store_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(storeSearch.toLowerCase()))).map((store, idx) => (
                         <tr key={store.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                           <td className="px-4 py-3 text-sm text-muted-foreground">{idx + 1}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{store.id}</td>
