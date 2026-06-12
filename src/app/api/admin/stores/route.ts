@@ -32,6 +32,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
 
+    // Check for duplicate slug
+    if (slug) {
+      const { data: existing } = await client
+        .from('stores')
+        .select('id')
+        .ilike('slug', slug)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        return NextResponse.json({ success: false, error: 'Slug already exists' }, { status: 409 });
+      }
+    }
+
     const { data: store, error: storeError } = await client
       .from('stores')
       .insert({ slug, logo_url, website_url, website_urls: website_urls || [], is_active: is_active !== false, store_type: store_type || 'store', regions: regions || [], notes: notes || '' })
@@ -65,6 +77,19 @@ export async function PUT(request: NextRequest) {
     const client = getSupabaseClient();
     const body = await request.json();
     const { id, slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
+
+    // Check for duplicate slug (exclude current store)
+    if (slug) {
+      const { data: existing } = await client
+        .from('stores')
+        .select('id')
+        .ilike('slug', slug)
+        .neq('id', id)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        return NextResponse.json({ success: false, error: 'Slug already exists' }, { status: 409 });
+      }
+    }
 
     const { data: store, error: storeError } = await client
       .from('stores')

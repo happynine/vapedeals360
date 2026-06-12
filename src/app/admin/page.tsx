@@ -1374,7 +1374,7 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-                <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
+                <StoreFormModal onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} allStores={stores} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1438,7 +1438,7 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} />
+                              <StoreFormModal store={store} onSave={fetchAllData} lang={adminLang} defaultType={storeTypeTab} activeLanguages={activeLanguages} allStores={stores} />
                               <button onClick={() => handleDeleteStore(store.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                                 {t('Delete', '删除', adminLang)}
                               </button>
@@ -4008,7 +4008,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
       const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) { setOpen(false); onSave(); }
-      else alert(t('Error:', '错误：', lang) + json.error);
+      else alert(t('Error:', '错误：', lang) + ' ' + (json.error === 'Slug already exists' ? t('Slug already exists', '标识已存在，请使用不同的标识', lang) : json.error));
     } catch { alert(t('Failed to save', '保存失败', lang)); }
     finally { setSaving(false); }
   };
@@ -4075,7 +4075,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
 }
 
 // ============== Store Form Modal ==============
-function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official'; activeLanguages: Language[] }) {
+function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, allStores }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official'; activeLanguages: Language[]; allStores: Store[] }) {
   const [open, setOpen] = useState(false);
   const [slug, setSlug] = useState(store?.slug || '');
   const [logoKey, setLogoKey] = useState(store?.logo_key || store?.logo_url || '');
@@ -4134,6 +4134,15 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages }: {
   }, [open, activeLanguages]);
 
   const handleSave = async () => {
+    // Check for duplicate slug
+    const trimmedSlug = slug.trim().toLowerCase();
+    if (trimmedSlug) {
+      const duplicate = allStores.find(s => s.slug.toLowerCase() === trimmedSlug && s.id !== store?.id);
+      if (duplicate) {
+        alert(t('Slug already exists', '标识已存在，请使用不同的标识', lang));
+        return;
+      }
+    }
     setSaving(true);
     try {
       const url = '/api/admin/stores';
