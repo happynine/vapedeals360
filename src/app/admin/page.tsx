@@ -1198,14 +1198,25 @@ export default function AdminPage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold">{t('Products', '产品', adminLang)}</h1>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={productSearchInput}
-                      onChange={(e) => setProductSearchInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setProductSearch(productSearchInput); }}
-                      placeholder="Search product name..."
-                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 w-48"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={productSearchInput}
+                        onChange={(e) => setProductSearchInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setProductSearch(productSearchInput); }}
+                        placeholder="Search product name..."
+                        className="px-3 py-1.5 pr-7 rounded-md border border-border bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 w-48"
+                      />
+                      {productSearchInput && (
+                        <button
+                          type="button"
+                          onClick={() => { setProductSearchInput(''); setProductSearch(''); }}
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => setProductSearch(productSearchInput)}
                       className="px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors"
@@ -1358,14 +1369,25 @@ export default function AdminPage() {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={storeSearchInput}
-                      onChange={(e) => setStoreSearchInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setStoreSearch(storeSearchInput.trim()); }}
-                      placeholder={t('Search name...', '搜索名称...', adminLang)}
-                      className="h-8 rounded-md border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-40"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={storeSearchInput}
+                        onChange={(e) => setStoreSearchInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setStoreSearch(storeSearchInput.trim()); }}
+                        placeholder={t('Search name...', '搜索名称...', adminLang)}
+                        className="h-8 rounded-md border border-border bg-card px-3 pr-7 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                      />
+                      {storeSearchInput && (
+                        <button
+                          type="button"
+                          onClick={() => { setStoreSearchInput(''); setStoreSearch(''); }}
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => setStoreSearch(storeSearchInput.trim())}
                       className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
