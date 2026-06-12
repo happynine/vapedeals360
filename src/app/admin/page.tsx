@@ -252,11 +252,12 @@ function t(en: string, zh: string, lang: string) {
   return lang === 'zh' ? zh : en;
 }
 
-function StoreSelect({ stores, value, onChange, lang }: {
+function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
   stores: Array<{ id: number; slug: string; logo_url: string | null; store_translations?: Array<{ name: string; language: string }> }>;
   value: string;
   onChange: (value: string) => void;
   lang: string;
+  disabledStoreIds?: number[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -297,20 +298,23 @@ function StoreSelect({ stores, value, onChange, lang }: {
       </div>
       {open && (
         <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-600 bg-[#1e1e2e] shadow-lg max-h-60 overflow-y-auto">
-          {stores.map((store) => (
-            <div
-              key={store.id}
-              onClick={() => { onChange(String(store.id)); setOpen(false); }}
-              className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-purple-500/20 transition-colors ${String(store.id) === value ? 'bg-purple-500/30' : ''}`}
-            >
-              {store.logo_url ? (
-                <img src={store.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
-              ) : (
-                <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
-              )}
-              <span className="text-white text-sm">{getStoreName(store)}</span>
-            </div>
-          ))}
+          {stores.map((store) => {
+            const isDisabled = disabledStoreIds?.includes(store.id);
+            return (
+              <div
+                key={store.id}
+                onClick={() => { if (!isDisabled) { onChange(String(store.id)); setOpen(false); } }}
+                className={`flex items-center gap-2 px-3 py-2 transition-colors ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-purple-500/20'} ${String(store.id) === value ? 'bg-purple-500/30' : ''}`}
+              >
+                {store.logo_url ? (
+                  <img src={store.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
+                ) : (
+                  <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
+                )}
+                <span className="text-sm" style={{ color: isDisabled ? 'rgba(255,255,255,0.5)' : 'white' }}>{getStoreName(store)}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -4549,6 +4553,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     }
                     group.indices.push(idx);
                   });
+                  const selectedStoreIds = storeGroups.filter(g => !g.storeId.startsWith('__empty__')).map(g => Number(g.storeId));
                   return storeGroups.map((group) => {
                     const firstP = prices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
@@ -4562,6 +4567,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                             stores={stores}
                             value={firstP.store_id}
                             lang={lang}
+                            disabledStoreIds={selectedStoreIds.filter(id => id !== Number(group.storeId))}
                             onChange={(val) => {
                               const newP = [...prices];
                               const s = stores.find(st => st.id === Number(val));
