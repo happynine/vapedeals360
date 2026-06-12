@@ -4043,7 +4043,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 relative">
-            <button onClick={() => setOpen(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>            <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
+            <button onClick={() => setOpen(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -4198,7 +4198,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
             <button onClick={() => setOpen(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground z-10"><X className="w-4 h-4" /></button>
-            <h2 className="text-lg font-bold mb-4">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
+            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-muted-foreground">{t('Slug', '标识', lang)}</label>
@@ -4450,7 +4450,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8">
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
             <button onClick={() => setOpen(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
-            <h2 className="text-lg font-bold mb-4 pl-8">{isEdit ? t('Edit Product', '编辑产品', lang) : t('Add Product', '添加产品', lang)}</h2>
+            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Product', '编辑产品', lang) : t('Add Product', '添加产品', lang)}</h2>
             <div className="space-y-4">
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-3">
@@ -4760,7 +4760,7 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8">
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
             <button onClick={() => setOpen(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
-            <h2 className="text-lg font-bold mb-4 pl-8">{isEdit ? t('Edit Banner', '编辑 Banner', lang) : t('Add Banner', '添加 Banner', lang)}</h2>
+            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Banner', '编辑 Banner', lang) : t('Add Banner', '添加 Banner', lang)}</h2>
             <div className="space-y-4">
               {/* Default Banner Image Upload (Web) */}
               <ImageUpload
