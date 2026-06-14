@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import dynamic from 'next/dynamic';
 
@@ -1166,18 +1167,33 @@ export default function AdminPage() {
               {/* PV Trend Chart */}
               <div className="bg-card rounded-xl border border-border p-6 mb-8">
                 <h3 className="text-lg font-semibold mb-4">{t('PV/UV Trend', 'PV/UV 趋势', adminLang)}</h3>
-                <div className="h-48 flex items-end gap-1">
-                  {((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number | string>> || []).map((item, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="w-full bg-blue-500/60 rounded-t" style={{ height: `${Math.max(4, ((item.pv as number) / Math.max(...((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number>> || [{ pv: 1 }]).map((i: Record<string, number>) => i.pv || 1))) * 140)}px` }} title={`PV: ${item.pv}`} />
-                      <div className="w-full bg-green-500/60 rounded-t" style={{ height: `${Math.max(4, ((item.uv as number) / Math.max(...((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number>> || [{ uv: 1 }]).map((i: Record<string, number>) => i.uv || 1))) * 100)}px` }} title={`UV: ${item.uv}`} />
-                      <span className="text-[10px] text-muted-foreground truncate w-full text-center">{String(item.date).slice(-5)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500/60" /> PV</span>
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500/60" /> UV</span>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number | string>>) || []}
+                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 10, fill: '#9ca3af' }}
+                        tickFormatter={(value: string) => value.slice(-5)}
+                      />
+                      <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1f2937', 
+                          border: '1px solid #374151',
+                          borderRadius: '8px',
+                          color: '#fff'
+                        }}
+                        labelStyle={{ color: '#9ca3af' }}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="pv" name="PV" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="uv" name="UV" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
