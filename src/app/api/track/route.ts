@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+// Map ISO country codes to region names
+function mapCountryToRegion(countryCode: string): string {
+  const mapping: Record<string, string> = {
+    US: 'USA',
+    GB: 'UK',
+    CA: 'Canada',
+    RU: 'Russia',
+    JP: 'Japan',
+    // European countries
+    AT: 'Europe', BE: 'Europe', BG: 'Europe', HR: 'Europe', CY: 'Europe', CZ: 'Europe',
+    DK: 'Europe', EE: 'Europe', FI: 'Europe', FR: 'Europe', DE: 'Europe', GR: 'Europe',
+    HU: 'Europe', IE: 'Europe', IT: 'Europe', LV: 'Europe', LT: 'Europe', LU: 'Europe',
+    MT: 'Europe', NL: 'Europe', PL: 'Europe', PT: 'Europe', RO: 'Europe', SK: 'Europe',
+    SI: 'Europe', ES: 'Europe', SE: 'Europe', IS: 'Europe', NO: 'Europe', CH: 'Europe',
+    AL: 'Europe', BA: 'Europe', ME: 'Europe', MK: 'Europe', RS: 'Europe', UA: 'Europe',
+    BY: 'Europe', MD: 'Europe', XK: 'Europe',
+  };
+  return mapping[countryCode.toUpperCase()] || 'Global';
+}
+
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, "public");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
@@ -31,6 +51,10 @@ export async function POST(request: NextRequest) {
     const ip = rawIp.split(',')[0].trim().slice(0, 45);
     const ua = request.headers.get('user-agent') || 'unknown';
 
+    // Get region from IP (Vercel/Cloudflare headers)
+    const countryCode = request.headers.get('x-vercel-ip-country') || request.headers.get('cf-ipcountry') || '';
+    const region = mapCountryToRegion(countryCode);
+
     const effectiveType = type || event_type;
 
     // If it's a page_view or no type specified (legacy support from homepage), record page view
@@ -40,6 +64,7 @@ export async function POST(request: NextRequest) {
         page: page || '/',
         referrer: referrer || request.headers.get('referer') || null,
         ip: ip,
+        region: region,
         user_agent: ua,
         created_at: now,
       });

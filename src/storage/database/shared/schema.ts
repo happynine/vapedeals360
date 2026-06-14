@@ -180,6 +180,7 @@ export const pageViews = pgTable("page_views", {
 	page: varchar({ length: 255 }).notNull(),
 	referrer: text(),
 	ip: varchar({ length: 45 }),
+	region: varchar({ length: 20 }),
 	userAgent: text("user_agent"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
@@ -187,6 +188,7 @@ export const pageViews = pgTable("page_views", {
 	index("pv_ip_idx").using("btree", table.ip.asc().nullsLast().op("text_ops")),
 	index("pv_page_idx").using("btree", table.page.asc().nullsLast().op("text_ops")),
 	index("pv_session_id_idx").using("btree", table.sessionId.asc().nullsLast().op("text_ops")),
+	index("pv_region_idx").using("btree", table.region.asc().nullsLast().op("text_ops")),
 ]);
 
 export const siteSettingTranslations = pgTable("site_setting_translations", {

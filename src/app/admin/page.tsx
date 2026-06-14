@@ -344,6 +344,7 @@ export default function AdminPage() {
   const [showSocialForm, setShowSocialForm] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
+  const [analyticsRegion, setAnalyticsRegion] = useState('all');
 
   const bestVapesRef = useRef<ContentPagesManagerRef>(null);
   const newsRef = useRef<ContentPagesManagerRef>(null);
@@ -412,9 +413,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isLoggedIn && activeTab === 'analytics') {
-      fetch(`/api/analytics?month=${analyticsMonth}`).then(r => r.json()).then(d => { if (d.success) setAnalyticsData(d.data); }).catch(() => {});
+      const params = new URLSearchParams({ month: analyticsMonth });
+      if (analyticsRegion && analyticsRegion !== 'all') {
+        params.set('region', analyticsRegion);
+      }
+      fetch(`/api/analytics?${params.toString()}`).then(r => r.json()).then(d => { if (d.success) setAnalyticsData(d.data); }).catch(() => {});
     }
-  }, [isLoggedIn, activeTab, analyticsMonth]);
+  }, [isLoggedIn, activeTab, analyticsMonth, analyticsRegion]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -1098,20 +1103,35 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold">{t('Analytics', '数据统计', adminLang)}</h2>
-                <select
-                  value={analyticsMonth}
-                  onChange={(e) => setAnalyticsMonth(e.target.value)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="all">{t('All', '全部', adminLang)}</option>
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - i);
-                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    const label = d.toLocaleDateString(adminLang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
-                    return <option key={val} value={val}>{label}</option>;
-                  })}
-                </select>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={analyticsRegion}
+                    onChange={(e) => setAnalyticsRegion(e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="all">{t('Global', '全球', adminLang)}</option>
+                    <option value="USA">{t('USA', '美国', adminLang)}</option>
+                    <option value="UK">{t('UK', '英国', adminLang)}</option>
+                    <option value="Canada">{t('Canada', '加拿大', adminLang)}</option>
+                    <option value="Russia">{t('Russia', '俄罗斯', adminLang)}</option>
+                    <option value="Japan">{t('Japan', '日本', adminLang)}</option>
+                    <option value="Europe">{t('Europe', '欧洲', adminLang)}</option>
+                  </select>
+                  <select
+                    value={analyticsMonth}
+                    onChange={(e) => setAnalyticsMonth(e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="all">{t('All', '全部', adminLang)}</option>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const d = new Date();
+                      d.setMonth(d.getMonth() - i);
+                      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                      const label = d.toLocaleDateString(adminLang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
+                      return <option key={val} value={val}>{label}</option>;
+                    })}
+                  </select>
+                </div>
               </div>
 
               {/* Summary Cards */}

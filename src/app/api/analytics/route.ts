@@ -10,18 +10,26 @@ export async function GET(request: Request) {
     const supabase = getSupabaseClient();
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month'); // format: YYYY-MM or "all"
+    const region = searchParams.get('region'); // USA, UK, Canada, Russia, Japan, Europe, Global, or null for all
 
     const startDate = month && month !== 'all' ? `${month}-01T00:00:00Z` : '2000-01-01T00:00:00Z';
     const endDate = month && month !== 'all' ? getNextMonth(month) : '2099-12-31T23:59:59Z';
 
-    // Get all page views for calculations
-    const { data: allViews, error: viewsError } = await supabase
+    // Build base query with optional region filter
+    let pageViewsQuery = supabase
       .from('page_views')
-      .select('session_id, created_at, page, ip')
+      .select('session_id, created_at, page, ip, region')
       .gte('created_at', startDate)
       .lt('created_at', endDate)
       .order('created_at', { ascending: true })
       .limit(50000);
+
+    // Apply region filter if specified
+    if (region && region !== 'all') {
+      pageViewsQuery = pageViewsQuery.eq('region', region);
+    }
+
+    const { data: allViews, error: viewsError } = await pageViewsQuery;
 
     if (viewsError) throw viewsError;
 
