@@ -88,6 +88,15 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [salesRegion, setSalesRegion] = useState<string>('USA');
+
+  // Load sales region from localStorage
+  useEffect(() => {
+    const savedRegion = localStorage.getItem('salesRegion');
+    if (savedRegion) {
+      setSalesRegion(savedRegion);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -167,9 +176,12 @@ export default function ProductDetailPage() {
       specsEntries = Object.entries(raw as Record<string, string>);
     }
   } catch { specsEntries = []; }
-  const sortedPrices = [...product.prices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+
+  // Filter prices by sales region
+  const filteredPrices = product.prices.filter((p) => !p.region || p.region === salesRegion || p.region === 'Global');
+  const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
-  const highestOriginal = product.prices
+  const highestOriginal = filteredPrices
     .filter((p) => p.original_price)
     .reduce((max, p) => parseFloat(p.original_price!) > max ? parseFloat(p.original_price!) : max, 0);
 
@@ -247,12 +259,12 @@ export default function ProductDetailPage() {
                 <span className="text-4xl font-bold text-emerald-600 tabular-nums">
                   {lowestPrice?.currency || '$'}{lowestPrice?.current_price || '—'}
                 </span>
-                {highestOriginal > 0 && product.prices.length < 2 && (
+                {highestOriginal > 0 && filteredPrices.length < 2 && (
                   <span className="text-lg text-gray-400 line-through tabular-nums">
                     ${highestOriginal.toFixed(2)}
                   </span>
                 )}
-                {highestOriginal > 0 && product.prices.length >= 2 && (
+                {highestOriginal > 0 && filteredPrices.length >= 2 && (
                   <span className="text-xs text-emerald-600 font-medium ml-0.5">
                     {language === 'zh' ? '最低价' : 'Lowest'}
                   </span>

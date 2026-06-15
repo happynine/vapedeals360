@@ -208,6 +208,14 @@ export default function HomePage() {
         }
     }, [urlSearch]);
 
+    // Load sales region from localStorage on mount
+    useEffect(() => {
+        const savedRegion = localStorage.getItem('salesRegion');
+        if (savedRegion && savedRegion !== salesRegion) {
+            setSalesRegion(savedRegion);
+        }
+    }, []);
+
     useEffect(() => {
         fetchData();
     }, [fetchData]);
@@ -333,7 +341,13 @@ export default function HomePage() {
                             return (
                             <button
                                 key={region}
-                                onClick={() => { setSalesRegion(region); setPage(1); }}
+                                onClick={() => { 
+                                    setSalesRegion(region); 
+                                    setPage(1);
+                                    if (typeof window !== 'undefined') {
+                                        localStorage.setItem('salesRegion', region);
+                                    }
+                                }}
                                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                                 {regionLabels[region]}
                             </button>
