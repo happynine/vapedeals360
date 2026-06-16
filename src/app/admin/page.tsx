@@ -4085,21 +4085,24 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 relative">
-            <button onClick={() => setOpen(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+            </div>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Slug', '标识', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
                   <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Icon (emoji)', '图标 (emoji)', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Icon (emoji)', '图标 (emoji)', lang)}</label>
                   <input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Sort Order', '排序', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Sort Order', '排序', lang)}</label>
                   <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div className="flex items-end gap-2">
@@ -4117,7 +4120,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
                     <div key={tr.language} className="grid grid-cols-[60px_1fr] gap-2 mb-2 items-center">
                       <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
                       <div>
-                        <label className="text-[10px] text-muted-foreground mb-0.5 block">{langInfo?.name || tr.language}</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block text-left">{langInfo?.name || tr.language}</label>
                         <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                       </div>
                     </div>
@@ -4239,15 +4242,17 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
-            <button onClick={() => setOpen(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground z-10"><X className="w-4 h-4" /></button>
-            <h2 className="text-lg font-bold mb-4 text-left">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+            </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-muted-foreground">{t('Slug', '标识', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
                 <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">{t('Type', '类型', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Type', '类型', lang)}</label>
                 <div className="mt-1 flex rounded-lg border border-border overflow-hidden">
                   <button
                     type="button"
@@ -4274,7 +4279,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 folder="logos"
               />
               <div>
-                <label className="text-xs text-muted-foreground">{t('Website URL', '网站地址', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Website URL', '网站地址', lang)}</label>
                 <div className="mt-1 space-y-2">
                   {websiteUrls.map((w, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -4309,7 +4314,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">{t('Sales Region', '售卖地区', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Sales Region', '售卖地区', lang)}</label>
                 <div className="mt-1 space-y-2">
                   {regions.map((r, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -4364,7 +4369,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">{t('Notes', '备注', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Notes', '备注', lang)}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y" placeholder={t('Internal notes (not shown on frontend)', '内部备注（不在前端展示）', lang)} />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -4379,7 +4384,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                     <div key={tr.language} className="grid grid-cols-[60px_1fr] gap-2 mb-2 items-center">
                       <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
                       <div>
-                        <label className="text-[10px] text-muted-foreground mb-0.5 block">{langInfo?.name || tr.language}</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block text-left">{langInfo?.name || tr.language}</label>
                         <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                       </div>
                     </div>
@@ -4501,11 +4506,11 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Slug', '标识', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
                   <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Category', '分类', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Category', '分类', lang)}</label>
                   <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
                     <option value="">{t('None', '无', lang)}</option>
                     {categories.map((c) => (
@@ -4532,7 +4537,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
 
               {/* Notes - internal use only */}
               <div className="border-t border-border pt-3">
-                <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Notes (Internal)', '备注 (内部)', lang)}</label>
+                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Notes (Internal)', '备注 (内部)', lang)}</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -4555,15 +4560,15 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                       </div>
                       <div className="space-y-2">
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Product Name', '产品名称', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Product Name', '产品名称', lang)}</label>
                           <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Description', '描述', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Description', '描述', lang)}</label>
                           <textarea value={tr.description} onChange={(e) => { const newT = [...translations]; newT[idx].description = e.target.value; setTranslations(newT); }} rows={2} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y min-h-[40px]" />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Features (one per line)', '产品特性 (每行一条)', lang)}</label>
                           <textarea
                             value={(() => {
                               try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
@@ -4575,7 +4580,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Specs (one per line)', '规格参数 (每行一条)：必须为英文格式', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Specs (one per line)', '规格参数 (每行一条)：必须为英文格式', lang)}</label>
                           <textarea
                             value={(() => {
                               try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
@@ -4616,7 +4621,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                         <div className="mb-2">
-                          <label className="text-[10px] text-muted-foreground">{t('Store', '商城', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城', lang)}</label>
                           <StoreSelect
                             stores={stores}
                             value={firstP.store_id}
@@ -4682,21 +4687,21 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                   <div className="text-xs font-medium text-primary mb-1.5">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
                                       <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
                                       <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %', lang)}</label>
                                       <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[pIdx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接', lang)}</label>
                                       <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[pIdx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
                                     </div>
                                   </div>
@@ -4708,21 +4713,21 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                           <div>
                             <div className="grid grid-cols-2 gap-2 mb-1.5">
                               <div>
-                                <label className="text-[10px] text-muted-foreground">{t('Current Price', '现价', lang)} ({firstP.currency || '$'})</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({firstP.currency || '$'})</label>
                                 <input value={firstP.current_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                               </div>
                               <div>
-                                <label className="text-[10px] text-muted-foreground">{t('Original Price', '原价', lang)} ({firstP.currency || '$'})</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价', lang)} ({firstP.currency || '$'})</label>
                                 <input value={firstP.original_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="text-[10px] text-muted-foreground">{t('Discount %', '折扣 %', lang)}</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %', lang)}</label>
                                 <input value={firstP.discount_percent} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
                               </div>
                               <div>
-                                <label className="text-[10px] text-muted-foreground">{t('Product URL', '产品链接', lang)}</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接', lang)}</label>
                                 <input value={firstP.product_url} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
                               </div>
                             </div>
@@ -4846,11 +4851,11 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Link URL (optional)', '链接地址 (可选)', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Link URL (optional)', '链接地址 (可选)', lang)}</label>
                   <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">{t('Sort Order', '排序', lang)}</label>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Sort Order', '排序', lang)}</label>
                   <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
               </div>
@@ -4876,11 +4881,11 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
                       </div>
                       <div className="space-y-2">
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Title', '标题', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Title', '标题', lang)}</label>
                           <input value={tr.title} onChange={(e) => { setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t)); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                         </div>
                         <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Subtitle', '副标题', lang)}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Subtitle', '副标题', lang)}</label>
                           <input value={tr.subtitle} onChange={(e) => { const newT = [...translations]; newT[idx].subtitle = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                         </div>
                       </div>
