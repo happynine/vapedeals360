@@ -241,7 +241,7 @@ interface ProductTranslation { id: number; product_id: number; language: string;
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
@@ -1288,6 +1288,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
                       </tr>
                     </thead>
@@ -1313,6 +1314,7 @@ export default function AdminPage() {
                                 {product.sales_region && product.sales_region !== '不限地区' && <span className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{product.sales_region}</span>}
                               </div>
                             </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <ProductFormModal product={product} categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
@@ -4407,6 +4409,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
   const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
+  const [notes, setNotes] = useState(product?.notes || '');
   const [translations, setTranslations] = useState<{ language: string; name: string; description: string; features: string; specs: string }[]>(
     product?.product_translations?.map((tr) => ({
       language: tr.language,
@@ -4455,6 +4458,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
         image_url: imageKey || null,
         is_active: isActive,
         is_featured: isFeatured,
+        notes,
 
         translations: translations.map((tr) => ({
           language: tr.language,
@@ -4522,6 +4526,18 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" /> {t('Active', '启用', lang)}</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="rounded" /> {t('Featured', '推荐', lang)}</label>
+              </div>
+
+              {/* Notes - internal use only */}
+              <div className="border-t border-border pt-3">
+                <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Notes (Internal)', '备注 (内部)', lang)}</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder={lang === 'zh' ? '仅后台可见，用于记录备注信息' : 'Only visible in admin, for internal notes'}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
+                />
               </div>
 
               {/* Translations */}

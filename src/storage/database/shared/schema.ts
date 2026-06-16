@@ -161,6 +161,7 @@ export const products = pgTable("products", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 	salesRegion: text("sales_region").default('不限地区'),
+		notes: text("notes").default(""),
 }, (table) => [
 	index("products_category_id_idx").using("btree", table.categoryId.asc().nullsLast().op("int4_ops")),
 	index("products_is_active_idx").using("btree", table.isActive.asc().nullsLast().op("bool_ops")),
