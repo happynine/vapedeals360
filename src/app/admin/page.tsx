@@ -428,9 +428,19 @@ export default function AdminPage() {
   const [productSortOrder, setProductSortOrder] = useState<'asc' | 'desc'>('desc');
   const [productSearch, setProductSearch] = useState('');
   const [productSearchInput, setProductSearchInput] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
   }, [products, productSortOrder]);
+  const filteredProducts = useMemo(() => {
+    return sortedProducts.filter(p => !productSearch || (p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase()));
+  }, [sortedProducts, productSearch]);
+  const productTotalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [filteredProducts, productPage]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
@@ -1243,14 +1253,14 @@ export default function AdminPage() {
                         type="text"
                         value={productSearchInput}
                         onChange={(e) => setProductSearchInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') setProductSearch(productSearchInput); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { setProductSearch(productSearchInput); setProductPage(1); } }}
                         placeholder="Search product name..."
                         className="px-3 py-1.5 pr-7 rounded-md border border-border bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 w-48"
                       />
                       {productSearchInput && (
                         <button
                           type="button"
-                          onClick={() => { setProductSearchInput(''); setProductSearch(''); }}
+                          onClick={() => { setProductSearchInput(''); setProductSearch(''); setProductPage(1); }}
                           className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
                         >
                           ✕
@@ -1258,7 +1268,7 @@ export default function AdminPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => setProductSearch(productSearchInput)}
+                      onClick={() => { setProductSearch(productSearchInput); setProductPage(1); }}
                       className="px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors"
                     >
                       {t('Confirm', '确认', adminLang)}
@@ -1293,13 +1303,14 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedProducts.filter(p => !productSearch || (p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase())).map((product, pIndex) => {
+                      {paginatedProducts.map((product, pIndex) => {
                         const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
+                        const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
                         return (
                           <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{pIndex + 1}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
                             <td className="px-4 py-3">
                               <div className="text-sm font-medium">{enName}</div>
@@ -1337,6 +1348,16 @@ export default function AdminPage() {
                     </div>
                   )}
                 </div>
+              )}
+              {/* Pagination */}
+              {productTotalPages > 1 && (
+                <AdminPagination
+                  currentPage={productPage}
+                  totalPages={productTotalPages}
+                  total={filteredProducts.length}
+                  onPageChange={(p) => { setProductPage(p); }}
+                  lang={adminLang}
+                />
               )}
             </div>
           )}
@@ -4138,6 +4159,125 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
         </div>
       )}
     </>
+  );
+}
+
+// ============== Admin Pagination ==============
+function AdminPagination({
+  currentPage,
+  totalPages,
+  total,
+  onPageChange,
+  lang,
+}: {
+  currentPage: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  lang: string;
+}) {
+  const [jumpValue, setJumpValue] = useState("");
+
+  const getPageNumbers = (): (number | "...")[] => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | "...")[] = [];
+    pages.push(1);
+    if (currentPage > 4) {
+      pages.push("...");
+    }
+    const start = Math.max(2, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 3) {
+      pages.push("...");
+    }
+    pages.push(totalPages);
+    return pages;
+  };
+
+  const handleJump = () => {
+    const num = parseInt(jumpValue, 10);
+    if (!isNaN(num) && num >= 1 && num <= totalPages) {
+      onPageChange(num);
+    }
+    setJumpValue("");
+  };
+
+  const handleJumpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleJump();
+    }
+  };
+
+  return (
+    <div className="mt-4 flex items-center justify-center gap-1 select-none">
+      {/* Previous button */}
+      <button
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="flex items-center justify-center w-8 h-8 rounded border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-muted-foreground transition-colors text-xs"
+        aria-label="Previous"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
+      {/* Page numbers */}
+      {getPageNumbers().map((p, idx) =>
+        p === "..." ? (
+          <span key={`ellipsis-${idx}`} className="flex items-center justify-center w-8 h-8 text-muted-foreground text-sm">
+            ...
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`flex items-center justify-center w-8 h-8 rounded text-sm font-medium transition-colors ${
+              currentPage === p
+                ? "bg-primary text-primary-foreground border border-primary"
+                : "border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      {/* Next button */}
+      <button
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className="flex items-center justify-center w-8 h-8 rounded border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-muted-foreground transition-colors text-xs"
+        aria-label="Next"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+
+      {/* Jump to */}
+      <div className="flex items-center gap-1.5 ml-3 text-sm text-muted-foreground">
+        <span>{lang === "zh" ? "跳至" : "Go to"}</span>
+        <input
+          type="text"
+          value={jumpValue}
+          onChange={(e) => setJumpValue(e.target.value.replace(/\D/g, ""))}
+          onKeyDown={handleJumpKeyDown}
+          className="w-10 h-8 rounded border border-border bg-card text-center text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+        />
+        <span>{lang === "zh" ? "页" : ""}</span>
+      </div>
+
+      {/* Total count */}
+      <span className="ml-3 text-sm text-muted-foreground">
+        {lang === "zh" ? `共 ${total} 条` : `${total} items`}
+      </span>
+    </div>
   );
 }
 
