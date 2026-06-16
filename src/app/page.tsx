@@ -105,6 +105,72 @@ function getHighestOriginal(prices: ProductPrice[]): string | null {
     return originals.length > 0 ? Math.max(...originals).toFixed(2) : null;
 }
 
+/**
+ * 计算折扣显示
+ * - 2个及以上商城: 比较同一币种的最高现价与最低现价，返回 { type: 'save', currency, amount }
+ * - 1个商城: 比较现价与原价，返回 { type: 'percent', value }
+ */
+function getDiscountDisplay(prices: ProductPrice[]): { type: 'save'; currency: string; amount: string } | { type: 'percent'; value: number } | null {
+    if (!prices || prices.length === 0) return null;
+
+    // 2个及以上商城：比较同币种的最高现价与最低现价
+    if (prices.length >= 2) {
+        // 按币种分组
+        const byCurrency: Record<string, ProductPrice[]> = {};
+        prices.forEach(p => {
+            const cur = p.currency || '$';
+            if (!byCurrency[cur]) byCurrency[cur] = [];
+            byCurrency[cur].push(p);
+        });
+
+        // 找出有最大价差的币种
+        let maxDiff = 0;
+        let resultCurrency = '$';
+        let highestPrice = 0;
+        let lowestPrice = 0;
+
+        for (const [cur, curPrices] of Object.entries(byCurrency)) {
+            if (curPrices.length < 2) continue; // 需要至少2个同币种价格
+            const priceValues = curPrices.map(p => parseFloat(p.current_price));
+            const high = Math.max(...priceValues);
+            const low = Math.min(...priceValues);
+            const diff = high - low;
+            if (diff > maxDiff) {
+                maxDiff = diff;
+                resultCurrency = cur;
+                highestPrice = high;
+                lowestPrice = low;
+            }
+        }
+
+        // 如果没有同币种的多个价格，尝试跨币种比较（用第一个币种）
+        if (maxDiff === 0) {
+            const firstCurrency = Object.keys(byCurrency)[0] || '$';
+            const curPrices = byCurrency[firstCurrency] || prices;
+            const priceValues = curPrices.map(p => parseFloat(p.current_price));
+            highestPrice = Math.max(...priceValues);
+            lowestPrice = Math.min(...priceValues);
+            maxDiff = highestPrice - lowestPrice;
+            resultCurrency = firstCurrency;
+        }
+
+        return { type: 'save', currency: resultCurrency, amount: maxDiff.toFixed(2) };
+    }
+
+    // 1个商城：比较现价与原价
+    const price = prices[0];
+    if (price.original_price) {
+        const current = parseFloat(price.current_price);
+        const original = parseFloat(price.original_price);
+        if (original > current) {
+            const percent = Math.round((original - current) / original * 100);
+            return { type: 'percent', value: percent };
+        }
+    }
+
+    return null;
+}
+
 interface Banner {
     id: number;
     image_url: string | null;
@@ -282,19 +348,20 @@ export default function HomePage() {
                             const t = getTranslation(product.translations, language);
                             const lowest = getLowestPrice(product.prices);
                             const highestOrig = getHighestOriginal(product.prices);
-
-                            const discount = lowest?.original_price ? Math.round(
-                                (parseFloat(lowest.original_price) - parseFloat(lowest.current_price)) / parseFloat(lowest.original_price) * 100
-                            ) : null;
+                            const discountInfo = getDiscountDisplay(product.prices);
 
                             return (
                                 <Link
                                     key={product.id}
                                     href={`/product/${product.slug}`}
                                     className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md hover:border-purple-300 transition-all">
-                                    {discount && <div
-                                        className="absolute top-3 right-3 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white">-{discount}%
-                                                              </div>}
+                                    {discountInfo && (
+                                        <div className="absolute top-3 right-3 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                                            {discountInfo.type === 'percent' 
+                                                ? `-${discountInfo.value}%` 
+                                                : `Save ${discountInfo.currency}${discountInfo.amount}`}
+                                        </div>
+                                    )}
                                     <div className="flex gap-4">
                                         <div
                                             className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
@@ -447,10 +514,7 @@ export default function HomePage() {
                         const t = getTranslation(product.translations, language);
                         const lowest = getLowestPrice(product.prices);
                         const highestOrig = getHighestOriginal(product.prices);
-
-                        const discount = lowest?.original_price ? Math.round(
-                            (parseFloat(lowest.original_price) - parseFloat(lowest.current_price)) / parseFloat(lowest.original_price) * 100
-                        ) : null;
+                        const discountInfo = getDiscountDisplay(product.prices);
 
                         const sortedPrices = [...product.prices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
 
@@ -475,9 +539,13 @@ export default function HomePage() {
                                         fill
                                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" />}
-                                    {discount && <div
-                                        className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white animate-pulse-deal">-{discount}%
-                                                              </div>}
+                                    {discountInfo && (
+                                        <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white animate-pulse-deal">
+                                            {discountInfo.type === 'percent' 
+                                                ? `-${discountInfo.value}%` 
+                                                : `Save ${discountInfo.currency}${discountInfo.amount}`}
+                                        </div>
+                                    )}
                                     {product.is_featured && <div
                                         className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-2 py-0.5 text-xs font-semibold text-white">
                                         {language === "zh" ? "精选" : "Featured"}
