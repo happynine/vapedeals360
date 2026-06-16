@@ -219,7 +219,7 @@ export default function ProductDetailPage() {
               {selectedImage && (
               <SafeImage src={selectedImage} alt={t?.name || ''} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" priority />
               )}
-              {discount && (
+              {(discount ?? 0) > 0 && (
                 <div className="absolute top-4 left-4 z-10 rounded-xl bg-red-500 px-4 py-1.5 text-lg font-bold text-white animate-pulse-deal">
                   -{discount}%
                 </div>
@@ -273,7 +273,7 @@ export default function ProductDetailPage() {
               <p className="mt-1 text-sm text-gray-500">
                 {language === 'zh' ? '最低价，来自' : 'Lowest price from'} {sortedPrices.length} {language === 'zh' ? '家商城' : 'stores'}
               </p>
-              {discount && (
+              {(discount ?? 0) > 0 && (
                 <div className="mt-2">
                   <div className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
                     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
