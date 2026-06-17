@@ -87,6 +87,17 @@ function getTranslation<T extends {
     return translations.find(t => t.language === language) || translations.find(t => t.language === "en") || translations[0];
 }
 
+// Region to currency mapping
+const REGION_CURRENCY_MAP: Record<string, string> = {
+    'USA': '$',
+    'UK': '£',
+    'Canada': 'CA$',
+    'Russia': '₽',
+    'Japan': '¥',
+    'Europe': '€',
+    'Global': '$',
+};
+
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
     if (!prices || prices.length === 0)
         return null;
@@ -512,11 +523,25 @@ export default function HomePage() {
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
                         const t = getTranslation(product.translations, language);
-                        const lowest = getLowestPrice(product.prices);
-                        const highestOrig = getHighestOriginal(product.prices);
-                        const discountInfo = getDiscountDisplay(product.prices);
+                        // 根据当前region的currency过滤价格
+                        const regionCurrency = REGION_CURRENCY_MAP[salesRegion] || '$';
+                        const filteredPrices = product.prices.filter(p => {
+                            // 如果价格记录有region字段，直接匹配
+                            if (p.region && p.region !== salesRegion) return false;
+                            // 否则根据currency匹配
+                            const priceCurrency = p.currency || '$';
+                            return priceCurrency === regionCurrency || 
+                                   (priceCurrency === '$' && regionCurrency === '$') ||
+                                   (priceCurrency === 'CA$' && regionCurrency === 'CA$');
+                        });
+                        // 如果过滤后没有价格，使用原始价格（向后兼容）
+                        const displayPrices = filteredPrices.length > 0 ? filteredPrices : product.prices;
+                        
+                        const lowest = getLowestPrice(displayPrices);
+                        const highestOrig = getHighestOriginal(displayPrices);
+                        const discountInfo = getDiscountDisplay(displayPrices);
 
-                        const sortedPrices = [...product.prices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+                        const sortedPrices = [...displayPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
 
                         return (
                             <div

@@ -192,23 +192,25 @@ export async function fetchProducts(options?: {
   if (error) throw new Error(`Fetch products failed: ${error.message}`);
 
   // Build a map of store regions for currency filtering
+  // Official和Store类型都应该遵循其设置的regions
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
-  let officialStoreIds: Set<number> = new Set();
   if (activeRegion && allStores) {
     for (const s of allStores) {
       const regions = s.regions as { region: string; currency: string }[] | null;
-      const storeType = s.store_type as string | null;
       const storeId = s.id as number;
-      // Official类型的store视为Global，包含在所有region中
-      if (storeType === 'official') {
-        officialStoreIds.add(storeId);
-        // 为Official store设置一个虚拟的region信息
-        storeRegionMap[storeId] = [{ region: activeRegion, currency: '$' }];
-      } else if (Array.isArray(regions) && regions.some(r => r.region === activeRegion)) {
-        storeRegionMap[storeId] = regions;
-      } else if (!regions || regions.length === 0 || regions.some(r => r.region === 'Global')) {
-        // 没有设置region或设置为Global的store也包含进来
-        storeRegionMap[storeId] = regions || [];
+      // 检查store是否匹配当前region
+      if (Array.isArray(regions) && regions.length > 0) {
+        // 如果store设置了regions，只有匹配时才包含
+        if (regions.some(r => r.region === activeRegion)) {
+          storeRegionMap[storeId] = regions;
+        } else if (regions.some(r => r.region === 'Global')) {
+          // 如果store设置了Global region，在所有region下都显示
+          storeRegionMap[storeId] = regions;
+        }
+        // 否则不包含该store（不添加到storeRegionMap）
+      } else {
+        // 没有设置regions的store在所有region下都显示（向后兼容）
+        storeRegionMap[storeId] = [];
       }
     }
   }
@@ -221,18 +223,13 @@ export async function fetchProducts(options?: {
         if (!activeRegion) return true;
         const pStoreId = (p as Record<string, unknown>).store_id as number;
         const pRegion = (p as Record<string, unknown>).region as string | null;
-        // Official类型的store价格总是包含
-        if (officialStoreIds.has(pStoreId)) return true;
         // Include prices that match the region, or have no region set (backward compat)
         if (pRegion === activeRegion) return true;
         if (!pRegion) {
           // For prices without region, check if the store matches the region
           const storeRegions = storeRegionMap[pStoreId];
-          if (storeRegions) {
-            // 如果store在storeRegionMap中，说明它匹配当前region
-            return true;
-          }
-          return false;
+          // 如果store在storeRegionMap中，说明它匹配当前region
+          return storeRegions !== undefined;
         }
         return false;
       })
