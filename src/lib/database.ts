@@ -160,13 +160,20 @@ export async function fetchProducts(options?: {
   if (activeRegion) {
     const { data: storeData, error: storeError } = await client
       .from('stores')
-      .select('id, regions');
+      .select('id, regions, store_type');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
     allStores = (storeData || []) as Record<string, unknown>[];
     const storeIds = allStores
       .filter((s: Record<string, unknown>) => {
         const regions = s.regions as { region: string; currency: string }[] | null;
-        return Array.isArray(regions) && regions.some(r => r.region === activeRegion);
+        const storeType = s.store_type as string | null;
+        // Official类型的商城视为Global，包含在所有region中
+        if (storeType === 'official') return true;
+        // regions为空或包含"Global"的store也包含在所有region中
+        if (!regions || regions.length === 0) return true;
+        if (regions.some(r => r.region === 'Global')) return true;
+        // 否则检查是否包含当前region
+        return regions.some(r => r.region === activeRegion);
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return [];
@@ -186,11 +193,22 @@ export async function fetchProducts(options?: {
 
   // Build a map of store regions for currency filtering
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
+  let officialStoreIds: Set<number> = new Set();
   if (activeRegion && allStores) {
     for (const s of allStores) {
       const regions = s.regions as { region: string; currency: string }[] | null;
-      if (Array.isArray(regions) && regions.some(r => r.region === activeRegion)) {
-        storeRegionMap[s.id as number] = regions;
+      const storeType = s.store_type as string | null;
+      const storeId = s.id as number;
+      // Official类型的store视为Global，包含在所有region中
+      if (storeType === 'official') {
+        officialStoreIds.add(storeId);
+        // 为Official store设置一个虚拟的region信息
+        storeRegionMap[storeId] = [{ region: activeRegion, currency: '$' }];
+      } else if (Array.isArray(regions) && regions.some(r => r.region === activeRegion)) {
+        storeRegionMap[storeId] = regions;
+      } else if (!regions || regions.length === 0 || regions.some(r => r.region === 'Global')) {
+        // 没有设置region或设置为Global的store也包含进来
+        storeRegionMap[storeId] = regions || [];
       }
     }
   }
@@ -203,12 +221,17 @@ export async function fetchProducts(options?: {
         if (!activeRegion) return true;
         const pStoreId = (p as Record<string, unknown>).store_id as number;
         const pRegion = (p as Record<string, unknown>).region as string | null;
+        // Official类型的store价格总是包含
+        if (officialStoreIds.has(pStoreId)) return true;
         // Include prices that match the region, or have no region set (backward compat)
         if (pRegion === activeRegion) return true;
         if (!pRegion) {
-          // For prices without region, check if the store only has one region (backward compat)
+          // For prices without region, check if the store matches the region
           const storeRegions = storeRegionMap[pStoreId];
-          if (storeRegions && storeRegions.length === 1 && storeRegions[0].region === activeRegion) return true;
+          if (storeRegions) {
+            // 如果store在storeRegionMap中，说明它匹配当前region
+            return true;
+          }
           return false;
         }
         return false;
