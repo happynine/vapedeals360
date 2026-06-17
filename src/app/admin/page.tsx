@@ -1358,6 +1358,15 @@ export default function AdminPage() {
                         const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
                         const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
+                        // 从产品关联的商城中获取地区信息
+                        const productRegions = new Set<string>();
+                        product.product_prices?.forEach((price: ProductPrice) => {
+                          const store = stores.find((s) => s.id === price.store_id);
+                          store?.regions?.forEach((r) => {
+                            if (r.region) productRegions.add(r.region);
+                          });
+                        });
+                        const regionList = Array.from(productRegions);
                         return (
                           <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                             <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
@@ -1369,10 +1378,12 @@ export default function AdminPage() {
                             <td className="px-4 py-3 text-sm text-muted-foreground">{catName}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{product.product_prices?.length || 0} {t('stores', '家商城', adminLang)}</td>
                             <td className="px-4 py-3">
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 {product.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
                                 {product.is_featured && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{t('Featured', '推荐', adminLang)}</span>}
-                                {product.sales_region && product.sales_region !== '不限地区' && <span className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{product.sales_region}</span>}
+                                {regionList.map((region) => (
+                                  <span key={region} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{region}</span>
+                                ))}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
