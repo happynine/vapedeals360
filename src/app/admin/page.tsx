@@ -261,12 +261,14 @@ function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
   disabledStoreIds?: number[];
 }) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setSearchQuery('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -279,6 +281,21 @@ function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
     return t2?.name || store.slug;
   };
 
+  // Filter stores by search query (alphabetical order)
+  const filteredStores = useMemo(() => {
+    const sorted = [...stores].sort((a, b) => {
+      const nameA = a.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || a.slug;
+      const nameB = b.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || b.slug;
+      return nameA.localeCompare(nameB);
+    });
+    if (!searchQuery.trim()) return sorted;
+    const query = searchQuery.toLowerCase();
+    return sorted.filter(s => {
+      const name = s.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || s.slug;
+      return name.toLowerCase().includes(query);
+    });
+  }, [stores, searchQuery, lang]);
+
   return (
     <div ref={ref} className="relative">
       <div
@@ -288,7 +305,11 @@ function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
         {selectedStore?.logo_url ? (
           <img src={selectedStore.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
         ) : (
-          <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
+          <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
         )}
         <span className="text-white text-sm flex-1">
           {selectedStore ? getStoreName(selectedStore) : t('Select Store', '选择商城', lang)}
@@ -298,24 +319,53 @@ function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
         </svg>
       </div>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-600 bg-[#1e1e2e] shadow-lg max-h-60 overflow-y-auto">
-          {stores.map((store) => {
-            const isDisabled = disabledStoreIds?.includes(store.id);
-            return (
-              <div
-                key={store.id}
-                onClick={() => { if (!isDisabled) { onChange(String(store.id)); setOpen(false); } }}
-                className={`flex items-center gap-2 px-3 py-2 transition-colors ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-purple-500/20'} ${String(store.id) === value ? 'bg-purple-500/30' : ''}`}
-              >
-                {store.logo_url ? (
-                  <img src={store.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
-                ) : (
-                  <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">S</div>
-                )}
-                <span className="text-sm" style={{ color: isDisabled ? 'rgba(255,255,255,0.5)' : 'white' }}>{getStoreName(store)}</span>
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-600 bg-[#1e1e2e] shadow-lg max-h-60 overflow-hidden">
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-700">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-600 bg-[#2a2a3e]">
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={lang === 'zh' ? '搜索商城...' : 'Search store...'}
+                className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          {/* Store list */}
+          <div className="overflow-y-auto max-h-48">
+            {filteredStores.length === 0 ? (
+              <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                {lang === 'zh' ? '未找到商城' : 'No stores found'}
               </div>
-            );
-          })}
+            ) : (
+              filteredStores.map((store) => {
+                const isDisabled = disabledStoreIds?.includes(store.id);
+                return (
+                  <div
+                    key={store.id}
+                    onClick={() => { if (!isDisabled) { onChange(String(store.id)); setOpen(false); setSearchQuery(''); } }}
+                    className={`flex items-center gap-2 px-3 py-2 transition-colors ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-purple-500/20'} ${String(store.id) === value ? 'bg-purple-500/30' : ''}`}
+                  >
+                    {store.logo_url ? (
+                      <img src={store.logo_url} alt="" className="w-6 h-6 rounded object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center flex-shrink-0 text-gray-400 text-xs">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    )}
+                    <span className="text-sm" style={{ color: isDisabled ? 'rgba(255,255,255,0.5)' : 'white' }}>{getStoreName(store)}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>
