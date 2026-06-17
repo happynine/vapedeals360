@@ -4878,17 +4878,41 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
-                                      <input value={p.current_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                      <input value={p.current_price} onChange={(e) => {
+                                        const newP = [...prices];
+                                        newP[pIdx].current_price = e.target.value;
+                                        // Auto-calculate discount
+                                        const current = parseFloat(e.target.value);
+                                        const original = parseFloat(p.original_price);
+                                        if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                          newP[pIdx].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                        }
+                                        setPrices(newP);
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                                     </div>
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
-                                      <input value={p.original_price} onChange={(e) => { const newP = [...prices]; newP[pIdx].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                      <input value={p.original_price} onChange={(e) => {
+                                        const newP = [...prices];
+                                        newP[pIdx].original_price = e.target.value;
+                                        // Auto-calculate discount
+                                        const current = parseFloat(p.current_price);
+                                        const original = parseFloat(e.target.value);
+                                        if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                          newP[pIdx].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                        } else {
+                                          newP[pIdx].discount_percent = '';
+                                        }
+                                        setPrices(newP);
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %', lang)}</label>
-                                      <input value={p.discount_percent} onChange={(e) => { const newP = [...prices]; newP[pIdx].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
+                                      <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
+                                        {p.discount_percent ? `${p.discount_percent}%` : '—'}
+                                      </div>
                                     </div>
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接', lang)}</label>
@@ -4904,17 +4928,39 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                             <div className="grid grid-cols-2 gap-2 mb-1.5">
                               <div>
                                 <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({firstP.currency || '$'})</label>
-                                <input value={firstP.current_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].current_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                <input value={firstP.current_price} onChange={(e) => {
+                                  const newP = [...prices];
+                                  newP[group.indices[0]].current_price = e.target.value;
+                                  const current = parseFloat(e.target.value);
+                                  const original = parseFloat(firstP.original_price);
+                                  if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                    newP[group.indices[0]].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                  }
+                                  setPrices(newP);
+                                }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                               </div>
                               <div>
                                 <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价', lang)} ({firstP.currency || '$'})</label>
-                                <input value={firstP.original_price} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].original_price = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                <input value={firstP.original_price} onChange={(e) => {
+                                  const newP = [...prices];
+                                  newP[group.indices[0]].original_price = e.target.value;
+                                  const current = parseFloat(firstP.current_price);
+                                  const original = parseFloat(e.target.value);
+                                  if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                    newP[group.indices[0]].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                  } else {
+                                    newP[group.indices[0]].discount_percent = '';
+                                  }
+                                  setPrices(newP);
+                                }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %', lang)}</label>
-                                <input value={firstP.discount_percent} onChange={(e) => { const newP = [...prices]; newP[group.indices[0]].discount_percent = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0" />
+                                <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
+                                  {firstP.discount_percent ? `${firstP.discount_percent}%` : '—'}
+                                </div>
                               </div>
                               <div>
                                 <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接', lang)}</label>
