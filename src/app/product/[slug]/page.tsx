@@ -181,13 +181,42 @@ export default function ProductDetailPage() {
   const filteredPrices = product.prices.filter((p) => !p.region || p.region === salesRegion || p.region === 'Global');
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
-  const highestOriginal = filteredPrices
-    .filter((p) => p.original_price)
-    .reduce((max, p) => parseFloat(p.original_price!) > max ? parseFloat(p.original_price!) : max, 0);
 
-  const discount = highestOriginal > 0 && lowestPrice
-    ? Math.round(((highestOriginal - parseFloat(lowestPrice.current_price)) / highestOriginal) * 100)
-    : null;
+  // Calculate discount based on number of stores with same currency
+  const uniqueCurrencies = [...new Set(filteredPrices.map(p => p.currency).filter(Boolean))];
+  let discount: number | null = null;
+  let discountAmount: number | null = null;
+  let discountLabel: string | null = null;
+  let isMultiStoreDiscount = false;
+
+  if (uniqueCurrencies.length >= 2 && lowestPrice) {
+    // Multi-store: compare highest and lowest current price within same currency
+    const lowestCurrency = lowestPrice.currency;
+    const sameCurrencyPrices = filteredPrices.filter(p => p.currency === lowestCurrency);
+    if (sameCurrencyPrices.length >= 2) {
+      const highestCurrent = Math.max(...sameCurrencyPrices.map(p => parseFloat(p.current_price)));
+      const lowestCurrent = parseFloat(lowestPrice.current_price);
+      discountAmount = highestCurrent - lowestCurrent;
+      if (discountAmount > 0) {
+        discount = Math.round((discountAmount / highestCurrent) * 100);
+        discountLabel = `Save ${lowestCurrency || '$'}${discountAmount.toFixed(2)}`;
+        isMultiStoreDiscount = true;
+      }
+    }
+  } else if (uniqueCurrencies.length === 1 && filteredPrices.length >= 1 && lowestPrice) {
+    // Single or multiple stores with same currency: compare with original price
+    const highestOriginal = filteredPrices
+      .filter((p) => p.original_price)
+      .reduce((max, p) => parseFloat(p.original_price!) > max ? parseFloat(p.original_price!) : max, 0);
+    
+    if (highestOriginal > 0) {
+      discountAmount = highestOriginal - parseFloat(lowestPrice.current_price);
+      if (discountAmount > 0) {
+        discount = Math.round((discountAmount / highestOriginal) * 100);
+        discountLabel = `Save ${lowestPrice.currency || '$'}${discountAmount.toFixed(2)}`;
+      }
+    }
+  }
 
   // Parse additional images
   const allImages: string[] = [];
@@ -259,12 +288,7 @@ export default function ProductDetailPage() {
                 <span className="text-4xl font-bold text-emerald-600 tabular-nums">
                   {lowestPrice?.currency || '$'}{lowestPrice?.current_price || '—'}
                 </span>
-                {highestOriginal > 0 && filteredPrices.length < 2 && (
-                  <span className="text-lg text-gray-400 line-through tabular-nums">
-                    ${highestOriginal.toFixed(2)}
-                  </span>
-                )}
-                {highestOriginal > 0 && filteredPrices.length >= 2 && (
+                {filteredPrices.length >= 2 && (
                   <span className="text-xs text-emerald-600 font-medium ml-0.5">
                     {language === 'zh' ? '最低价' : 'Lowest'}
                   </span>
@@ -273,13 +297,13 @@ export default function ProductDetailPage() {
               <p className="mt-1 text-sm text-gray-500">
                 {language === 'zh' ? '最低价，来自' : 'Lowest price from'} {sortedPrices.length} {language === 'zh' ? '家商城' : 'stores'}
               </p>
-              {(discount ?? 0) > 0 && (
+              {(discount ?? 0) > 0 && discountLabel && (
                 <div className="mt-2">
                   <div className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
                     <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
-                    {language === 'zh' ? `省 ${lowestPrice?.currency || '$'}${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}` : `Save ${lowestPrice?.currency || '$'}${(highestOriginal - parseFloat(lowestPrice?.current_price || '0')).toFixed(2)}`}
+                    {discountLabel}
                   </div>
-                  {filteredPrices.length >= 2 ? (
+                  {isMultiStoreDiscount ? (
                     <p className="mt-1 text-sm text-gray-500">
                       {language === 'zh' 
                         ? `相对于${filteredPrices.length}家商城中的最高现价` 
