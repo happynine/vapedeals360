@@ -600,6 +600,9 @@ export default function HomePage() {
                             return priceCurrency === selectedCurrency;
                         });
                         
+                        // 如果没有匹配的currency价格，不显示这个产品卡片
+                        if (displayPrices.length === 0) return null;
+                        
                         const lowest = getLowestPrice(displayPrices);
                         const highestOrig = getHighestOriginal(displayPrices);
                         const discountInfo = getDiscountDisplay(displayPrices);
