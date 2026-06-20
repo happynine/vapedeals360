@@ -90,7 +90,7 @@ function getTranslation<T extends {
 // Region to currencies mapping (some regions support multiple currencies)
 const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
     'USA': [{ code: 'USD', symbol: '$' }],
-    'UK': [{ code: 'USD', symbol: '$' }, { code: 'GBP', symbol: '£' }],
+    'UK': [{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }],
     'Canada': [{ code: 'USD', symbol: '$' }],
     'Russia': [{ code: 'RUB', symbol: '₽' }],
     'Japan': [{ code: 'JPY', symbol: '¥' }],
@@ -101,7 +101,7 @@ const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
 // Region to default currency symbol (for backward compatibility)
 const REGION_CURRENCY_MAP: Record<string, string> = {
     'USA': '$',
-    'UK': '$',
+    'UK': '£',
     'Canada': '$',
     'Russia': '₽',
     'Japan': '¥',
@@ -318,9 +318,8 @@ export default function HomePage() {
         if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
             setSelectedCurrency(savedCurrency);
         } else {
-            // Default to first currency (USD if available, otherwise first in list)
-            const defaultCurrency = currencies.find(c => c.code === 'USD') || currencies[0];
-            setSelectedCurrency(defaultCurrency.symbol);
+            // Default to first currency in the list
+            setSelectedCurrency(currencies[0].symbol);
         }
     }, [salesRegion]);
 
