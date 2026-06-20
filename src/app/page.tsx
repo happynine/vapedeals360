@@ -436,7 +436,7 @@ export default function HomePage() {
                     {/* Row 1: Region */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-                        {(["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
+                        {mounted && (["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
                             const regionLabels: Record<string, string> = {
                                 "Global": language === "zh" ? "全球" : "Global",
                                 "USA": language === "zh" ? "美国" : "USA",
