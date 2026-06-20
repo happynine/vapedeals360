@@ -30,10 +30,11 @@ export const productPrices = pgTable("product_prices", {
 	productUrl: text("product_url").notNull(),
 	inStock: boolean("in_stock").default(true).notNull(),
 	discountPercent: integer("discount_percent"),
-	currency: varchar("currency", { length: 10 }).default("$"),
-	region: varchar("region", { length: 50 }).default(""),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+	currency: varchar({ length: 10 }).default('$'),
+	region: varchar({ length: 50 }).default(''),
+	noQuote: boolean("no_quote").default(false),
 }, (table) => [
 	index("pp_current_price_idx").using("btree", table.currentPrice.asc().nullsLast().op("numeric_ops")),
 	index("pp_product_id_idx").using("btree", table.productId.asc().nullsLast().op("int4_ops")),
@@ -74,13 +75,14 @@ export const stores = pgTable("stores", {
 	id: serial().primaryKey().notNull(),
 	slug: varchar({ length: 100 }).notNull(),
 	logoUrl: text("logo_url"),
-		websiteUrl: text("website_url"),
-		websiteUrls: jsonb("website_urls").$type<Array<{url: string; label?: string}>>().default([]).notNull(),
-	regions: jsonb("regions").$type<Array<{region: string; currency: string}>>().default([]).notNull(),
-	notes: text("notes").default(""),
+	websiteUrl: text("website_url"),
 	isActive: boolean("is_active").default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+	storeType: varchar("store_type", { length: 20 }).default('store').notNull(),
+	regions: jsonb().default([]),
+	notes: text().default(''),
+	websiteUrls: jsonb("website_urls").default([]),
 }, (table) => [
 	index("stores_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
 	unique("stores_slug_unique").on(table.slug),
@@ -161,7 +163,7 @@ export const products = pgTable("products", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 	salesRegion: text("sales_region").default('不限地区'),
-		notes: text("notes").default(""),
+	notes: text().default(''),
 }, (table) => [
 	index("products_category_id_idx").using("btree", table.categoryId.asc().nullsLast().op("int4_ops")),
 	index("products_is_active_idx").using("btree", table.isActive.asc().nullsLast().op("bool_ops")),
@@ -173,23 +175,6 @@ export const products = pgTable("products", {
 			name: "products_category_id_categories_id_fk"
 		}).onDelete("set null"),
 	unique("products_slug_unique").on(table.slug),
-]);
-
-export const pageViews = pgTable("page_views", {
-	id: serial().primaryKey().notNull(),
-	sessionId: varchar("session_id", { length: 100 }).notNull(),
-	page: varchar({ length: 255 }).notNull(),
-	referrer: text(),
-	ip: varchar({ length: 45 }),
-	region: varchar({ length: 20 }),
-	userAgent: text("user_agent"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("pv_created_at_idx").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("pv_ip_idx").using("btree", table.ip.asc().nullsLast().op("text_ops")),
-	index("pv_page_idx").using("btree", table.page.asc().nullsLast().op("text_ops")),
-	index("pv_session_id_idx").using("btree", table.sessionId.asc().nullsLast().op("text_ops")),
-	index("pv_region_idx").using("btree", table.region.asc().nullsLast().op("text_ops")),
 ]);
 
 export const siteSettingTranslations = pgTable("site_setting_translations", {
@@ -214,6 +199,23 @@ export const siteSettings = pgTable("site_settings", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 });
 
+export const pageViews = pgTable("page_views", {
+	id: serial().primaryKey().notNull(),
+	sessionId: varchar("session_id", { length: 100 }).notNull(),
+	page: varchar({ length: 255 }).notNull(),
+	referrer: text(),
+	ip: varchar({ length: 45 }),
+	userAgent: text("user_agent"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	region: varchar({ length: 20 }),
+}, (table) => [
+	index("pv_created_at_idx").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	index("pv_ip_idx").using("btree", table.ip.asc().nullsLast().op("text_ops")),
+	index("pv_page_idx").using("btree", table.page.asc().nullsLast().op("text_ops")),
+	index("pv_region_idx").using("btree", table.region.asc().nullsLast().op("text_ops")),
+	index("pv_session_id_idx").using("btree", table.sessionId.asc().nullsLast().op("text_ops")),
+]);
+
 export const banners = pgTable("banners", {
 	id: serial().primaryKey().notNull(),
 	imageKey: text("image_key"),
@@ -226,6 +228,17 @@ export const banners = pgTable("banners", {
 }, (table) => [
 	index("banners_is_active_idx").using("btree", table.isActive.asc().nullsLast().op("bool_ops")),
 	index("banners_sort_order_idx").using("btree", table.sortOrder.asc().nullsLast().op("int4_ops")),
+]);
+
+export const languages = pgTable("languages", {
+	id: serial().primaryKey().notNull(),
+	code: varchar({ length: 10 }).notNull(),
+	name: varchar({ length: 100 }).notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	sortOrder: integer("sort_order").default(0).notNull(),
+	isHidden: boolean("is_hidden").default(false).notNull(),
+}, (table) => [
+	unique("languages_code_key").on(table.code),
 ]);
 
 export const socialLinks = pgTable("social_links", {
@@ -251,27 +264,13 @@ export const contactMessages = pgTable("contact_messages", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
-export const contentPages = pgTable("content_pages", {
+export const categoryDescriptions = pgTable("category_descriptions", {
 	id: serial().primaryKey().notNull(),
-	type: varchar({ length: 20 }).notNull(),
-	coverImage: text("cover_image"),
-	slug: varchar({ length: 255 }).notNull(),
-	sortOrder: integer("sort_order").default(0).notNull(),
-	isPublished: boolean("is_published").default(true).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+	categoryKey: varchar("category_key", { length: 50 }).notNull(),
+	language: varchar({ length: 10 }).notNull(),
+	description: text(),
 }, (table) => [
-	index("cp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
-	index("cp_type_idx").using("btree", table.type.asc().nullsLast().op("text_ops")),
-]);
-
-export const staticPages = pgTable("static_pages", {
-	id: serial().primaryKey().notNull(),
-	slug: varchar({ length: 100 }).notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
-	isPublished: boolean("is_published").default(false).notNull(),
-}, (table) => [
-	index("sp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	index("cd_category_key_idx").using("btree", table.categoryKey.asc().nullsLast().op("text_ops")),
 ]);
 
 export const contentPageTranslations = pgTable("content_page_translations", {
@@ -289,6 +288,20 @@ export const contentPageTranslations = pgTable("content_page_translations", {
 		}).onDelete("cascade"),
 ]);
 
+export const contentPages = pgTable("content_pages", {
+	id: serial().primaryKey().notNull(),
+	type: varchar({ length: 20 }).notNull(),
+	coverImage: text("cover_image"),
+	slug: varchar({ length: 255 }).notNull(),
+	sortOrder: integer("sort_order").default(0).notNull(),
+	isPublished: boolean("is_published").default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("cp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	index("cp_type_idx").using("btree", table.type.asc().nullsLast().op("text_ops")),
+]);
+
 export const staticPageTranslations = pgTable("static_page_translations", {
 	id: serial().primaryKey().notNull(),
 	pageId: integer("page_id").notNull(),
@@ -304,22 +317,11 @@ export const staticPageTranslations = pgTable("static_page_translations", {
 		}).onDelete("cascade"),
 ]);
 
-export const languages = pgTable("languages", {
+export const staticPages = pgTable("static_pages", {
 	id: serial().primaryKey().notNull(),
-	code: varchar({ length: 10 }).notNull(),
-	name: varchar({ length: 100 }).notNull(),
-	isActive: boolean("is_active").default(true).notNull(),
-	isHidden: boolean("is_hidden").default(false).notNull(),
-	sortOrder: integer("sort_order").default(0).notNull(),
+	slug: varchar({ length: 100 }).notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+	isPublished: boolean("is_published").default(false).notNull(),
 }, (table) => [
-	unique("languages_code_unique").on(table.code),
-]);
-
-export const categoryDescriptions = pgTable("category_descriptions", {
-	id: serial().primaryKey().notNull(),
-	categoryKey: varchar("category_key", { length: 50 }).notNull(),
-	language: varchar({ length: 10 }).notNull(),
-	description: text(),
-}, (table) => [
-	index("cd_category_key_idx").using("btree", table.categoryKey.asc().nullsLast().op("text_ops")),
+	index("sp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
 ]);

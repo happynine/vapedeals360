@@ -35,6 +35,7 @@ interface ProductPrice {
   discount_percent: number | null;
   currency?: string;
   region?: string;
+  no_quote?: boolean;
   store?: Store;
 }
 
@@ -190,6 +191,8 @@ export default function ProductDetailPage() {
 
   // Filter prices by sales region and selected currency
   const filteredPrices = product.prices.filter((p) => {
+    // Exclude prices marked as "no quote"
+    if (p.no_quote) return false;
     // Filter by region
     if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
     // Filter by currency

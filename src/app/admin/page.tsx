@@ -238,7 +238,7 @@ interface Category { id: number; slug: string; icon: string | null; sort_order: 
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
 interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; website_urls: Array<{url: string; label?: string}>; store_type: string; is_active: boolean; regions: Array<{region: string; currency: string}>; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
-interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; }
+interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
@@ -4686,7 +4686,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
       specs: tr.specs || '',
     })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean }[]>(
     product?.product_prices?.map((p) => ({
       store_id: p.store_id.toString(),
       current_price: p.current_price,
@@ -4695,7 +4695,8 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
       discount_percent: p.discount_percent?.toString() || '',
       currency: p.currency || '$',
       region: p.region || '',
-    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }]
+      no_quote: p.no_quote || false,
+    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
@@ -4742,6 +4743,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
           discount_percent: p.discount_percent ? parseInt(p.discount_percent) : null,
           currency: p.currency || '$',
           region: p.region || '',
+          no_quote: p.no_quote || false,
         })),
       };
       const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -4914,6 +4916,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                   discount_percent: existing?.discount_percent || '',
                                   currency: r.currency,
                                   region: r.region,
+                                  no_quote: existing?.no_quote || false,
                                 });
                               } else {
                                 for (const sr of sRegions) {
@@ -4926,6 +4929,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                     discount_percent: existing?.discount_percent || '',
                                     currency: sr.currency || '$',
                                     region: sr.region || '',
+                                    no_quote: existing?.no_quote || false,
                                   });
                                 }
                               }
@@ -4946,11 +4950,31 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                               const currencyLabel = p.currency || '$';
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
-                                  <div className="text-xs font-medium text-primary mb-1.5 text-left">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="text-xs font-medium text-primary text-left">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={p.no_quote || false}
+                                        onChange={(e) => {
+                                          const newP = [...prices];
+                                          newP[pIdx].no_quote = e.target.checked;
+                                          if (e.target.checked) {
+                                            newP[pIdx].current_price = '';
+                                            newP[pIdx].original_price = '';
+                                            newP[pIdx].discount_percent = '';
+                                          }
+                                          setPrices(newP);
+                                        }}
+                                        className="h-3.5 w-3.5 rounded border-border"
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价', lang)}</span>
+                                    </label>
+                                  </div>
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
-                                      <input value={p.current_price} onChange={(e) => {
+                                      <input value={p.current_price} disabled={p.no_quote} onChange={(e) => {
                                         const newP = [...prices];
                                         newP[pIdx].current_price = e.target.value;
                                         // Auto-calculate discount
@@ -4960,11 +4984,11 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                           newP[pIdx].discount_percent = Math.round(((original - current) / original) * 100).toString();
                                         }
                                         setPrices(newP);
-                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
                                     </div>
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价', lang)} ({currencyLabel})</label>
-                                      <input value={p.original_price} onChange={(e) => {
+                                      <input value={p.original_price} disabled={p.no_quote} onChange={(e) => {
                                         const newP = [...prices];
                                         newP[pIdx].original_price = e.target.value;
                                         // Auto-calculate discount
@@ -4976,7 +5000,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                           newP[pIdx].discount_percent = '';
                                         }
                                         setPrices(newP);
-                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="0.00" />
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
@@ -4988,7 +5012,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                                     </div>
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接', lang)}</label>
-                                      <input value={p.product_url} onChange={(e) => { const newP = [...prices]; newP[pIdx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm" placeholder="https://..." />
+                                      <input value={p.product_url} disabled={p.no_quote} onChange={(e) => { const newP = [...prices]; newP[pIdx].product_url = e.target.value; setPrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="https://..." />
                                     </div>
                                   </div>
                                 </div>
@@ -5050,7 +5074,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     );
                   });
                 })()}
-                <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '' }])} className="text-xs text-primary hover:underline">
+                <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格', lang)}
                 </button>
               </div>            </div>

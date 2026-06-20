@@ -69,6 +69,7 @@ export interface ProductPrice {
   in_stock: boolean;
   discount_percent: number | null;
   updated_at: string | null;
+  no_quote?: boolean;
   store?: Store;
 }
 

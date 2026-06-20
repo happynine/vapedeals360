@@ -51,6 +51,7 @@ interface ProductPrice {
     discount_percent: number | null;
     currency?: string;
     region?: string;
+    no_quote?: boolean;
     store?: Store;
 }
 
@@ -596,8 +597,10 @@ export default function HomePage() {
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
                         const t = getTranslation(product.translations, language);
-                        // 第一步：按region过滤价格
+                        // 第一步：按region过滤价格，排除no_quote的价格
                         const regionFilteredPrices = product.prices.filter(p => {
+                            // 排除标记为"无报价"的价格
+                            if (p.no_quote) return false;
                             if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
                             return true;
                         });
