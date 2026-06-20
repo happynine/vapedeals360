@@ -406,6 +406,9 @@ export default function AdminPage() {
   const [storeTypeTab, setStoreTypeTab] = useState<'store' | 'official'>('store');
   const [storeSearchInput, setStoreSearchInput] = useState('');
   const [storeSearch, setStoreSearch] = useState('');
+  const [storePage, setStorePage] = useState(1);
+  const [storeSortOrder, setStoreSortOrder] = useState<'asc' | 'desc'>('desc');
+  const STORES_PER_PAGE = 20;
   const [adminSiteSettings, setAdminSiteSettings] = useState<{ site_name: string; logo_url: string | null } | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
   const [editSiteLogo, setEditSiteLogo] = useState<string | null>(null);
@@ -512,6 +515,22 @@ export default function AdminPage() {
     const start = (productPage - 1) * PRODUCTS_PER_PAGE;
     return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
   }, [filteredProducts, productPage]);
+
+  // Store pagination and sorting
+  const sortedStores = useMemo(() => {
+    return [...stores].sort((a, b) => storeSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
+  }, [stores, storeSortOrder]);
+  const filteredStores = useMemo(() => {
+    return sortedStores.filter(s =>
+      (s.store_type || 'store') === storeTypeTab &&
+      (!storeSearch || (s.store_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(storeSearch.toLowerCase()))
+    );
+  }, [sortedStores, storeTypeTab, storeSearch]);
+  const storeTotalPages = Math.ceil(filteredStores.length / STORES_PER_PAGE);
+  const paginatedStores = useMemo(() => {
+    const start = (storePage - 1) * STORES_PER_PAGE;
+    return filteredStores.slice(start, start + STORES_PER_PAGE);
+  }, [filteredStores, storePage]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
@@ -1501,13 +1520,13 @@ export default function AdminPage() {
                   <h1 className="text-2xl font-bold">{t('Stores', '商城', adminLang)}</h1>
                   <div className="flex rounded-lg border border-border overflow-hidden">
                     <button
-                      onClick={() => setStoreTypeTab('store')}
+                      onClick={() => { setStoreTypeTab('store'); setStorePage(1); }}
                       className={`px-4 py-1.5 text-sm font-medium transition-colors ${storeTypeTab === 'store' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
                     >
                       {t('Store', '商城', adminLang)}
                     </button>
                     <button
-                      onClick={() => setStoreTypeTab('official')}
+                      onClick={() => { setStoreTypeTab('official'); setStorePage(1); }}
                       className={`px-4 py-1.5 text-sm font-medium transition-colors ${storeTypeTab === 'official' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
                     >
                       {t('Official Website', '官网', adminLang)}
@@ -1526,7 +1545,7 @@ export default function AdminPage() {
                       {storeSearchInput && (
                         <button
                           type="button"
-                          onClick={() => { setStoreSearchInput(''); setStoreSearch(''); }}
+                          onClick={() => { setStoreSearchInput(''); setStoreSearch(''); setStorePage(1); }}
                           className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
                         >
                           ✕
@@ -1534,7 +1553,7 @@ export default function AdminPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => setStoreSearch(storeSearchInput.trim())}
+                      onClick={() => { setStoreSearch(storeSearchInput.trim()); setStorePage(1); }}
                       className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                       {t('Confirm', '确认', adminLang)}
@@ -1551,7 +1570,15 @@ export default function AdminPage() {
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => setStoreSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                          <span className="inline-flex items-center gap-1">
+                            {t('ID', 'ID', adminLang)}
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="inline-block">
+                              <path d="M6 2L9.5 5.5H2.5L6 2Z" fill={storeSortOrder === 'asc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                              <path d="M6 10L2.5 6.5H9.5L6 10Z" fill={storeSortOrder === 'desc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                            </svg>
+                          </span>
+                        </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Logo', 'Logo', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
@@ -1564,9 +1591,11 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {stores.filter(s => (s.store_type || 'store') === storeTypeTab && (!storeSearch || (s.store_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(storeSearch.toLowerCase()))).map((store, idx) => (
+                      {paginatedStores.map((store, sIndex) => {
+                        const rowIndex = (storePage - 1) * STORES_PER_PAGE + sIndex + 1;
+                        return (
                         <tr key={store.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{idx + 1}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{store.id}</td>
                           <td className="px-4 py-3">
                             {store.logo_url || store.logo_key ? (
@@ -1612,9 +1641,20 @@ export default function AdminPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
+                  {/* Pagination */}
+                  {storeTotalPages > 1 && (
+                    <AdminPagination
+                      currentPage={storePage}
+                      totalPages={storeTotalPages}
+                      total={filteredStores.length}
+                      onPageChange={(p) => { setStorePage(p); }}
+                      lang={adminLang}
+                    />
+                  )}
                 </div>
               )}
             </div>
