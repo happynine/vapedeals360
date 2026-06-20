@@ -4256,7 +4256,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
                 </div>
               </div>
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
+                <h3 className="text-sm font-semibold mb-2 text-left">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => {
                   const langInfo = activeLanguages.find(l => l.code === tr.language);
                   return (
@@ -4639,7 +4639,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 {t('Active', '启用', lang)}
               </label>
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
+                <h3 className="text-sm font-semibold mb-2 text-left">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => {
                   const langInfo = activeLanguages.find(l => l.code === tr.language);
                   return (
@@ -4811,7 +4811,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
 
               {/* Translations */}
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
+                <h3 className="text-sm font-semibold mb-2 text-left">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => {
                   const langInfo = activeLanguages.find(l => l.code === tr.language);
                   return (
@@ -4861,7 +4861,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
 
               {/* Prices */}
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2">{t('Store Prices', '商城价格', lang)}</h3>
+                <h3 className="text-sm font-semibold mb-2 text-left">{t('Store Prices', '商城价格', lang)}</h3>
                 {(() => {
                   // Group prices by store_id
                   const storeGroups: Array<{ storeId: string; indices: number[] }> = [];
@@ -4946,7 +4946,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                               const currencyLabel = p.currency || '$';
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
-                                  <div className="text-xs font-medium text-primary mb-1.5">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
+                                  <div className="text-xs font-medium text-primary mb-1.5 text-left">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
                                       <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价', lang)} ({currencyLabel})</label>
