@@ -249,7 +249,7 @@ export async function fetchProducts(options?: {
 }
 
 // Fetch single product by slug
-export async function fetchProductBySlug(slug: string, language: string = 'en') {
+export async function fetchProductBySlug(slug: string, language: string = 'en', activeRegion?: string) {
   const client = getClient();
   const { data, error } = await client
     .from('products')
@@ -261,10 +261,49 @@ export async function fetchProductBySlug(slug: string, language: string = 'en') 
   if (!data) return null;
 
   const product = data as Record<string, unknown>;
+  const allPrices = product.product_prices as Record<string, unknown>[] || [];
+
+  // Build store region map for filtering
+  let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
+  if (activeRegion) {
+    for (const p of allPrices) {
+      const storeData = p.stores as Record<string, unknown> | null;
+      if (storeData) {
+        const storeId = storeData.id as number;
+        const regions = storeData.regions as { region: string; currency: string }[] | null;
+        if (Array.isArray(regions) && regions.length > 0) {
+          // 如果store设置了regions，只有匹配时才包含
+          if (regions.some(r => r.region === activeRegion)) {
+            storeRegionMap[storeId] = regions;
+          } else if (regions.some(r => r.region === 'Global')) {
+            storeRegionMap[storeId] = regions;
+          }
+        } else {
+          // 没有设置regions的store在所有region下都显示
+          storeRegionMap[storeId] = [];
+        }
+      }
+    }
+  }
+
+  // Filter prices by region
+  const filteredPrices = activeRegion
+    ? allPrices.filter((p) => {
+        const pStoreId = (p as Record<string, unknown>).store_id as number;
+        const pRegion = (p as Record<string, unknown>).region as string | null;
+        if (pRegion === activeRegion) return true;
+        if (!pRegion) {
+          const storeRegions = storeRegionMap[pStoreId];
+          return storeRegions !== undefined;
+        }
+        return false;
+      })
+    : allPrices;
+
   return {
     ...product,
     translations: product.product_translations as ProductTranslation[],
-    prices: (product.product_prices as Record<string, unknown>[] || []).map((p) => {
+    prices: filteredPrices.map((p) => {
       const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
       return {
         ...(p as Record<string, unknown>),

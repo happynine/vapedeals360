@@ -13,7 +13,8 @@ export async function GET(
   try {
     const { slug } = await params;
     const language = _request.nextUrl.searchParams.get('language') || 'en';
-    const product = await fetchProductBySlug(slug, language);
+    const region = _request.nextUrl.searchParams.get('region') || undefined;
+    const product = await fetchProductBySlug(slug, language, region);
 
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });

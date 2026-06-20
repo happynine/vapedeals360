@@ -102,7 +102,12 @@ export default function ProductDetailPage() {
     async function fetchProduct() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/products/${slug}?language=${language}`);
+        // Get region from localStorage (set by homepage)
+        let region = 'USA';
+        if (typeof window !== 'undefined') {
+          region = localStorage.getItem('salesRegion') || 'USA';
+        }
+        const res = await fetch(`/api/products/${slug}?language=${language}&region=${region}`);
         const json = await res.json();
         if (json.success) {
           setProduct(json.data);
@@ -182,14 +187,13 @@ export default function ProductDetailPage() {
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
 
-  // Calculate discount based on number of stores with same currency
-  const uniqueCurrencies = [...new Set(filteredPrices.map(p => p.currency).filter(Boolean))];
+  // Calculate discount based on number of stores
   let discount: number | null = null;
   let discountAmount: number | null = null;
   let discountLabel: string | null = null;
   let isMultiStoreDiscount = false;
 
-  if (uniqueCurrencies.length >= 2 && lowestPrice) {
+  if (filteredPrices.length >= 2 && lowestPrice) {
     // Multi-store: compare highest and lowest current price within same currency
     const lowestCurrency = lowestPrice.currency;
     const sameCurrencyPrices = filteredPrices.filter(p => p.currency === lowestCurrency);
@@ -203,16 +207,15 @@ export default function ProductDetailPage() {
         isMultiStoreDiscount = true;
       }
     }
-  } else if (uniqueCurrencies.length === 1 && filteredPrices.length >= 1 && lowestPrice) {
-    // Single or multiple stores with same currency: compare with original price
-    const highestOriginal = filteredPrices
-      .filter((p) => p.original_price)
-      .reduce((max, p) => parseFloat(p.original_price!) > max ? parseFloat(p.original_price!) : max, 0);
-    
-    if (highestOriginal > 0) {
-      discountAmount = highestOriginal - parseFloat(lowestPrice.current_price);
-      if (discountAmount > 0) {
-        discount = Math.round((discountAmount / highestOriginal) * 100);
+  } else if (filteredPrices.length === 1 && lowestPrice) {
+    // Single store: compare with original price
+    const priceRecord = filteredPrices[0];
+    if (priceRecord.original_price) {
+      const originalPrice = parseFloat(priceRecord.original_price);
+      const currentPrice = parseFloat(priceRecord.current_price);
+      if (originalPrice > currentPrice) {
+        discountAmount = originalPrice - currentPrice;
+        discount = Math.round((discountAmount / originalPrice) * 100);
         discountLabel = `Save ${lowestPrice.currency || '$'}${discountAmount.toFixed(2)}`;
       }
     }
