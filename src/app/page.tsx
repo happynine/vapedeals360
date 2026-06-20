@@ -301,37 +301,42 @@ export default function HomePage() {
     // Load sales region and currency from localStorage on mount
     useEffect(() => {
         const savedRegion = localStorage.getItem('salesRegion');
-        const savedCurrency = localStorage.getItem('selectedCurrency');
         
         if (savedRegion) {
             setSalesRegion(savedRegion);
-            // Check if saved currency is valid for the saved region
+            // Load currency for this specific region
+            const regionCurrency = localStorage.getItem(`selectedCurrency_${savedRegion}`);
             const currencies = REGION_CURRENCIES[savedRegion] || [{ code: 'USD', symbol: '$' }];
-            if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
-                setSelectedCurrency(savedCurrency);
+            
+            if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
+                setSelectedCurrency(regionCurrency);
             } else {
                 setSelectedCurrency(currencies[0].symbol);
             }
-        } else if (savedCurrency) {
-            setSelectedCurrency(savedCurrency);
+        } else {
+            // No saved region, use default
+            const defaultCurrencies = REGION_CURRENCIES['Global'] || [{ code: 'USD', symbol: '$' }];
+            setSelectedCurrency(defaultCurrencies[0].symbol);
         }
         
         setMounted(true);
     }, []);
 
-    // Auto-select default currency when region changes
+    // Auto-select currency when region changes
     useEffect(() => {
-        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
-        const savedCurrency = localStorage.getItem('selectedCurrency');
+        if (!mounted) return;
         
-        // Check if saved currency is valid for the current region
-        if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
-            setSelectedCurrency(savedCurrency);
+        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
+        const regionCurrency = localStorage.getItem(`selectedCurrency_${salesRegion}`);
+        
+        // Check if this region has a saved currency
+        if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
+            setSelectedCurrency(regionCurrency);
         } else {
             // Default to first currency in the list
             setSelectedCurrency(currencies[0].symbol);
         }
-    }, [salesRegion]);
+    }, [salesRegion, mounted]);
 
     useEffect(() => {
         fetchData();
@@ -495,7 +500,8 @@ export default function HomePage() {
                                                 setSelectedCurrency(currency.symbol);
                                                 setPage(1);
                                                 if (typeof window !== 'undefined') {
-                                                    localStorage.setItem('selectedCurrency', currency.symbol);
+                                                    // Save currency for this specific region
+                                                    localStorage.setItem(`selectedCurrency_${salesRegion}`, currency.symbol);
                                                 }
                                             }}
                                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selectedCurrency === currency.symbol ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>

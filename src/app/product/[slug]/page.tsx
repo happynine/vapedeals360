@@ -94,12 +94,13 @@ export default function ProductDetailPage() {
   // Load sales region and currency from localStorage
   useEffect(() => {
     const savedRegion = localStorage.getItem('salesRegion');
-    const savedCurrency = localStorage.getItem('selectedCurrency');
     if (savedRegion) {
       setSalesRegion(savedRegion);
-    }
-    if (savedCurrency) {
-      setSelectedCurrency(savedCurrency);
+      // Load currency for this specific region
+      const regionCurrency = localStorage.getItem(`selectedCurrency_${savedRegion}`);
+      if (regionCurrency) {
+        setSelectedCurrency(regionCurrency);
+      }
     }
   }, []);
 
