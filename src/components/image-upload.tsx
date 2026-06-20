@@ -161,7 +161,7 @@ export function ImageUpload({
 
   return (
     <div>
-      <label className="text-xs text-muted-foreground block mb-1">
+      <label className="text-xs text-muted-foreground block mb-1 text-left">
         {label}
         {sizeHint && (
           <span className="text-[10px] text-muted-foreground/60 ml-1">({sizeHint})</span>
