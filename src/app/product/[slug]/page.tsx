@@ -89,12 +89,17 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [salesRegion, setSalesRegion] = useState<string>('USA');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('$');
 
-  // Load sales region from localStorage
+  // Load sales region and currency from localStorage
   useEffect(() => {
     const savedRegion = localStorage.getItem('salesRegion');
+    const savedCurrency = localStorage.getItem('selectedCurrency');
     if (savedRegion) {
       setSalesRegion(savedRegion);
+    }
+    if (savedCurrency) {
+      setSelectedCurrency(savedCurrency);
     }
   }, []);
 
@@ -182,8 +187,14 @@ export default function ProductDetailPage() {
     }
   } catch { specsEntries = []; }
 
-  // Filter prices by sales region
-  const filteredPrices = product.prices.filter((p) => !p.region || p.region === salesRegion || p.region === 'Global');
+  // Filter prices by sales region and selected currency
+  const filteredPrices = product.prices.filter((p) => {
+    // Filter by region
+    if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
+    // Filter by currency
+    const priceCurrency = p.currency || '$';
+    return priceCurrency === selectedCurrency;
+  });
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
 

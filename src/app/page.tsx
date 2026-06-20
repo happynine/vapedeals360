@@ -87,11 +87,22 @@ function getTranslation<T extends {
     return translations.find(t => t.language === language) || translations.find(t => t.language === "en") || translations[0];
 }
 
-// Region to currency mapping
+// Region to currencies mapping (some regions support multiple currencies)
+const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
+    'USA': [{ code: 'USD', symbol: '$' }],
+    'UK': [{ code: 'USD', symbol: '$' }, { code: 'GBP', symbol: '£' }],
+    'Canada': [{ code: 'USD', symbol: '$' }],
+    'Russia': [{ code: 'RUB', symbol: '₽' }],
+    'Japan': [{ code: 'JPY', symbol: '¥' }],
+    'Europe': [{ code: 'EUR', symbol: '€' }],
+    'Global': [{ code: 'USD', symbol: '$' }],
+};
+
+// Region to default currency symbol (for backward compatibility)
 const REGION_CURRENCY_MAP: Record<string, string> = {
     'USA': '$',
-    'UK': '£',
-    'Canada': 'CA$',
+    'UK': '$',
+    'Canada': '$',
     'Russia': '₽',
     'Japan': '¥',
     'Europe': '€',
@@ -212,6 +223,7 @@ export default function HomePage() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
     const [salesRegion, setSalesRegion] = useState<string>("USA");
+    const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -285,13 +297,32 @@ export default function HomePage() {
         }
     }, [urlSearch]);
 
-    // Load sales region from localStorage on mount
+    // Load sales region and currency from localStorage on mount
     useEffect(() => {
         const savedRegion = localStorage.getItem('salesRegion');
+        const savedCurrency = localStorage.getItem('selectedCurrency');
         if (savedRegion && savedRegion !== salesRegion) {
             setSalesRegion(savedRegion);
         }
+        if (savedCurrency && savedCurrency !== selectedCurrency) {
+            setSelectedCurrency(savedCurrency);
+        }
     }, []);
+
+    // Auto-select default currency when region changes
+    useEffect(() => {
+        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
+        const savedCurrency = localStorage.getItem('selectedCurrency');
+        
+        // Check if saved currency is valid for the current region
+        if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
+            setSelectedCurrency(savedCurrency);
+        } else {
+            // Default to first currency (USD if available, otherwise first in list)
+            const defaultCurrency = currencies.find(c => c.code === 'USD') || currencies[0];
+            setSelectedCurrency(defaultCurrency.symbol);
+        }
+    }, [salesRegion]);
 
     useEffect(() => {
         fetchData();
@@ -432,6 +463,40 @@ export default function HomePage() {
                             );
                         })}
                     </div>
+                    {/* Row 1.5: Currency */}
+                    {(() => {
+                        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
+                        if (currencies.length <= 1) return null; // Only show if multiple currencies available
+                        
+                        return (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
+                                {currencies.map((currency) => {
+                                    const currencyLabels: Record<string, string> = {
+                                        'USD': `USD (${currency.symbol})`,
+                                        'GBP': `GBP (${currency.symbol})`,
+                                        'EUR': `EUR (${currency.symbol})`,
+                                        'JPY': `JPY (${currency.symbol})`,
+                                        'RUB': `RUB (${currency.symbol})`,
+                                    };
+                                    return (
+                                        <button
+                                            key={currency.code}
+                                            onClick={() => {
+                                                setSelectedCurrency(currency.symbol);
+                                                setPage(1);
+                                                if (typeof window !== 'undefined') {
+                                                    localStorage.setItem('selectedCurrency', currency.symbol);
+                                                }
+                                            }}
+                                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selectedCurrency === currency.symbol ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                                            {currencyLabels[currency.code] || `${currency.code} (${currency.symbol})`}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
                     {/* Row 2: Type */}
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "类型" : "Type"}</span>
@@ -523,16 +588,13 @@ export default function HomePage() {
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
                         const t = getTranslation(product.translations, language);
-                        // 根据当前region的currency过滤价格
-                        const regionCurrency = REGION_CURRENCY_MAP[salesRegion] || '$';
+                        // 根据用户选择的currency过滤价格
                         const filteredPrices = product.prices.filter(p => {
                             // 如果价格记录有region字段，直接匹配
                             if (p.region && p.region !== salesRegion) return false;
-                            // 否则根据currency匹配
+                            // 根据用户选择的currency匹配
                             const priceCurrency = p.currency || '$';
-                            return priceCurrency === regionCurrency || 
-                                   (priceCurrency === '$' && regionCurrency === '$') ||
-                                   (priceCurrency === 'CA$' && regionCurrency === 'CA$');
+                            return priceCurrency === selectedCurrency;
                         });
                         // 如果过滤后没有价格，使用原始价格（向后兼容）
                         const displayPrices = filteredPrices.length > 0 ? filteredPrices : product.prices;
