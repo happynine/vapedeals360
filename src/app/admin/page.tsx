@@ -276,24 +276,45 @@ function StoreSelect({ stores, value, onChange, lang, disabledStoreIds }: {
   }, []);
 
   const selectedStore = stores.find(s => String(s.id) === value);
+  
+  // Helper function to get store name
   const getStoreName = (store: typeof stores[0]) => {
     const t2 = store.store_translations?.find((tr: { language: string }) => tr.language === lang);
     return t2?.name || store.slug;
   };
 
-  // Filter stores by search query (alphabetical order)
+  // Filter stores by search query (alphabetical order, with prefix matches first)
   const filteredStores = useMemo(() => {
-    const sorted = [...stores].sort((a, b) => {
-      const nameA = a.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || a.slug;
-      const nameB = b.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || b.slug;
+    // First filter by search query
+    let filtered = [...stores];
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(s => {
+        const name = getStoreName(s);
+        return name.toLowerCase().includes(query);
+      });
+    }
+    
+    // Sort: prefix matches first, then alphabetical order
+    const query = searchQuery.trim().toLowerCase();
+    filtered.sort((a, b) => {
+      const nameA = getStoreName(a).toLowerCase();
+      const nameB = getStoreName(b).toLowerCase();
+      
+      // If searching, prioritize prefix matches
+      if (query) {
+        const aStartsWith = nameA.startsWith(query);
+        const bStartsWith = nameB.startsWith(query);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+      }
+      
+      // Alphabetical order
       return nameA.localeCompare(nameB);
     });
-    if (!searchQuery.trim()) return sorted;
-    const query = searchQuery.toLowerCase();
-    return sorted.filter(s => {
-      const name = s.store_translations?.find((tr: { language: string }) => tr.language === lang)?.name || s.slug;
-      return name.toLowerCase().includes(query);
-    });
+    
+    return filtered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stores, searchQuery, lang]);
 
   return (
