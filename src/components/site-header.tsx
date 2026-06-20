@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 
@@ -38,6 +38,16 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const desktopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // 从URL读取搜索参数并初始化搜索框
+  useEffect(() => {
+    const urlSearch = searchParams.get('search');
+    if (urlSearch) {
+      setDesktopSearchQuery(urlSearch);
+      setSearchQuery(urlSearch);
+    }
+  }, [searchParams]);
 
   const displayName = siteSettings?.site_name || '';
   const [mounted, setMounted] = useState(false);
