@@ -588,16 +588,17 @@ export default function HomePage() {
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
                         const t = getTranslation(product.translations, language);
-                        // 根据用户选择的currency过滤价格
-                        const filteredPrices = product.prices.filter(p => {
-                            // 如果价格记录有region字段，直接匹配
-                            if (p.region && p.region !== salesRegion) return false;
-                            // 根据用户选择的currency匹配
+                        // 第一步：按region过滤价格
+                        const regionFilteredPrices = product.prices.filter(p => {
+                            if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
+                            return true;
+                        });
+                        
+                        // 第二步：按currency过滤（严格匹配）
+                        const displayPrices = regionFilteredPrices.filter(p => {
                             const priceCurrency = p.currency || '$';
                             return priceCurrency === selectedCurrency;
                         });
-                        // 如果过滤后没有价格，使用原始价格（向后兼容）
-                        const displayPrices = filteredPrices.length > 0 ? filteredPrices : product.prices;
                         
                         const lowest = getLowestPrice(displayPrices);
                         const highestOrig = getHighestOriginal(displayPrices);
