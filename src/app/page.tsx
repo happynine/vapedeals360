@@ -222,6 +222,7 @@ export default function HomePage() {
     const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
     const [banners, setBanners] = useState<Banner[]>([]);
     const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
+    const [mounted, setMounted] = useState(false);
     const [salesRegion, setSalesRegion] = useState<string>("USA");
     const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
 
@@ -301,12 +302,21 @@ export default function HomePage() {
     useEffect(() => {
         const savedRegion = localStorage.getItem('salesRegion');
         const savedCurrency = localStorage.getItem('selectedCurrency');
-        if (savedRegion && savedRegion !== salesRegion) {
+        
+        if (savedRegion) {
             setSalesRegion(savedRegion);
-        }
-        if (savedCurrency && savedCurrency !== selectedCurrency) {
+            // Check if saved currency is valid for the saved region
+            const currencies = REGION_CURRENCIES[savedRegion] || [{ code: 'USD', symbol: '$' }];
+            if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
+                setSelectedCurrency(savedCurrency);
+            } else {
+                setSelectedCurrency(currencies[0].symbol);
+            }
+        } else if (savedCurrency) {
             setSelectedCurrency(savedCurrency);
         }
+        
+        setMounted(true);
     }, []);
 
     // Auto-select default currency when region changes
@@ -463,7 +473,7 @@ export default function HomePage() {
                         })}
                     </div>
                     {/* Row 1.5: Currency */}
-                    {(() => {
+                    {mounted && (() => {
                         const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
                         if (currencies.length <= 1) return null; // Only show if multiple currencies available
                         
