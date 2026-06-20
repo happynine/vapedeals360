@@ -302,20 +302,18 @@ export default function HomePage() {
     // Load sales region and currency from localStorage on mount
     useEffect(() => {
         const savedRegion = localStorage.getItem('salesRegion');
+        const savedCurrency = savedRegion ? localStorage.getItem(`selectedCurrency_${savedRegion}`) : null;
         
         if (savedRegion) {
             setSalesRegion(savedRegion);
-            // Load currency for this specific region
-            const regionCurrency = localStorage.getItem(`selectedCurrency_${savedRegion}`);
             const currencies = REGION_CURRENCIES[savedRegion] || [{ code: 'USD', symbol: '$' }];
-            
-            if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
-                setSelectedCurrency(regionCurrency);
+            if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
+                setSelectedCurrency(savedCurrency);
             } else {
                 setSelectedCurrency(currencies[0].symbol);
             }
         } else {
-            // No saved region, use default
+            // No saved region, use default currency
             const defaultCurrencies = REGION_CURRENCIES['Global'] || [{ code: 'USD', symbol: '$' }];
             setSelectedCurrency(defaultCurrencies[0].symbol);
         }
@@ -436,7 +434,14 @@ export default function HomePage() {
                     {/* Row 1: Region */}
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-                        {mounted && (["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
+                        {!mounted ? (
+                            // Show loading placeholder while reading from localStorage
+                            <div className="flex gap-2">
+                                {["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"].map((region) => (
+                                    <div key={region} className="h-7 w-16 rounded-full bg-gray-100 animate-pulse" />
+                                ))}
+                            </div>
+                        ) : (["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
                             const regionLabels: Record<string, string> = {
                                 "Global": language === "zh" ? "全球" : "Global",
                                 "USA": language === "zh" ? "美国" : "USA",
