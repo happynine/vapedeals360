@@ -322,22 +322,6 @@ export default function HomePage() {
         setMounted(true);
     }, []);
 
-    // Auto-select currency when region changes
-    useEffect(() => {
-        if (!mounted) return;
-        
-        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
-        const regionCurrency = localStorage.getItem(`selectedCurrency_${salesRegion}`);
-        
-        // Check if this region has a saved currency
-        if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
-            setSelectedCurrency(regionCurrency);
-        } else {
-            // Default to first currency in the list
-            setSelectedCurrency(currencies[0].symbol);
-        }
-    }, [salesRegion, mounted]);
-
     useEffect(() => {
         fetchData();
     }, [fetchData]);
@@ -469,6 +453,15 @@ export default function HomePage() {
                                     setPage(1);
                                     if (typeof window !== 'undefined') {
                                         localStorage.setItem('salesRegion', region);
+                                        // 同时更新currency，避免闪烁
+                                        const currencies = REGION_CURRENCIES[region] || [{ code: 'USD', symbol: '$' }];
+                                        const regionCurrency = localStorage.getItem(`selectedCurrency_${region}`);
+                                        
+                                        if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
+                                            setSelectedCurrency(regionCurrency);
+                                        } else {
+                                            setSelectedCurrency(currencies[0].symbol);
+                                        }
                                     }
                                 }}
                                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
