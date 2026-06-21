@@ -342,6 +342,33 @@ export default function HomePage() {
     const filteredProducts = (() => {
         let list = products;
 
+        // 先过滤出有匹配价格的产品（避免空卡片）
+        list = list.filter(product => {
+            // 第一步：按region过滤价格
+            const regionFilteredPrices = product.prices.filter(p => {
+                if (p.no_quote) return false;
+                if (p.store && !p.store.is_active) return false;
+                const priceRegion = p.region;
+                if (salesRegion === 'Global') {
+                    return priceRegion === 'Global';
+                }
+                if (priceRegion === 'Global') return true;
+                if (priceRegion === salesRegion) return true;
+                return false;
+            });
+
+            // 第二步：按currency过滤
+            const displayPrices = regionFilteredPrices.filter(p => {
+                const priceCurrency = p.currency || '$';
+                const priceRegion = p.region;
+                if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
+                return priceCurrency === selectedCurrency;
+            });
+
+            // 只保留有匹配价格的产品
+            return displayPrices.length > 0;
+        });
+
         if (sortBy === "price_low") {
             list = [...list].sort((a, b) => {
                 const aPrice = getLowestPrice(a.prices);
