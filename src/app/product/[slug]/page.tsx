@@ -193,6 +193,8 @@ export default function ProductDetailPage() {
   const filteredPrices = product.prices.filter((p) => {
     // Exclude prices marked as "no quote"
     if (p.no_quote) return false;
+    // Exclude prices from inactive stores
+    if (p.store && !p.store.is_active) return false;
     // Filter by region
     if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
     // Filter by currency

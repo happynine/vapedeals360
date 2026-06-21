@@ -224,8 +224,8 @@ export async function fetchProducts(options?: {
         if (!activeRegion) return true;
         const pStoreId = (p as Record<string, unknown>).store_id as number;
         const pRegion = (p as Record<string, unknown>).region as string | null;
-        // Include prices that match the region, or have no region set (backward compat)
-        if (pRegion === activeRegion) return true;
+        // Include prices that match the region, Global region, or have no region set (backward compat)
+        if (pRegion === activeRegion || pRegion === 'Global') return true;
         if (!pRegion) {
           // For prices without region, check if the store matches the region
           const storeRegions = storeRegionMap[pStoreId];
@@ -292,7 +292,8 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
     ? allPrices.filter((p) => {
         const pStoreId = (p as Record<string, unknown>).store_id as number;
         const pRegion = (p as Record<string, unknown>).region as string | null;
-        if (pRegion === activeRegion) return true;
+        // Include prices that match the region, Global region, or have no region set
+        if (pRegion === activeRegion || pRegion === 'Global') return true;
         if (!pRegion) {
           const storeRegions = storeRegionMap[pStoreId];
           return storeRegions !== undefined;

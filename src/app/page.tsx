@@ -606,6 +606,8 @@ export default function HomePage() {
                         const regionFilteredPrices = product.prices.filter(p => {
                             // 排除标记为"无报价"的价格
                             if (p.no_quote) return false;
+                            // 排除禁用的商城
+                            if (p.store && !p.store.is_active) return false;
                             if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
                             return true;
                         });
