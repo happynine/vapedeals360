@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Stores API] Update error:', err);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: store });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Stores API] Update error:', err);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
@@ -77,6 +79,8 @@ export async function PUT(request: NextRequest) {
     const client = getSupabaseClient();
     const body = await request.json();
     const { id, slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
+    
+    console.log('[Stores API] Update request:', { id, slug, store_type, hasTranslations: !!translations });
 
     // Check for duplicate slug (exclude current store)
     if (slug) {
@@ -113,6 +117,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data: store });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Stores API] Update error:', err);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
@@ -134,6 +139,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Stores API] Update error:', err);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

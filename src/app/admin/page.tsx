@@ -4455,12 +4455,26 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
   // Sync translations with active languages when opening
   useEffect(() => {
     if (open) {
-      setTranslations(prev => {
-        const existing = new Map(prev.map(t => [t.language, t.name]));
-        return activeLanguages.map(l => ({ language: l.code, name: existing.get(l.code) || '' }));
+      // Reset all form fields when opening the modal
+      setSlug(store?.slug || '');
+      setLogoKey(store?.logo_key || store?.logo_url || '');
+      setWebsiteUrls(() => {
+        if (Array.isArray(store?.website_urls) && store.website_urls.length > 0) return store.website_urls;
+        if (store?.website_url) return [{ url: store.website_url }];
+        return [];
       });
+      setStoreType((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
+      setIsActive(store?.is_active !== false);
+      setRegions(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
+      setNotes(store?.notes || '');
+      // Reset translations from store data or empty
+      if (store?.store_translations && store.store_translations.length > 0) {
+        setTranslations(store.store_translations.map(tr => ({ language: tr.language, name: tr.name })));
+      } else {
+        setTranslations(activeLanguages.map(l => ({ language: l.code, name: '' })));
+      }
     }
-  }, [open, activeLanguages]);
+  }, [open, store?.id, defaultType, activeLanguages]);
 
   const handleSave = async () => {
     // Check for duplicate slug
