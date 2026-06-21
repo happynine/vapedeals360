@@ -602,19 +602,41 @@ export default function HomePage() {
                     className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredProducts.map((product, idx) => {
                         const t = getTranslation(product.translations, language);
-                        // 第一步：按region过滤价格，排除no_quote的价格
+                        // 第一步：按region过滤价格
+                        // Logic:
+                        // - Global region selected: only show Global prices
+                        // - Specific region selected: show that region's prices + Global prices
                         const regionFilteredPrices = product.prices.filter(p => {
                             // 排除标记为"无报价"的价格
                             if (p.no_quote) return false;
                             // 排除禁用的商城
                             if (p.store && !p.store.is_active) return false;
-                            if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
-                            return true;
+
+                            const priceRegion = p.region;
+
+                            // When Global region is selected: only show Global prices
+                            if (salesRegion === 'Global') {
+                                return priceRegion === 'Global';
+                            }
+
+                            // When specific region is selected: show Global prices + matching region prices
+                            if (priceRegion === 'Global') return true;
+                            if (priceRegion === salesRegion) return true;
+
+                            return false;
                         });
-                        
-                        // 第二步：按currency过滤（严格匹配）
+
+                        // 第二步：按currency过滤
+                        // - Global region: filter all prices by currency
+                        // - Specific region: filter specific region prices by currency, keep Global prices regardless of currency
                         const displayPrices = regionFilteredPrices.filter(p => {
                             const priceCurrency = p.currency || '$';
+                            const priceRegion = p.region;
+
+                            // Global prices are not filtered by currency when specific region is selected
+                            if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
+
+                            // Specific region prices are filtered by currency
                             return priceCurrency === selectedCurrency;
                         });
                         

@@ -190,16 +190,33 @@ export default function ProductDetailPage() {
   } catch { specsEntries = []; }
 
   // Filter prices by sales region and selected currency
+  // Logic:
+  // - Global region selected: only show Global prices
+  // - Specific region selected (USA/UK/etc): show that region's prices + Global prices
   const filteredPrices = product.prices.filter((p) => {
     // Exclude prices marked as "no quote"
     if (p.no_quote) return false;
     // Exclude prices from inactive stores
     if (p.store && !p.store.is_active) return false;
-    // Filter by region
-    if (p.region && p.region !== salesRegion && p.region !== 'Global') return false;
-    // Filter by currency
+
+    const priceRegion = p.region;
     const priceCurrency = p.currency || '$';
-    return priceCurrency === selectedCurrency;
+
+    // When Global region is selected: only show Global prices (filtered by currency)
+    if (salesRegion === 'Global') {
+      return priceRegion === 'Global' && priceCurrency === selectedCurrency;
+    }
+
+    // When specific region is selected:
+    // - Global prices: show regardless of currency (they might have different currency)
+    if (priceRegion === 'Global') return true;
+
+    // - Specific region prices: only show if region matches AND currency matches
+    if (priceRegion === salesRegion) {
+      return priceCurrency === selectedCurrency;
+    }
+
+    return false;
   });
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
