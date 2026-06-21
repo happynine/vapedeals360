@@ -92,13 +92,13 @@ export default function ProductDetailPage() {
   const [salesRegion, setSalesRegion] = useState<string>('USA');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('$');
 
-  // Load sales region and currency from localStorage
+  // Load sales region and currency from sessionStorage
   useEffect(() => {
-    const savedRegion = localStorage.getItem('salesRegion');
+    const savedRegion = sessionStorage.getItem('salesRegion');
     if (savedRegion) {
       setSalesRegion(savedRegion);
       // Load currency for this specific region
-      const regionCurrency = localStorage.getItem(`selectedCurrency_${savedRegion}`);
+      const regionCurrency = sessionStorage.getItem(`selectedCurrency_${savedRegion}`);
       if (regionCurrency) {
         setSelectedCurrency(regionCurrency);
       }
@@ -109,10 +109,10 @@ export default function ProductDetailPage() {
     async function fetchProduct() {
       setLoading(true);
       try {
-        // Get region from localStorage (set by homepage)
+        // Get region from sessionStorage (set by homepage)
         let region = 'USA';
         if (typeof window !== 'undefined') {
-          region = localStorage.getItem('salesRegion') || 'USA';
+          region = sessionStorage.getItem('salesRegion') || 'USA';
         }
         const res = await fetch(`/api/products/${slug}?language=${language}&region=${region}`);
         const json = await res.json();

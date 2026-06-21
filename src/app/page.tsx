@@ -299,10 +299,10 @@ export default function HomePage() {
         }
     }, [urlSearch]);
 
-    // Load sales region and currency from localStorage on mount
+    // Load sales region and currency from sessionStorage on mount
     useEffect(() => {
-        const savedRegion = localStorage.getItem('salesRegion');
-        const savedCurrency = savedRegion ? localStorage.getItem(`selectedCurrency_${savedRegion}`) : null;
+        const savedRegion = sessionStorage.getItem('salesRegion');
+        const savedCurrency = savedRegion ? sessionStorage.getItem(`selectedCurrency_${savedRegion}`) : null;
         
         if (savedRegion) {
             setSalesRegion(savedRegion);
@@ -458,10 +458,10 @@ export default function HomePage() {
                                     setSalesRegion(region); 
                                     setPage(1);
                                     if (typeof window !== 'undefined') {
-                                        localStorage.setItem('salesRegion', region);
+                                        sessionStorage.setItem('salesRegion', region);
                                         // 同时更新currency，避免闪烁
                                         const currencies = REGION_CURRENCIES[region] || [{ code: 'USD', symbol: '$' }];
-                                        const regionCurrency = localStorage.getItem(`selectedCurrency_${region}`);
+                                        const regionCurrency = sessionStorage.getItem(`selectedCurrency_${region}`);
                                         
                                         if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
                                             setSelectedCurrency(regionCurrency);
@@ -500,7 +500,7 @@ export default function HomePage() {
                                                 setPage(1);
                                                 if (typeof window !== 'undefined') {
                                                     // Save currency for this specific region
-                                                    localStorage.setItem(`selectedCurrency_${salesRegion}`, currency.symbol);
+                                                    sessionStorage.setItem(`selectedCurrency_${salesRegion}`, currency.symbol);
                                                 }
                                             }}
                                             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${selectedCurrency === currency.symbol ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
