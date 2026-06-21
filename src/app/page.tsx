@@ -249,6 +249,10 @@ export default function HomePage() {
                 params.set("sales_region", salesRegion);
             }
 
+            if (selectedCurrency) {
+                params.set("currency", selectedCurrency);
+            }
+
             // Pass sort params to API for server-side sorting
             if (sortBy === "newest") {
                 params.set("sort_by", "id");
@@ -290,7 +294,7 @@ export default function HomePage() {
         } finally {
             setLoading(false);
         }
-    }, [language, page, selectedCategory, salesRegion, searchQuery, sortBy]);
+    }, [language, page, selectedCategory, salesRegion, selectedCurrency, searchQuery, sortBy]);
 
     // Sync search query from URL
     useEffect(() => {
@@ -342,31 +346,15 @@ export default function HomePage() {
     const filteredProducts = (() => {
         let list = products;
 
-        // 先过滤出有匹配价格的产品（避免空卡片）
+        // 后端已经按currency过滤了产品，这里只需要做排序
+        // 但仍需要过滤禁用的商城和no_quote的价格（后端没有完全过滤）
         list = list.filter(product => {
-            // 第一步：按region过滤价格
-            const regionFilteredPrices = product.prices.filter(p => {
+            const hasValidPrice = product.prices.some(p => {
                 if (p.no_quote) return false;
                 if (p.store && !p.store.is_active) return false;
-                const priceRegion = p.region;
-                if (salesRegion === 'Global') {
-                    return priceRegion === 'Global';
-                }
-                if (priceRegion === 'Global') return true;
-                if (priceRegion === salesRegion) return true;
-                return false;
+                return true;
             });
-
-            // 第二步：按currency过滤
-            const displayPrices = regionFilteredPrices.filter(p => {
-                const priceCurrency = p.currency || '$';
-                const priceRegion = p.region;
-                if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
-                return priceCurrency === selectedCurrency;
-            });
-
-            // 只保留有匹配价格的产品
-            return displayPrices.length > 0;
+            return hasValidPrice;
         });
 
         if (sortBy === "price_low") {

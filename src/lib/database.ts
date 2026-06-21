@@ -117,11 +117,12 @@ export async function fetchProducts(options?: {
   offset?: number;
   featured?: boolean;
   sales_region?: string;
+  currency?: string;
   sort_by?: string;
   sort_order?: string;
 }) {
   const client = getClient();
-  const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region, sort_by = 'id', sort_order = 'desc' } = options || {};
+  const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region, currency, sort_by = 'id', sort_order = 'desc' } = options || {};
 
   // If search keyword provided, find matching product IDs from translations table first
   let matchingProductIds: number[] | null = null;
@@ -159,13 +160,17 @@ export async function fetchProducts(options?: {
   // Fetch stores for region filtering if needed (reused later for storeRegionMap)
   let allStores: Record<string, unknown>[] | null = null;
   if (activeRegion) {
+    // Note: Also filter by is_active to exclude disabled stores
     const { data: storeData, error: storeError } = await client
       .from('stores')
-      .select('id, regions, store_type');
+      .select('id, regions, store_type, is_active');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
     allStores = (storeData || []) as Record<string, unknown>[];
     const storeIds = allStores
       .filter((s: Record<string, unknown>) => {
+        // Exclude inactive stores
+        if (s.is_active === false) return false;
+        
         const regions = s.regions as { region: string; currency: string }[] | null;
         const storeType = s.store_type as string | null;
         // Official类型的商城视为Global，包含在所有region中
@@ -178,13 +183,41 @@ export async function fetchProducts(options?: {
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return [];
-    // Find product IDs that have prices from these stores (include prices with or without region)
+    
+    // Get prices from these stores with region and currency filter
     const { data: priceData, error: priceError } = await client
       .from('product_prices')
-      .select('product_id')
+      .select('product_id, region, currency')
       .in('store_id', storeIds);
     if (priceError) throw new Error(`Filter prices by store failed: ${priceError.message}`);
-    const productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    
+    // Filter product IDs that have matching prices (same logic as countProducts)
+    let productIds: number[];
+    if (currency && activeRegion !== 'Global') {
+      // When currency is specified and not Global region:
+      // Product must have either:
+      // 1. Prices matching the region with matching currency, OR
+      // 2. Global region prices (currency not filtered for Global)
+      const matchingProductIdsSet = new Set<number>();
+      for (const p of (priceData || [])) {
+        const pRegion = (p as Record<string, unknown>).region as string | null;
+        const pCurrency = (p as Record<string, unknown>).currency as string | null;
+        const pProductId = (p as Record<string, unknown>).product_id as number;
+        
+        // Global prices always count when specific region is selected
+        if (pRegion === 'Global') {
+          matchingProductIdsSet.add(pProductId);
+        } else if (pRegion === activeRegion && pCurrency === currency) {
+          // Region prices must match currency
+          matchingProductIdsSet.add(pProductId);
+        }
+      }
+      productIds = [...matchingProductIdsSet];
+    } else {
+      // No currency filter, just get unique product IDs
+      productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    }
+    
     if (productIds.length === 0) return [];
     query = query.in('id', productIds);
   }
@@ -216,7 +249,8 @@ export async function fetchProducts(options?: {
     }
   }
 
-  return (data || []).map((product: Record<string, unknown>) => ({
+  // Process and filter products
+  const processedProducts = (data || []).map((product: Record<string, unknown>) => ({
     ...product,
     translations: product.product_translations as ProductTranslation[],
     prices: (product.product_prices as Record<string, unknown>[] || [])
@@ -247,6 +281,29 @@ export async function fetchProducts(options?: {
       };
     }),
   }));
+
+  // If currency is specified, filter products that have matching prices
+  // Logic: 
+  // - For Global region: filter all prices by currency
+  // - For specific region: show region prices filtered by currency + Global prices (not filtered by currency)
+  if (currency && activeRegion) {
+    return processedProducts.filter((product: Record<string, unknown>) => {
+      const prices = product.prices as Record<string, unknown>[] || [];
+      const hasMatchingPrice = prices.some((p) => {
+        const pRegion = (p as Record<string, unknown>).region as string | null;
+        const pCurrency = (p as Record<string, unknown>).currency as string | null;
+        
+        // Global prices are always included when specific region is selected
+        if (pRegion === 'Global' && activeRegion !== 'Global') return true;
+        
+        // Region prices must match both region AND currency
+        return pRegion === activeRegion && pCurrency === currency;
+      });
+      return hasMatchingPrice;
+    });
+  }
+
+  return processedProducts;
 }
 
 // Fetch single product by slug
@@ -329,8 +386,11 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
 }
 
 // Count products
-export async function countProducts(category_id?: number, sales_region?: string, search?: string) {
+export async function countProducts(category_id?: number, sales_region?: string, search?: string, currency?: string) {
   const client = getClient();
+  
+  // Debug log
+  console.log('[countProducts] params:', { category_id, sales_region, search, currency });
 
   // If search keyword provided, find matching product IDs first
   let matchingProductIds: number[] | null = null;
@@ -352,26 +412,71 @@ export async function countProducts(category_id?: number, sales_region?: string,
   if (category_id) {
     query = query.eq('category_id', category_id);
   }
-  if (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') {
+  
+  // Track active region for currency filtering
+  const activeRegion = (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') ? sales_region : null;
+  
+  if (activeRegion) {
     // Cannot use .contains() or .like() on jsonb column, fetch and filter in JS
+    // Note: Also filter by is_active to exclude disabled stores
     const { data: storeData, error: storeError } = await client
       .from('stores')
-      .select('id, regions');
+      .select('id, regions, store_type, is_active');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
+    
+    // Filter stores that match the region or are Global, and are active
     const storeIds = (storeData || [])
       .filter((s: Record<string, unknown>) => {
+        // Exclude inactive stores
+        if (s.is_active === false) return false;
+        
         const regions = s.regions as { region: string; currency: string }[] | null;
-        return Array.isArray(regions) && regions.some(r => r.region === sales_region);
+        const storeType = s.store_type as string | null;
+        // Official类型的商城视为Global，包含在所有region中
+        if (storeType === 'official') return true;
+        // regions为空或包含"Global"的store也包含在所有region中
+        if (!regions || regions.length === 0) return true;
+        if (regions.some(r => r.region === 'Global')) return true;
+        // 否则检查是否包含当前region
+        return regions.some(r => r.region === activeRegion);
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return 0;
-    // Include all prices from these stores (with or without region) for counting
+    
+    // Get prices from these stores with region filter
     const { data: priceData, error: priceError } = await client
       .from('product_prices')
-      .select('product_id')
+      .select('product_id, region, currency')
       .in('store_id', storeIds);
     if (priceError) throw new Error(`Filter prices by store failed: ${priceError.message}`);
-    const productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    
+    // Filter product IDs that have matching prices
+    let productIds: number[];
+    if (currency && activeRegion !== 'Global') {
+      // When currency is specified and not Global region:
+      // Product must have either:
+      // 1. Prices matching the region with matching currency, OR
+      // 2. Global region prices (currency not filtered for Global)
+      const matchingProductIdsSet = new Set<number>();
+      for (const p of (priceData || [])) {
+        const pRegion = (p as Record<string, unknown>).region as string | null;
+        const pCurrency = (p as Record<string, unknown>).currency as string | null;
+        const pProductId = (p as Record<string, unknown>).product_id as number;
+        
+        // Global prices always count when specific region is selected
+        if (pRegion === 'Global') {
+          matchingProductIdsSet.add(pProductId);
+        } else if (pRegion === activeRegion && pCurrency === currency) {
+          // Region prices must match currency
+          matchingProductIdsSet.add(pProductId);
+        }
+      }
+      productIds = [...matchingProductIdsSet];
+    } else {
+      // No currency filter, just get unique product IDs
+      productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    }
+    
     if (productIds.length === 0) return 0;
     query = query.in('id', productIds);
   }

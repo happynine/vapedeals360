@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get('featured') === 'true';
     const search = searchParams.get('search') || undefined;
     const salesRegion = searchParams.get('sales_region') || undefined;
+    const currency = searchParams.get('currency') || undefined;
     const sortBy = searchParams.get('sort_by') || 'id';
     const sortOrder = searchParams.get('sort_order') || 'desc';
     const offset = (page - 1) * limit;
@@ -30,10 +31,11 @@ export async function GET(request: NextRequest) {
         offset,
         featured,
         sales_region: salesRegion,
+        currency,
         sort_by: sortBy,
         sort_order: sortOrder,
       }),
-      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion, search),
+      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion, search, currency),
     ]);
 
     return NextResponse.json({
