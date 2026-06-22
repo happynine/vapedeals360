@@ -5197,21 +5197,45 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     start_time: string;
     end_time: string;
     countdown_action: 'close' | 'original_price';
+    // Countdown duration fields (for countdown input mode)
+    countdown_days: number;
+    countdown_hours: number;
+    countdown_minutes: number;
+    countdown_seconds: number;
   }[]>(
-    promotionProduct?.store_prices?.map((p) => ({
-      store_id: p.store_id?.toString() || '',
-      region: p.region || '',
-      current_price: p.current_price || '',
-      original_price: p.original_price || '',
-      discount_percent: p.discount_percent?.toString() || '',
-      currency: p.currency || '$',
-      product_url: p.product_url || '',
-      no_quote: p.no_quote || false,
-      time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
-      start_time: p.start_time ? new Date(p.start_time).toISOString().slice(0, 16) : '',
-      end_time: p.end_time ? new Date(p.end_time).toISOString().slice(0, 16) : '',
-      countdown_action: (p.countdown_action as 'close' | 'original_price') || 'close'
-    })) || [{ 
+    promotionProduct?.store_prices?.map((p) => {
+      // Calculate countdown duration from end_time if countdown mode
+      let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
+      if (p.time_type === 'countdown' && p.end_time) {
+        const end = new Date(p.end_time);
+        const now = new Date();
+        const diff = end.getTime() - now.getTime();
+        if (diff > 0) {
+          countdown_days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          countdown_hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          countdown_minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          countdown_seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        }
+      }
+      return {
+        store_id: p.store_id?.toString() || '',
+        region: p.region || '',
+        current_price: p.current_price || '',
+        original_price: p.original_price || '',
+        discount_percent: p.discount_percent?.toString() || '',
+        currency: p.currency || '$',
+        product_url: p.product_url || '',
+        no_quote: p.no_quote || false,
+        time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
+        start_time: p.start_time ? new Date(p.start_time).toISOString().slice(0, 16) : '',
+        end_time: p.end_time ? new Date(p.end_time).toISOString().slice(0, 16) : '',
+        countdown_action: (p.countdown_action as 'close' | 'original_price') || 'close',
+        countdown_days,
+        countdown_hours,
+        countdown_minutes,
+        countdown_seconds
+      };
+    }) || [{ 
       store_id: '', 
       region: '', 
       current_price: '', 
@@ -5223,7 +5247,11 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
       time_type: 'permanent', 
       start_time: '', 
       end_time: '', 
-      countdown_action: 'close' 
+      countdown_action: 'close',
+      countdown_days: 0,
+      countdown_hours: 0,
+      countdown_minutes: 0,
+      countdown_seconds: 0
     }]
   );
   const [saving, setSaving] = useState(false);
@@ -5266,20 +5294,37 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         is_featured: isFeatured,
         notes: notes,
         translations: translations,
-        store_prices: storePrices.map(p => ({
-          store_id: p.store_id ? parseInt(p.store_id) : null,
-          region: p.region,
-          current_price: p.current_price,
-          original_price: p.original_price,
-          discount_percent: p.discount_percent ? parseFloat(p.discount_percent) : null,
-          currency: p.currency,
-          product_url: p.product_url,
-          no_quote: p.no_quote,
-          time_type: p.time_type,
-          start_time: p.time_type !== 'permanent' && p.start_time ? new Date(p.start_time).toISOString() : null,
-          end_time: p.time_type !== 'permanent' && p.end_time ? new Date(p.end_time).toISOString() : null,
-          countdown_action: p.countdown_action
-        }))
+        store_prices: storePrices.map(p => {
+          // Calculate end_time for countdown mode
+          let endTime = null;
+          let startTime = null;
+          
+          if (p.time_type === 'time_range') {
+            startTime = p.start_time ? new Date(p.start_time).toISOString() : null;
+            endTime = p.end_time ? new Date(p.end_time).toISOString() : null;
+          } else if (p.time_type === 'countdown') {
+            // For countdown, calculate end_time from current time + duration
+            const now = new Date();
+            const durationMs = (p.countdown_days * 24 * 60 * 60 + p.countdown_hours * 60 * 60 + p.countdown_minutes * 60 + p.countdown_seconds) * 1000;
+            endTime = new Date(now.getTime() + durationMs).toISOString();
+            startTime = now.toISOString(); // Start from now
+          }
+          
+          return {
+            store_id: p.store_id ? parseInt(p.store_id) : null,
+            region: p.region,
+            current_price: p.current_price,
+            original_price: p.original_price,
+            discount_percent: p.discount_percent ? parseFloat(p.discount_percent) : null,
+            currency: p.currency,
+            product_url: p.product_url,
+            no_quote: p.no_quote,
+            time_type: p.time_type,
+            start_time: startTime,
+            end_time: endTime,
+            countdown_action: p.countdown_action
+          };
+        })
       };
 
       const res = await adminFetch('/api/admin/promotion-products', {
@@ -5530,6 +5575,10 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   start_time: existing?.start_time || '',
                                   end_time: existing?.end_time || '',
                                   countdown_action: existing?.countdown_action || 'close',
+                                  countdown_days: existing?.countdown_days || 0,
+                                  countdown_hours: existing?.countdown_hours || 0,
+                                  countdown_minutes: existing?.countdown_minutes || 0,
+                                  countdown_seconds: existing?.countdown_seconds || 0,
                                 });
                               } else {
                                 for (const sr of sRegions) {
@@ -5547,6 +5596,10 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                     start_time: existing?.start_time || '',
                                     end_time: existing?.end_time || '',
                                     countdown_action: existing?.countdown_action || 'close',
+                                    countdown_days: existing?.countdown_days || 0,
+                                    countdown_hours: existing?.countdown_hours || 0,
+                                    countdown_minutes: existing?.countdown_minutes || 0,
+                                    countdown_seconds: existing?.countdown_seconds || 0,
                                   });
                                 }
                               }
@@ -5741,7 +5794,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               {t('Countdown', '倒计时')}
                             </button>
                           </div>
-                          {firstP.time_type !== 'permanent' && (
+                          {/* Time Range mode: show datetime-local inputs */}
+                          {firstP.time_type === 'time_range' && (
                             <div className="grid grid-cols-2 gap-2 mb-2">
                               <div>
                                 <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Start Time', '开始时间')}</label>
@@ -5775,6 +5829,74 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               </div>
                             </div>
                           )}
+                          {/* Countdown mode: show days/hours/minutes/seconds inputs */}
+                          {firstP.time_type === 'countdown' && (
+                            <div className="mb-2">
+                              <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Duration', '时长')}</label>
+                              <div className="flex items-center gap-2 bg-secondary rounded border border-border px-2 py-1">
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  max="365"
+                                  value={firstP.countdown_days} 
+                                  onChange={(e) => { 
+                                    const newP = [...storePrices]; 
+                                    for (const idx of group.indices) {
+                                      newP[idx].countdown_days = parseInt(e.target.value) || 0;
+                                    }
+                                    setStorePrices(newP); 
+                                  }} 
+                                  className="w-12 rounded bg-background px-1 py-0.5 text-xs text-center" 
+                                />
+                                <span className="text-xs text-muted-foreground">{t('days', '天')}</span>
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  max="23"
+                                  value={firstP.countdown_hours} 
+                                  onChange={(e) => { 
+                                    const newP = [...storePrices]; 
+                                    for (const idx of group.indices) {
+                                      newP[idx].countdown_hours = parseInt(e.target.value) || 0;
+                                    }
+                                    setStorePrices(newP); 
+                                  }} 
+                                  className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
+                                />
+                                <span className="text-xs text-muted-foreground">{t('hours', '时')}</span>
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  max="59"
+                                  value={firstP.countdown_minutes} 
+                                  onChange={(e) => { 
+                                    const newP = [...storePrices]; 
+                                    for (const idx of group.indices) {
+                                      newP[idx].countdown_minutes = parseInt(e.target.value) || 0;
+                                    }
+                                    setStorePrices(newP); 
+                                  }} 
+                                  className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
+                                />
+                                <span className="text-xs text-muted-foreground">{t('min', '分')}</span>
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  max="59"
+                                  value={firstP.countdown_seconds} 
+                                  onChange={(e) => { 
+                                    const newP = [...storePrices]; 
+                                    for (const idx of group.indices) {
+                                      newP[idx].countdown_seconds = parseInt(e.target.value) || 0;
+                                    }
+                                    setStorePrices(newP); 
+                                  }} 
+                                  className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
+                                />
+                                <span className="text-xs text-muted-foreground">{t('sec', '秒')}</span>
+                              </div>
+                            </div>
+                          )}
                           {firstP.time_type === 'countdown' && (
                             <div>
                               <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('After Countdown Ends', '倒计时结束后')}</label>
@@ -5804,7 +5926,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     );
                   })}</>
                 })()}
-                <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close' }])} className="text-xs text-primary hover:underline">
+                <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格')}
                 </button>
               </div>
