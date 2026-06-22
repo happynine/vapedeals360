@@ -4453,8 +4453,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(promotion?.slug || '');
   const [promotionType, setPromotionType] = useState<'special_price' | 'buy_2_get_1' | 'buy_1_get_1'>(promotion?.promotion_type || 'special_price');
-  const [specialPrice, setSpecialPrice] = useState<string>(promotion?.special_price?.toString() || '');
-  const [currency, setCurrency] = useState<string>(promotion?.currency || '$');
   const [sortOrder, setSortOrder] = useState(promotion?.sort_order || 0);
   const [isActive, setIsActive] = useState(promotion?.is_active !== false);
   const [translations, setTranslations] = useState<{ language: string; name: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
@@ -4507,8 +4505,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
       if (!isEdit) {
         setSlug('');
         setPromotionType('special_price');
-        setSpecialPrice('');
-        setCurrency('$');
         setSortOrder(0);
         setIsActive(true);
         setSelectedProducts([]);
@@ -4582,8 +4578,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         id: promotion?.id,
         slug,
         promotion_type: promotionType,
-        special_price: promotionType === 'special_price' && specialPrice ? parseFloat(specialPrice) : null,
-        currency: promotionType === 'special_price' ? currency : null,
         sort_order: sortOrder,
         is_active: isActive,
         translations,
@@ -4634,20 +4628,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
                 </div>
               </div>
               
-              {promotionType === 'special_price' && (
-                <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Special Price (default override)', '特惠价格 (默认覆盖)', lang)}</label>
-                  <div className="mt-1 flex gap-2">
-                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-24 rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
-                      {CURRENCY_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <input type="number" step="0.01" value={specialPrice} onChange={(e) => setSpecialPrice(e.target.value)} className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. 9.99" />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{t('This price will override product prices during promotion. You can also set individual prices per product below.', '活动期间此价格将覆盖产品价格。您也可以为每个产品单独设置价格。', lang)}</p>
-                </div>
-              )}
+
 
               {/* Sort Order & Active */}
               <div className="grid grid-cols-2 gap-4">
