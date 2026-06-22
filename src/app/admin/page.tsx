@@ -241,9 +241,12 @@ interface ProductTranslation { id: number; product_id: number; language: string;
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
+interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; cover_image_key: string | null; cover_image_url: string | null; }
+interface PromotionProduct { id: number; promotion_id: number; product_id: number; special_price: number | null; }
+interface Promotion { id: number; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string | null; end_time: string | null; countdown_action: 'close' | 'original_price' | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'site_settings' | 'products' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
+type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
 interface Language { id: number; code: string; name: string; is_active: boolean; is_hidden: boolean; sort_order: number; }
 const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, is_hidden: false, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, is_hidden: false, sort_order: 1 }];
@@ -532,6 +535,10 @@ export default function AdminPage() {
     return filteredStores.slice(start, start + STORES_PER_PAGE);
   }, [filteredStores, storePage]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [promotionPage, setPromotionPage] = useState(1);
+  const [promotionTotal, setPromotionTotal] = useState(0);
+  const PROMOTIONS_PER_PAGE = 20;
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
   const [languages, setLanguages] = useState<Language[]>(DEFAULT_LANGUAGES);
@@ -563,7 +570,22 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Fetch promotions data (separate from fetchAllData for pagination)
+  const fetchPromotions = useCallback(async () => {
+    try {
+      const res = await adminFetch(`/api/admin/promotions?page=${promotionPage}&limit=${PROMOTIONS_PER_PAGE}`);
+      const json = await res.json();
+      if (json.success) {
+        setPromotions(json.data?.promotions || []);
+        setPromotionTotal(json.data?.pagination?.total || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch promotions:', err);
+    }
+  }, [promotionPage]);
+
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') fetchPromotions(); }, [isLoggedIn, activeTab, fetchPromotions]);
 
   // Seed data
   const handleSeed = async () => {
@@ -622,9 +644,20 @@ export default function AdminPage() {
     } catch { alert(t('Failed to delete banner', '删除 Banner 失败', adminLang)); }
   };
 
+  const handleDeletePromotion = async (id: number) => {
+    if (!confirm(t('Are you sure you want to delete this promotion?', '确定要删除该活动吗？', adminLang))) return;
+    try {
+      const res = await adminFetch(`/api/admin/promotions?id=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) fetchPromotions();
+      else alert(t('Error:', '错误：', adminLang) + json.error);
+    } catch { alert(t('Failed to delete promotion', '删除活动失败', adminLang)); }
+  };
+
   const tabLabels: Record<Tab, { en: string; zh: string }> = {
     site_settings: { en: 'Site Settings', zh: '站点设置' },
     products: { en: 'Products', zh: '产品' },
+    promotions: { en: 'Promotions', zh: '特惠活动' },
     categories: { en: 'Categories', zh: '分类' },
     stores: { en: 'Stores', zh: '商城' },
     banners: { en: 'Banners', zh: 'Banner' },
@@ -714,7 +747,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['site_settings', 'products', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'promotions', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -722,6 +755,7 @@ export default function AdminPage() {
             >
               {tab === 'site_settings' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
               {tab === 'products' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
+              {tab === 'promotions' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
               {tab === 'categories' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>}
               {tab === 'stores' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>}
               {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
@@ -1457,6 +1491,105 @@ export default function AdminPage() {
                   totalPages={productTotalPages}
                   total={filteredProducts.length}
                   onPageChange={(p) => { setProductPage(p); }}
+                  lang={adminLang}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Promotions Tab */}
+          {activeTab === 'promotions' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-bold">{t('Promotions', '特惠活动', adminLang)}</h1>
+                <PromotionFormModal products={products} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
+              </div>
+              {loading ? (
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
+              ) : (
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/50">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name', '名称', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Time', '时间', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Products', '产品数', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {promotions.map((promo) => {
+                        const enName = promo.promotion_translations?.find((tr) => tr.language === 'en')?.name || '—';
+                        const zhName = promo.promotion_translations?.find((tr) => tr.language === 'zh')?.name || '—';
+                        const typeLabels: Record<string, { en: string; zh: string }> = {
+                          special_price: { en: 'Special Price', zh: '特惠价' },
+                          buy_2_get_1: { en: 'Buy 2 Get 1', zh: '买二送一' },
+                          buy_1_get_1: { en: 'Buy 1 Get 1', zh: '买一送一' },
+                        };
+                        const timeLabels: Record<string, { en: string; zh: string }> = {
+                          permanent: { en: 'Permanent', zh: '永久' },
+                          time_range: { en: 'Time Range', zh: '时间段' },
+                          countdown: { en: 'Countdown', zh: '倒计时' },
+                        };
+                        const promoType = typeLabels[promo.promotion_type] || { en: promo.promotion_type, zh: promo.promotion_type };
+                        const timeType = timeLabels[promo.time_type] || { en: promo.time_type, zh: promo.time_type };
+                        return (
+                          <tr key={promo.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{promo.id}</td>
+                            <td className="px-4 py-3 text-sm font-mono">{promo.slug}</td>
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-medium">{enName}</div>
+                              <div className="text-xs text-muted-foreground">{zhName}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {promo.promotion_type === 'special_price' && promo.special_price && (
+                                <span className="text-primary font-medium">${promo.special_price}</span>
+                              )}
+                              <span className="text-muted-foreground ml-1">{t(promoType.en, promoType.zh, adminLang)}</span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
+                              <div>{t(timeType.en, timeType.zh, adminLang)}</div>
+                              {promo.time_type !== 'permanent' && promo.start_time && promo.end_time && (
+                                <div className="text-xs">
+                                  {new Date(promo.start_time).toLocaleDateString()} - {new Date(promo.end_time).toLocaleDateString()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{promo.product_count || 0}</td>
+                            <td className="px-4 py-3">
+                              {promo.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <PromotionFormModal promotion={promo} products={products} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
+                                <button onClick={() => handleDeletePromotion(promo.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                                  {t('Delete', '删除', adminLang)}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {promotions.length === 0 && (
+                    <div className="py-12 text-center text-muted-foreground">
+                      {t('No promotions yet. Click "Add Promotion" to create one.', '暂无活动。点击"添加活动"开始创建。', adminLang)}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Pagination */}
+              {Math.ceil(promotionTotal / PROMOTIONS_PER_PAGE) > 1 && (
+                <AdminPagination
+                  currentPage={promotionPage}
+                  totalPages={Math.ceil(promotionTotal / PROMOTIONS_PER_PAGE)}
+                  total={promotionTotal}
+                  onPageChange={(p) => { setPromotionPage(p); }}
                   lang={adminLang}
                 />
               )}
@@ -4182,6 +4315,304 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
     </div>
   );
 });
+
+// ============== Promotion Form Modal ==============
+function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages }: { promotion?: Promotion; products: Product[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
+  const [open, setOpen] = useState(false);
+  const [slug, setSlug] = useState(promotion?.slug || '');
+  const [promotionType, setPromotionType] = useState<'special_price' | 'buy_2_get_1' | 'buy_1_get_1'>(promotion?.promotion_type || 'special_price');
+  const [specialPrice, setSpecialPrice] = useState<string>(promotion?.special_price?.toString() || '');
+  const [timeType, setTimeType] = useState<'permanent' | 'time_range' | 'countdown'>(promotion?.time_type || 'permanent');
+  const [startTime, setStartTime] = useState<string>(promotion?.start_time ? new Date(promotion.start_time).toISOString().slice(0, 16) : '');
+  const [endTime, setEndTime] = useState<string>(promotion?.end_time ? new Date(promotion.end_time).toISOString().slice(0, 16) : '');
+  const [countdownAction, setCountdownAction] = useState<'close' | 'original_price'>(promotion?.countdown_action || 'close');
+  const [sortOrder, setSortOrder] = useState(promotion?.sort_order || 0);
+  const [isActive, setIsActive] = useState(promotion?.is_active !== false);
+  const [translations, setTranslations] = useState<{ language: string; name: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
+    promotion?.promotion_translations?.map((tr) => ({ language: tr.language, name: tr.name || '', cover_image_key: tr.cover_image_key, cover_image_url: tr.cover_image_url })) || activeLanguages.map(l => ({ language: l.code, name: '', cover_image_key: null, cover_image_url: null }))
+  );
+  const [selectedProducts, setSelectedProducts] = useState<{ product_id: number; special_price?: number | null }[]>(
+    promotion?.promotion_products?.map((pp) => ({ product_id: pp.product_id, special_price: pp.special_price ?? undefined })) || []
+  );
+  const [productSearch, setProductSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const isEdit = !!promotion;
+
+  // Sync translations with active languages when opening
+  useEffect(() => {
+    if (open) {
+      setTranslations(prev => {
+        const existing = new Map(prev.map(t => [t.language, t]));
+        return activeLanguages.map(l => existing.get(l.code) || { language: l.code, name: '', cover_image_key: null, cover_image_url: null });
+      });
+      // Reset form fields for new promotion
+      if (!isEdit) {
+        setSlug('');
+        setPromotionType('special_price');
+        setSpecialPrice('');
+        setTimeType('permanent');
+        setStartTime('');
+        setEndTime('');
+        setCountdownAction('close');
+        setSortOrder(0);
+        setIsActive(true);
+        setSelectedProducts([]);
+      }
+    }
+  }, [open, activeLanguages, isEdit]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products.slice(0, 10);
+    const search = productSearch.toLowerCase();
+    return products.filter(p => {
+      const enName = p.product_translations?.find(tr => tr.language === 'en')?.name || '';
+      const zhName = p.product_translations?.find(tr => tr.language === 'zh')?.name || '';
+      return p.id.toString().includes(search) || enName.toLowerCase().includes(search) || zhName.toLowerCase().includes(search);
+    }).slice(0, 20);
+  }, [productSearch, products]);
+
+  const handleAddProduct = (productId: number) => {
+    if (!selectedProducts.some(sp => sp.product_id === productId)) {
+      setSelectedProducts([...selectedProducts, { product_id: productId }]);
+    }
+  };
+
+  const handleRemoveProduct = (productId: number) => {
+    setSelectedProducts(selectedProducts.filter(sp => sp.product_id !== productId));
+  };
+
+  const handleProductPriceChange = (productId: number, price: string) => {
+    setSelectedProducts(selectedProducts.map(sp => 
+      sp.product_id === productId ? { ...sp, special_price: parseFloat(price) || undefined } : sp
+    ));
+  };
+
+  const handleSave = async () => {
+    if (!slug) {
+      alert(t('Slug is required', '标识必填', lang));
+      return;
+    }
+    if (timeType !== 'permanent' && (!startTime || !endTime)) {
+      alert(t('Start and end time are required for time range/countdown', '时间段/倒计时需要填写开始和结束时间', lang));
+      return;
+    }
+    setSaving(true);
+    try {
+      const url = '/api/admin/promotions';
+      const method = isEdit ? 'PUT' : 'POST';
+      const body = {
+        id: promotion?.id,
+        slug,
+        promotion_type: promotionType,
+        special_price: promotionType === 'special_price' && specialPrice ? parseFloat(specialPrice) : null,
+        time_type: timeType,
+        start_time: timeType !== 'permanent' ? new Date(startTime).toISOString() : null,
+        end_time: timeType !== 'permanent' ? new Date(endTime).toISOString() : null,
+        countdown_action: timeType === 'countdown' ? countdownAction : null,
+        sort_order: sortOrder,
+        is_active: isActive,
+        translations,
+        products: selectedProducts,
+      };
+      const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (json.success) { setOpen(false); onSave(); }
+      else alert(t('Error:', '错误：', lang) + ' ' + json.error);
+    } catch { alert(t('Failed to save', '保存失败', lang)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+        {isEdit ? t('Edit', '编辑', lang) : t('Add Promotion', '添加活动', lang)}
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 relative my-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Promotion', '编辑活动', lang) : t('Add Promotion', '添加活动', lang)}</h2>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Slug (URL identifier)', '标识 (URL标识)', lang)}</label>
+                  <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. summer-sale" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Promotion Type', '活动类型', lang)}</label>
+                  <select value={promotionType} onChange={(e) => setPromotionType(e.target.value as 'special_price' | 'buy_2_get_1' | 'buy_1_get_1')} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+                    <option value="special_price">{t('Special Price', '特惠价', lang)}</option>
+                    <option value="buy_2_get_1">{t('Buy 2 Get 1', '买二送一', lang)}</option>
+                    <option value="buy_1_get_1">{t('Buy 1 Get 1', '买一送一', lang)}</option>
+                  </select>
+                </div>
+              </div>
+              
+              {promotionType === 'special_price' && (
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Special Price (default override)', '特惠价格 (默认覆盖)', lang)}</label>
+                  <input type="number" step="0.01" value={specialPrice} onChange={(e) => setSpecialPrice(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. 9.99" />
+                  <p className="text-xs text-muted-foreground mt-1">{t('This price will override product prices during promotion. You can also set individual prices per product below.', '活动期间此价格将覆盖产品价格。您也可以为每个产品单独设置价格。', lang)}</p>
+                </div>
+              )}
+
+              {/* Time Settings */}
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-semibold mb-2">{t('Time Settings', '时间设置', lang)}</h3>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <button onClick={() => setTimeType('permanent')} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${timeType === 'permanent' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}>
+                    {t('Permanent', '永久', lang)}
+                  </button>
+                  <button onClick={() => setTimeType('time_range')} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${timeType === 'time_range' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}>
+                    {t('Time Range', '时间段', lang)}
+                  </button>
+                  <button onClick={() => setTimeType('countdown')} className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${timeType === 'countdown' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}>
+                    {t('Countdown', '倒计时', lang)}
+                  </button>
+                </div>
+                
+                {timeType !== 'permanent' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground text-left block">{t('Start Time', '开始时间', lang)}</label>
+                      <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground text-left block">{t('End Time', '结束时间', lang)}</label>
+                      <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+                )}
+
+                {timeType === 'countdown' && (
+                  <div className="mt-3">
+                    <label className="text-xs text-muted-foreground text-left block">{t('After Countdown Ends', '倒计时结束后', lang)}</label>
+                    <select value={countdownAction} onChange={(e) => setCountdownAction(e.target.value as 'close' | 'original_price')} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+                      <option value="close">{t('Close Promotion', '关闭活动', lang)}</option>
+                      <option value="original_price">{t('Return to Original Price', '恢复原价', lang)}</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Sort Order & Active */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{t('Sort Order', '排序', lang)}</label>
+                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
+                    {t('Active', '启用', lang)}
+                  </label>
+                </div>
+              </div>
+
+              {/* Translations & Cover Images */}
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-semibold mb-2">{t('Theme Cover Images (Multi-language)', '主题封面图 (多语言)', lang)}</h3>
+                <p className="text-xs text-muted-foreground mb-3">{t('Upload cover images for each language. Images should match the card size on frontend.', '为每种语言上传封面图。图片尺寸应与前端卡片一致。', lang)}</p>
+                {translations.map((tr, idx) => {
+                  const langInfo = activeLanguages.find(l => l.code === tr.language);
+                  return (
+                    <div key={tr.language} className="mb-4 p-3 rounded-lg border border-border bg-secondary/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
+                        <span className="text-xs text-muted-foreground">{langInfo?.name || ''}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Cover Image', '封面图', lang)}</label>
+                          <ImageUpload 
+                            value={tr.cover_image_url || tr.cover_image_key} 
+                            onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, cover_image_key: v, cover_image_url: null } : t))} 
+                            aspectRatio={16/9} 
+                            recommendedSize="320x180px" 
+                            label={t('Cover', '封面', lang)} 
+                            lang={lang} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Product Selection */}
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-semibold mb-2">{t('Add Promotion Products', '添加活动产品', lang)}</h3>
+                <div className="mb-3">
+                  <input 
+                    type="text" 
+                    value={productSearch} 
+                    onChange={(e) => setProductSearch(e.target.value)} 
+                    placeholder={t('Search by ID or name...', '搜索ID或名称...', lang)} 
+                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" 
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3 max-h-[100px] overflow-y-auto rounded-lg border border-border p-2">
+                  {filteredProducts.map((p) => {
+                    const isSelected = selectedProducts.some(sp => sp.product_id === p.id);
+                    const enName = p.product_translations?.find(tr => tr.language === 'en')?.name || '';
+                    return (
+                      <button 
+                        key={p.id} 
+                        onClick={() => isSelected ? handleRemoveProduct(p.id) : handleAddProduct(p.id)} 
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
+                      >
+                        #{p.id} {enName.slice(0, 20)}...
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                {/* Selected Products List */}
+                {selectedProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs text-muted-foreground">{t('Selected Products', '已选产品', lang)} ({selectedProducts.length})</h4>
+                    <div className="max-h-[150px] overflow-y-auto rounded-lg border border-border p-2 space-y-1">
+                      {selectedProducts.map((sp) => {
+                        const product = products.find(p => p.id === sp.product_id);
+                        const enName = product?.product_translations?.find(tr => tr.language === 'en')?.name || '';
+                        return (
+                          <div key={sp.product_id} className="flex items-center gap-2 p-1 rounded bg-secondary/50">
+                            <span className="text-xs font-medium text-muted-foreground">#{sp.product_id}</span>
+                            <span className="text-xs truncate flex-1">{enName}</span>
+                            {promotionType === 'special_price' && (
+                              <input 
+                                type="number" 
+                                step="0.01" 
+                                value={sp.special_price || ''} 
+                                onChange={(e) => handleProductPriceChange(sp.product_id, e.target.value)} 
+                                placeholder={t('Price', '价格', lang)} 
+                                className="w-20 px-1 py-0.5 rounded text-xs border border-border bg-secondary" 
+                              />
+                            )}
+                            <button onClick={() => handleRemoveProduct(sp.product_id)} className="text-destructive hover:text-destructive/80 text-xs">✕</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 // ============== Category Form Modal ==============
 function CategoryFormModal({ category, onSave, lang, activeLanguages }: { category?: Category; onSave: () => void; lang: string; activeLanguages: Language[] }) {
