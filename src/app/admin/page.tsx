@@ -5402,26 +5402,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
   const [saving, setSaving] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Constants for dropdowns
-  const REGION_OPTIONS = [
-    { value: 'Global', label: 'Global' },
-    { value: 'USA', label: 'USA' },
-    { value: 'Canada', label: 'Canada' },
-    { value: 'UK', label: 'UK' },
-    { value: 'Russia', label: 'Russia' },
-    { value: 'Japan', label: 'Japan' },
-    { value: 'Europe', label: 'Europe' }
-  ];
-  const CURRENCY_OPTIONS = [
-    { value: '$', label: 'USD ($)' },
-    { value: '€', label: 'EUR (€)' },
-    { value: '£', label: 'GBP (£)' },
-    { value: 'Fr.', label: 'CHF (Fr.)' },
-    { value: '₽', label: 'RUB (₽)' },
-    { value: '¥', label: 'JPY (¥)' },
-    { value: '₩', label: 'KRW (₩)' },
-  ];
-
   // Scroll to top when opening
   useEffect(() => {
     if (open && scrollContainerRef.current) {
@@ -5435,34 +5415,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
   // Update translation
   const updateTranslation = (langCode: string, field: string, value: string) => {
     setTranslations(prev => prev.map(tr => tr.language === langCode ? { ...tr, [field]: value } : tr));
-  };
-
-  // Add store price
-  const addStorePrice = () => {
-    setStorePrices(prev => [...prev, { 
-      store_id: '', 
-      region: '', 
-      current_price: '', 
-      original_price: '', 
-      discount_percent: '', 
-      currency: '$',
-      product_url: '', 
-      no_quote: false, 
-      time_type: 'permanent', 
-      start_time: '', 
-      end_time: '', 
-      countdown_action: 'close' 
-    }]);
-  };
-
-  // Remove store price
-  const removeStorePrice = (index: number) => {
-    setStorePrices(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Update store price
-  const updateStorePrice = (index: number, field: string, value: string | boolean) => {
-    setStorePrices(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
   const handleSave = async () => {
@@ -5691,190 +5643,368 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 ))}
               </div>
 
-              {/* Store Prices */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-left">{t('Store Prices', '商城价格')}</h3>
-                  <button
-                    onClick={addStorePrice}
-                    className="text-purple-400 hover:text-purple-300 text-sm"
-                  >
-                    + {t('Add Store Price', '添加商城价格')}
-                  </button>
-                </div>
-                {storePrices.map((price, index) => (
-                  <div key={index} className="border border-border rounded-lg p-4 space-y-4">
-                    {/* Store Selection */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Store', '商城')}</label>
-                        <select
-                          value={price.store_id}
-                          onChange={(e) => updateStorePrice(index, 'store_id', e.target.value)}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        >
-                          <option value="">-- {t('Select Store', '选择商城')} --</option>
-                          {stores.map(s => {
-                            const name = s.store_translations?.find(tr => tr.language === 'en')?.name || s.slug;
-                            return <option key={s.id} value={s.id}>{name}</option>;
-                          })}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Region', '区域')}</label>
-                        <select
-                          value={price.region}
-                          onChange={(e) => updateStorePrice(index, 'region', e.target.value)}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        >
-                          <option value="">-- {t('Select Region', '选择区域')} --</option>
-                          {REGION_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Price Inputs */}
-                    <div className="grid grid-cols-4 gap-3">
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Currency', '货币')}</label>
-                        <select
-                          value={price.currency}
-                          onChange={(e) => updateStorePrice(index, 'currency', e.target.value)}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        >
-                          {CURRENCY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Current Price', '当前价格')}</label>
-                        <input
-                          type="number"
-                          value={price.current_price}
-                          onChange={(e) => updateStorePrice(index, 'current_price', e.target.value)}
-                          placeholder="9.99"
-                          step="0.01"
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Original Price', '原价')}</label>
-                        <input
-                          type="number"
-                          value={price.original_price}
-                          onChange={(e) => updateStorePrice(index, 'original_price', e.target.value)}
-                          placeholder="19.99"
-                          step="0.01"
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">{t('Discount %', '折扣')}</label>
-                        <input
-                          type="number"
-                          value={price.discount_percent}
-                          onChange={(e) => updateStorePrice(index, 'discount_percent', e.target.value)}
-                          placeholder="50"
-                          className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Product URL */}
-                    <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">{t('Product URL', '产品链接')}</label>
-                      <input
-                        type="url"
-                        value={price.product_url}
-                        onChange={(e) => updateStorePrice(index, 'product_url', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                      />
-                    </div>
-
-                    {/* No Quote */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={price.no_quote}
-                        onChange={(e) => updateStorePrice(index, 'no_quote', e.target.checked)}
-                        className="w-4 h-4 rounded border-border bg-secondary"
-                      />
-                      <span className="text-sm">{t('No Quote', '无报价')}</span>
-                    </label>
-
-                    {/* Time Settings for this store */}
-                    <div className="border-t border-border pt-4 space-y-3">
-                      <label className="text-sm font-medium text-left block">{t('Time Settings', '时间设置')}</label>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => updateStorePrice(index, 'time_type', 'permanent')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md ${price.time_type === 'permanent' ? 'bg-purple-600 text-white' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
-                        >
-                          {t('Permanent', '永久')}
-                        </button>
-                        <button
-                          onClick={() => updateStorePrice(index, 'time_type', 'time_range')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md ${price.time_type === 'time_range' ? 'bg-purple-600 text-white' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
-                        >
-                          {t('Time Range', '时间段')}
-                        </button>
-                        <button
-                          onClick={() => updateStorePrice(index, 'time_type', 'countdown')}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md ${price.time_type === 'countdown' ? 'bg-purple-600 text-white' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
-                        >
-                          {t('Countdown', '倒计时')}
-                        </button>
-                      </div>
-
-                      {price.time_type !== 'permanent' && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">{t('Start Time', '开始时间')}</label>
-                            <input
-                              type="datetime-local"
-                              value={price.start_time}
-                              onChange={(e) => updateStorePrice(index, 'start_time', e.target.value)}
-                              className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs text-muted-foreground">{t('End Time', '结束时间')}</label>
-                            <input
-                              type="datetime-local"
-                              value={price.end_time}
-                              onChange={(e) => updateStorePrice(index, 'end_time', e.target.value)}
-                              className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                            />
-                          </div>
+              {/* Store Prices - 与标准产品弹窗一致 */}
+              <div className="border-t border-border pt-3">
+                <h3 className="text-sm font-semibold mb-2 text-left">{t('Store Prices', '商城价格')}</h3>
+                {(() => {
+                  // Group prices by store_id
+                  const storeGroups: Array<{ storeId: string; indices: number[] }> = [];
+                  storePrices.forEach((p, idx) => {
+                    const gid = p.store_id || '__empty__' + idx;
+                    let group = storeGroups.find(g => g.storeId === (p.store_id || '__empty__' + idx));
+                    if (!group) {
+                      group = { storeId: gid, indices: [] };
+                      storeGroups.push(group);
+                    }
+                    group.indices.push(idx);
+                  });
+                  const selectedStoreIds = storeGroups.filter(g => !g.storeId.startsWith('__empty__')).map(g => Number(g.storeId));
+                  return storeGroups.map((group) => {
+                    const firstP = storePrices[group.indices[0]];
+                    const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
+                    const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
+                    const hasMultipleCurrencies = group.indices.length > 1 || storeRegions.length > 1;
+                    return (
+                      <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
+                        <div className="mb-2">
+                          <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城')}</label>
+                          <StoreSelect
+                            stores={stores}
+                            value={firstP.store_id}
+                            lang={lang}
+                            disabledStoreIds={selectedStoreIds.filter(id => id !== Number(group.storeId))}
+                            onChange={(val) => {
+                              const newP = [...storePrices];
+                              const s = stores.find(st => st.id === Number(val));
+                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
+                              // Preserve existing price data for this store group by region
+                              const existingByRegion: Record<string, typeof storePrices[0]> = {};
+                              for (const idx of group.indices) {
+                                const p = storePrices[idx];
+                                const key = p.region || '__default__';
+                                existingByRegion[key] = { ...p };
+                              }
+                              // Replace entries in-place to preserve position
+                              const firstIdx = group.indices[0];
+                              const newEntries: typeof storePrices = [];
+                              if (sRegions.length <= 1) {
+                                const r = sRegions[0] || { region: '', currency: '$' };
+                                const existing = existingByRegion[r.region] || existingByRegion['__default__'];
+                                newEntries.push({
+                                  store_id: val,
+                                  current_price: existing?.current_price || '',
+                                  original_price: existing?.original_price || '',
+                                  product_url: existing?.product_url || '',
+                                  discount_percent: existing?.discount_percent || '',
+                                  currency: r.currency,
+                                  region: r.region,
+                                  no_quote: existing?.no_quote || false,
+                                  time_type: existing?.time_type || 'permanent',
+                                  start_time: existing?.start_time || '',
+                                  end_time: existing?.end_time || '',
+                                  countdown_action: existing?.countdown_action || 'close',
+                                });
+                              } else {
+                                for (const sr of sRegions) {
+                                  const existing = existingByRegion[sr.region] || existingByRegion['__default__'];
+                                  newEntries.push({
+                                    store_id: val,
+                                    current_price: existing?.current_price || '',
+                                    original_price: existing?.original_price || '',
+                                    product_url: existing?.product_url || '',
+                                    discount_percent: existing?.discount_percent || '',
+                                    currency: sr.currency || '$',
+                                    region: sr.region || '',
+                                    no_quote: existing?.no_quote || false,
+                                    time_type: existing?.time_type || 'permanent',
+                                    start_time: existing?.start_time || '',
+                                    end_time: existing?.end_time || '',
+                                    countdown_action: existing?.countdown_action || 'close',
+                                  });
+                                }
+                              }
+                              // Remove old entries, then splice new ones at the original position
+                              const sortedDesc = [...group.indices].sort((a, b) => b - a);
+                              for (const idx of sortedDesc) {
+                                newP.splice(idx, 1);
+                              }
+                              newP.splice(firstIdx, 0, ...newEntries);
+                              setStorePrices(newP);
+                            }}
+                          />
                         </div>
-                      )}
-
-                      {price.time_type === 'countdown' && (
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">{t('After Countdown Ends', '倒计时结束后')}</label>
-                          <select
-                            value={price.countdown_action}
-                            onChange={(e) => updateStorePrice(index, 'countdown_action', e.target.value)}
-                            className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                          >
-                            <option value="close">{t('Close Promotion', '关闭活动')}</option>
-                            <option value="original_price">{t('Return to Original Price', '恢复原价')}</option>
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Remove Button */}
-                    {storePrices.length > 1 && (
-                      <button
-                        onClick={() => removeStorePrice(index)}
-                        className="text-red-500 hover:text-red-400 text-sm"
-                      >
-                        {t('Remove', '移除')}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                        {hasMultipleCurrencies ? (
+                          <div className="space-y-2">
+                            {group.indices.map((pIdx) => {
+                              const p = storePrices[pIdx];
+                              const currencyLabel = p.currency || '$';
+                              return (
+                                <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="text-xs font-medium text-primary text-left">{p.region || t('Default', '默认')} ({currencyLabel})</div>
+                                    <label className="flex items-center gap-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={p.no_quote || false}
+                                        onChange={(e) => {
+                                          const newP = [...storePrices];
+                                          newP[pIdx].no_quote = e.target.checked;
+                                          if (e.target.checked) {
+                                            newP[pIdx].current_price = '';
+                                            newP[pIdx].original_price = '';
+                                            newP[pIdx].discount_percent = '';
+                                          }
+                                          setStorePrices(newP);
+                                        }}
+                                        className="h-3.5 w-3.5 rounded border-border"
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价')}</span>
+                                    </label>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 mb-1.5">
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价')} ({currencyLabel})</label>
+                                      <input value={p.current_price} disabled={p.no_quote} onChange={(e) => {
+                                        const newP = [...storePrices];
+                                        newP[pIdx].current_price = e.target.value;
+                                        // Auto-calculate discount
+                                        const current = parseFloat(e.target.value);
+                                        const original = parseFloat(p.original_price);
+                                        if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                          newP[pIdx].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                        }
+                                        setStorePrices(newP);
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价')} ({currencyLabel})</label>
+                                      <input value={p.original_price} disabled={p.no_quote} onChange={(e) => {
+                                        const newP = [...storePrices];
+                                        newP[pIdx].original_price = e.target.value;
+                                        // Auto-calculate discount
+                                        const current = parseFloat(p.current_price);
+                                        const original = parseFloat(e.target.value);
+                                        if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                          newP[pIdx].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                        } else {
+                                          newP[pIdx].discount_percent = '';
+                                        }
+                                        setStorePrices(newP);
+                                      }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %')}</label>
+                                      <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
+                                        {p.discount_percent ? `${p.discount_percent}%` : '—'}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接')}</label>
+                                      <input value={p.product_url} disabled={p.no_quote} onChange={(e) => { const newP = [...storePrices]; newP[pIdx].product_url = e.target.value; setStorePrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="https://..." />
+                                    </div>
+                                  </div>
+                                  {/* Time Settings for this region */}
+                                  <div className="border-t border-border/50 pt-2 mt-2">
+                                    <label className="text-[10px] text-muted-foreground block mb-1 text-left">{t('Time Settings', '时间设置')}</label>
+                                    <div className="grid grid-cols-3 gap-2 mb-2">
+                                      <button 
+                                        onClick={() => { const newP = [...storePrices]; newP[pIdx].time_type = 'permanent'; setStorePrices(newP); }} 
+                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${p.time_type === 'permanent' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                      >
+                                        {t('Permanent', '永久')}
+                                      </button>
+                                      <button 
+                                        onClick={() => { const newP = [...storePrices]; newP[pIdx].time_type = 'time_range'; setStorePrices(newP); }} 
+                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${p.time_type === 'time_range' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                      >
+                                        {t('Time Range', '时间段')}
+                                      </button>
+                                      <button 
+                                        onClick={() => { const newP = [...storePrices]; newP[pIdx].time_type = 'countdown'; setStorePrices(newP); }} 
+                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${p.time_type === 'countdown' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                      >
+                                        {t('Countdown', '倒计时')}
+                                      </button>
+                                    </div>
+                                    {p.time_type !== 'permanent' && (
+                                      <div className="grid grid-cols-2 gap-2 mb-2">
+                                        <div>
+                                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Start Time', '开始时间')}</label>
+                                          <input 
+                                            type="datetime-local" 
+                                            value={p.start_time} 
+                                            onChange={(e) => { const newP = [...storePrices]; newP[pIdx].start_time = e.target.value; setStorePrices(newP); }} 
+                                            className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('End Time', '结束时间')}</label>
+                                          <input 
+                                            type="datetime-local" 
+                                            value={p.end_time} 
+                                            onChange={(e) => { const newP = [...storePrices]; newP[pIdx].end_time = e.target.value; setStorePrices(newP); }} 
+                                            className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                    {p.time_type === 'countdown' && (
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('After Countdown Ends', '倒计时结束后')}</label>
+                                        <select 
+                                          value={p.countdown_action} 
+                                          onChange={(e) => { const newP = [...storePrices]; newP[pIdx].countdown_action = e.target.value as 'close' | 'original_price'; setStorePrices(newP); }} 
+                                          className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs"
+                                        >
+                                          <option value="close">{t('Close Promotion', '关闭活动')}</option>
+                                          <option value="original_price">{t('Return to Original Price', '恢复原价')}</option>
+                                        </select>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-center justify-end mb-1.5">
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={firstP.no_quote || false}
+                                  onChange={(e) => {
+                                    const newP = [...storePrices];
+                                    newP[group.indices[0]].no_quote = e.target.checked;
+                                    if (e.target.checked) {
+                                      newP[group.indices[0]].current_price = '';
+                                      newP[group.indices[0]].original_price = '';
+                                      newP[group.indices[0]].discount_percent = '';
+                                    }
+                                    setStorePrices(newP);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-border"
+                                />
+                                <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价')}</span>
+                              </label>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mb-1.5">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价')} ({firstP.currency || '$'})</label>
+                                <input value={firstP.current_price} disabled={firstP.no_quote} onChange={(e) => {
+                                  const newP = [...storePrices];
+                                  newP[group.indices[0]].current_price = e.target.value;
+                                  const current = parseFloat(e.target.value);
+                                  const original = parseFloat(firstP.original_price);
+                                  if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                    newP[group.indices[0]].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                  }
+                                  setStorePrices(newP);
+                                }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价')} ({firstP.currency || '$'})</label>
+                                <input value={firstP.original_price} disabled={firstP.no_quote} onChange={(e) => {
+                                  const newP = [...storePrices];
+                                  newP[group.indices[0]].original_price = e.target.value;
+                                  const current = parseFloat(firstP.current_price);
+                                  const original = parseFloat(e.target.value);
+                                  if (!isNaN(current) && !isNaN(original) && original > 0 && original > current) {
+                                    newP[group.indices[0]].discount_percent = Math.round(((original - current) / original) * 100).toString();
+                                  } else {
+                                    newP[group.indices[0]].discount_percent = '';
+                                  }
+                                  setStorePrices(newP);
+                                }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %')}</label>
+                                <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
+                                  {firstP.discount_percent ? `${firstP.discount_percent}%` : '—'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接')}</label>
+                                <input value={firstP.product_url} disabled={firstP.no_quote} onChange={(e) => { const newP = [...storePrices]; newP[group.indices[0]].product_url = e.target.value; setStorePrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="https://..." />
+                              </div>
+                            </div>
+                            {/* Time Settings for this store */}
+                            <div className="border-t border-border/50 pt-2 mt-2">
+                              <label className="text-[10px] text-muted-foreground block mb-1 text-left">{t('Time Settings', '时间设置')}</label>
+                              <div className="grid grid-cols-3 gap-2 mb-2">
+                                <button 
+                                  onClick={() => { const newP = [...storePrices]; newP[group.indices[0]].time_type = 'permanent'; setStorePrices(newP); }} 
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'permanent' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                >
+                                  {t('Permanent', '永久')}
+                                </button>
+                                <button 
+                                  onClick={() => { const newP = [...storePrices]; newP[group.indices[0]].time_type = 'time_range'; setStorePrices(newP); }} 
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'time_range' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                >
+                                  {t('Time Range', '时间段')}
+                                </button>
+                                <button 
+                                  onClick={() => { const newP = [...storePrices]; newP[group.indices[0]].time_type = 'countdown'; setStorePrices(newP); }} 
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'countdown' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
+                                >
+                                  {t('Countdown', '倒计时')}
+                                </button>
+                              </div>
+                              {firstP.time_type !== 'permanent' && (
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Start Time', '开始时间')}</label>
+                                    <input 
+                                      type="datetime-local" 
+                                      value={firstP.start_time} 
+                                      onChange={(e) => { const newP = [...storePrices]; newP[group.indices[0]].start_time = e.target.value; setStorePrices(newP); }} 
+                                      className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('End Time', '结束时间')}</label>
+                                    <input 
+                                      type="datetime-local" 
+                                      value={firstP.end_time} 
+                                      onChange={(e) => { const newP = [...storePrices]; newP[group.indices[0]].end_time = e.target.value; setStorePrices(newP); }} 
+                                      className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              {firstP.time_type === 'countdown' && (
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('After Countdown Ends', '倒计时结束后')}</label>
+                                  <select 
+                                    value={firstP.countdown_action} 
+                                    onChange={(e) => { const newP = [...storePrices]; newP[group.indices[0]].countdown_action = e.target.value as 'close' | 'original_price'; setStorePrices(newP); }} 
+                                    className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs"
+                                  >
+                                    <option value="close">{t('Close Promotion', '关闭活动')}</option>
+                                    <option value="original_price">{t('Return to Original Price', '恢复原价')}</option>
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {storePrices.length > 1 && (
+                          <button onClick={() => setStorePrices(storePrices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
+                            {t('Remove Store', '移除商城')}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+                <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close' }])} className="text-xs text-primary hover:underline">
+                  + {t('Add Store Price', '添加商城价格')}
+                </button>
               </div>
             </div>
 
