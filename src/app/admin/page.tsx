@@ -1597,7 +1597,17 @@ export default function AdminPage() {
                                 if (diff > 0) {
                                   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                                   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                  timeDisplay = t(`${days}d ${hours}h remaining`, `${days}天 ${hours}时 剩余`, adminLang);
+                                  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                                  // Format: x天x小时x分x秒 (always 2 digits for hours/minutes/seconds)
+                                  const hoursStr = hours.toString().padStart(2, '0');
+                                  const minutesStr = minutes.toString().padStart(2, '0');
+                                  const secondsStr = seconds.toString().padStart(2, '0');
+                                  if (days > 0) {
+                                    timeDisplay = `${days}天${hoursStr}小时${minutesStr}分${secondsStr}秒`;
+                                  } else {
+                                    timeDisplay = `${hoursStr}小时${minutesStr}分${secondsStr}秒`;
+                                  }
                                 } else {
                                   timeDisplay = t('Expired', '已过期', adminLang);
                                 }
