@@ -4319,6 +4319,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
 // ============== Promotion Form Modal ==============
 function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages }: { promotion?: Promotion; products: Product[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(promotion?.slug || '');
   const [promotionType, setPromotionType] = useState<'special_price' | 'buy_2_get_1' | 'buy_1_get_1'>(promotion?.promotion_type || 'special_price');
   const [specialPrice, setSpecialPrice] = useState<string>(promotion?.special_price?.toString() || '');
@@ -4352,6 +4353,8 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
   // Sync translations with active languages when opening
   useEffect(() => {
     if (open) {
+      // Scroll to top when modal opens
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
       setTranslations(prev => {
         const existing = new Map(prev.map(t => [t.language, t]));
         return activeLanguages.map(l => existing.get(l.code) || { language: l.code, name: '', cover_image_key: null, cover_image_url: null });
@@ -4441,7 +4444,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         {isEdit ? t('Edit', '编辑', lang) : t('Add Promotion', '添加活动', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-4">
+        <div ref={scrollContainerRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-4">
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 relative my-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Promotion', '编辑活动', lang) : t('Add Promotion', '添加活动', lang)}</h2>
