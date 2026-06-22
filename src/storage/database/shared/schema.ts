@@ -333,10 +333,6 @@ export const promotions = pgTable("promotions", {
 	promotionType: varchar("promotion_type", { length: 50 }).default('special_price').notNull(), // special_price, buy_2_get_1, buy_1_get_1
 	specialPrice: numeric("special_price", { precision: 10, scale: 2 }), // 特惠活动价
 	currency: varchar({ length: 10 }).default('$'), // 货币符号
-	timeType: varchar("time_type", { length: 50 }).default('permanent').notNull(), // permanent, time_range, countdown
-	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),
-	endTime: timestamp("end_time", { withTimezone: true, mode: 'string' }),
-	countdownAction: varchar("countdown_action", { length: 50 }).default('close'), // close, restore_price
 	sortOrder: integer("sort_order").default(0).notNull(),
 	isActive: boolean("is_active").default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
@@ -371,6 +367,10 @@ export const promotionProducts = pgTable("promotion_products", {
 	productId: integer("product_id").notNull(),
 	specialPrice: numeric("special_price", { precision: 10, scale: 2 }), // 产品特惠价（可覆盖活动级别的价格）
 	currency: varchar({ length: 10 }), // 产品特惠价的货币符号（可覆盖活动级别的货币）
+	timeType: varchar("time_type", { length: 50 }).default('permanent').notNull(), // permanent, time_range, countdown
+	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),
+	endTime: timestamp("end_time", { withTimezone: true, mode: 'string' }),
+	countdownAction: varchar("countdown_action", { length: 50 }).default('close'), // close, restore_price
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("pp_promotion_id_idx").using("btree", table.promotionId.asc().nullsLast().op("int4_ops")),

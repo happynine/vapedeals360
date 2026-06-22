@@ -84,10 +84,6 @@ export async function POST(request: NextRequest) {
       promotion_type,
       special_price,
       currency,
-      time_type,
-      start_time,
-      end_time,
-      countdown_action,
       sort_order,
       is_active,
       translations,
@@ -110,7 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Slug already exists' }, { status: 400 });
     }
 
-    // 创建活动
+    // 创建活动（不含时间字段，时间字段在产品级别）
     const { data: promotion, error: promotionError } = await client
       .from('promotions')
       .insert({
@@ -118,10 +114,6 @@ export async function POST(request: NextRequest) {
         promotion_type: promotion_type || 'special_price',
         special_price,
         currency: currency || '$',
-        time_type: time_type || 'permanent',
-        start_time,
-        end_time,
-        countdown_action: countdown_action || 'close',
         sort_order: sort_order || 0,
         is_active: is_active ?? true,
         updated_at: new Date().toISOString()
@@ -154,13 +146,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 关联产品
+    // 关联产品（包含时间字段）
     if (products && products.length > 0) {
-      const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string }) => ({
+      const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string; time_type?: string; start_time?: string; end_time?: string; countdown_action?: string }) => ({
         promotion_id: promotion.id,
         product_id: p.product_id,
         special_price: p.special_price,
-        currency: p.currency
+        currency: p.currency,
+        time_type: p.time_type || 'permanent',
+        start_time: p.start_time,
+        end_time: p.end_time,
+        countdown_action: p.countdown_action || 'close'
       }));
 
       const { error: productsError } = await client
@@ -194,10 +190,6 @@ export async function PUT(request: NextRequest) {
       promotion_type,
       special_price,
       currency,
-      time_type,
-      start_time,
-      end_time,
-      countdown_action,
       sort_order,
       is_active,
       translations,
@@ -208,7 +200,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    // 更新活动
+    // 更新活动（不含时间字段）
     const { data: promotion, error: promotionError } = await client
       .from('promotions')
       .update({
@@ -216,10 +208,6 @@ export async function PUT(request: NextRequest) {
         promotion_type,
         special_price,
         currency: currency || '$',
-        time_type,
-        start_time,
-        end_time,
-        countdown_action,
         sort_order,
         is_active,
         updated_at: new Date().toISOString()
@@ -255,18 +243,22 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // 更新产品关联
+    // 更新产品关联（包含时间字段）
     if (products !== undefined) {
       // 先删除旧的关联
       await client.from('promotion_products').delete().eq('promotion_id', id);
 
       // 插入新的关联
       if (products.length > 0) {
-        const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string }) => ({
+        const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string; time_type?: string; start_time?: string; end_time?: string; countdown_action?: string }) => ({
           promotion_id: id,
           product_id: p.product_id,
           special_price: p.special_price,
-          currency: p.currency
+          currency: p.currency,
+          time_type: p.time_type || 'permanent',
+          start_time: p.start_time,
+          end_time: p.end_time,
+          countdown_action: p.countdown_action || 'close'
         }));
 
         const { error: productsError } = await client
