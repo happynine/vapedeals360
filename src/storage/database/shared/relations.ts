@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { products, productPrices, stores, productTranslations, storeTranslations, categories, categoryTranslations, banners, bannerTranslations, siteSettings, siteSettingTranslations, contentPages, contentPageTranslations, staticPages, staticPageTranslations } from "./schema";
+import { products, productPrices, stores, productTranslations, promotions, promotionProducts, storeTranslations, categories, categoryTranslations, banners, bannerTranslations, siteSettings, siteSettingTranslations, promotionTranslations, contentPages, contentPageTranslations, staticPages, staticPageTranslations } from "./schema";
 
 export const productPricesRelations = relations(productPrices, ({one}) => ({
 	product: one(products, {
@@ -15,6 +15,7 @@ export const productPricesRelations = relations(productPrices, ({one}) => ({
 export const productsRelations = relations(products, ({one, many}) => ({
 	productPrices: many(productPrices),
 	productTranslations: many(productTranslations),
+	promotionProducts: many(promotionProducts),
 	category: one(categories, {
 		fields: [products.categoryId],
 		references: [categories.id]
@@ -31,6 +32,22 @@ export const productTranslationsRelations = relations(productTranslations, ({one
 		fields: [productTranslations.productId],
 		references: [products.id]
 	}),
+}));
+
+export const promotionProductsRelations = relations(promotionProducts, ({one}) => ({
+	promotion: one(promotions, {
+		fields: [promotionProducts.promotionId],
+		references: [promotions.id]
+	}),
+	product: one(products, {
+		fields: [promotionProducts.productId],
+		references: [products.id]
+	}),
+}));
+
+export const promotionsRelations = relations(promotions, ({many}) => ({
+	promotionProducts: many(promotionProducts),
+	promotionTranslations: many(promotionTranslations),
 }));
 
 export const storeTranslationsRelations = relations(storeTranslations, ({one}) => ({
@@ -72,6 +89,13 @@ export const siteSettingTranslationsRelations = relations(siteSettingTranslation
 
 export const siteSettingsRelations = relations(siteSettings, ({many}) => ({
 	siteSettingTranslations: many(siteSettingTranslations),
+}));
+
+export const promotionTranslationsRelations = relations(promotionTranslations, ({one}) => ({
+	promotion: one(promotions, {
+		fields: [promotionTranslations.promotionId],
+		references: [promotions.id]
+	}),
 }));
 
 export const contentPageTranslationsRelations = relations(contentPageTranslations, ({one}) => ({

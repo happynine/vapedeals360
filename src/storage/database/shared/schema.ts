@@ -1,25 +1,7 @@
-import { pgTable, serial, timestamp, index, unique, varchar, integer, boolean, foreignKey, numeric, text, jsonb } from "drizzle-orm/pg-core"
+import { pgTable, index, foreignKey, serial, integer, numeric, text, boolean, timestamp, varchar, unique, jsonb } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
-
-export const healthCheck = pgTable("health_check", {
-	id: serial().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-});
-
-export const categories = pgTable("categories", {
-	id: serial().primaryKey().notNull(),
-	slug: varchar({ length: 100 }).notNull(),
-	icon: varchar({ length: 255 }),
-	sortOrder: integer("sort_order").default(0).notNull(),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
-}, (table) => [
-	index("categories_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
-	unique("categories_slug_unique").on(table.slug),
-]);
 
 export const productPrices = pgTable("product_prices", {
 	id: serial().primaryKey().notNull(),
@@ -52,6 +34,24 @@ export const productPrices = pgTable("product_prices", {
 		}).onDelete("cascade"),
 ]);
 
+export const healthCheck = pgTable("health_check", {
+	id: serial().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+export const categories = pgTable("categories", {
+	id: serial().primaryKey().notNull(),
+	slug: varchar({ length: 100 }).notNull(),
+	icon: varchar({ length: 255 }),
+	sortOrder: integer("sort_order").default(0).notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("categories_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	unique("categories_slug_unique").on(table.slug),
+]);
+
 export const productTranslations = pgTable("product_translations", {
 	id: serial().primaryKey().notNull(),
 	productId: integer("product_id").notNull(),
@@ -69,6 +69,35 @@ export const productTranslations = pgTable("product_translations", {
 			foreignColumns: [products.id],
 			name: "product_translations_product_id_products_id_fk"
 		}).onDelete("cascade"),
+]);
+
+export const promotionProducts = pgTable("promotion_products", {
+	id: serial().primaryKey().notNull(),
+	promotionId: integer("promotion_id").notNull(),
+	productId: integer("product_id").notNull(),
+	specialPrice: numeric("special_price", { precision: 10, scale:  2 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	currency: varchar({ length: 10 }),
+	timeType: varchar("time_type", { length: 50 }).default('permanent').notNull(),
+	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),
+	endTime: timestamp("end_time", { withTimezone: true, mode: 'string' }),
+	countdownAction: varchar("countdown_action", { length: 50 }).default('close'),
+	isActive: boolean("is_active").default(true),
+	storeId: integer("store_id"),
+}, (table) => [
+	index("idx_promotion_products_product").using("btree", table.productId.asc().nullsLast().op("int4_ops")),
+	index("idx_promotion_products_promotion").using("btree", table.promotionId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.promotionId],
+			foreignColumns: [promotions.id],
+			name: "promotion_products_promotion_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [products.id],
+			name: "promotion_products_product_id_fkey"
+		}).onDelete("cascade"),
+	unique("promotion_products_promotion_id_product_id_key").on(table.promotionId, table.productId),
 ]);
 
 export const stores = pgTable("stores", {
@@ -241,6 +270,23 @@ export const languages = pgTable("languages", {
 	unique("languages_code_key").on(table.code),
 ]);
 
+export const promotions = pgTable("promotions", {
+	id: serial().primaryKey().notNull(),
+	slug: varchar({ length: 255 }).notNull(),
+	promotionType: varchar("promotion_type", { length: 50 }).default('special_price').notNull(),
+	specialPrice: numeric("special_price", { precision: 10, scale:  2 }),
+	sortOrder: integer("sort_order").default(0),
+	isActive: boolean("is_active").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
+	currency: varchar({ length: 10 }).default('$'),
+}, (table) => [
+	index("idx_promotions_active").using("btree", table.isActive.asc().nullsLast().op("bool_ops")),
+	index("idx_promotions_slug").using("btree", table.slug.asc().nullsLast().op("text_ops")),
+	index("idx_promotions_sort").using("btree", table.sortOrder.asc().nullsLast().op("int4_ops")),
+	unique("promotions_slug_key").on(table.slug),
+]);
+
 export const socialLinks = pgTable("social_links", {
 	id: serial().primaryKey().notNull(),
 	platform: varchar({ length: 100 }).notNull(),
@@ -252,6 +298,23 @@ export const socialLinks = pgTable("social_links", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("sl_platform_idx").using("btree", table.platform.asc().nullsLast().op("text_ops")),
+]);
+
+export const promotionTranslations = pgTable("promotion_translations", {
+	id: serial().primaryKey().notNull(),
+	promotionId: integer("promotion_id").notNull(),
+	language: varchar({ length: 10 }).notNull(),
+	name: varchar({ length: 255 }),
+	coverImageKey: varchar("cover_image_key", { length: 255 }),
+	coverImageUrl: text("cover_image_url"),
+}, (table) => [
+	index("idx_promotion_translations_lang").using("btree", table.language.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.promotionId],
+			foreignColumns: [promotions.id],
+			name: "promotion_translations_promotion_id_fkey"
+		}).onDelete("cascade"),
+	unique("promotion_translations_promotion_id_language_key").on(table.promotionId, table.language),
 ]);
 
 export const contactMessages = pgTable("contact_messages", {
@@ -324,66 +387,4 @@ export const staticPages = pgTable("static_pages", {
 	isPublished: boolean("is_published").default(false).notNull(),
 }, (table) => [
 	index("sp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
-]);
-
-// Promotions (特惠活动)
-export const promotions = pgTable("promotions", {
-	id: serial().primaryKey().notNull(),
-	slug: varchar({ length: 255 }).notNull(),
-	promotionType: varchar("promotion_type", { length: 50 }).default('special_price').notNull(), // special_price, buy_2_get_1, buy_1_get_1
-	specialPrice: numeric("special_price", { precision: 10, scale: 2 }), // 特惠活动价
-	currency: varchar({ length: 10 }).default('$'), // 货币符号
-	sortOrder: integer("sort_order").default(0).notNull(),
-	isActive: boolean("is_active").default(true).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
-}, (table) => [
-	unique("promotions_slug_key").on(table.slug),
-	index("promotions_is_active_idx").using("btree", table.isActive.asc().nullsLast().op("bool_ops")),
-	index("promotions_sort_order_idx").using("btree", table.sortOrder.asc().nullsLast().op("int4_ops")),
-]);
-
-export const promotionTranslations = pgTable("promotion_translations", {
-	id: serial().primaryKey().notNull(),
-	promotionId: integer("promotion_id").notNull(),
-	language: varchar({ length: 10 }).notNull(),
-	name: varchar({ length: 255 }), // 主题名（仅后台展示）
-	coverImageKey: varchar("cover_image_key", { length: 255 }),
-	coverImageUrl: text("cover_image_url"),
-}, (table) => [
-	index("pt_promotion_id_idx").using("btree", table.promotionId.asc().nullsLast().op("int4_ops")),
-	index("pt_language_idx").using("btree", table.language.asc().nullsLast().op("text_ops")),
-	foreignKey({
-		columns: [table.promotionId],
-		foreignColumns: [promotions.id],
-		name: "promotion_translations_promotion_id_fkey"
-	}).onDelete("cascade"),
-	unique("promotion_translations_promotion_id_language_key").on(table.promotionId, table.language),
-]);
-
-export const promotionProducts = pgTable("promotion_products", {
-	id: serial().primaryKey().notNull(),
-	promotionId: integer("promotion_id").notNull(),
-	productId: integer("product_id").notNull(),
-	specialPrice: numeric("special_price", { precision: 10, scale: 2 }), // 产品特惠价（可覆盖活动级别的价格）
-	currency: varchar({ length: 10 }), // 产品特惠价的货币符号（可覆盖活动级别的货币）
-	timeType: varchar("time_type", { length: 50 }).default('permanent').notNull(), // permanent, time_range, countdown
-	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),
-	endTime: timestamp("end_time", { withTimezone: true, mode: 'string' }),
-	countdownAction: varchar("countdown_action", { length: 50 }).default('close'), // close, restore_price
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("pp_promotion_id_idx").using("btree", table.promotionId.asc().nullsLast().op("int4_ops")),
-	index("pp_product_id_idx").using("btree", table.productId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-		columns: [table.promotionId],
-		foreignColumns: [promotions.id],
-		name: "promotion_products_promotion_id_fkey"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.productId],
-		foreignColumns: [products.id],
-		name: "promotion_products_product_id_fkey"
-	}).onDelete("cascade"),
-	unique("promotion_products_promotion_id_product_id_key").on(table.promotionId, table.productId),
 ]);

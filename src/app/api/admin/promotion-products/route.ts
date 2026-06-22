@@ -6,40 +6,40 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseClient();
   
   try {
-    // Fetch promotion products
+    // Fetch promotion products with translations
     const { data: promotionProducts, error: ppError } = await supabase
       .from('promotion_products')
-      .select('*')
+      .select(`
+        *,
+        promotion_product_translations (*)
+      `)
       .order('id', { ascending: true });
 
     if (ppError) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
 
-    // Get unique product IDs, promotion IDs, and store IDs
-    const productIds = [...new Set(promotionProducts?.map(pp => pp.product_id) || [])];
+    // Get unique promotion IDs and category IDs
     const promotionIds = [...new Set(promotionProducts?.map(pp => pp.promotion_id) || [])];
-    const storeIds = [...new Set(promotionProducts?.map(pp => pp.store_id).filter(Boolean) || [])];
+    const categoryIds = [...new Set(promotionProducts?.map(pp => pp.category_id).filter(Boolean) || [])];
 
     // Fetch related data separately
-    const [productsRes, promotionsRes, storesRes] = await Promise.all([
-      supabase.from('products').select('id, slug, product_translations (name, language)').in('id', productIds),
+    const [promotionsRes, categoriesRes] = await Promise.all([
       supabase.from('promotions').select('id, slug, promotion_type, special_price, currency, promotion_translations (name, language)').in('id', promotionIds),
-      storeIds.length > 0 
-        ? supabase.from('stores').select('id, slug, store_translations (name, language)').in('id', storeIds)
+      categoryIds.length > 0 
+        ? supabase.from('categories').select('id, slug, category_translations (name, language)').in('id', categoryIds)
         : { data: [], error: null }
     ]);
 
-    if (productsRes.error || promotionsRes.error || storesRes.error) {
+    if (promotionsRes.error || categoriesRes.error) {
       return NextResponse.json({ success: false, error: 'Failed to fetch related data' }, { status: 500 });
     }
 
     // Combine data
     const combinedData = promotionProducts?.map(pp => ({
       ...pp,
-      products: productsRes.data?.find(p => p.id === pp.product_id) || null,
       promotions: promotionsRes.data?.find(p => p.id === pp.promotion_id) || null,
-      stores: pp.store_id ? storesRes.data?.find(s => s.id === pp.store_id) || null : null
+      categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null
     })) || [];
 
     return NextResponse.json({ success: true, data: combinedData });
@@ -56,58 +56,118 @@ export async function POST(request: NextRequest) {
   try {
     const {
       promotion_id,
-      product_id,
-      store_id,
-      special_price,
-      currency,
-      time_type,
-      start_time,
-      end_time,
-      countdown_action,
-      is_active
+      slug,
+      category_id,
+      image_key,
+      image_url,
+      is_active,
+      is_featured,
+      notes,
+      translations,
+      store_prices
     } = body;
 
     // Validate required fields
-    if (!promotion_id || !product_id) {
-      return NextResponse.json({ success: false, error: 'Promotion ID and Product ID are required' }, { status: 400 });
+    if (!promotion_id || !slug) {
+      return NextResponse.json({ success: false, error: 'Promotion ID and Slug are required' }, { status: 400 });
     }
 
-    // Check if this promotion-product combination already exists
-    const { data: existing } = await supabase
+    // Check if slug already exists
+    const { data: existingSlug } = await supabase
       .from('promotion_products')
       .select('id')
-      .eq('promotion_id', promotion_id)
-      .eq('product_id', product_id)
-      .eq('store_id', store_id || null)
+      .eq('slug', slug)
       .single();
 
-    if (existing) {
-      return NextResponse.json({ success: false, error: 'This product is already added to this promotion' }, { status: 400 });
+    if (existingSlug) {
+      return NextResponse.json({ success: false, error: 'Slug already exists' }, { status: 400 });
     }
 
     // Create promotion product
-    const { data, error } = await supabase
+    const { data: promotionProduct, error: ppError } = await supabase
       .from('promotion_products')
       .insert({
         promotion_id,
-        product_id,
-        store_id: store_id || null,
-        special_price: special_price || null,
-        currency: currency || '$',
-        time_type: time_type || 'permanent',
-        start_time: start_time || null,
-        end_time: end_time || null,
-        countdown_action: countdown_action || 'close',
-        is_active: is_active ?? true
+        slug,
+        category_id: category_id || null,
+        image_key: image_key || null,
+        image_url: image_url || null,
+        is_active: is_active ?? true,
+        is_featured: is_featured ?? false,
+        notes: notes || null
       })
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (ppError) {
+      return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    // Create translations if provided
+    if (translations && translations.length > 0 && promotionProduct) {
+      const translationRecords = translations.map((t: { language: string; name: string; description: string | null; features: string | null; specs: string | null }) => ({
+        promotion_product_id: promotionProduct.id,
+        language: t.language,
+        name: t.name,
+        description: t.description || null,
+        features: t.features || null,
+        specs: t.specs || null
+      }));
+
+      const { error: transError } = await supabase
+        .from('promotion_product_translations')
+        .insert(translationRecords);
+
+      if (transError) {
+        // Rollback promotion product creation
+        await supabase.from('promotion_products').delete().eq('id', promotionProduct.id);
+        return NextResponse.json({ success: false, error: transError.message }, { status: 500 });
+      }
+    }
+
+    // Create store prices if provided
+    if (store_prices && store_prices.length > 0 && promotionProduct) {
+      const storePriceRecords = store_prices.map((sp: { 
+        store_id: number; 
+        region: string; 
+        current_price: string; 
+        original_price: string; 
+        discount_percent: string; 
+        currency: string; 
+        product_url: string; 
+        no_quote: boolean;
+        time_type: string;
+        start_time: string | null;
+        end_time: string | null;
+        countdown_action: string;
+      }) => ({
+        promotion_product_id: promotionProduct.id,
+        store_id: sp.store_id,
+        region: sp.region || null,
+        current_price: sp.current_price || null,
+        original_price: sp.original_price || null,
+        discount_percent: sp.discount_percent ? parseFloat(sp.discount_percent) : null,
+        currency: sp.currency || '$',
+        product_url: sp.product_url || null,
+        no_quote: sp.no_quote ?? false,
+        time_type: sp.time_type || 'permanent',
+        start_time: sp.start_time || null,
+        end_time: sp.end_time || null,
+        countdown_action: sp.countdown_action || 'close'
+      }));
+
+      const { error: spError } = await supabase
+        .from('promotion_product_prices')
+        .insert(storePriceRecords);
+
+      if (spError) {
+        // Rollback promotion product creation
+        await supabase.from('promotion_products').delete().eq('id', promotionProduct.id);
+        return NextResponse.json({ success: false, error: spError.message }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, data: promotionProduct });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
@@ -122,15 +182,15 @@ export async function PUT(request: NextRequest) {
     const {
       id,
       promotion_id,
-      product_id,
-      store_id,
-      special_price,
-      currency,
-      time_type,
-      start_time,
-      end_time,
-      countdown_action,
-      is_active
+      slug,
+      category_id,
+      image_key,
+      image_url,
+      is_active,
+      is_featured,
+      notes,
+      translations,
+      store_prices
     } = body;
 
     if (!id) {
@@ -138,29 +198,97 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update promotion product
-    const { data, error } = await supabase
+    const { data: promotionProduct, error: ppError } = await supabase
       .from('promotion_products')
       .update({
         promotion_id,
-        product_id,
-        store_id: store_id || null,
-        special_price: special_price || null,
-        currency: currency || '$',
-        time_type: time_type || 'permanent',
-        start_time: start_time || null,
-        end_time: end_time || null,
-        countdown_action: countdown_action || 'close',
-        is_active: is_active ?? true
+        slug,
+        category_id: category_id || null,
+        image_key: image_key || null,
+        image_url: image_url || null,
+        is_active: is_active ?? true,
+        is_featured: is_featured ?? false,
+        notes: notes || null
       })
       .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (ppError) {
+      return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    // Update translations if provided
+    if (translations && translations.length > 0 && promotionProduct) {
+      // Delete existing translations
+      await supabase.from('promotion_product_translations').delete().eq('promotion_product_id', promotionProduct.id);
+
+      // Insert new translations
+      const translationRecords = translations.map((t: { language: string; name: string; description: string | null; features: string | null; specs: string | null }) => ({
+        promotion_product_id: promotionProduct.id,
+        language: t.language,
+        name: t.name,
+        description: t.description || null,
+        features: t.features || null,
+        specs: t.specs || null
+      }));
+
+      const { error: transError } = await supabase
+        .from('promotion_product_translations')
+        .insert(translationRecords);
+
+      if (transError) {
+        return NextResponse.json({ success: false, error: transError.message }, { status: 500 });
+      }
+    }
+
+    // Update store prices if provided
+    if (store_prices && promotionProduct) {
+      // Delete existing store prices
+      await supabase.from('promotion_product_prices').delete().eq('promotion_product_id', promotionProduct.id);
+
+      // Insert new store prices
+      if (store_prices.length > 0) {
+        const storePriceRecords = store_prices.map((sp: { 
+          store_id: number; 
+          region: string; 
+          current_price: string; 
+          original_price: string; 
+          discount_percent: string; 
+          currency: string; 
+          product_url: string; 
+          no_quote: boolean;
+          time_type: string;
+          start_time: string | null;
+          end_time: string | null;
+          countdown_action: string;
+        }) => ({
+          promotion_product_id: promotionProduct.id,
+          store_id: sp.store_id,
+          region: sp.region || null,
+          current_price: sp.current_price || null,
+          original_price: sp.original_price || null,
+          discount_percent: sp.discount_percent ? parseFloat(sp.discount_percent) : null,
+          currency: sp.currency || '$',
+          product_url: sp.product_url || null,
+          no_quote: sp.no_quote ?? false,
+          time_type: sp.time_type || 'permanent',
+          start_time: sp.start_time || null,
+          end_time: sp.end_time || null,
+          countdown_action: sp.countdown_action || 'close'
+        }));
+
+        const { error: spError } = await supabase
+          .from('promotion_product_prices')
+          .insert(storePriceRecords);
+
+        if (spError) {
+          return NextResponse.json({ success: false, error: spError.message }, { status: 500 });
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, data: promotionProduct });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
@@ -169,18 +297,26 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a promotion product
 export async function DELETE(request: NextRequest) {
   const supabase = getSupabaseClient();
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
-  }
+  const body = await request.json();
 
   try {
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
+    }
+
+    // Delete translations first
+    await supabase.from('promotion_product_translations').delete().eq('promotion_product_id', id);
+
+    // Delete store prices
+    await supabase.from('promotion_product_prices').delete().eq('promotion_product_id', id);
+
+    // Delete promotion product
     const { error } = await supabase
       .from('promotion_products')
       .delete()
-      .eq('id', parseInt(id));
+      .eq('id', id);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
