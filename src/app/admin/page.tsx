@@ -5597,17 +5597,15 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 </div>
               </div>
 
-              {/* Product Image */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-left block">{t('Product Image (400x400px)', '产品图片 (400x400px)')}</label>
-                <ImageUpload
-                  value={imageKey}
-                  onChange={setImageKey}
-                  recommendedSize="400x400px"
-                  aspectRatio={1}
-                  lang={lang}
-                />
-              </div>
+              {/* Product Image Upload */}
+              <ImageUpload
+                value={imageKey}
+                onUploadComplete={setImageKey}
+                aspectRatio={1}
+                suggestedSize="400x400px"
+                label={t('Product Image', '产品图片')}
+                folder="products"
+              />
 
               {/* Status */}
               <div className="flex items-center gap-4">
