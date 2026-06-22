@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       slug,
       promotion_type,
       special_price,
+      currency,
       time_type,
       start_time,
       end_time,
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
         slug,
         promotion_type: promotion_type || 'special_price',
         special_price,
+        currency: currency || '$',
         time_type: time_type || 'permanent',
         start_time,
         end_time,
@@ -154,10 +156,11 @@ export async function POST(request: NextRequest) {
 
     // 关联产品
     if (products && products.length > 0) {
-      const productsData = products.map((p: { product_id: number; special_price?: number }) => ({
+      const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string }) => ({
         promotion_id: promotion.id,
         product_id: p.product_id,
-        special_price: p.special_price
+        special_price: p.special_price,
+        currency: p.currency
       }));
 
       const { error: productsError } = await client
@@ -190,6 +193,7 @@ export async function PUT(request: NextRequest) {
       slug,
       promotion_type,
       special_price,
+      currency,
       time_type,
       start_time,
       end_time,
@@ -211,6 +215,7 @@ export async function PUT(request: NextRequest) {
         slug,
         promotion_type,
         special_price,
+        currency: currency || '$',
         time_type,
         start_time,
         end_time,
@@ -257,10 +262,11 @@ export async function PUT(request: NextRequest) {
 
       // 插入新的关联
       if (products.length > 0) {
-        const productsData = products.map((p: { product_id: number; special_price?: number }) => ({
+        const productsData = products.map((p: { product_id: number; special_price?: number; currency?: string }) => ({
           promotion_id: id,
           product_id: p.product_id,
-          special_price: p.special_price
+          special_price: p.special_price,
+          currency: p.currency
         }));
 
         const { error: productsError } = await client

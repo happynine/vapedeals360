@@ -242,8 +242,8 @@ interface ProductPrice { id: number; product_id: number; store_id: number; curre
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; cover_image_key: string | null; cover_image_url: string | null; }
-interface PromotionProduct { id: number; promotion_id: number; product_id: number; special_price: number | null; }
-interface Promotion { id: number; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string | null; end_time: string | null; countdown_action: 'close' | 'original_price' | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
+interface PromotionProduct { id: number; promotion_id: number; product_id: number; special_price: number | null; currency: string | null; }
+interface Promotion { id: number; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; currency: string | null; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string | null; end_time: string | null; countdown_action: 'close' | 'original_price' | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
@@ -4322,6 +4322,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
   const [slug, setSlug] = useState(promotion?.slug || '');
   const [promotionType, setPromotionType] = useState<'special_price' | 'buy_2_get_1' | 'buy_1_get_1'>(promotion?.promotion_type || 'special_price');
   const [specialPrice, setSpecialPrice] = useState<string>(promotion?.special_price?.toString() || '');
+  const [currency, setCurrency] = useState<string>(promotion?.currency || '$');
   const [timeType, setTimeType] = useState<'permanent' | 'time_range' | 'countdown'>(promotion?.time_type || 'permanent');
   const [startTime, setStartTime] = useState<string>(promotion?.start_time ? new Date(promotion.start_time).toISOString().slice(0, 16) : '');
   const [endTime, setEndTime] = useState<string>(promotion?.end_time ? new Date(promotion.end_time).toISOString().slice(0, 16) : '');
@@ -4331,12 +4332,22 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
   const [translations, setTranslations] = useState<{ language: string; name: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
     promotion?.promotion_translations?.map((tr) => ({ language: tr.language, name: tr.name || '', cover_image_key: tr.cover_image_key, cover_image_url: tr.cover_image_url })) || activeLanguages.map(l => ({ language: l.code, name: '', cover_image_key: null, cover_image_url: null }))
   );
-  const [selectedProducts, setSelectedProducts] = useState<{ product_id: number; special_price?: number | null }[]>(
-    promotion?.promotion_products?.map((pp) => ({ product_id: pp.product_id, special_price: pp.special_price ?? undefined })) || []
+  const [selectedProducts, setSelectedProducts] = useState<{ product_id: number; special_price?: number | null; currency?: string | null }[]>(
+    promotion?.promotion_products?.map((pp) => ({ product_id: pp.product_id, special_price: pp.special_price ?? undefined, currency: pp.currency })) || []
   );
   const [productSearch, setProductSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const isEdit = !!promotion;
+  
+  const CURRENCY_OPTIONS = [
+    { value: '$', label: 'USD ($)' },
+    { value: '€', label: 'EUR (€)' },
+    { value: '£', label: 'GBP (£)' },
+    { value: 'Fr.', label: 'CHF (Fr.)' },
+    { value: '₽', label: 'RUB (₽)' },
+    { value: '¥', label: 'JPY (¥)' },
+    { value: '₩', label: 'KRW (₩)' },
+  ];
 
   // Sync translations with active languages when opening
   useEffect(() => {
@@ -4350,6 +4361,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         setSlug('');
         setPromotionType('special_price');
         setSpecialPrice('');
+        setCurrency('$');
         setTimeType('permanent');
         setStartTime('');
         setEndTime('');
@@ -4405,6 +4417,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         slug,
         promotion_type: promotionType,
         special_price: promotionType === 'special_price' && specialPrice ? parseFloat(specialPrice) : null,
+        currency: promotionType === 'special_price' ? currency : null,
         time_type: timeType,
         start_time: timeType !== 'permanent' ? new Date(startTime).toISOString() : null,
         end_time: timeType !== 'permanent' ? new Date(endTime).toISOString() : null,
@@ -4454,7 +4467,14 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
               {promotionType === 'special_price' && (
                 <div>
                   <label className="text-xs text-muted-foreground text-left block">{t('Special Price (default override)', '特惠价格 (默认覆盖)', lang)}</label>
-                  <input type="number" step="0.01" value={specialPrice} onChange={(e) => setSpecialPrice(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. 9.99" />
+                  <div className="mt-1 flex gap-2">
+                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-24 rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+                      {CURRENCY_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <input type="number" step="0.01" value={specialPrice} onChange={(e) => setSpecialPrice(e.target.value)} className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. 9.99" />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">{t('This price will override product prices during promotion. You can also set individual prices per product below.', '活动期间此价格将覆盖产品价格。您也可以为每个产品单独设置价格。', lang)}</p>
                 </div>
               )}
