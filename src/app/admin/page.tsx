@@ -4478,7 +4478,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
       countdown_action: (pp.countdown_action as 'close' | 'original_price') || 'close'
     })) || []
   );
-  const [productSearch, setProductSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const isEdit = !!promotion;
   
@@ -4512,59 +4511,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
     }
   }, [open, activeLanguages, isEdit]);
 
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products.slice(0, 10);
-    const search = productSearch.toLowerCase();
-    return products.filter(p => {
-      const enName = p.product_translations?.find(tr => tr.language === 'en')?.name || '';
-      const zhName = p.product_translations?.find(tr => tr.language === 'zh')?.name || '';
-      return p.id.toString().includes(search) || enName.toLowerCase().includes(search) || zhName.toLowerCase().includes(search);
-    }).slice(0, 20);
-  }, [productSearch, products]);
-
-  const handleAddProduct = (productId: number) => {
-    if (!selectedProducts.some(sp => sp.product_id === productId)) {
-      setSelectedProducts([...selectedProducts, { 
-        product_id: productId,
-        time_type: 'permanent',
-        countdown_action: 'close'
-      }]);
-    }
-  };
-
-  const handleRemoveProduct = (productId: number | null) => {
-    if (productId === null) return;
-    setSelectedProducts(selectedProducts.filter(sp => sp.product_id !== productId));
-  };
-
-  const handleProductPriceChange = (productId: number | null, price: string) => {
-    if (productId === null) return;
-    setSelectedProducts(selectedProducts.map(sp => 
-      sp.product_id === productId ? { ...sp, special_price: parseFloat(price) || null } : sp
-    ));
-  };
-
-  const handleProductTimeTypeChange = (productId: number | null, timeType: 'permanent' | 'time_range' | 'countdown') => {
-    if (productId === null) return;
-    setSelectedProducts(selectedProducts.map(sp => 
-      sp.product_id === productId ? { ...sp, time_type: timeType } : sp
-    ));
-  };
-
-  const handleProductTimeChange = (productId: number | null, field: 'start_time' | 'end_time', value: string) => {
-    if (productId === null) return;
-    setSelectedProducts(selectedProducts.map(sp => 
-      sp.product_id === productId ? { ...sp, [field]: value } : sp
-    ));
-  };
-
-  const handleProductCountdownActionChange = (productId: number | null, action: 'close' | 'original_price') => {
-    if (productId === null) return;
-    setSelectedProducts(selectedProducts.map(sp => 
-      sp.product_id === productId ? { ...sp, countdown_action: action } : sp
-    ));
-  };
-
   const handleSave = async () => {
     if (!slug) {
       alert(t('Slug is required', '标识必填', lang));
@@ -4581,15 +4527,6 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         sort_order: sortOrder,
         is_active: isActive,
         translations,
-        products: selectedProducts.map(sp => ({
-          product_id: sp.product_id,
-          special_price: sp.special_price,
-          currency: sp.currency,
-          time_type: sp.time_type,
-          start_time: sp.time_type !== 'permanent' && sp.start_time ? new Date(sp.start_time).toISOString() : null,
-          end_time: sp.time_type !== 'permanent' && sp.end_time ? new Date(sp.end_time).toISOString() : null,
-          countdown_action: sp.time_type === 'countdown' ? sp.countdown_action : null
-        })),
       };
       const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
@@ -4674,131 +4611,30 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
                 })}
               </div>
 
-              {/* Product Selection */}
+              {/* Linked Products - Read Only Display */}
               <div className="border-t border-border pt-4">
-                <h3 className="text-sm font-semibold mb-2">{t('Add Promotion Products', '添加活动产品', lang)}</h3>
-                <div className="mb-3">
-                  <input 
-                    type="text" 
-                    value={productSearch} 
-                    onChange={(e) => setProductSearch(e.target.value)} 
-                    placeholder={t('Search by ID or name...', '搜索ID或名称...', lang)} 
-                    className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" 
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 mb-3 max-h-[100px] overflow-y-auto rounded-lg border border-border p-2">
-                  {filteredProducts.map((p) => {
-                    const isSelected = selectedProducts.some(sp => sp.product_id === p.id);
-                    const enName = p.product_translations?.find(tr => tr.language === 'en')?.name || '';
-                    return (
-                      <button 
-                        key={p.id} 
-                        onClick={() => isSelected ? handleRemoveProduct(p.id) : handleAddProduct(p.id)} 
-                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
-                      >
-                        #{p.id} {enName.slice(0, 20)}...
-                      </button>
-                    );
-                  })}
-                </div>
-                
-                {/* Selected Products List */}
-                {selectedProducts.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="text-xs text-muted-foreground">{t('Selected Products', '已选产品', lang)} ({selectedProducts.length})</h4>
-                    <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border p-2 space-y-2">
-                      {selectedProducts.map((sp) => {
-                        const product = products.find(p => p.id === sp.product_id);
-                        const enName = product?.product_translations?.find(tr => tr.language === 'en')?.name || '';
-                        return (
-                          <div key={sp.product_id} className="p-3 rounded-lg border border-border bg-secondary/30">
-                            {/* Product Header */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-semibold text-muted-foreground">#{sp.product_id}</span>
-                              <span className="text-xs truncate flex-1">{enName}</span>
-                              <button onClick={() => handleRemoveProduct(sp.product_id)} className="text-destructive hover:text-destructive/80 text-xs">✕</button>
-                            </div>
-                            
-                            {/* Price (if special_price type) */}
-                            {promotionType === 'special_price' && (
-                              <div className="mb-2">
-                                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Special Price', '特惠价', lang)}</label>
-                                <input 
-                                  type="number" 
-                                  step="0.01" 
-                                  value={sp.special_price || ''} 
-                                  onChange={(e) => handleProductPriceChange(sp.product_id, e.target.value)} 
-                                  placeholder={t('Price', '价格', lang)} 
-                                  className="w-full px-2 py-1 rounded text-xs border border-border bg-secondary" 
-                                />
-                              </div>
+                <h3 className="text-sm font-semibold mb-2">{t('Linked Products', '关联产品', lang)}</h3>
+                {selectedProducts.length > 0 ? (
+                  <div className="max-h-[300px] overflow-y-auto rounded-lg border border-border p-2 space-y-2">
+                    {selectedProducts.map((sp) => {
+                      const product = products.find(p => p.id === sp.product_id);
+                      const enName = product?.product_translations?.find(tr => tr.language === 'en')?.name || '';
+                      return (
+                        <div key={sp.product_id} className="p-3 rounded-lg border border-border bg-secondary/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-muted-foreground">#{sp.product_id}</span>
+                            <span className="text-xs truncate flex-1">{enName}</span>
+                            {sp.special_price && (
+                              <span className="text-xs text-emerald-600 font-medium">${sp.special_price}</span>
                             )}
-                            
-                            {/* Time Settings for this product */}
-                            <div className="border-t border-border/50 pt-2">
-                              <label className="text-[10px] text-muted-foreground block mb-1 text-left">{t('Time Settings', '时间设置', lang)}</label>
-                              <div className="grid grid-cols-3 gap-2 mb-2">
-                                <button 
-                                  onClick={() => handleProductTimeTypeChange(sp.product_id, 'permanent')} 
-                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${sp.time_type === 'permanent' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
-                                >
-                                  {t('Permanent', '永久', lang)}
-                                </button>
-                                <button 
-                                  onClick={() => handleProductTimeTypeChange(sp.product_id, 'time_range')} 
-                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${sp.time_type === 'time_range' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
-                                >
-                                  {t('Time Range', '时间段', lang)}
-                                </button>
-                                <button 
-                                  onClick={() => handleProductTimeTypeChange(sp.product_id, 'countdown')} 
-                                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${sp.time_type === 'countdown' ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
-                                >
-                                  {t('Countdown', '倒计时', lang)}
-                                </button>
-                              </div>
-                              
-                              {sp.time_type !== 'permanent' && (
-                                <div className="grid grid-cols-2 gap-2 mb-2">
-                                  <div>
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Start Time', '开始时间', lang)}</label>
-                                    <input 
-                                      type="datetime-local" 
-                                      value={sp.start_time || ''} 
-                                      onChange={(e) => handleProductTimeChange(sp.product_id, 'start_time', e.target.value)} 
-                                      className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('End Time', '结束时间', lang)}</label>
-                                    <input 
-                                      type="datetime-local" 
-                                      value={sp.end_time || ''} 
-                                      onChange={(e) => handleProductTimeChange(sp.product_id, 'end_time', e.target.value)} 
-                                      className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs" 
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {sp.time_type === 'countdown' && (
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('After Countdown Ends', '倒计时结束后', lang)}</label>
-                                  <select 
-                                    value={sp.countdown_action} 
-                                    onChange={(e) => handleProductCountdownActionChange(sp.product_id, e.target.value as 'close' | 'original_price')} 
-                                    className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs"
-                                  >
-                                    <option value="close">{t('Close Promotion', '关闭活动', lang)}</option>
-                                    <option value="original_price">{t('Return to Original Price', '恢复原价', lang)}</option>
-                                  </select>
-                                </div>
-                              )}
-                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground py-4 text-center">
+                    {t('No products linked to this promotion yet.', '暂无产品关联此活动。', lang)}
                   </div>
                 )}
               </div>
