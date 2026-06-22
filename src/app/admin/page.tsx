@@ -5603,6 +5603,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 <ImageUpload
                   value={imageKey}
                   onChange={setImageKey}
+                  recommendedSize="400x400px"
+                  aspectRatio={1}
                   lang={lang}
                 />
               </div>
