@@ -297,26 +297,32 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a promotion product
 export async function DELETE(request: NextRequest) {
   const supabase = getSupabaseClient();
-  const body = await request.json();
+  
+  // Get id from URL query parameter
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
 
   try {
-    const { id } = body;
-
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
 
+    const productId = parseInt(id, 10);
+    if (isNaN(productId)) {
+      return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400 });
+    }
+
     // Delete translations first
-    await supabase.from('promotion_product_translations').delete().eq('promotion_product_id', id);
+    await supabase.from('promotion_product_translations').delete().eq('promotion_product_id', productId);
 
     // Delete store prices
-    await supabase.from('promotion_product_prices').delete().eq('promotion_product_id', id);
+    await supabase.from('promotion_product_prices').delete().eq('promotion_product_id', productId);
 
     // Delete promotion product
     const { error } = await supabase
       .from('promotion_products')
       .delete()
-      .eq('id', id);
+      .eq('id', productId);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
