@@ -1,4 +1,4 @@
-'use clientranslate';
+'use client';
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -5555,7 +5555,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     const firstP = storePrices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
                     const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
-                    const hasMultipleCurrencies = group.indices.length > 1 || storeRegions.length > 1;
+                    const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                         <div className="mb-2">
@@ -6187,7 +6187,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     const firstP = prices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
                     const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
-                    const hasMultipleCurrencies = group.indices.length > 1 || storeRegions.length > 1;
+                    const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                         <div className="mb-2">
