@@ -4552,13 +4552,17 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
         {isEdit ? t('Edit', '编辑', lang) : t('Add Promotion', '添加活动', lang)}
       </button>
       {open && (
-        <div ref={scrollContainerRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 relative my-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Promotion', '编辑活动', lang) : t('Add Promotion', '添加活动', lang)}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-3xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-bold">{isEdit ? t('Edit Promotion', '编辑活动', lang) : t('Add Promotion', '添加活动', lang)}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-4">
+
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-4">
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -4649,9 +4653,10 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
                 )}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
                 {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
               </button>
             </div>
@@ -4665,6 +4670,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
 // ============== Category Form Modal ==============
 function CategoryFormModal({ category, onSave, lang, activeLanguages }: { category?: Category; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(category?.slug || '');
   const [icon, setIcon] = useState(category?.icon || '');
   const [sortOrder, setSortOrder] = useState(category?.sort_order || 0);
@@ -4705,27 +4711,31 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
         {isEdit ? t('Edit', '编辑', lang) : t('Add Category', '添加分类', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-lg max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-bold">{isEdit ? t('Edit Category', '编辑分类', lang) : t('Add Category', '添加分类', lang)}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-3">
+
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
-                  <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                  <label className="text-xs text-muted-foreground block mb-1">{t('Slug', '标识', lang)}</label>
+                  <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Icon (emoji)', '图标 (emoji)', lang)}</label>
-                  <input value={icon} onChange={(e) => setIcon(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                  <label className="text-xs text-muted-foreground block mb-1">{t('Icon (emoji)', '图标 (emoji)', lang)}</label>
+                  <input value={icon} onChange={(e) => setIcon(e.target.value)} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Sort Order', '排序', lang)}</label>
-                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                  <label className="text-xs text-muted-foreground block mb-1">{t('Sort Order', '排序', lang)}</label>
+                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
                 <div className="flex items-end gap-2">
                   <label className="flex items-center gap-2 text-sm">
@@ -4735,14 +4745,14 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
                 </div>
               </div>
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2 text-left">{t('Translations', '翻译', lang)}</h3>
+                <h3 className="text-sm font-semibold mb-2">{t('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, idx) => {
                   const langInfo = activeLanguages.find(l => l.code === tr.language);
                   return (
                     <div key={tr.language} className="grid grid-cols-[60px_1fr] gap-2 mb-2 items-center">
                       <span className="text-sm font-medium text-muted-foreground uppercase">{tr.language}</span>
                       <div>
-                        <label className="text-[10px] text-muted-foreground mb-0.5 block text-left">{langInfo?.name || tr.language}</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">{langInfo?.name || tr.language}</label>
                         <input value={tr.name} onChange={(e) => { const newT = [...translations]; newT[idx].name = e.target.value; setTranslations(newT); }} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                       </div>
                     </div>
@@ -4750,9 +4760,11 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
                 })}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
                 {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
               </button>
             </div>
@@ -4885,6 +4897,7 @@ function AdminPagination({
 // ============== Store Form Modal ==============
 function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, allStores }: { store?: Store; onSave: () => void; lang: string; defaultType?: 'store' | 'official'; activeLanguages: Language[]; allStores: Store[] }) {
   const [open, setOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(store?.slug || '');
   const [logoKey, setLogoKey] = useState(store?.logo_key || store?.logo_url || '');
   const [websiteUrls, setWebsiteUrls] = useState<Array<{url: string; label?: string}>>(() => {
@@ -4995,20 +5008,24 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
         {isEdit ? t('Edit', '编辑', lang) : (storeType === 'official' ? t('Add Official', '添加官网', lang) : t('Add Store', '添加商城', lang))}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-left">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-lg max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-bold">{isEdit ? t('Edit Store', '编辑商城', lang) : (storeType === 'official' ? t('Add Official Website', '添加官网', lang) : t('Add Store', '添加商城', lang))}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-3">
+
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-3">
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
-                <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                <label className="text-xs text-muted-foreground block mb-1">{t('Slug', '标识', lang)}</label>
+                <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{t('Type', '类型', lang)}</label>
-                <div className="mt-1 flex rounded-lg border border-border overflow-hidden">
+                <label className="text-xs text-muted-foreground block mb-1">{t('Type', '类型', lang)}</label>
+                <div className="flex rounded-lg border border-border overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setStoreType('store')}
@@ -5147,9 +5164,11 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 })}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
                 {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
               </button>
             </div>
@@ -5361,15 +5380,15 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-left">{promotionProduct ? t('Edit Promotion Product', '编辑促销产品') : t('Add Promotion Product', '添加促销产品')}</h2>
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-semibold">{promotionProduct ? t('Edit Promotion Product', '编辑促销产品') : t('Add Promotion Product', '添加促销产品')}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground text-xl">×</button>
             </div>
 
-            {/* Content */}
-            <div ref={scrollContainerRef} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] space-y-6">
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-6">
               {/* Promotion Selection */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-left block">{t('Select Promotion', '选择活动')} *</label>
@@ -5932,8 +5951,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-4 border-t border-border">
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
               <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">
                 {t('Cancel', '取消')}
               </button>
@@ -5951,6 +5970,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 // ============== Product Form Modal ==============
 function ProductFormModal({ product, categories, stores, onSave, lang, activeLanguages }: { product?: Product; categories: Category[]; stores: Store[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
 
@@ -6041,13 +6061,17 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
         {isEdit ? t('Edit', '编辑', lang) : t('Add Product', '添加产品', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8">
-          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <h2 className="text-lg font-bold">{isEdit ? t('Edit Product', '编辑产品', lang) : t('Add Product', '添加产品', lang)}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-4">
+
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-4">
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -6358,10 +6382,13 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                 <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false }])} className="text-xs text-primary hover:underline">
                   + {t('Add Store Price', '添加商城价格', lang)}
                 </button>
-              </div>            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+              </div>
+            </div>
+
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
                 {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
               </button>
             </div>
@@ -6375,6 +6402,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
 // ============== Banner Form Modal ==============
 function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: Banner; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [linkUrl, setLinkUrl] = useState(banner?.link_url || '');
   const [sortOrder, setSortOrder] = useState(banner?.sort_order || 0);
   const [isActive, setIsActive] = useState(banner?.is_active !== false);
@@ -6435,13 +6463,17 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
         {isEdit ? t('Edit', '编辑', lang) : t('Add Banner', '添加 Banner', lang)}
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-auto py-8">
-          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 max-h-[90vh] overflow-y-auto relative">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <h2 className="text-lg font-bold">{isEdit ? t('Edit Banner', '编辑 Banner', lang) : t('Add Banner', '添加 Banner', lang)}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="space-y-4">
+
+            {/* Content - Scrollable */}
+            <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-4">
               {/* Default Banner Image Upload (Web) */}
               <ImageUpload
                 value={defaultImageKey}
@@ -6507,9 +6539,11 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
                 })}
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm">{t('Cancel', '取消', lang)}</button>
-              <button onClick={handleSave} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+
+            {/* Footer - Fixed */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">{t('Cancel', '取消', lang)}</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
                 {saving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
               </button>
             </div>
