@@ -356,7 +356,7 @@ export const promotionProductPrices = pgTable("promotion_product_prices", {
 	storeId: integer("store_id").notNull(),
 	currentPrice: numeric("current_price", { precision: 10, scale: 2 }),
 	originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
-	productUrl: text("product_url").notNull(),
+	productUrl: text("product_url"),
 	inStock: boolean("in_stock").default(true).notNull(),
 	discountPercent: integer("discount_percent"),
 	currency: varchar({ length: 10 }).default('$'),
