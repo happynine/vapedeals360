@@ -5477,14 +5477,14 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
               </div>
 
               {/* Notes */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-left block">{t('Notes (Internal)', '备注（内部）')}</label>
-                <input
-                  type="text"
+              <div className="border-t border-border pt-3">
+                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Notes (Internal)', '备注 (内部)')}</label>
+                <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder={t('Only visible in admin, for internal notes', '仅后台可见，用于记录备注信息')}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
+                  rows={2}
+                  placeholder={lang === 'zh' ? '仅后台可见，用于记录备注信息' : 'Only visible in admin, for internal notes'}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
                 />
               </div>
 
@@ -5517,21 +5517,25 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     <div className="space-y-2">
                       <label className="text-xs text-muted-foreground">{t('Features (one per line)', '产品特性（每行一条）')}</label>
                       <textarea
-                        value={tr.features}
-                        onChange={(e) => updateTranslation(tr.language, 'features', e.target.value)}
-                        rows={3}
-                        placeholder={t('One feature per line\nExample:\nLarge vapor\nPortable design', '每行输入一条特性\n例如：\n大烟雾量\n便携设计')}
-                        className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
+                        value={(() => {
+                          try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
+                        })()}
+                        onChange={(e) => { const lines = e.target.value.split('\n').filter(l => l.trim()); updateTranslation(tr.language, 'features', lines.length > 0 ? JSON.stringify(lines) : ''); }}
+                        rows={4}
+                        placeholder={lang === 'zh' ? '每行输入一条特性\n例如：\n大烟雾量\n便携设计' : 'One feature per line\nExample:\nLarge vapor\nPortable design'}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm resize-y min-h-[80px]"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs text-muted-foreground">{t('Specs (one per line)', '规格参数（每行一条）')}</label>
                       <textarea
-                        value={tr.specs}
-                        onChange={(e) => updateTranslation(tr.language, 'specs', e.target.value)}
-                        rows={3}
-                        placeholder={t('One spec per line\nExample:\nSize: 120x30x20mm', '每行输入一条规格\n例如：\n尺寸：120x30x20mm')}
-                        className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
+                        value={(() => {
+                          try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
+                        })()}
+                        onChange={(e) => { const lines = e.target.value.split('\n').filter(l => l.trim()); updateTranslation(tr.language, 'specs', lines.length > 0 ? JSON.stringify(lines) : ''); }}
+                        rows={5}
+                        placeholder={lang === 'zh' ? '每行输入一条规格\n例如：\n尺寸: 120x30x20mm\n重量: 65g\n电池: 1000mAh' : 'One spec per line\nExample:\nSize: 120x30x20mm\nWeight: 65g\nBattery: 1000mAh'}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm resize-y min-h-[100px]"
                       />
                     </div>
                   </div>
