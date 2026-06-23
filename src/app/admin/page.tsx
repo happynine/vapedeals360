@@ -5317,10 +5317,11 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         is_featured: isFeatured,
         notes: notes,
         translations: translations,
-        store_prices: storePrices.map(p => {
+        // Filter out prices without store_id (same as ProductFormModal)
+        store_prices: storePrices.filter(p => p.store_id).map(p => {
           // Calculate end_time for countdown mode
-          let endTime = null;
-          let startTime = null;
+          let endTime: string | null = null;
+          let startTime: string | null = null;
           
           if (p.time_type === 'time_range') {
             startTime = p.start_time ? new Date(p.start_time).toISOString() : null;
@@ -5334,7 +5335,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
           }
           
           return {
-            store_id: p.store_id ? parseInt(p.store_id) : null,
+            store_id: parseInt(p.store_id),
             region: p.region,
             current_price: p.current_price,
             original_price: p.original_price,
