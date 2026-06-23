@@ -243,8 +243,8 @@ interface BannerTranslation { id: number; banner_id: number; language: string; i
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; cover_image_key: string | null; cover_image_url: string | null; }
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
-interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; }
-interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; store_prices?: PromotionProductStorePrice[]; }
+interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
+interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
@@ -1580,26 +1580,29 @@ export default function AdminPage() {
                             </tr>
                           ) : (
                             promotionProducts.map((pp, ppIndex) => {
-                              const product = products.find(p => p.id === pp.product_id);
-                              const promotion = promotions.find(p => p.id === pp.promotion_id);
-                              const store = stores.find(s => s.id === pp.store_id);
-                              const productName = product?.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
-                              const promotionName = promotion?.promotion_translations?.find((tr) => tr.language === 'en')?.name || promotion?.slug || '—';
-                              const storeName = store?.store_translations?.find((tr) => tr.language === 'en')?.name || store?.slug || '—';
+                              // Get product name from promotion_product_translations
+                              const productName = pp.promotion_product_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || '—';
+                              // Get promotion name from promotions (returned by API)
+                              const promotionName = pp.promotions?.promotion_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || pp.promotions?.slug || '—';
+                              // Get first store price info
+                              const firstStorePrice = pp.stores?.[0];
+                              const storeName = firstStorePrice?.store?.store_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || firstStorePrice?.store?.slug || '—';
+                              const specialPrice = firstStorePrice?.current_price ? `${firstStorePrice.currency || '$'}${firstStorePrice.current_price}` : '—';
                               
+                              // Get time display from first store price
                               let timeDisplay = t('Permanent', '永久', adminLang);
-                              if (pp.time_type === 'time_range' && pp.start_time && pp.end_time) {
-                                timeDisplay = `${new Date(pp.start_time).toLocaleDateString()} - ${new Date(pp.end_time).toLocaleDateString()}`;
-                              } else if (pp.time_type === 'countdown' && pp.end_time) {
+                              const timeData = firstStorePrice || pp;
+                              if (timeData?.time_type === 'time_range' && timeData?.start_time && timeData?.end_time) {
+                                timeDisplay = `${new Date(timeData.start_time).toLocaleDateString()} - ${new Date(timeData.end_time).toLocaleDateString()}`;
+                              } else if (timeData?.time_type === 'countdown' && timeData?.end_time) {
                                 const now = new Date();
-                                const end = new Date(pp.end_time);
+                                const end = new Date(timeData.end_time);
                                 const diff = end.getTime() - now.getTime();
                                 if (diff > 0) {
                                   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                                   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                                   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                                   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                                  // Format: x天x小时x分x秒 (always 2 digits for hours/minutes/seconds)
                                   const hoursStr = hours.toString().padStart(2, '0');
                                   const minutesStr = minutes.toString().padStart(2, '0');
                                   const secondsStr = seconds.toString().padStart(2, '0');
@@ -1618,13 +1621,11 @@ export default function AdminPage() {
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
                                   <td className="px-4 py-3">
                                     <div className="text-sm font-medium">{productName}</div>
-                                    <div className="text-xs text-muted-foreground">#{pp.product_id}</div>
+                                    <div className="text-xs text-muted-foreground">#<span className="text-purple-400">{pp.slug}</span></div>
                                   </td>
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{promotionName}</td>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{storeName || t('All Stores', '全部商城', adminLang)}</td>
-                                  <td className="px-4 py-3 text-sm font-medium text-green-400">
-                                    {pp.special_price ? `${pp.currency || '$'}${pp.special_price}` : (promotion?.special_price ? `${promotion.currency || '$'}${promotion.special_price}` : '—')}
-                                  </td>
+                                  <td className="px-4 py-3 text-sm text-muted-foreground">{storeName}</td>
+                                  <td className="px-4 py-3 text-sm font-medium text-green-400">{specialPrice}</td>
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{timeDisplay}</td>
                                   <td className="px-4 py-3">
                                     {pp.is_active !== false && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
@@ -5226,7 +5227,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     countdown_minutes: number;
     countdown_seconds: number;
   }[]>(
-    promotionProduct?.store_prices?.map((p) => {
+    (promotionProduct?.promotion_product_prices || promotionProduct?.stores)?.map((p: { store_id?: number | null; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; region?: string }) => {
       // Calculate countdown duration from end_time if countdown mode
       let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
       if (p.time_type === 'countdown' && p.end_time) {

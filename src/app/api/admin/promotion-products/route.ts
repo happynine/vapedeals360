@@ -6,12 +6,13 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseClient();
   
   try {
-    // Fetch promotion products with translations
+    // Fetch promotion products with translations and store prices
     const { data: promotionProducts, error: ppError } = await supabase
       .from('promotion_products')
       .select(`
         *,
-        promotion_product_translations (*)
+        promotion_product_translations (*),
+        promotion_product_prices (*)
       `)
       .order('id', { ascending: true });
 
@@ -19,19 +20,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
 
-    // Get unique promotion IDs and category IDs
+    // Get unique promotion IDs and category IDs and store IDs
     const promotionIds = [...new Set(promotionProducts?.map(pp => pp.promotion_id) || [])];
     const categoryIds = [...new Set(promotionProducts?.map(pp => pp.category_id).filter(Boolean) || [])];
+    const storeIds = [...new Set(promotionProducts?.flatMap(pp => (pp.promotion_product_prices as Array<{ store_id: number }>)?.map((sp: { store_id: number }) => sp.store_id) || []).filter(Boolean) || [])];
 
     // Fetch related data separately
-    const [promotionsRes, categoriesRes] = await Promise.all([
+    const [promotionsRes, categoriesRes, storesRes] = await Promise.all([
       supabase.from('promotions').select('id, slug, promotion_type, special_price, currency, promotion_translations (name, language)').in('id', promotionIds),
       categoryIds.length > 0 
         ? supabase.from('categories').select('id, slug, category_translations (name, language)').in('id', categoryIds)
+        : { data: [], error: null },
+      storeIds.length > 0
+        ? supabase.from('stores').select('id, slug, store_translations (name, language)').in('id', storeIds)
         : { data: [], error: null }
     ]);
 
-    if (promotionsRes.error || categoriesRes.error) {
+    if (promotionsRes.error || categoriesRes.error || storesRes.error) {
       return NextResponse.json({ success: false, error: 'Failed to fetch related data' }, { status: 500 });
     }
 
@@ -39,7 +44,11 @@ export async function GET(request: NextRequest) {
     const combinedData = promotionProducts?.map(pp => ({
       ...pp,
       promotions: promotionsRes.data?.find(p => p.id === pp.promotion_id) || null,
-      categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null
+      categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null,
+      stores: (pp.promotion_product_prices as Array<{ store_id: number; [key: string]: unknown }>)?.map((sp: { store_id: number; [key: string]: unknown }) => ({
+        ...sp,
+        store: storesRes.data?.find(s => s.id === sp.store_id) || null
+      })) || []
     })) || [];
 
     return NextResponse.json({ success: true, data: combinedData });
