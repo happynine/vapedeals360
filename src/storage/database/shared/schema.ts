@@ -349,6 +349,40 @@ export const promotionProductTranslations = pgTable("promotion_product_translati
 	unique("promotion_product_translations_promotion_product_id_language_key").on(table.promotionProductId, table.language),
 ]);
 
+export const promotionProductPrices = pgTable("promotion_product_prices", {
+	id: serial().primaryKey().notNull(),
+	promotionProductId: integer("promotion_product_id").notNull(),
+	storeId: integer("store_id").notNull(),
+	currentPrice: numeric("current_price", { precision: 10, scale: 2 }).notNull(),
+	originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
+	productUrl: text("product_url").notNull(),
+	inStock: boolean("in_stock").default(true).notNull(),
+	discountPercent: integer("discount_percent"),
+	currency: varchar({ length: 10 }).default('$'),
+	region: varchar({ length: 50 }).default(''),
+	noQuote: boolean("no_quote").default(false),
+	specialPrice: numeric("special_price", { precision: 10, scale: 2 }),
+	timeType: varchar("time_type", { length: 20 }).default('permanent'),
+	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),
+	endTime: timestamp("end_time", { withTimezone: true, mode: 'string' }),
+	countdownAction: varchar("countdown_action", { length: 20 }).default('close'),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_ppp_product").using("btree", table.promotionProductId.asc().nullsLast().op("int4_ops")),
+	index("idx_ppp_store").using("btree", table.storeId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.promotionProductId],
+			foreignColumns: [promotionProducts.id],
+			name: "promotion_product_prices_promotion_product_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.storeId],
+			foreignColumns: [stores.id],
+			name: "promotion_product_prices_store_id_fkey"
+	}).onDelete("cascade"),
+]);
+
 export const contactMessages = pgTable("contact_messages", {
 	id: serial().primaryKey().notNull(),
 	name: varchar({ length: 255 }).notNull(),
