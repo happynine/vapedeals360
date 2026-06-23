@@ -1659,7 +1659,7 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold">{t('Promotions', '特惠活动', adminLang)}</h1>
-                <PromotionFormModal products={products} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
+                <PromotionFormModal products={products} promotionProducts={promotionProducts} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
                 <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary animate-pulse" />)}</div>
@@ -1702,7 +1702,7 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <PromotionFormModal promotion={promo} products={products} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
+                                <PromotionFormModal promotion={promo} products={products} promotionProducts={promotionProducts} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
                                 <button onClick={() => handleDeletePromotion(promo.id)} className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
                                   {t('Delete', '删除', adminLang)}
                                 </button>
@@ -4454,7 +4454,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
 });
 
 // ============== Promotion Form Modal ==============
-function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages }: { promotion?: Promotion; products: Product[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
+function PromotionFormModal({ promotion, products, promotionProducts, onSave, lang, activeLanguages }: { promotion?: Promotion; products: Product[]; promotionProducts: PromotionProduct[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState(promotion?.title || '');
@@ -4465,24 +4465,26 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
   const [translations, setTranslations] = useState<{ language: string; name: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
     promotion?.promotion_translations?.map((tr) => ({ language: tr.language, name: tr.name || '', cover_image_key: tr.cover_image_key, cover_image_url: tr.cover_image_url })) || activeLanguages.map(l => ({ language: l.code, name: '', cover_image_key: null, cover_image_url: null }))
   );
+  // Filter promotion products linked to this promotion
+  const linkedPromotionProducts = promotionProducts.filter(pp => pp.promotion_id === promotion?.id);
   // 每个产品有自己的时间设置
   const [selectedProducts, setSelectedProducts] = useState<{ 
     product_id: number | null; 
     special_price?: number | null; 
     currency?: string | null;
     time_type: 'permanent' | 'time_range' | 'countdown';
-    start_time?: string;
-    end_time?: string;
+    start_time?: string | null;
+    end_time?: string | null;
     countdown_action: 'close' | 'original_price';
   }[]>(
-    promotion?.promotion_products?.map((pp) => ({ 
-      product_id: pp.product_id ?? null, 
-      special_price: pp.special_price ?? null, 
-      currency: pp.currency ?? null,
-      time_type: (pp.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
-      start_time: pp.start_time ? new Date(pp.start_time).toISOString().slice(0, 16) : '',
-      end_time: pp.end_time ? new Date(pp.end_time).toISOString().slice(0, 16) : '',
-      countdown_action: (pp.countdown_action as 'close' | 'original_price') || 'close'
+    linkedPromotionProducts.map((pp) => ({ 
+      product_id: pp.id ?? null, 
+      special_price: pp.stores?.[0]?.current_price ? parseFloat(pp.stores[0].current_price) : null, 
+      currency: pp.stores?.[0]?.currency || '$',
+      time_type: (pp.stores?.[0]?.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
+      start_time: pp.stores?.[0]?.start_time ?? null,
+      end_time: pp.stores?.[0]?.end_time ?? null,
+      countdown_action: (pp.stores?.[0]?.countdown_action as 'close' | 'original_price') || 'close'
     })) || []
   );
   const [saving, setSaving] = useState(false);
@@ -4633,18 +4635,19 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
               {/* Linked Products - Read Only Display */}
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-semibold mb-2">{t('Linked Products', '关联产品', lang)}</h3>
-                {selectedProducts.length > 0 ? (
+                {linkedPromotionProducts.length > 0 ? (
                   <div className="max-h-[300px] overflow-y-auto rounded-lg border border-border p-2 space-y-2">
-                    {selectedProducts.map((sp) => {
-                      const product = products.find(p => p.id === sp.product_id);
-                      const enName = product?.product_translations?.find(tr => tr.language === 'en')?.name || '';
+                    {linkedPromotionProducts.map((pp) => {
+                      const productName = pp.promotion_product_translations?.find(tr => tr.language === 'en')?.name || '';
+                      const firstStore = pp.stores?.[0];
+                      const specialPrice = firstStore?.current_price || '';
                       return (
-                        <div key={sp.product_id} className="p-3 rounded-lg border border-border bg-secondary/30">
+                        <div key={pp.id} className="p-3 rounded-lg border border-border bg-secondary/30">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-muted-foreground">#{sp.product_id}</span>
-                            <span className="text-xs truncate flex-1">{enName}</span>
-                            {sp.special_price && (
-                              <span className="text-xs text-emerald-600 font-medium">${sp.special_price}</span>
+                            <span className="text-xs font-semibold text-muted-foreground">#<span className="text-purple-400">{pp.slug}</span></span>
+                            <span className="text-xs truncate flex-1">{productName}</span>
+                            {specialPrice && (
+                              <span className="text-xs text-emerald-600 font-medium">{firstStore?.currency || '$'}{specialPrice}</span>
                             )}
                           </div>
                         </div>
