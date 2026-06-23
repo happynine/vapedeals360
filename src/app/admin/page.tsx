@@ -1,4 +1,4 @@
-'use client';
+'use clientranslate';
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -5371,7 +5371,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     }
   };
 
-  const t = (en: string, zh: string) => lang === 'zh' ? zh : en;
+  // Local translation function for 2 args
+  const translate = (en: string, zh: string, _lang?: string) => lang === 'zh' ? zh : en;
 
   return (
     <>
@@ -5379,7 +5380,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         onClick={() => setOpen(true)}
         className="rounded-lg border border-purple-500/30 bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 transition-colors"
       >
-        {promotionProduct ? t('Edit', '编辑') : t('Add Promotion Product', '添加促销产品')}
+        {promotionProduct ? translate('Edit', '编辑', lang) : translate('Add Promotion Product', '添加促销产品', lang)}
       </button>
 
       {open && (
@@ -5388,7 +5389,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
           <div className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-              <h2 className="text-lg font-semibold">{promotionProduct ? t('Edit Promotion Product', '编辑促销产品') : t('Add Promotion Product', '添加促销产品')}</h2>
+              <h2 className="text-lg font-semibold">{promotionProduct ? translate('编辑促销产品', 'Edit Promotion Product', lang) : translate('添加促销产品', 'Add Promotion Product', lang)}</h2>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground text-xl">×</button>
             </div>
 
@@ -5396,64 +5397,55 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
             <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-6">
               {/* Promotion Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-left block">{t('Select Promotion', '选择活动')} *</label>
+                <label className="text-sm font-medium text-left block">{translate('Select Promotion', '选择活动', lang)} *</label>
                 <select
                   value={selectedPromotionId || ''}
                   onChange={(e) => setSelectedPromotionId(Number(e.target.value))}
                   className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
                 >
-                  <option value="">-- {t('Select a promotion', '选择一个活动')} --</option>
+                  <option value="">-- {translate('Select a promotion', '选择一个活动', lang)} --</option>
                   {promotions.map(p => {
                     const name = p.promotion_translations?.find(tr => tr.language === 'en')?.name || p.slug;
-                    const typeLabel = p.promotion_type === 'special_price' ? t('Special Price', '特惠价') : 
-                                     p.promotion_type === 'buy_2_get_1' ? t('Buy 2 Get 1', '买二送一') : t('Buy 1 Get 1', '买一送一');
+                    const typeLabel = p.promotion_type === 'special_price' ? translate('Special Price', '特惠价', lang) : 
+                                     p.promotion_type === 'buy_2_get_1' ? translate('Buy 2 Get 1', '买二送一') : translate('Buy 1 Get 1', '买一送一');
                     return <option key={p.id} value={p.id}>{name} ({typeLabel})</option>;
                   })}
                 </select>
                 {selectedPromotion && (
                   <p className="text-xs text-muted-foreground">
-                    {t('Default Price:', '默认价格：')} {selectedPromotion.currency || '$'}{selectedPromotion.special_price || '—'}
+                    {translate('Default Price:', '默认价格：')} {selectedPromotion.currency || '$'}{selectedPromotion.special_price || '—'}
                   </p>
                 )}
               </div>
 
               {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-left block">{t('Slug', '标识')}</label>
-                  <input
-                    type="text"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder={t('e.g. summer-sale-product', '例如 summer-sale-product')}
-                    className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{translate('Slug', '标识', lang)}</label>
+                  <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-left block">{t('Category', '分类')}</label>
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-border bg-secondary text-sm"
-                  >
-                    <option value="">{t('None', '无')}</option>
-                    {categories.map(c => {
-                      const name = c.category_translations?.find(tr => tr.language === 'en')?.name || c.slug;
-                      return <option key={c.id} value={c.id}>{name}</option>;
-                    })}
+                <div>
+                  <label className="text-xs text-muted-foreground text-left block">{translate('Category', '分类', lang)}</label>
+                  <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+                    <option value="">{translate('None', '无', lang)}</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.category_translations?.find((tr) => tr.language === lang)?.name || c.slug}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               {/* Product Image Upload */}
-              <ImageUpload
-                value={imageKey}
-                onUploadComplete={setImageKey}
-                aspectRatio={1}
-                suggestedSize="400x400px"
-                label={t('Product Image', '产品图片')}
-                folder="products"
-              />
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (400x400px)</label>
+                <ImageUpload
+                  value={imageKey}
+                  onUploadComplete={setImageKey}
+                  aspectRatio={1}
+                  suggestedSize="400x400px"
+                  folder="products"
+                />
+              </div>
 
               {/* Status */}
               <div className="flex items-center gap-4">
@@ -5464,7 +5456,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     onChange={(e) => setIsActive(e.target.checked)}
                     className="w-4 h-4 rounded border-border bg-secondary"
                   />
-                  <span className="text-sm">{t('Active', '启用')}</span>
+                  <span className="text-sm">{translate('Active', '启用', lang)}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -5473,32 +5465,32 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     onChange={(e) => setIsFeatured(e.target.checked)}
                     className="w-4 h-4 rounded border-border bg-secondary"
                   />
-                  <span className="text-sm">{t('Featured', '推荐')}</span>
+                  <span className="text-sm">{translate('Featured', '推荐', lang)}</span>
                 </label>
               </div>
 
               {/* Notes */}
               <div className="border-t border-border pt-3">
-                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Notes (Internal)', '备注 (内部)')}</label>
+                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{translate('Notes (Internal)', '备注 (内部)', lang)}</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
+                  rows={3}
                   placeholder={lang === 'zh' ? '仅后台可见，用于记录备注信息' : 'Only visible in admin, for internal notes'}
-                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y"
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-none"
                 />
               </div>
 
               {/* Translations */}
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-left">{t('Translations', '翻译')}</h3>
+                <h3 className="text-sm font-medium text-left">{translate('Translations', '翻译', lang)}</h3>
                 {translations.map((tr, index) => (
                   <div key={tr.language} className="border border-border rounded-lg p-4 space-y-3">
                     <div className="text-sm font-medium text-muted-foreground">
                       {tr.language.toUpperCase()} {activeLanguages.find(l => l.code === tr.language)?.name || tr.language}
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">{t('Product Name', '产品名称')}</label>
+                      <label className="text-xs text-muted-foreground">{translate('Product Name', '产品名称', lang)}</label>
                       <input
                         type="text"
                         value={tr.name}
@@ -5507,7 +5499,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">{t('Description', '描述')}</label>
+                      <label className="text-xs text-muted-foreground">{translate('Description', '描述', lang)}</label>
                       <textarea
                         value={tr.description}
                         onChange={(e) => updateTranslation(tr.language, 'description', e.target.value)}
@@ -5516,7 +5508,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">{t('Features (one per line)', '产品特性（每行一条）')}</label>
+                      <label className="text-xs text-muted-foreground">{translate('Features (one per line)', '产品特性（每行一条）', lang)}</label>
                       <textarea
                         value={(() => {
                           try { const arr = typeof tr.features === 'string' ? JSON.parse(tr.features) : tr.features; return Array.isArray(arr) ? arr.join('\n') : tr.features || ''; } catch { return tr.features || ''; }
@@ -5528,7 +5520,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">{t('Specs (one per line)', '规格参数（每行一条）')}</label>
+                      <label className="text-xs text-muted-foreground">{translate('Specs (one per line)', '规格参数（每行一条）', lang)}</label>
                       <textarea
                         value={(() => {
                           try { const arr = typeof tr.specs === 'string' ? JSON.parse(tr.specs) : tr.specs; if (Array.isArray(arr)) return arr.join('\n'); if (arr && typeof arr === 'object') return Object.entries(arr as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join('\n'); return tr.specs || ''; } catch { return tr.specs || ''; }
@@ -5545,7 +5537,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 
               {/* Store Prices - 与标准产品弹窗完全一致 */}
               <div className="border-t border-border pt-3">
-                <h3 className="text-sm font-semibold mb-2 text-left">{t('Store Prices', '商城价格')}</h3>
+                <h3 className="text-sm font-semibold mb-2 text-left">{translate('Store Prices', '商城价格', lang)}</h3>
                 {(() => {
                   // Group prices by store_id (与标准产品弹窗完全一致的逻辑)
                   const storeGroups: Array<{ storeId: string; indices: number[] }> = [];
@@ -5567,7 +5559,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                         <div className="mb-2">
-                          <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城')}</label>
+                          <label className="text-[10px] text-muted-foreground text-left block">{translate('Store', '商城', lang)}</label>
                           <StoreSelect
                             stores={stores}
                             value={firstP.store_id}
@@ -5649,7 +5641,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
-                                    <div className="text-xs font-medium text-primary text-left">{p.region || t('Default', '默认')} ({currencyLabel})</div>
+                                    <div className="text-xs font-medium text-primary text-left">{p.region || translate('Default', '默认')} ({currencyLabel})</div>
                                     <label className="flex items-center gap-1 cursor-pointer">
                                       <input
                                         type="checkbox"
@@ -5666,12 +5658,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                         }}
                                         className="h-3.5 w-3.5 rounded border-border"
                                       />
-                                      <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价')}</span>
+                                      <span className="text-[10px] text-muted-foreground">{translate('No Quote', '无报价')}</span>
                                     </label>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价')} ({currencyLabel})</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{translate('Current Price', '现价')} ({currencyLabel})</label>
                                       <input value={p.current_price} disabled={p.no_quote} onChange={(e) => {
                                         const newP = [...storePrices];
                                         newP[pIdx].current_price = e.target.value;
@@ -5684,7 +5676,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                       }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价')} ({currencyLabel})</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{translate('Original Price', '原价')} ({currencyLabel})</label>
                                       <input value={p.original_price} disabled={p.no_quote} onChange={(e) => {
                                         const newP = [...storePrices];
                                         newP[pIdx].original_price = e.target.value;
@@ -5701,13 +5693,13 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %')}</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{translate('Discount %', '折扣 %')}</label>
                                       <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
                                         {p.discount_percent ? `${p.discount_percent}%` : '—'}
                                       </div>
                                     </div>
                                     <div>
-                                      <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接')}</label>
+                                      <label className="text-[10px] text-muted-foreground text-left block">{translate('Product URL', '产品链接')}</label>
                                       <input value={p.product_url} disabled={p.no_quote} onChange={(e) => { const newP = [...storePrices]; newP[pIdx].product_url = e.target.value; setStorePrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="https://..." />
                                     </div>
                                   </div>
@@ -5734,12 +5726,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   }}
                                   className="h-3.5 w-3.5 rounded border-border"
                                 />
-                                <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价')}</span>
+                                <span className="text-[10px] text-muted-foreground">{translate('No Quote', '无报价')}</span>
                               </label>
                             </div>
                             <div className="grid grid-cols-2 gap-2 mb-1.5">
                               <div>
-                                <label className="text-[10px] text-muted-foreground text-left block">{t('Current Price', '现价')} ({firstP.currency || '$'})</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{translate('Current Price', '现价')} ({firstP.currency || '$'})</label>
                                 <input value={firstP.current_price} disabled={firstP.no_quote} onChange={(e) => {
                                   const newP = [...storePrices];
                                   newP[group.indices[0]].current_price = e.target.value;
@@ -5752,7 +5744,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                 }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="0.00" />
                               </div>
                               <div>
-                                <label className="text-[10px] text-muted-foreground text-left block">{t('Original Price', '原价')} ({firstP.currency || '$'})</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{translate('Original Price', '原价')} ({firstP.currency || '$'})</label>
                                 <input value={firstP.original_price} disabled={firstP.no_quote} onChange={(e) => {
                                   const newP = [...storePrices];
                                   newP[group.indices[0]].original_price = e.target.value;
@@ -5769,13 +5761,13 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="text-[10px] text-muted-foreground text-left block">{t('Discount %', '折扣 %')}</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{translate('Discount %', '折扣 %')}</label>
                                 <div className="mt-0.5 w-full rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm text-muted-foreground">
                                   {firstP.discount_percent ? `${firstP.discount_percent}%` : '—'}
                                 </div>
                               </div>
                               <div>
-                                <label className="text-[10px] text-muted-foreground text-left block">{t('Product URL', '产品链接')}</label>
+                                <label className="text-[10px] text-muted-foreground text-left block">{translate('Product URL', '产品链接')}</label>
                                 <input value={firstP.product_url} disabled={firstP.no_quote} onChange={(e) => { const newP = [...storePrices]; newP[group.indices[0]].product_url = e.target.value; setStorePrices(newP); }} className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="https://..." />
                               </div>
                             </div>
@@ -5783,7 +5775,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                         )}
                         {/* Time Settings - 每个商城分组下方 */}
                         <div className="border-t border-border/50 pt-2 mt-2">
-                          <label className="text-[10px] text-muted-foreground block mb-1 text-left">{t('Time Settings', '时间设置')}</label>
+                          <label className="text-[10px] text-muted-foreground block mb-1 text-left">{translate('Time Settings', '时间设置')}</label>
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             <button 
                               onClick={() => { 
@@ -5795,7 +5787,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               }} 
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'permanent' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
                             >
-                              {t('Permanent', '永久')}
+                              {translate('Permanent', '永久')}
                             </button>
                             <button 
                               onClick={() => { 
@@ -5807,7 +5799,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               }} 
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'time_range' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
                             >
-                              {t('Time Range', '时间段')}
+                              {translate('Time Range', '时间段')}
                             </button>
                             <button 
                               onClick={() => { 
@@ -5819,14 +5811,14 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               }} 
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${firstP.time_type === 'countdown' ? 'bg-purple-600 text-white' : 'bg-secondary hover:bg-secondary/80'}`}
                             >
-                              {t('Countdown', '倒计时')}
+                              {translate('Countdown', '倒计时')}
                             </button>
                           </div>
                           {/* Time Range mode: show datetime-local inputs */}
                           {firstP.time_type === 'time_range' && (
                             <div className="grid grid-cols-2 gap-2 mb-2">
                               <div>
-                                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Start Time', '开始时间')}</label>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{translate('Start Time', '开始时间')}</label>
                                 <input 
                                   type="datetime-local" 
                                   value={firstP.start_time} 
@@ -5841,7 +5833,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                 />
                               </div>
                               <div>
-                                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('End Time', '结束时间')}</label>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{translate('End Time', '结束时间')}</label>
                                 <input 
                                   type="datetime-local" 
                                   value={firstP.end_time} 
@@ -5860,7 +5852,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                           {/* Countdown mode: show days/hours/minutes/seconds inputs */}
                           {firstP.time_type === 'countdown' && (
                             <div className="mb-2">
-                              <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Duration', '时长')}</label>
+                              <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{translate('Duration', '时长')}</label>
                               <div className="flex items-center gap-2 bg-secondary rounded border border-border px-2 py-1">
                                 <input 
                                   type="number" 
@@ -5876,7 +5868,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   }} 
                                   className="w-12 rounded bg-background px-1 py-0.5 text-xs text-center" 
                                 />
-                                <span className="text-xs text-muted-foreground">{t('days', '天')}</span>
+                                <span className="text-xs text-muted-foreground">{translate('days', '天')}</span>
                                 <input 
                                   type="number" 
                                   min="0"
@@ -5891,7 +5883,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   }} 
                                   className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
                                 />
-                                <span className="text-xs text-muted-foreground">{t('hours', '时')}</span>
+                                <span className="text-xs text-muted-foreground">{translate('hours', '时')}</span>
                                 <input 
                                   type="number" 
                                   min="0"
@@ -5906,7 +5898,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   }} 
                                   className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
                                 />
-                                <span className="text-xs text-muted-foreground">{t('min', '分')}</span>
+                                <span className="text-xs text-muted-foreground">{translate('min', '分')}</span>
                                 <input 
                                   type="number" 
                                   min="0"
@@ -5921,13 +5913,13 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   }} 
                                   className="w-10 rounded bg-background px-1 py-0.5 text-xs text-center" 
                                 />
-                                <span className="text-xs text-muted-foreground">{t('sec', '秒')}</span>
+                                <span className="text-xs text-muted-foreground">{translate('sec', '秒')}</span>
                               </div>
                             </div>
                           )}
                           {firstP.time_type === 'countdown' && (
                             <div>
-                              <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('After Countdown Ends', '倒计时结束后')}</label>
+                              <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{translate('After Countdown Ends', '倒计时结束后')}</label>
                               <select 
                                 value={firstP.countdown_action} 
                                 onChange={(e) => { 
@@ -5939,15 +5931,15 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                 }} 
                                 className="w-full rounded border border-border bg-secondary px-2 py-1 text-xs"
                               >
-                                <option value="close">{t('Close Promotion', '关闭活动')}</option>
-                                <option value="original_price">{t('Return to Original Price', '恢复原价')}</option>
+                                <option value="close">{translate('Close Promotion', '关闭活动')}</option>
+                                <option value="original_price">{translate('Return to Original Price', '恢复原价')}</option>
                               </select>
                             </div>
                           )}
                         </div>
                         {storePrices.length > 1 && (
                           <button onClick={() => setStorePrices(storePrices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
-                            {t('Remove Store', '移除商城')}
+                            {translate('Remove Store', '移除商城')}
                           </button>
                         )}
                       </div>
@@ -5955,7 +5947,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   })}</>
                 })()}
                 <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Store Price', '添加商城价格')}
+                  + {translate('Add Store Price', '添加商城价格', lang)}
                 </button>
               </div>
             </div>
@@ -5963,10 +5955,10 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
             {/* Footer - Fixed */}
             <div className="flex items-center justify-end gap-3 p-4 border-t border-border shrink-0">
               <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80">
-                {t('Cancel', '取消')}
+                {translate('Cancel', '取消')}
               </button>
               <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50">
-                {saving ? t('Saving...', '保存中...') : t('Save', '保存')}
+                {saving ? translate('Saving...', '保存中...') : translate('Save', '保存')}
               </button>
             </div>
           </div>
