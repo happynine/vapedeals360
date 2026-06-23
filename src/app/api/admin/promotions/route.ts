@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const {
+      title,
       slug,
       promotion_type,
       special_price,
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
     const { data: promotion, error: promotionError } = await client
       .from('promotions')
       .insert({
+        title: title || '',
         slug,
         promotion_type: promotion_type || 'special_price',
         special_price,
@@ -186,6 +188,7 @@ export async function PUT(request: NextRequest) {
 
     const {
       id,
+      title,
       slug,
       promotion_type,
       special_price,
@@ -204,6 +207,7 @@ export async function PUT(request: NextRequest) {
     const { data: promotion, error: promotionError } = await client
       .from('promotions')
       .update({
+        title,
         slug,
         promotion_type,
         special_price,

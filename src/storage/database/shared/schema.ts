@@ -284,6 +284,7 @@ export const languages = pgTable("languages", {
 
 export const promotions = pgTable("promotions", {
 	id: serial().primaryKey().notNull(),
+	title: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }).notNull(),
 	promotionType: varchar("promotion_type", { length: 50 }).default('special_price').notNull(),
 	specialPrice: numeric("special_price", { precision: 10, scale:  2 }),

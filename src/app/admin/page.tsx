@@ -245,7 +245,7 @@ interface PromotionTranslation { id: number; promotion_id: number; language: str
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; }
 interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; store_prices?: PromotionProductStorePrice[]; }
-interface Promotion { id: number; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
+interface Promotion { id: number; title?: string; slug: string; promotion_type: 'special_price' | 'buy_2_get_1' | 'buy_1_get_1'; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
@@ -1668,8 +1668,8 @@ export default function AdminPage() {
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('ID', 'ID', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Title', '标题', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name', '名称', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Products', '产品数', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
@@ -1678,8 +1678,6 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {promotions.map((promo) => {
-                        const enName = promo.promotion_translations?.find((tr) => tr.language === 'en')?.name || '—';
-                        const zhName = promo.promotion_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                         const typeLabels: Record<string, { en: string; zh: string }> = {
                           special_price: { en: 'Special Price', zh: '特惠价' },
                           buy_2_get_1: { en: 'Buy 2 Get 1', zh: '买二送一' },
@@ -1689,11 +1687,8 @@ export default function AdminPage() {
                         return (
                           <tr key={promo.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                             <td className="px-4 py-3 text-sm text-muted-foreground">{promo.id}</td>
+                            <td className="px-4 py-3 text-sm font-medium">{promo.title || '—'}</td>
                             <td className="px-4 py-3 text-sm font-mono">{promo.slug}</td>
-                            <td className="px-4 py-3">
-                              <div className="text-sm font-medium">{enName}</div>
-                              <div className="text-xs text-muted-foreground">{zhName}</div>
-                            </td>
                             <td className="px-4 py-3 text-sm">
                               {promo.promotion_type === 'special_price' && promo.special_price && (
                                 <span className="text-primary font-medium">{promo.currency || '$'}{promo.special_price}</span>
@@ -4461,6 +4456,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
 function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages }: { promotion?: Promotion; products: Product[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [title, setTitle] = useState(promotion?.title || '');
   const [slug, setSlug] = useState(promotion?.slug || '');
   const [promotionType, setPromotionType] = useState<'special_price' | 'buy_2_get_1' | 'buy_1_get_1'>(promotion?.promotion_type || 'special_price');
   const [sortOrder, setSortOrder] = useState(promotion?.sort_order || 0);
@@ -4512,6 +4508,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
       });
       // Reset form fields for new promotion
       if (!isEdit) {
+        setTitle('');
         setSlug('');
         setPromotionType('special_price');
         setSortOrder(0);
@@ -4532,6 +4529,7 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
       const method = isEdit ? 'PUT' : 'POST';
       const body = {
         id: promotion?.id,
+        title,
         slug,
         promotion_type: promotionType,
         sort_order: sortOrder,
@@ -4563,6 +4561,12 @@ function PromotionFormModal({ promotion, products, onSave, lang, activeLanguages
 
             {/* Content - Scrollable */}
             <div ref={scrollContainerRef} className="p-6 overflow-y-auto flex-1 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{t('Title (Internal)', '标题 (内部)', lang)}</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" placeholder="e.g. Summer Sale 2024" />
+              </div>
+              
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
