@@ -227,6 +227,7 @@ interface Promotion {
     end_time: string | null;
     countdown_action: string;
     translations: PromotionTranslation[];
+    promotion_translations?: PromotionTranslation[];
     countdown?: { days: number; hours: number; minutes: number; seconds: number } | null;
     product_count: number;
 }
@@ -433,8 +434,8 @@ export default function HomePage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {promotions.map((promotion) => {
-                                const translation = promotion.translations?.[0];
-                                const coverImage = translation?.cover_image_url;
+                                const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
+                                const coverImage = translation?.cover_image_url || translation?.cover_image_key;
                                 
                                 if (!coverImage) return null;
                                 
