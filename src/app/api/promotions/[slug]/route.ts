@@ -22,17 +22,21 @@ export async function GET(
         translations:promotion_translations (
           id,
           name,
-          description,
+          cover_image_key,
           cover_image_url,
-          language_code
+          language
         )
       `)
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
 
-    if (promotionError || !promotion) {
-      return NextResponse.json({ error: 'Promotion not found' }, { status: 404 });
+    if (promotionError) {
+      console.error('Promotion query error:', promotionError);
+      return NextResponse.json({ error: 'Promotion not found', details: promotionError.message }, { status: 404 });
+    }
+    if (!promotion) {
+      return NextResponse.json({ error: 'Promotion not found - no data returned' }, { status: 404 });
     }
 
     // Get promotion products with their data
@@ -52,7 +56,7 @@ export async function GET(
           id,
           name,
           description,
-          language_code
+          language
         )
       `)
       .eq('promotion_id', promotion.id);
