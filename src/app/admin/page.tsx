@@ -544,6 +544,9 @@ export default function AdminPage() {
   const [promotionPage, setPromotionPage] = useState(1);
   const [promotionTotal, setPromotionTotal] = useState(0);
   const PROMOTIONS_PER_PAGE = 20;
+  const [promotionsEnabled, setPromotionsEnabled] = useState(true);
+  const [showPromotionToggleConfirm, setShowPromotionToggleConfirm] = useState(false);
+  const [pendingPromotionToggleValue, setPendingPromotionToggleValue] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminLang, setAdminLang] = useState<'en' | 'zh'>('en');
   const [languages, setLanguages] = useState<Language[]>(DEFAULT_LANGUAGES);
@@ -605,8 +608,41 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Fetch promotion toggle status
+  const fetchPromotionToggle = useCallback(async () => {
+    try {
+      const res = await adminFetch('/api/admin/promotion-toggle');
+      const json = await res.json();
+      if (json.promotions_enabled !== undefined) {
+        setPromotionsEnabled(json.promotions_enabled);
+      }
+    } catch (err) {
+      console.error('Failed to fetch promotion toggle:', err);
+    }
+  }, []);
+
+  // Update promotion toggle status
+  const updatePromotionToggle = useCallback(async (enabled: boolean) => {
+    try {
+      const res = await adminFetch('/api/admin/promotion-toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promotions_enabled: enabled })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setPromotionsEnabled(enabled);
+      } else {
+        alert(t('Error:', '错误：', adminLang) + json.error);
+      }
+    } catch (err) {
+      console.error('Failed to update promotion toggle:', err);
+      alert(t('Failed to update promotion toggle', '更新促销开关失败', adminLang));
+    }
+  }, [adminLang]);
+
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
-  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') fetchPromotions(); }, [isLoggedIn, activeTab, fetchPromotions]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
   useEffect(() => { if (isLoggedIn && activeTab === 'products' && productTypeTab === 'promotion') fetchPromotionProducts(); }, [isLoggedIn, activeTab, productTypeTab, fetchPromotionProducts]);
 
   // Seed data
@@ -1658,7 +1694,31 @@ export default function AdminPage() {
           {activeTab === 'promotions' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold">{t('Promotions', '特惠活动', adminLang)}</h1>
+                <div className="flex items-center gap-4">
+                  <h1 className="text-2xl font-bold">{t('Promotions', '特惠活动', adminLang)}</h1>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${promotionsEnabled ? 'text-green-500' : 'text-red-500'}`}>
+                      {promotionsEnabled ? t('Enabled', '已开启', adminLang) : t('Disabled', '已关闭', adminLang)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (promotionsEnabled) {
+                          // 关闭时需要确认
+                          setPendingPromotionToggleValue(false);
+                          setShowPromotionToggleConfirm(true);
+                        } else {
+                          // 开启时直接操作
+                          updatePromotionToggle(true);
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${promotionsEnabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${promotionsEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
                 <PromotionFormModal products={products} promotionProducts={promotionProducts} onSave={fetchPromotions} lang={adminLang} activeLanguages={activeLanguages} />
               </div>
               {loading ? (
@@ -1993,6 +2053,39 @@ export default function AdminPage() {
           {/* News Tab */}
           {activeTab === 'news' && (
             <ContentPagesManager ref={newsRef} type="news" title={t('News', '新闻', adminLang)} lang={adminLang} isFullPage activeLanguages={activeLanguages} />
+          )}
+
+          {/* Promotion Toggle Confirm Modal */}
+          {showPromotionToggleConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-card rounded-xl border border-border p-6 max-w-md w-full shadow-xl">
+                <h2 className="text-lg font-semibold mb-4">{t('Confirm Disable Promotions', '确认关闭所有活动', adminLang)}</h2>
+                <p className="text-muted-foreground mb-6">{t('Are you sure you want to disable all promotions? After disabling, promotions will no longer be displayed on the frontend.', '确认要关闭所有活动吗，关闭后前端将不再展示', adminLang)}</p>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowPromotionToggleConfirm(false);
+                      setPendingPromotionToggleValue(null);
+                    }}
+                    className="px-4 py-2 rounded-md bg-secondary text-sm hover:bg-secondary/80"
+                  >
+                    {t('Cancel', '取消', adminLang)}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowPromotionToggleConfirm(false);
+                      if (pendingPromotionToggleValue !== null) {
+                        await updatePromotionToggle(pendingPromotionToggleValue);
+                      }
+                      setPendingPromotionToggleValue(null);
+                    }}
+                    className="px-4 py-2 rounded-md bg-red-600 text-white text-sm hover:bg-red-700"
+                  >
+                    {t('Disable', '关闭', adminLang)}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </main>

@@ -237,6 +237,7 @@ export const siteSettingTranslations = pgTable("site_setting_translations", {
 export const siteSettings = pgTable("site_settings", {
 	id: serial().primaryKey().notNull(),
 	logoUrl: text("logo_url"),
+	promotionsEnabled: boolean("promotions_enabled").default(true).notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 });
 
