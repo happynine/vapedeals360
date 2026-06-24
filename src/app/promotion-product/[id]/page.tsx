@@ -35,7 +35,7 @@ interface PromotionProductTranslation {
   id: number;
   name: string | null;
   description: string | null;
-  language_code: string;
+  language: string;
 }
 
 interface PromotionProduct {
@@ -61,7 +61,7 @@ interface Promotion {
     id: number;
     name: string | null;
     cover_image_url: string | null;
-    language_code: string;
+    language: string;
   }[];
 }
 
@@ -149,8 +149,8 @@ export default function PromotionProductPage() {
   }
 
   const { product, promotion } = data;
-  const translation = product.promotion_product_translations?.find(t => t.language_code === language) || product.promotion_product_translations?.[0];
-  const promotionTranslation = promotion?.translations?.find(t => t.language_code === language) || promotion?.translations?.[0];
+  const translation = product.promotion_product_translations?.find(t => t.language === language) || product.promotion_product_translations?.[0];
+  const promotionTranslation = promotion?.translations?.find(t => t.language === language) || promotion?.translations?.[0];
 
   // Get store prices sorted by price
   const validPrices = product.store_prices?.filter(p => p.store_id && p.current_price && !p.no_quote) || [];

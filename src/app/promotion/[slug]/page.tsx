@@ -44,7 +44,7 @@ interface PromotionProductTranslation {
   id: number;
   name: string | null;
   description: string | null;
-  language_code: string;
+  language: string;
 }
 
 interface PromotionProduct {
@@ -315,7 +315,7 @@ export default function PromotionPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {activeProducts.map((product) => {
               const productTranslation = product.promotion_product_translations?.find(
-                t => t.language_code === language
+                t => t.language === language
               ) || product.promotion_product_translations?.[0];
               
               // Get first store price with valid data
