@@ -5,6 +5,27 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabaseClient();
+    
+    // 检查促销活动全局开关
+    const { data: siteSettings, error: settingsError } = await client
+      .from('site_settings')
+      .select('promotions_enabled')
+      .single();
+    
+    if (settingsError && settingsError.code !== 'PGRST116') {
+      console.error('Error fetching site settings:', settingsError);
+    }
+    
+    // 如果促销活动被禁用，返回空数据
+    if (siteSettings && !siteSettings.promotions_enabled) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          promotions: [],
+          message: 'Promotions are currently disabled'
+        }
+      });
+    }
     const { searchParams } = new URL(request.url);
     const language = searchParams.get('language') || 'en';
     const region = searchParams.get('region') || 'USA';

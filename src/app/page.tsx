@@ -208,6 +208,29 @@ interface SiteSettings {
     logo_url: string | null;
 }
 
+interface PromotionTranslation {
+    id: number;
+    language: string;
+    name: string;
+    cover_image_key: string | null;
+    cover_image_url: string | null;
+}
+
+interface Promotion {
+    id: number;
+    slug: string;
+    promotion_type: string;
+    is_active: boolean;
+    sort_order: number;
+    time_type: string;
+    start_time: string | null;
+    end_time: string | null;
+    countdown_action: string;
+    translations: PromotionTranslation[];
+    countdown?: { days: number; hours: number; minutes: number; seconds: number } | null;
+    product_count: number;
+}
+
 export default function HomePage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -226,6 +249,7 @@ export default function HomePage() {
     const [mounted, setMounted] = useState(false);
     const [salesRegion, setSalesRegion] = useState<string>("USA");
     const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
+    const [promotions, setPromotions] = useState<Promotion[]>([]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -287,6 +311,14 @@ export default function HomePage() {
 
             if (bannerJson.success) {
                 setBanners(bannerJson.data || []);
+            }
+
+            // Fetch promotions
+            const promoRes = await fetch(`/api/promotions?language=${language}`);
+            const promoJson = await promoRes.json();
+
+            if (promoJson.success) {
+                setPromotions(promoJson.data.promotions || []);
             }
 
         } catch (err) {
@@ -387,6 +419,60 @@ export default function HomePage() {
                         <BannerCarousel banners={banners} language={language} />
                     </div>
                 </div>}
+                
+                {/* Promotions Cover Images Section */}
+                {promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-600">
+                                <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                {language === "zh" ? "促销活动" : "PROMOTIONS"}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {promotions.map((promotion) => {
+                                const translation = promotion.translations?.[0];
+                                const coverImage = translation?.cover_image_url;
+                                
+                                if (!coverImage) return null;
+                                
+                                return (
+                                    <Link
+                                        key={promotion.id}
+                                        href={`/promotion/${promotion.slug}`}
+                                        className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-purple-300 transition-all"
+                                    >
+                                        <div className="relative aspect-[16/9] overflow-hidden">
+                                            <SafeImage
+                                                src={coverImage}
+                                                alt={translation?.name || promotion.slug}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                            />
+                                        </div>
+                                        {promotion.countdown && (
+                                            <div className="absolute bottom-2 left-2 rounded-lg bg-red-500/90 px-2 py-1 text-xs font-bold text-white">
+                                                {promotion.countdown.days}d {promotion.countdown.hours}h {promotion.countdown.minutes}m
+                                            </div>
+                                        )}
+                                        <div className="p-2">
+                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                                {translation?.name || promotion.slug}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {promotion.product_count} {language === "zh" ? "个产品" : "products"}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                
                 {}
                 {featuredProducts.length > 0 && page === 1 && !selectedCategory && !searchQuery && <div className="mb-8">
                     <div className="flex items-center gap-2 mb-4">
