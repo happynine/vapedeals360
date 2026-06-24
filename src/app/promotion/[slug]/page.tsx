@@ -332,7 +332,7 @@ export default function PromotionPage() {
                   {/* Product Image */}
                   <div className="relative aspect-square overflow-hidden bg-gray-50">
                     <SafeImage
-                      src={product.image_url}
+                      src={product.image_key || product.image_url}
                       alt={productTranslation?.name || product.slug || 'Product'}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"

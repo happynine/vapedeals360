@@ -190,7 +190,7 @@ export default function PromotionProductPage() {
           {/* Product Image */}
           <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-200">
             <SafeImage
-              src={product.image_url}
+              src={product.image_key || product.image_url}
               alt={translation?.name || product.slug || 'Product'}
               fill
               className="object-cover"
