@@ -91,6 +91,8 @@ interface Banner {
   id: number;
   image_url: string | null;
   mobile_image_url: string | null;
+  translated_image_url?: string | null;
+  translated_mobile_image_url?: string | null;
   link_url: string | null;
   title: string | null;
   subtitle: string | null;

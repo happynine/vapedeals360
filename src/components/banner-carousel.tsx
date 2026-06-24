@@ -7,6 +7,8 @@ interface Banner {
   id: number;
   image_url: string | null;
   mobile_image_url: string | null;
+  translated_image_url?: string | null;
+  translated_mobile_image_url?: string | null;
   link_url: string | null;
   title: string | null;
   subtitle: string | null;
@@ -28,7 +30,9 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
   if (banners.length === 0) return null;
 
   const banner = banners[current];
-  const mobileImgUrl = banner.mobile_image_url;
+  // 优先使用翻译后的图片，否则使用默认图片
+  const imageUrl = banner.translated_image_url || banner.image_url;
+  const mobileImgUrl = banner.translated_mobile_image_url || banner.mobile_image_url;
 
   const content = (
     <div
@@ -41,7 +45,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
         hoverRef.current = setTimeout(() => setHovered(false), 200);
       }}
     >
-      {banner.image_url ? (
+      {imageUrl ? (
         <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
           {mobileImgUrl && (
             <img
@@ -52,7 +56,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
             />
           )}
           <img
-            src={banner.image_url.startsWith("http") || banner.image_url.startsWith("/") ? banner.image_url : `/api/image?key=${encodeURIComponent(banner.image_url)}`}
+            src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/image?key=${encodeURIComponent(imageUrl)}`}
             alt={banner.title || "Banner"}
             className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${mobileImgUrl ? "hidden sm:block sm:absolute" : ""}`}
             loading={current === 0 ? "eager" : "lazy"}

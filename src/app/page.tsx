@@ -14,11 +14,35 @@ async function getInitialData() {
   
   try {
     // 使用缓存版本获取分类和 banners，并行获取所有数据
-    const [categories, products, featuredProducts, bannersData] = await Promise.all([
+    const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
       fetchCategoriesCached("en"),
       fetchProducts({ language: "en", limit: 20, offset: 0 }),
       fetchProducts({ language: "en", limit: 5, offset: 0, featured: true }),
       fetchBannersCached("en"),
+      // 获取 promotions
+      supabase
+        .from("promotions")
+        .select(`
+          id,
+          slug,
+          promotion_type,
+          is_active,
+          sort_order,
+          time_type,
+          start_time,
+          end_time,
+          countdown_action,
+          promotion_translations (
+            id,
+            language,
+            name,
+            cover_image_key,
+            cover_image_url
+          )
+        `)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .limit(8),
     ]);
 
     // 处理 banners - 转换 image_key 为签名 URL
@@ -37,6 +61,21 @@ async function getInitialData() {
       };
     });
 
+    // 处理 promotions
+    const promotions = promotionsResult.data?.map((promo: any) => ({
+      id: promo.id,
+      slug: promo.slug,
+      promotion_type: promo.promotion_type,
+      is_active: promo.is_active,
+      sort_order: promo.sort_order,
+      time_type: promo.time_type,
+      start_time: promo.start_time,
+      end_time: promo.end_time,
+      countdown_action: promo.countdown_action,
+      translations: promo.promotion_translations || [],
+      product_count: 0,
+    })) || [];
+
     // 计算总数
     const countResult = await supabase
       .from("products")
@@ -50,6 +89,7 @@ async function getInitialData() {
       products: products || [],
       featuredProducts: featuredProducts || [],
       banners,
+      promotions,
       pagination: {
         page: 1,
         limit: 20,
@@ -64,6 +104,7 @@ async function getInitialData() {
       products: [],
       featuredProducts: [],
       banners: [],
+      promotions: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
     };
   }
@@ -122,7 +163,7 @@ export default async function HomePage() {
       <main className="flex-1 bg-white">
         <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-6 pb-6">
           <Suspense fallback={<HomePageSkeleton />}>
-            <ProductListClient initialData={initialData as InitialData} />
+            <ProductListClient initialData={initialData as unknown as InitialData} />
           </Suspense>
         </div>
       </main>
