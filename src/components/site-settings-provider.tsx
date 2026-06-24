@@ -79,21 +79,24 @@ function setCachedSocialLinks(data: SocialLink[]) {
 }
 
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
-  // Read localStorage cache synchronously on first render to prevent flash
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(() => getCachedSettings());
-  const [socialLinks, setSocialLinks] = useState<SocialLink[]>(() => getCachedSocialLinks());
-  const [loading, setLoading] = useState(() => {
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (!raw) return true;
-      const { timestamp } = JSON.parse(raw);
-      return Date.now() - timestamp > CACHE_TTL;
-    } catch {
-      return true;
-    }
-  });
+  // 初始状态设为 null/空数组，避免 SSR 和 CSR 不一致
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // 在 useEffect 中读取 localStorage 和 fetch 数据（仅客户端）
   useEffect(() => {
+    // 先尝试从 localStorage 读取缓存
+    const cachedSettings = getCachedSettings();
+    const cachedSocialLinks = getCachedSocialLinks();
+    
+    if (cachedSettings) {
+      setSiteSettings(cachedSettings);
+    }
+    if (cachedSocialLinks.length > 0) {
+      setSocialLinks(cachedSocialLinks);
+    }
+
     // Fetch fresh data from API
     Promise.all([
       fetch('/api/site-settings').then(r => r.json()),

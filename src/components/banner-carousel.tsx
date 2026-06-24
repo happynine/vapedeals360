@@ -34,6 +34,10 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
   const imageUrl = banner.translated_image_url || banner.image_url;
   const mobileImgUrl = banner.translated_mobile_image_url || banner.mobile_image_url;
 
+  // 类型安全检查
+  const safeImageUrl = typeof imageUrl === 'string' ? imageUrl : null;
+  const safeMobileImgUrl = typeof mobileImgUrl === 'string' ? mobileImgUrl : null;
+
   const content = (
     <div
       className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 sm:aspect-[1200/343]"
@@ -45,20 +49,20 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
         hoverRef.current = setTimeout(() => setHovered(false), 200);
       }}
     >
-      {imageUrl ? (
+      {safeImageUrl ? (
         <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
-          {mobileImgUrl && (
+          {safeMobileImgUrl && (
             <img
-              src={mobileImgUrl.startsWith("http") || mobileImgUrl.startsWith("/") ? mobileImgUrl : `/api/image?key=${encodeURIComponent(mobileImgUrl)}`}
+              src={safeMobileImgUrl.startsWith("http") || safeMobileImgUrl.startsWith("/") ? safeMobileImgUrl : `/api/image?key=${encodeURIComponent(safeMobileImgUrl)}`}
               alt={banner.title || "Banner"}
               className="w-full h-auto block sm:hidden"
               loading={current === 0 ? "eager" : "lazy"}
             />
           )}
           <img
-            src={imageUrl.startsWith("http") || imageUrl.startsWith("/") ? imageUrl : `/api/image?key=${encodeURIComponent(imageUrl)}`}
+            src={safeImageUrl.startsWith("http") || safeImageUrl.startsWith("/") ? safeImageUrl : `/api/image?key=${encodeURIComponent(safeImageUrl)}`}
             alt={banner.title || "Banner"}
-            className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${mobileImgUrl ? "hidden sm:block sm:absolute" : ""}`}
+            className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${safeMobileImgUrl ? "hidden sm:block sm:absolute" : ""}`}
             loading={current === 0 ? "eager" : "lazy"}
           />
         </div>

@@ -45,21 +45,21 @@ async function getInitialData() {
         .limit(8),
     ]);
 
-    // 处理 banners - 转换 image_key 为签名 URL
-    const banners = bannersData.map((banner: any) => {
+    // 处理 banners - 转换 image_key 为签名 URL (需要 await)
+    const banners = await Promise.all(bannersData.map(async (banner: any) => {
       const translation = banner.translations?.find((t: any) => t.language === "en") || banner.translations?.[0];
       return {
         id: banner.id,
-        image_url: banner.image_key ? getPresignedUrl(banner.image_key) : null,
-        mobile_image_url: banner.mobile_image_key ? getPresignedUrl(banner.mobile_image_key) : null,
+        image_url: await getPresignedUrl(banner.image_key),
+        mobile_image_url: await getPresignedUrl(banner.mobile_image_key),
         // 优先使用翻译中的图片
-        translated_image_url: translation?.image_key ? getPresignedUrl(translation.image_key) : null,
-        translated_mobile_image_url: translation?.mobile_image_key ? getPresignedUrl(translation.mobile_image_key) : null,
+        translated_image_url: await getPresignedUrl(translation?.image_key),
+        translated_mobile_image_url: await getPresignedUrl(translation?.mobile_image_key),
         link_url: banner.link_url,
         title: translation?.title || null,
         subtitle: translation?.subtitle || null,
       };
-    });
+    }));
 
     // 处理 promotions
     const promotions = promotionsResult.data?.map((promo: any) => ({

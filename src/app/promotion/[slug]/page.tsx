@@ -318,10 +318,11 @@ export default function PromotionPage() {
                 t => t.language === language
               ) || product.promotion_product_translations?.[0];
               
-              // Get first store price with valid data
-              const firstPrice = product.store_prices?.find(p => p.store_id && p.current_price);
-              const endTime: string | null = firstPrice?.end_time ?? null;
-              const timeType = firstPrice?.time_type || 'permanent';
+              // Get all valid store prices
+              const validPrices = product.store_prices?.filter(p => p.store_id && p.current_price) || [];
+              // Sort by price to find lowest
+              const sortedPrices = [...validPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
+              const lowestPrice = sortedPrices[0];
 
               return (
                 <Link
@@ -338,53 +339,66 @@ export default function PromotionPage() {
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     />
-                    
-                    {/* Countdown Badge on Image */}
-                    <div className="absolute top-2 right-2">
-                      <CountdownBadge timeType={timeType} endTime={endTime} language={language} />
-                    </div>
                   </div>
 
                   {/* Product Info */}
                   <div className="p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-600">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-purple-600">
                       {productTranslation?.name || product.slug || 'Unnamed Product'}
                     </h3>
                     
-                    {/* Price Display */}
-                    {firstPrice && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg font-bold text-green-600">
-                          {firstPrice.currency === 'USD' ? '$' : firstPrice.currency || '$'}
-                          {firstPrice.current_price?.toFixed(2)}
-                        </span>
-                        {firstPrice.original_price && firstPrice.original_price > firstPrice.current_price! && (
-                          <span className="text-sm text-gray-400 line-through">
-                            {firstPrice.currency === 'USD' ? '$' : firstPrice.currency || '$'}
-                            {firstPrice.original_price.toFixed(2)}
-                          </span>
+                    {/* Store Prices List */}
+                    {sortedPrices.length > 0 && (
+                      <div className="space-y-2">
+                        {sortedPrices.slice(0, 3).map((price, idx) => {
+                          const isLowest = idx === 0;
+                          const timeType = price.time_type || 'permanent';
+                          
+                          return (
+                            <div key={price.id} className={`flex items-center justify-between p-2 rounded-lg ${isLowest ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                              {/* Store Info */}
+                              <div className="flex items-center gap-2">
+                                {price.store?.icon_url && (
+                                  <SafeImage
+                                    src={price.store.icon_url}
+                                    alt={price.store.name}
+                                    width={20}
+                                    height={20}
+                                    className="rounded"
+                                  />
+                                )}
+                                <span className="text-xs font-medium text-gray-700">{price.store?.name}</span>
+                              </div>
+                              
+                              {/* Price */}
+                              <div className="flex items-center gap-1">
+                                <span className={`text-sm font-bold ${isLowest ? 'text-green-600' : 'text-gray-900'}`}>
+                                  {price.currency === 'USD' ? '$' : price.currency || '$'}
+                                  {price.current_price?.toFixed(2)}
+                                </span>
+                              </div>
+                              
+                              {/* Time/Countdown */}
+                              <div className="text-xs">
+                                {timeType === 'permanent' ? (
+                                  <span className="text-gray-500">
+                                    {language === 'zh' ? '长期' : 'Long-term'}
+                                  </span>
+                                ) : price.end_time ? (
+                                  <CountdownBadge timeType={timeType} endTime={price.end_time} language={language} />
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {sortedPrices.length > 3 && (
+                          <div className="text-xs text-gray-500 text-center pt-1">
+                            +{sortedPrices.length - 3} {language === 'zh' ? '更多商城' : 'more stores'}
+                          </div>
                         )}
-                        {firstPrice.discount_percent && (
-                          <span className="text-xs text-red-600 font-medium">
-                            -{firstPrice.discount_percent}%
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Store Info */}
-                    {firstPrice?.store && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        {firstPrice.store.icon_url && (
-                          <SafeImage
-                            src={firstPrice.store.icon_url}
-                            alt={firstPrice.store.name}
-                            width={16}
-                            height={16}
-                            className="rounded"
-                          />
-                        )}
-                        <span>{firstPrice.store.name}</span>
                       </div>
                     )}
                   </div>
