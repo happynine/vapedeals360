@@ -347,7 +347,7 @@ export default function PromotionProductPage() {
                         <td className="px-4 py-4 whitespace-nowrap">
                           {price.time_type === 'permanent' ? (
                             <span className="text-xs text-gray-500">
-                              {language === 'zh' ? '永久' : 'Permanent'}
+                              {language === 'zh' ? '长期' : 'Permanent'}
                             </span>
                           ) : price.end_time ? (
                             <div className="text-xs">

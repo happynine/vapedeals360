@@ -150,7 +150,7 @@ function CountdownBadge({ timeType, endTime, language }: {
   if (timeType === 'permanent') {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-        {language === 'zh' ? '永久有效' : 'Permanent'}
+        {language === 'zh' ? '长期有效' : 'Permanent'}
       </span>
     );
   }

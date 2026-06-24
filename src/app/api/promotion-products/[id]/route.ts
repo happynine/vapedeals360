@@ -29,7 +29,7 @@ interface ProductTranslation {
   promotion_product_id: number;
   name: string | null;
   description: string | null;
-  language_code: string;
+  language: string;
 }
 
 interface PromotionProduct {
@@ -51,7 +51,7 @@ interface PromotionTranslation {
   promotion_id: number;
   name: string | null;
   cover_image_url: string | null;
-  language_code: string;
+  language: string;
 }
 
 interface Promotion {
@@ -94,7 +94,7 @@ export async function GET(
           promotion_product_id,
           name,
           description,
-          language_code
+          language
         )
       `)
       .eq('id', productId)
@@ -166,7 +166,7 @@ export async function GET(
             promotion_id,
             name,
             cover_image_url,
-            language_code
+            language
           )
         `)
         .eq('id', product.promotion_id)
