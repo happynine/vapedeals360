@@ -1,7 +1,8 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
-export const dynamic = 'force-dynamic';
+// Analytics API - keep dynamic for real-time data, but with short revalidate for edge caching
+export const revalidate = 10;
 
 export async function GET(request: Request) {
   const rl = checkRateLimit(request, "public");

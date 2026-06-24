@@ -3,7 +3,7 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/static-pages?slug=privacy-policy&language=en
-export const dynamic = 'force-dynamic';
+// Allow ISR caching at page level
 
 export async function GET(request: NextRequest) {
   const rl = checkRateLimit(request, "public");

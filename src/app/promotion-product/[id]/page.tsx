@@ -285,9 +285,6 @@ export default function PromotionProductPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {language === 'zh' ? '折扣' : 'Discount'}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {language === 'zh' ? '倒计时' : 'Time'}
-                    </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {language === 'zh' ? '操作' : 'Action'}
                     </th>
@@ -340,19 +337,6 @@ export default function PromotionProductPage() {
                             <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
                               -{price.discount_percent}%
                             </span>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          {price.time_type === 'permanent' ? (
-                            <span className="text-xs text-gray-500">
-                              {language === 'zh' ? '长期' : 'Permanent'}
-                            </span>
-                          ) : price.end_time ? (
-                            <div className="text-xs">
-                              <CountdownDisplay endTime={price.end_time} />
-                            </div>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )}

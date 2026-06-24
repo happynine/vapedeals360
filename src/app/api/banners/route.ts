@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
-export const dynamic = 'force-dynamic';
+// API routes for client-side fetching - allow ISR caching at page level
 import { fetchBanners, type Banner } from '@/lib/database';
 import { getPresignedUrl } from '@/lib/storage';
 

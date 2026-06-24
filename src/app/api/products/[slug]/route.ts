@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { fetchProductBySlug } from '@/lib/database';
 
-export const dynamic = 'force-dynamic';
-
+// API routes for client-side fetching - allow ISR caching at page level
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }

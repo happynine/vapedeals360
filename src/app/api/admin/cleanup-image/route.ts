@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteFile } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
+// POST operations are never cached - no need for force-dynamic
 
 /**
  * POST /api/admin/cleanup-image

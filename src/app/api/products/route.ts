@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { fetchCategories, fetchProducts, countProducts } from '@/lib/database';
 
-export const dynamic = 'force-dynamic';
-
+// API routes for client-side fetching - allow ISR caching at page level
 export async function GET(request: NextRequest) {
   const rl = checkRateLimit(request, "public");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);

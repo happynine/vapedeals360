@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
-export const dynamic = 'force-dynamic';
+// Allow ISR caching at page level
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // GET /api/social-links - Get active social links for frontend

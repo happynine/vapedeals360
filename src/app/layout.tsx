@@ -40,9 +40,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Force dynamic rendering - don't prerender during build
-export const dynamic = 'force-dynamic';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

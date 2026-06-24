@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { uploadFile } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
+// POST operations are never cached - no need for force-dynamic
 
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, "public");

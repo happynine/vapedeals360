@@ -4,7 +4,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { deleteFile, extractImageKeysFromHtml } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
+// Admin POST operations are never cached
 
 /**
  * Resolve an image src from HTML content to a storage key that can be deleted.

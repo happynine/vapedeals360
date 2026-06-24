@@ -2,8 +2,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getPresignedUrl } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
-
+// API routes for client-side fetching - allow ISR caching at page level
 export async function GET(request: Request) {
   const rl = checkRateLimit(request, "public");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
