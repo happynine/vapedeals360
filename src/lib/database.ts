@@ -1,4 +1,8 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { unstable_cache } from 'next/cache';
+
+// Cache configuration - 60 seconds (same as ISR revalidate)
+const CACHE_TTL = 60;
 
 // Type definitions
 export interface Category {
@@ -93,6 +97,13 @@ export async function fetchCategories(language: string = 'en') {
   }));
 }
 
+// Cached version for server components
+export const fetchCategoriesCached = unstable_cache(
+  fetchCategories,
+  ['categories'],
+  { revalidate: CACHE_TTL, tags: ['categories'] }
+);
+
 // Fetch all active stores with translations
 export async function fetchStores(language: string = 'en') {
   const client = getClient();
@@ -107,6 +118,13 @@ export async function fetchStores(language: string = 'en') {
     translations: store.store_translations as StoreTranslation[],
   }));
 }
+
+// Cached version for server components
+export const fetchStoresCached = unstable_cache(
+  fetchStores,
+  ['stores'],
+  { revalidate: CACHE_TTL, tags: ['stores'] }
+);
 
 // Fetch products with translations and prices
 export async function fetchProducts(options?: {
@@ -540,6 +558,13 @@ export async function fetchBanners(language: string = 'en') {
     translations: (banner.banner_translations || []) as BannerTranslation[],
   }));
 }
+
+// Cached version for server components
+export const fetchBannersCached = unstable_cache(
+  fetchBanners,
+  ['banners'],
+  { revalidate: CACHE_TTL, tags: ['banners'] }
+);
 
 // Calculate discount percent
 export function calcDiscount(current: string, original: string | null): number | null {

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { ProductListClient, InitialData } from "@/components/product-list-client";
-import { fetchCategories, fetchProducts } from "@/lib/database";
+import { fetchCategoriesCached, fetchProducts, fetchBannersCached } from "@/lib/database";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 
@@ -13,81 +13,29 @@ async function getInitialData() {
   const supabase = getSupabaseClient();
   
   try {
-    // 并行获取所有数据
-    const [categoriesResult, productsResult, featuredResult, bannersResult, promotionsResult] = await Promise.all([
-      fetchCategories("en"),
+    // 使用缓存版本获取分类和 banners，并行获取所有数据
+    const [categories, products, featuredProducts, bannersData] = await Promise.all([
+      fetchCategoriesCached("en"),
       fetchProducts({ language: "en", limit: 20, offset: 0 }),
       fetchProducts({ language: "en", limit: 5, offset: 0, featured: true }),
-      // 获取 banners
-      supabase
-        .from("banners")
-        .select(`
-          id,
-          image_url,
-          mobile_image_url,
-          link_url,
-          banner_translations (
-            id,
-            language,
-            title,
-            subtitle
-          )
-        `)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true }),
-      // 获取 promotions
-      supabase
-        .from("promotions")
-        .select(`
-          id,
-          slug,
-          promotion_type,
-          is_active,
-          sort_order,
-          time_type,
-          start_time,
-          end_time,
-          countdown_action,
-          promotion_translations (
-            id,
-            language,
-            name,
-            cover_image_key,
-            cover_image_url
-          )
-        `)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .limit(8),
+      fetchBannersCached("en"),
     ]);
 
-    // 处理 banners
-    const banners = bannersResult.data?.map((banner: any) => {
-      const translation = banner.banner_translations?.find((t: any) => t.language === "en") || banner.banner_translations?.[0];
+    // 处理 banners - 转换 image_key 为签名 URL
+    const banners = bannersData.map((banner: any) => {
+      const translation = banner.translations?.find((t: any) => t.language === "en") || banner.translations?.[0];
       return {
         id: banner.id,
-        image_url: banner.image_url ? getPresignedUrl(banner.image_url) : null,
-        mobile_image_url: banner.mobile_image_url ? getPresignedUrl(banner.mobile_image_url) : null,
+        image_url: banner.image_key ? getPresignedUrl(banner.image_key) : null,
+        mobile_image_url: banner.mobile_image_key ? getPresignedUrl(banner.mobile_image_key) : null,
+        // 优先使用翻译中的图片
+        translated_image_url: translation?.image_key ? getPresignedUrl(translation.image_key) : null,
+        translated_mobile_image_url: translation?.mobile_image_key ? getPresignedUrl(translation.mobile_image_key) : null,
         link_url: banner.link_url,
         title: translation?.title || null,
         subtitle: translation?.subtitle || null,
       };
-    }) || [];
-
-    // 处理 promotions
-    const promotions = promotionsResult.data?.map((promo: any) => ({
-      id: promo.id,
-      slug: promo.slug,
-      promotion_type: promo.promotion_type,
-      is_active: promo.is_active,
-      sort_order: promo.sort_order,
-      time_type: promo.time_type,
-      start_time: promo.start_time,
-      end_time: promo.end_time,
-      countdown_action: promo.countdown_action,
-      translations: promo.promotion_translations || [],
-      product_count: 0,
-    })) || [];
+    });
 
     // 计算总数
     const countResult = await supabase
@@ -98,11 +46,10 @@ async function getInitialData() {
     const total = countResult.count || 0;
 
     return {
-      categories: categoriesResult || [],
-      products: productsResult || [],
-      featuredProducts: featuredResult || [],
+      categories: categories || [],
+      products: products || [],
+      featuredProducts: featuredProducts || [],
       banners,
-      promotions,
       pagination: {
         page: 1,
         limit: 20,
@@ -117,7 +64,6 @@ async function getInitialData() {
       products: [],
       featuredProducts: [],
       banners: [],
-      promotions: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
     };
   }
