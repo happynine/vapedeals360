@@ -10,9 +10,9 @@ export const revalidate = 60;
 
 // 服务端获取初始数据
 async function getInitialData() {
-  const supabase = getSupabaseClient();
-  
   try {
+    const supabase = getSupabaseClient();
+    
     // 使用缓存版本获取分类和 banners，并行获取所有数据
     const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
       fetchCategoriesCached("en"),
