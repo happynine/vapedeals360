@@ -19,6 +19,9 @@ echo "=========================================="
 echo "Installing dependencies..."
 pnpm install --no-frozen-lockfile 2>&1
 
+echo "Compiling custom server (src/server.ts -> dist/server.js)..."
+pnpm tsup src/server.ts --format cjs --out-dir dist --clean 2>&1
+
 echo "Building the Next.js project..."
 pnpm next build 2>&1
 
