@@ -3,29 +3,13 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { ProductDetailClient, Product } from "@/components/product-detail-client";
 import { fetchProductBySlug } from "@/lib/database";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { notFound } from "next/navigation";
 
 // ISR: 每 60 秒重新验证
 export const revalidate = 60;
 
-// SSG: 预生成所有产品页面
-export async function generateStaticParams() {
-  const supabase = getSupabaseClient();
-  
-  try {
-    const { data: products } = await supabase
-      .from("products")
-      .select("slug")
-      .eq("is_active", true)
-      .limit(100); // 预生成前 100 个产品
-    
-    return products?.map((product) => ({ slug: product.slug })) || [];
-  } catch (error) {
-    console.error("Failed to generate static params:", error);
-    return [];
-  }
-}
+// 注意：不使用 generateStaticParams，因为构建时可能没有数据库连接
+// ISR 模式下，页面在首次请求时生成，之后缓存 60 秒
 
 // 服务端获取产品数据
 async function getProduct(slug: string) {
