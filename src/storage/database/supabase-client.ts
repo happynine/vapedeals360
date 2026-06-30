@@ -29,7 +29,7 @@ function loadEnv(): void {
 import os
 import sys
 try:
-    from coze_workload_identity import Client
+    from coze_workspace_identity import Client
     client = Client()
     env_vars = client.get_project_env_vars()
     client.close()
@@ -66,6 +66,12 @@ except Exception as e:
   } catch {
     // Silently fail
   }
+}
+
+/** Check if Supabase environment variables are configured */
+export function isSupabaseConfigured(): boolean {
+  loadEnv();
+  return !!(process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY);
 }
 
 function getSupabaseCredentials(): SupabaseCredentials {

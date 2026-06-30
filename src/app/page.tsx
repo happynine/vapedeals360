@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { ProductListClient, InitialData } from "@/components/product-list-client";
 import { fetchCategoriesCached, fetchProducts, fetchBannersCached } from "@/lib/database";
-import { getSupabaseClient } from "@/storage/database/supabase-client";
+import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 
 // ISR: 每 60 秒重新验证
@@ -10,6 +10,18 @@ export const revalidate = 60;
 
 // 服务端获取初始数据
 async function getInitialData() {
+  // 构建时可能没有 Supabase 环境变量，直接返回空数据
+  if (!isSupabaseConfigured()) {
+    return {
+      categories: [],
+      products: [],
+      featuredProducts: [],
+      banners: [],
+      promotions: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
+    };
+  }
+
   try {
     const supabase = getSupabaseClient();
     

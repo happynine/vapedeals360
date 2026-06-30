@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { ProductDetailClient, Product } from "@/components/product-detail-client";
 import { fetchProductBySlug } from "@/lib/database";
+import { isSupabaseConfigured } from "@/storage/database/supabase-client";
 import { notFound } from "next/navigation";
 
 // ISR: 每 60 秒重新验证
@@ -13,6 +14,11 @@ export const revalidate = 60;
 
 // 服务端获取产品数据
 async function getProduct(slug: string) {
+  // 构建时可能没有 Supabase 环境变量
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
   try {
     const product = await fetchProductBySlug(slug, "en");
     return product;
