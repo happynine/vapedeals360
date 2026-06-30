@@ -121,12 +121,59 @@ interface Promotion {
   product_count: number;
 }
 
+interface PromotionProductPrice {
+  id: number;
+  promotion_product_id: number;
+  store_id: number | null;
+  current_price: string | number | null;
+  original_price: string | number | null;
+  currency: string | null;
+  region: string | null;
+  no_quote: boolean | null;
+  special_price: string | number | null;
+  time_type: string;
+  start_time: string | null;
+  end_time: string | null;
+  countdown_action: string;
+  product_url: string | null;
+  store?: {
+    id: number;
+    slug: string;
+    logo_url: string | null;
+    is_active: boolean;
+    store_translations?: { id: number; store_id: number; language: string; name: string }[];
+  } | null;
+}
+
+interface PromotionProductTranslation {
+  id: number;
+  name: string | null;
+  description: string | null;
+  language: string;
+}
+
+interface PromotionProduct {
+  id: number;
+  promotion_id: number;
+  slug: string | null;
+  image_key: string | null;
+  image_url: string | null;
+  is_active: boolean | null;
+  is_featured: boolean | null;
+  special_price: string | number | null;
+  notes: string | null;
+  promotion_product_translations: PromotionProductTranslation[];
+  store_prices: PromotionProductPrice[];
+  promotion?: { slug: string; translations: PromotionTranslation[] };
+}
+
 export interface InitialData {
   categories: Category[];
   products: Product[];
   featuredProducts: Product[];
   banners: Banner[];
   promotions: Promotion[];
+  promotionProducts: PromotionProduct[];
   pagination: {
     page: number;
     limit: number;
@@ -230,6 +277,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>(initialData.featuredProducts);
   const [banners, setBanners] = useState<Banner[]>(initialData.banners);
   const [promotions, setPromotions] = useState<Promotion[]>(initialData.promotions);
+  const [promotionProducts, setPromotionProducts] = useState<PromotionProduct[]>(initialData.promotionProducts || []);
   const [totalPages, setTotalPages] = useState(initialData.pagination.totalPages);
   const [total, setTotal] = useState(initialData.pagination.total);
   
@@ -291,7 +339,16 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
         const promoRes = await fetch(`/api/promotions?language=${language}`);
         const promoJson = await promoRes.json();
-        if (promoJson.success) setPromotions(promoJson.data.promotions || []);
+        if (promoJson.success) {
+          setPromotions(promoJson.data.promotions || []);
+          // 从每个 promotion 获取产品
+          const promoSlugs = (promoJson.data.promotions || []).map((p: any) => p.slug);
+          if (promoSlugs.length > 0) {
+            const ppRes = await fetch(`/api/promotion-products?language=${language}`);
+            const ppJson = await ppRes.json();
+            if (ppJson.success) setPromotionProducts(ppJson.data?.products || []);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -391,7 +448,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         </div>
       )}
 
-      {/* Promotions Section */}
+      {/* Promotions Section - Cover Images */}
       {promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
         <div className="mb-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -413,6 +470,229 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Promotion Products - HOT DEALS */}
+      {promotionProducts.length > 0 && page === 1 && !selectedCategory && !searchQuery && mounted && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 animate-pulse-deal">
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
+              </svg>
+              {language === "zh" ? "特惠活动" : "HOT DEALS"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {promotionProducts.map((pp) => {
+              const productTranslation = pp.promotion_product_translations?.find(t => t.language === language) || pp.promotion_product_translations?.[0];
+              
+              // Filter prices by region
+              const regionPrices = pp.store_prices?.filter(p => {
+                if (p.no_quote) return false;
+                if (p.store && !p.store?.is_active) return false;
+                const priceRegion = p.region;
+                if (salesRegion === 'Global') return true;
+                if (priceRegion === 'Global') return true;
+                if (priceRegion === salesRegion) return true;
+                return false;
+              }) || [];
+
+              // Further filter by currency
+              const displayPrices = regionPrices.filter(p => {
+                const priceCurrency = p.currency || '$';
+                if (salesRegion !== 'Global' && p.region === 'Global') return true;
+                return priceCurrency === selectedCurrency;
+              });
+
+              if (displayPrices.length === 0 && regionPrices.length === 0) return null;
+
+              const validPrices = displayPrices.length > 0 ? displayPrices : regionPrices;
+              const sortedPrices = [...validPrices].sort((a, b) => {
+                const aVal = typeof a.current_price === 'number' ? a.current_price : parseFloat(String(a.current_price || '0'));
+                const bVal = typeof b.current_price === 'number' ? b.current_price : parseFloat(String(b.current_price || '0'));
+                return aVal - bVal;
+              });
+
+              const lowestPrice = sortedPrices[0];
+              const hasSpecialPrice = pp.special_price || lowestPrice?.special_price;
+              const specialPriceVal = pp.special_price || lowestPrice?.special_price;
+
+              // Calculate discount
+              let discountDisplay: string | null = null;
+              if (lowestPrice?.original_price && lowestPrice?.current_price) {
+                const orig = typeof lowestPrice.original_price === 'number' ? lowestPrice.original_price : parseFloat(String(lowestPrice.original_price)) || 0;
+                const curr = typeof lowestPrice.current_price === 'number' ? lowestPrice.current_price : parseFloat(String(lowestPrice.current_price)) || 0;
+                if (orig > curr) {
+                  const percent = Math.round((orig - curr) / orig * 100);
+                  discountDisplay = `-${percent}%`;
+                }
+              } else if (sortedPrices.length >= 2) {
+                const parsePrice = (p: string | number | null | undefined): number => {
+                  if (typeof p === 'number') return p;
+                  if (typeof p === 'string') return parseFloat(p) || 0;
+                  return 0;
+                };
+                const highVal = parsePrice(sortedPrices[sortedPrices.length - 1].current_price);
+                const lowVal = parsePrice(sortedPrices[0].current_price);
+                const diff = highVal - lowVal;
+                if (diff > 0) {
+                  discountDisplay = `Save ${lowestPrice?.currency || '$'}${diff.toFixed(2)}`;
+                }
+              }
+
+              const promoSlug = pp.promotion?.slug;
+              const productImage = pp.image_key || pp.image_url;
+
+              return (
+                <Link
+                  key={pp.id}
+                  href={promoSlug ? `/promotion-product/${pp.id}?promotion=${promoSlug}` : `/promotion-product/${pp.id}`}
+                  className="group relative rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-purple-300 transition-all"
+                >
+                  {/* Product Image */}
+                  <div className="relative aspect-square bg-gray-50 overflow-hidden">
+                    {productImage ? (
+                      <SafeImage
+                        src={productImage}
+                        alt={productTranslation?.name || pp.slug || ''}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-300">
+                        <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    {/* Discount Badge */}
+                    {discountDisplay && (
+                      <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white animate-pulse-deal">
+                        {discountDisplay}
+                      </div>
+                    )}
+                    {/* Promotion Badge */}
+                    {hasSpecialPrice && (
+                      <div className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-2 py-0.5 text-xs font-semibold text-white">
+                        {language === "zh" ? "特惠" : "DEAL"}
+                      </div>
+                    )}
+                    {/* Notes badge (like "BUY 1 GET 1 FREE") */}
+                    {pp.notes && (
+                      <div className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-orange-500/90 px-2 py-1 text-xs font-bold text-white text-center">
+                        {pp.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="p-4">
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
+                      {productTranslation?.name || pp.slug || 'Product'}
+                    </h3>
+                    
+                    {/* Price Display */}
+                    <div className="mt-2 flex items-baseline gap-2">
+                      {hasSpecialPrice && specialPriceVal ? (
+                        <>
+                          <span className="text-2xl font-bold text-emerald-600 tabular-nums">
+                            {lowestPrice?.currency || '$'}{typeof specialPriceVal === 'number' ? specialPriceVal.toFixed(2) : specialPriceVal}
+                          </span>
+                          {lowestPrice?.original_price && (
+                            <span className="text-sm text-gray-400 line-through tabular-nums">
+                              {lowestPrice.currency || '$'}{typeof lowestPrice.original_price === 'number' ? lowestPrice.original_price.toFixed(2) : lowestPrice.original_price}
+                            </span>
+                          )}
+                        </>
+                      ) : lowestPrice ? (
+                        <>
+                          <span className="text-2xl font-bold text-emerald-600 tabular-nums">
+                            {lowestPrice.currency || '$'}{typeof lowestPrice.current_price === 'number' ? lowestPrice.current_price.toFixed(2) : lowestPrice.current_price}
+                          </span>
+                          {lowestPrice.original_price && (() => {
+                            const orig = typeof lowestPrice.original_price === 'number' ? lowestPrice.original_price : parseFloat(String(lowestPrice.original_price));
+                            const curr = typeof lowestPrice.current_price === 'number' ? lowestPrice.current_price : parseFloat(String(lowestPrice.current_price || '0'));
+                            return orig > curr ? (
+                              <span className="text-sm text-gray-400 line-through tabular-nums">
+                                {lowestPrice.currency || '$'}{orig.toFixed(2)}
+                              </span>
+                            ) : null;
+                          })()}
+                          {sortedPrices.length >= 2 && (
+                            <span className="text-xs text-emerald-600 font-medium ml-0.5">
+                              {language === "zh" ? "最低价" : "Lowest"}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-lg text-gray-400">—</span>
+                      )}
+                    </div>
+
+                    {/* Store Prices List */}
+                    {sortedPrices.length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        {sortedPrices.slice(0, 3).map((price, idx) => {
+                          const isLowest = idx === 0;
+                          const storeTranslation = price.store?.store_translations?.find((t: { language: string }) => t.language === language) || price.store?.store_translations?.[0];
+                          const priceVal = typeof price.current_price === 'number' ? price.current_price.toFixed(2) : price.current_price;
+                          
+                          return (
+                            <div key={price.id} className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 ${isLowest ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="h-5 w-5 flex-shrink-0 rounded bg-purple-50 flex items-center justify-center overflow-hidden">
+                                  {price.store?.logo_url ? (
+                                    <img
+                                      src={price.store.logo_url.startsWith("http") ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`}
+                                      alt=""
+                                      className="w-full h-full object-contain"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <span className="text-[10px] font-bold text-purple-600">{storeTranslation?.name?.charAt(0) || "?"}</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-500 truncate">{storeTranslation?.name || "Store"}</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className={`text-xs font-semibold tabular-nums ${isLowest ? 'text-green-600' : 'text-gray-900'}`}>
+                                  {price.currency || '$'}{priceVal}
+                                </span>
+                                {price.product_url && (
+                                  <a
+                                    href={price.product_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(price.product_url!, '_blank'); }}
+                                    className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-700 hover:text-white transition-all"
+                                  >
+                                    {language === "zh" ? "购买" : "Buy"}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {sortedPrices.length > 3 && (
+                          <div className="text-xs text-gray-500 text-center pt-1">
+                            +{sortedPrices.length - 3} {language === "zh" ? "更多商城" : "more stores"}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Store comparison count */}
+                    <p className="mt-1 text-xs text-gray-500">
+                      {validPrices.length} {language === "zh" ? "家商城比价" : "stores compared"}
+                    </p>
                   </div>
                 </Link>
               );
