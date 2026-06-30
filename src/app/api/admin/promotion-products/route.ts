@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch related data separately
     const [promotionsRes, categoriesRes, storesRes] = await Promise.all([
-      supabase.from('promotions').select('id, slug, promotion_type, special_price, currency, promotion_translations (name, language)').in('id', promotionIds),
+      supabase.from('promotions').select('id, slug, special_price, currency, promotion_translations (name, language)').in('id', promotionIds),
       categoryIds.length > 0 
         ? supabase.from('categories').select('id, slug, category_translations (name, language)').in('id', categoryIds)
         : { data: [], error: null },

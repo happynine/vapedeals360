@@ -56,7 +56,6 @@ interface Promotion {
   id: number;
   slug: string;
   title: string | null;
-  promotion_type: string;
   translations: {
     id: number;
     name: string | null;

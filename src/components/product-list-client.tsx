@@ -109,7 +109,6 @@ interface PromotionTranslation {
 interface Promotion {
   id: number;
   slug: string;
-  promotion_type: string;
   is_active: boolean;
   sort_order: number;
   time_type: string;

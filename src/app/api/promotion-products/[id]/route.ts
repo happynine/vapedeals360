@@ -58,7 +58,6 @@ interface Promotion {
   id: number;
   slug: string;
   title: string | null;
-  promotion_type: string;
   promotion_translations?: PromotionTranslation[];
   translations?: PromotionTranslation[];
 }
@@ -160,7 +159,6 @@ export async function GET(
           id,
           slug,
           title,
-          promotion_type,
           promotion_translations (
             id,
             promotion_id,

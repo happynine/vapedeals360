@@ -287,7 +287,6 @@ export const promotions = pgTable("promotions", {
 	id: serial().primaryKey().notNull(),
 	title: varchar({ length: 255 }).notNull(),
 	slug: varchar({ length: 255 }).notNull(),
-	promotionType: varchar("promotion_type", { length: 50 }).default('special_price').notNull(),
 	specialPrice: numeric("special_price", { precision: 10, scale:  2 }),
 	sortOrder: integer("sort_order").default(0),
 	isActive: boolean("is_active").default(true),

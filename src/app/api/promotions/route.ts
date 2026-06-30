@@ -173,7 +173,6 @@ export async function GET(request: NextRequest) {
               original_price: price.original_price,
               discount_percentage: price.discount_percentage,
               has_promotion: true,
-              promotion_type: promotion.promotion_type,
               promotion_price: pp.special_price || promotion.special_price,
               end_time: promotion.end_time,
               countdown_action: promotion.countdown_action
@@ -187,7 +186,6 @@ export async function GET(request: NextRequest) {
             description: translation.description || '',
             prices: filteredPrices,
             promotion_price: pp.special_price || promotion.special_price,
-            promotion_type: promotion.promotion_type,
             promotion_end_time: promotion.end_time,
             promotion_countdown_action: promotion.countdown_action
           };

@@ -65,7 +65,6 @@ interface Promotion {
   id: number;
   slug: string;
   title: string | null;
-  promotion_type: string;
   sort_order: number;
   is_active: boolean;
   translations: PromotionTranslation[];
@@ -295,9 +294,6 @@ export default function PromotionPage() {
           )}
 
           <div className="flex items-center gap-4 text-sm text-gray-600">
-            <span className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 font-medium text-purple-700">
-              {promotion.promotion_type}
-            </span>
             <span>
               {activeProducts.length} {language === 'zh' ? '个产品' : 'products'}
             </span>

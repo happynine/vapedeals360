@@ -38,7 +38,7 @@ async function getInitialData() {
         .select(`
           id,
           slug,
-          promotion_type,
+
           is_active,
           sort_order,
           time_type,
@@ -78,7 +78,6 @@ async function getInitialData() {
     const promotions = promotionsResult.data?.map((promo: any) => ({
       id: promo.id,
       slug: promo.slug,
-      promotion_type: promo.promotion_type,
       is_active: promo.is_active,
       sort_order: promo.sort_order,
       time_type: promo.time_type,

@@ -16,7 +16,6 @@ export async function GET(
         id,
         slug,
         title,
-        promotion_type,
         sort_order,
         is_active,
         translations:promotion_translations (

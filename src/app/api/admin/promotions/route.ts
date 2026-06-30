@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
     const {
       title,
       slug,
-      promotion_type,
       special_price,
       currency,
       sort_order,
@@ -113,7 +112,6 @@ export async function POST(request: NextRequest) {
       .insert({
         title: title || '',
         slug,
-        promotion_type: promotion_type || 'special_price',
         special_price,
         currency: currency || '$',
         sort_order: sort_order || 0,
@@ -190,7 +188,6 @@ export async function PUT(request: NextRequest) {
       id,
       title,
       slug,
-      promotion_type,
       special_price,
       currency,
       sort_order,
@@ -209,7 +206,6 @@ export async function PUT(request: NextRequest) {
       .update({
         title,
         slug,
-        promotion_type,
         special_price,
         currency: currency || '$',
         sort_order,
