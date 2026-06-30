@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { ProductListClient, InitialData } from "@/components/product-list-client";
-import { fetchCategoriesCached, fetchProducts, fetchBannersCached } from "@/lib/database";
+import { fetchCategories, fetchProducts, fetchBanners } from "@/lib/database";
 import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 
@@ -25,12 +25,12 @@ async function getInitialData() {
   try {
     const supabase = getSupabaseClient();
     
-    // 使用缓存版本获取分类和 banners，并行获取所有数据
+    // ISR 自身已缓存页面，无需 unstable_cache 双重缓存
     const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
-      fetchCategoriesCached("en"),
+      fetchCategories("en"),
       fetchProducts({ language: "en", limit: 20, offset: 0 }),
       fetchProducts({ language: "en", limit: 5, offset: 0, featured: true }),
-      fetchBannersCached("en"),
+      fetchBanners("en"),
       // 获取 promotions
       supabase
         .from("promotions")

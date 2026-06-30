@@ -1,8 +1,4 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { unstable_cache } from 'next/cache';
-
-// Cache configuration - 60 seconds (same as ISR revalidate)
-const CACHE_TTL = 60;
+import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
 
 // Type definitions
 export interface Category {
@@ -77,14 +73,20 @@ export interface ProductPrice {
   store?: Store;
 }
 
-// Helper: get client
+// Helper: get client, returns null when Supabase is not configured (e.g. during build)
 function getClient() {
-  return getSupabaseClient();
+  if (!isSupabaseConfigured()) return null;
+  try {
+    return getSupabaseClient();
+  } catch {
+    return null;
+  }
 }
 
 // Fetch all active categories with translations
 export async function fetchCategories(language: string = 'en') {
   const client = getClient();
+  if (!client) return [];
   const { data, error } = await client
     .from('categories')
     .select('*, category_translations(*)')
@@ -97,16 +99,10 @@ export async function fetchCategories(language: string = 'en') {
   }));
 }
 
-// Cached version for server components
-export const fetchCategoriesCached = unstable_cache(
-  fetchCategories,
-  ['categories'],
-  { revalidate: CACHE_TTL, tags: ['categories'] }
-);
-
 // Fetch all active stores with translations
 export async function fetchStores(language: string = 'en') {
   const client = getClient();
+  if (!client) return [];
   const { data, error } = await client
     .from('stores')
     .select('*, store_translations(*)')
@@ -118,13 +114,6 @@ export async function fetchStores(language: string = 'en') {
     translations: store.store_translations as StoreTranslation[],
   }));
 }
-
-// Cached version for server components
-export const fetchStoresCached = unstable_cache(
-  fetchStores,
-  ['stores'],
-  { revalidate: CACHE_TTL, tags: ['stores'] }
-);
 
 // Fetch products with translations and prices
 export async function fetchProducts(options?: {
@@ -140,6 +129,7 @@ export async function fetchProducts(options?: {
   sort_order?: string;
 }) {
   const client = getClient();
+  if (!client) return [];
   const { category_id, language = 'en', search, limit = 20, offset = 0, featured, sales_region, currency, sort_by = 'id', sort_order = 'desc' } = options || {};
 
   // If search keyword provided, find matching product IDs from translations table first
@@ -327,6 +317,7 @@ export async function fetchProducts(options?: {
 // Fetch single product by slug
 export async function fetchProductBySlug(slug: string, language: string = 'en', activeRegion?: string) {
   const client = getClient();
+  if (!client) return null;
   const { data, error } = await client
     .from('products')
     .select('*, product_translations(*), product_prices(*, stores(*, store_translations(*))), categories(*, category_translations(*))')
@@ -406,6 +397,7 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
 // Count products
 export async function countProducts(category_id?: number, sales_region?: string, search?: string, currency?: string) {
   const client = getClient();
+  if (!client) return 0;
   
   // Debug log
   console.log('[countProducts] params:', { category_id, sales_region, search, currency });
@@ -547,6 +539,7 @@ export interface BannerTranslation {
 // Fetch active banners with translations
 export async function fetchBanners(language: string = 'en') {
   const client = getClient();
+  if (!client) return [];
   const { data, error } = await client
     .from('banners')
     .select('*, banner_translations(*)')
@@ -558,13 +551,6 @@ export async function fetchBanners(language: string = 'en') {
     translations: (banner.banner_translations || []) as BannerTranslation[],
   }));
 }
-
-// Cached version for server components
-export const fetchBannersCached = unstable_cache(
-  fetchBanners,
-  ['banners'],
-  { revalidate: CACHE_TTL, tags: ['banners'] }
-);
 
 // Calculate discount percent
 export function calcDiscount(current: string, original: string | null): number | null {
