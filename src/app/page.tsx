@@ -18,7 +18,6 @@ async function getInitialData() {
       featuredProducts: [],
       banners: [],
       promotions: [],
-      promotionProducts: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
     };
   }
@@ -88,82 +87,6 @@ async function getInitialData() {
       product_count: 0,
     })) || [];
 
-    // 获取活动产品数据 (promotion products)
-    const promotionIds = promotions.map((p: any) => p.id);
-    let promotionProducts: any[] = [];
-    if (promotionIds.length > 0) {
-      const { data: ppData } = await supabase
-        .from("promotion_products")
-        .select(`
-          id,
-          promotion_id,
-          slug,
-          image_key,
-          image_url,
-          is_active,
-          is_featured,
-          special_price,
-          notes,
-          promotion_product_translations (
-            id,
-            name,
-            description,
-            language
-          )
-        `)
-        .in("promotion_id", promotionIds)
-        .eq("is_active", true);
-
-      if (ppData && ppData.length > 0) {
-        // 获取每个活动产品的价格
-        const ppIds = ppData.map((pp: any) => pp.id);
-        const { data: ppPrices } = await supabase
-          .from("promotion_product_prices")
-          .select(`
-            id,
-            promotion_product_id,
-            store_id,
-            current_price,
-            original_price,
-            currency,
-            region,
-            no_quote,
-            special_price,
-            time_type,
-            start_time,
-            end_time,
-            countdown_action,
-            product_url
-          `)
-          .in("promotion_product_id", ppIds);
-
-        // 获取店铺信息
-        const storeIds = [...new Set((ppPrices || []).map((p: any) => p.store_id).filter(Boolean))];
-        let storesMap: Record<number, any> = {};
-        if (storeIds.length > 0) {
-          const { data: storesData } = await supabase
-            .from("stores")
-            .select("id, slug, logo_url, is_active, store_translations(id, store_id, language, name)")
-            .in("id", storeIds);
-          (storesData || []).forEach((s: any) => { storesMap[s.id] = s; });
-        }
-
-        // 组装活动产品数据
-        promotionProducts = ppData.map((pp: any) => {
-          const prices = (ppPrices || [])
-            .filter((p: any) => p.promotion_product_id === pp.id)
-            .map((p: any) => ({
-              ...p,
-              store: storesMap[p.store_id] || null,
-            }));
-          return {
-            ...pp,
-            store_prices: prices,
-          };
-        });
-      }
-    }
-
     // 计算总数
     const countResult = await supabase
       .from("products")
@@ -178,7 +101,6 @@ async function getInitialData() {
       featuredProducts: featuredProducts || [],
       banners,
       promotions,
-      promotionProducts,
       pagination: {
         page: 1,
         limit: 20,
@@ -194,7 +116,6 @@ async function getInitialData() {
       featuredProducts: [],
       banners: [],
       promotions: [],
-      promotionProducts: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
     };
   }

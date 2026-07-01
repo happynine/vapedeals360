@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { SiteHeader } from '@/components/site-header';
 import SiteFooter from '@/components/site-footer';
 import CookieConsent from '@/components/cookie-consent';
-import { CountdownDisplay } from '@/components/countdown-display';
 import { useLanguage } from '@/hooks/use-language';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +16,14 @@ interface PromotionTranslation {
   description: string | null;
   cover_image_url: string | null;
   language_code: string;
+  language: string;
+}
+
+interface StoreTranslation {
+  id: number;
+  store_id: number;
+  language: string;
+  name: string;
 }
 
 interface PromotionProductPrice {
@@ -36,9 +43,11 @@ interface PromotionProductPrice {
   countdown_action: 'close' | 'original_price';
   store?: {
     id: number;
-    name: string;
-    icon_url: string | null;
-  };
+    slug: string;
+    logo_url: string | null;
+    is_active: boolean;
+    store_translations?: StoreTranslation[];
+  } | null;
 }
 
 interface PromotionProductTranslation {
@@ -72,6 +81,12 @@ interface Promotion {
   promotion_products: PromotionProduct[];
 }
 
+// Helper: get translation
+function getTranslation<T extends { language: string }>(translations: T[] | undefined | null, language: string): T | undefined {
+  if (!translations || translations.length === 0) return undefined;
+  return translations.find(t => t.language === language) || translations.find(t => t.language === "en") || translations[0];
+}
+
 // Safe Image component with fallback
 function SafeImage({ 
   src, 
@@ -80,7 +95,8 @@ function SafeImage({
   className, 
   sizes,
   width,
-  height 
+  height,
+  loading
 }: { 
   src: string | null; 
   alt: string; 
@@ -89,6 +105,7 @@ function SafeImage({
   sizes?: string;
   width?: number;
   height?: number;
+  loading?: string;
 }) {
   const [imgSrc, setImgSrc] = useState(src || '/placeholder-product.png');
   const [hasError, setHasError] = useState(false);
@@ -121,6 +138,7 @@ function SafeImage({
           setImgSrc('/placeholder-product.png');
         }}
         unoptimized
+        {...(loading ? { loading: loading as 'eager' | 'lazy' } : {})}
       />
     );
   }
@@ -137,47 +155,107 @@ function SafeImage({
         setImgSrc('/placeholder-product.png');
       }}
       unoptimized
+      {...(loading ? { loading: loading as 'eager' | 'lazy' } : {})}
     />
   );
 }
 
-// Countdown badge component for cards
-function CountdownBadge({ timeType, endTime, language }: { 
+// Live Countdown Timer for product cards
+function CountdownTimer({ seconds, language }: { seconds: number; language: string }) {
+  const [timeLeft, setTimeLeft] = useState(seconds);
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  if (timeLeft <= 0) return null;
+
+  const days = Math.floor(timeLeft / 86400);
+  const hours = Math.floor((timeLeft % 86400) / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const secs = timeLeft % 60;
+
+  const pad = (n: number) => n.toString().padStart(2, "0");
+
+  return (
+    <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full bg-red-50 px-1.5 sm:px-2 py-0.5 sm:py-1">
+      <span className="text-[8px] sm:text-[10px] font-medium text-red-600">
+        {language === "zh" ? "倒计时" : "Ends"}
+      </span>
+      {days > 0 && (
+        <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+          {days}d
+        </span>
+      )}
+      <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+        {pad(hours)}:{pad(minutes)}:{pad(secs)}
+      </span>
+    </div>
+  );
+}
+
+// Time type badge
+function TimeTypeBadge({ timeType, endTime, language }: { 
   timeType: string; 
   endTime: string | null;
   language: string;
 }) {
   if (timeType === 'permanent') {
     return (
-      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-green-700">
         {language === 'zh' ? '长期有效' : 'Permanent'}
       </span>
     );
   }
 
-  if (!endTime) return null;
+  if (timeType === 'countdown') {
+    if (!endTime) return null;
+    const now = new Date();
+    const end = new Date(endTime);
+    const diff = end.getTime() - now.getTime();
+    if (diff <= 0) {
+      return (
+        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-red-700">
+          {language === 'zh' ? '已结束' : 'Ended'}
+        </span>
+      );
+    }
+    const seconds = Math.floor(diff / 1000);
+    return <CountdownTimer seconds={seconds} language={language} />;
+  }
 
-  const now = new Date();
-  const end = new Date(endTime);
-  const diff = end.getTime() - now.getTime();
-
-  if (diff <= 0) {
+  if (timeType === 'time_range') {
+    if (!endTime) return null;
+    const now = new Date();
+    const end = new Date(endTime);
+    const diff = end.getTime() - now.getTime();
+    if (diff <= 0) {
+      return (
+        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-red-700">
+          {language === 'zh' ? '已结束' : 'Ended'}
+        </span>
+      );
+    }
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     return (
-      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-        {language === 'zh' ? '已结束' : 'Ended'}
+      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-amber-700">
+        {language === 'zh' ? `限时 ${days}天${hours}时` : `${days}d ${hours}h left`}
       </span>
     );
   }
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  return (
-    <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-      {days}d {hours}h {minutes}m
-    </span>
-  );
+  return null;
 }
 
 export default function PromotionPage() {
@@ -215,11 +293,18 @@ export default function PromotionPage() {
         <SiteHeader />
         <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded mb-8"></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-48 bg-gray-200 rounded"></div>
+            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl mb-6"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 animate-pulse">
+                  <div className="h-40 sm:h-48 w-full rounded-xl bg-gray-100" />
+                  <div className="mt-3 h-4 w-3/4 rounded bg-gray-100" />
+                  <div className="mt-2 h-6 w-1/2 rounded bg-gray-100" />
+                  <div className="mt-3 space-y-2">
+                    <div className="h-8 w-full rounded bg-gray-100" />
+                    <div className="h-8 w-full rounded bg-gray-100" />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -253,7 +338,7 @@ export default function PromotionPage() {
     );
   }
 
-  const translation = promotion.translations?.find(t => t.language_code === language) || promotion.translations?.[0];
+  const translation = promotion.translations?.find(t => t.language_code === language || t.language === language) || promotion.translations?.[0];
   const coverImage = translation?.cover_image_url;
 
   // Filter active products
@@ -263,7 +348,7 @@ export default function PromotionPage() {
     <div className="min-h-screen bg-white">
       <SiteHeader />
       <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
-        {/* Promotion Header */}
+        {/* Promotion Header with Cover Image */}
         <div className="mb-8">
           {coverImage && (
             <div className="relative w-full h-64 sm:h-80 rounded-xl overflow-hidden mb-6">
@@ -301,7 +386,7 @@ export default function PromotionPage() {
           </div>
         </div>
 
-        {/* Products Grid */}
+        {/* Products Grid - Same layout as standard product cards */}
         {activeProducts.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-gray-600">
@@ -309,8 +394,8 @@ export default function PromotionPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {activeProducts.map((product) => {
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            {activeProducts.map((product, idx) => {
               const productTranslation = product.promotion_product_translations?.find(
                 t => t.language === language
               ) || product.promotion_product_translations?.[0];
@@ -325,89 +410,175 @@ export default function PromotionPage() {
                   }
                   return true;
                 });
-              // Sort by price to find lowest
+
+              if (promotionPrices.length === 0) return null;
+
+              // Sort by price
               const sortedPrices = [...promotionPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
               const lowestPrice = sortedPrices[0];
+              const lowestPriceValue = lowestPrice?.current_price || 0;
+              
+              // Calculate highest original price for discount display
+              const highestOriginal = promotionPrices.reduce((max, p) => {
+                const val = p.original_price || 0;
+                return val > max ? val : max;
+              }, 0);
+              
+              // Discount calculation
+              const discountAmt = highestOriginal > lowestPriceValue ? (highestOriginal - lowestPriceValue).toFixed(2) : null;
+              const discountPct = highestOriginal > lowestPriceValue ? Math.round((1 - lowestPriceValue / highestOriginal) * 100) : null;
+
+              // Determine the promotion type label for the card
+              const hasCountdown = promotionPrices.some(p => p.time_type === 'countdown');
+              const hasTimeRange = promotionPrices.some(p => p.time_type === 'time_range');
+              const timeTypeLabel = hasCountdown 
+                ? (language === 'zh' ? '限时倒计时' : 'Countdown')
+                : hasTimeRange 
+                  ? (language === 'zh' ? '限时特惠' : 'Limited Time')
+                  : (language === 'zh' ? '特惠' : 'DEAL');
+
+              // Get the earliest end time for countdown display
+              const countdownPrice = sortedPrices.find(p => p.time_type === 'countdown' && p.end_time);
 
               return (
-                <Link
+                <div
                   key={product.id}
-                  href={`/promotion-product/${product.id}?promotion=${slug}`}
-                  className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-purple-300 transition-all overflow-hidden"
+                  className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-purple-300 transition-all animate-fade-in-up"
+                  style={{ animationDelay: `${idx * 50}ms` }}
                 >
-                  {/* Product Image */}
-                  <div className="relative aspect-square overflow-hidden bg-gray-50">
+                  <Link
+                    href={`/promotion-product/${product.id}?promotion=${slug}`}
+                    className="block relative aspect-square bg-gray-50 overflow-hidden"
+                  >
                     <SafeImage
                       src={product.image_key || product.image_url}
                       alt={productTranslation?.name || product.slug || 'Product'}
                       fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      loading={idx < 4 ? "eager" : "lazy"}
                     />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="p-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-purple-600">
-                      {productTranslation?.name || product.slug || 'Unnamed Product'}
-                    </h3>
-                    
-                    {/* Store Prices List */}
-                    {sortedPrices.length > 0 && (
-                      <div className="space-y-2">
-                        {sortedPrices.slice(0, 3).map((price, idx) => {
-                          const isLowest = idx === 0;
-                          const timeType = price.time_type || 'permanent';
-                          
-                          return (
-                            <div key={price.id} className={`flex items-center justify-between p-2 rounded-lg ${isLowest ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                              {/* Store Info */}
-                              <div className="flex items-center gap-2">
-                                {price.store?.icon_url && (
-                                  <SafeImage
-                                    src={price.store.icon_url}
-                                    alt={price.store.name}
-                                    width={20}
-                                    height={20}
-                                    className="rounded"
-                                  />
-                                )}
-                                <span className="text-xs font-medium text-gray-700">{price.store?.name}</span>
-                              </div>
-                              
-                              {/* Price */}
-                              <div className="flex items-center gap-1">
-                                <span className={`text-sm font-bold ${isLowest ? 'text-green-600' : 'text-gray-900'}`}>
-                                  {price.currency === 'USD' ? '$' : price.currency || '$'}
-                                  {price.current_price?.toFixed(2)}
-                                </span>
-                              </div>
-                              
-                              {/* Time/Countdown */}
-                              <div className="text-xs">
-                                {timeType === 'permanent' ? (
-                                  <span className="text-gray-500">
-                                    {language === 'zh' ? '长期' : 'Long-term'}
-                                  </span>
-                                ) : price.end_time ? (
-                                  <CountdownBadge timeType={timeType} endTime={price.end_time} language={language} />
-                                ) : (
-                                  <span className="text-gray-400">—</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        
-                        {sortedPrices.length > 3 && (
-                          <div className="text-xs text-gray-500 text-center pt-1">
-                            +{sortedPrices.length - 3} {language === 'zh' ? '更多商城' : 'more stores'}
-                          </div>
-                        )}
+                    {/* Discount badge */}
+                    {discountAmt && (
+                      <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold text-white animate-pulse-deal">
+                        Save ${discountAmt}
                       </div>
                     )}
+                    {!discountAmt && discountPct && discountPct > 0 && (
+                      <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold text-white animate-pulse-deal">
+                        -{discountPct}%
+                      </div>
+                    )}
+                    {/* Promotion type badge */}
+                    <div className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
+                      {timeTypeLabel}
+                    </div>
+                  </Link>
+                  <div className="p-2 sm:p-3">
+                    <Link href={`/promotion-product/${product.id}?promotion=${slug}`}>
+                      <h3 className="text-[11px] sm:text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
+                        {productTranslation?.name || product.slug || 'Unnamed Product'}
+                      </h3>
+                    </Link>
+                    
+                    {/* Price display */}
+                    <div className="mt-1 sm:mt-1.5 flex items-baseline gap-1 sm:gap-2">
+                      <span className="text-sm sm:text-xl font-bold text-emerald-600 tabular-nums">
+                        {lowestPrice?.currency === 'USD' ? '$' : lowestPrice?.currency || '$'}{lowestPriceValue.toFixed(2)}
+                      </span>
+                      {sortedPrices.length >= 2 && (
+                        <span className="text-[9px] sm:text-xs text-emerald-600 font-medium">
+                          {language === 'zh' ? '最低价' : 'Lowest'}
+                        </span>
+                      )}
+                      {highestOriginal > lowestPriceValue && sortedPrices.length < 2 && (
+                        <span className="text-[10px] sm:text-sm text-gray-400 line-through tabular-nums">
+                          ${highestOriginal.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Countdown for countdown-type promotions */}
+                    {countdownPrice?.end_time && (
+                      <div className="mt-1">
+                        <TimeTypeBadge 
+                          timeType={countdownPrice.time_type} 
+                          endTime={countdownPrice.end_time} 
+                          language={language} 
+                        />
+                      </div>
+                    )}
+
+                    {/* Mobile: top store price only */}
+                    <div className="mt-1 sm:hidden">
+                      {sortedPrices.slice(0, 1).map(price => {
+                        const st = price.store?.store_translations ? getTranslation(price.store.store_translations, language) : null;
+                        const storeName = st?.name || "Store";
+                        return (
+                          <div key={price.id} className="flex items-center justify-between gap-1 rounded-md bg-gray-50 px-1.5 py-1">
+                            <span className="text-[9px] text-gray-500 truncate">{storeName}</span>
+                            <span className="text-[9px] font-semibold text-emerald-600 tabular-nums">
+                              {price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price?.toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {sortedPrices.length > 1 && (
+                        <Link href={`/promotion-product/${product.id}?promotion=${slug}`} className="block text-center text-[9px] text-purple-700 hover:underline py-0.5">
+                          +{sortedPrices.length - 1} {language === 'zh' ? '家商城' : 'stores'}
+                        </Link>
+                      )}
+                    </div>
+
+                    {/* Desktop: store price list with Buy buttons */}
+                    <div className="hidden sm:block mt-2 space-y-1">
+                      {sortedPrices.slice(0, 3).map(price => {
+                        const st = price.store?.store_translations ? getTranslation(price.store.store_translations, language) : null;
+                        const storeName = st?.name || "Store";
+                        return (
+                          <div key={price.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-2 py-1">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className="h-5 w-5 flex-shrink-0 rounded bg-purple-50 flex items-center justify-center overflow-hidden">
+                                {price.store?.logo_url ? (
+                                  <img
+                                    src={price.store.logo_url.startsWith("http") ? price.store.logo_url : `/api/image?key=${encodeURIComponent(price.store.logo_url)}`}
+                                    alt=""
+                                    className="w-full h-full object-contain"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-purple-600">{storeName.charAt(0)}</span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-500 truncate">{storeName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-xs font-semibold text-emerald-600 tabular-nums">
+                                {price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price?.toFixed(2)}
+                              </span>
+                              {price.product_url && (
+                                <a
+                                  href={price.product_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-700 hover:text-white transition-all"
+                                >
+                                  {language === 'zh' ? '购买' : 'Buy'}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {sortedPrices.length > 3 && (
+                        <Link href={`/promotion-product/${product.id}?promotion=${slug}`} className="block text-center text-xs text-purple-700 hover:underline py-0.5">
+                          {language === 'zh' ? `查看全部 ${sortedPrices.length} 家商城` : `View all ${sortedPrices.length} stores`}
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>

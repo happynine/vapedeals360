@@ -98,7 +98,7 @@ export async function GET(
             
             const { data: store, error: storeError } = await supabase
               .from('stores')
-              .select('id, name, icon_url')
+              .select('id, slug, logo_url, is_active, store_translations(id, store_id, language, name)')
               .eq('id', price.store_id)
               .single();
             
