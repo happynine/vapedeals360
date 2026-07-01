@@ -86,9 +86,8 @@ export default function PromotionProductPage() {
       }[];
     };
 
-    // Filter promotion prices (only show promotion store type, and not closed)
+    // Filter prices - show both promotion and standard store types, skip no_quote and closed
     const filteredPrices = (pp.store_prices || []).filter(p => {
-      if (p.store_type !== 'promotion') return false;
       if (!p.store_id || !p.current_price || p.no_quote) return false;
       // Filter out prices where countdown has ended with 'close' action
       if (p.time_type !== 'permanent' && p.end_time && p.countdown_action === 'close') {
