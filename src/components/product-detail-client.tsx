@@ -5,14 +5,14 @@ import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { useLanguage } from "@/hooks/use-language";
 
-interface StoreTranslation {
+export interface StoreTranslation {
   id: number;
   store_id: number;
   language: string;
   name: string;
 }
 
-interface Store {
+export interface Store {
   id: number;
   slug: string;
   logo_url: string | null;
@@ -22,7 +22,7 @@ interface Store {
   translations: StoreTranslation[];
 }
 
-interface ProductPrice {
+export interface ProductPrice {
   id: number;
   product_id: number;
   store_id: number;
@@ -37,7 +37,7 @@ interface ProductPrice {
   store?: Store;
 }
 
-interface ProductTranslation {
+export interface ProductTranslation {
   id: number;
   product_id: number;
   language: string;
