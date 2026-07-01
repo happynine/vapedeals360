@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
         region,
         no_quote,
         special_price,
+        store_type,
         time_type,
         start_time,
         end_time,
@@ -131,6 +132,7 @@ export async function GET(request: NextRequest) {
           region: string | null;
           no_quote: boolean | null;
           special_price: string | number | null;
+          store_type: string;
           time_type: string;
           start_time: string | null;
           end_time: string | null;

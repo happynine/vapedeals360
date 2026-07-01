@@ -362,6 +362,7 @@ export const promotionProductPrices = pgTable("promotion_product_prices", {
 	currency: varchar({ length: 10 }).default('$'),
 	region: varchar({ length: 50 }).default(''),
 	noQuote: boolean("no_quote").default(false),
+	storeType: varchar("store_type", { length: 20 }).default('promotion').notNull(),
 	specialPrice: numeric("special_price", { precision: 10, scale: 2 }),
 	timeType: varchar("time_type", { length: 20 }).default('permanent'),
 	startTime: timestamp("start_time", { withTimezone: true, mode: 'string' }),

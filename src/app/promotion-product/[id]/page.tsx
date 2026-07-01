@@ -20,6 +20,7 @@ interface PromotionProductPrice {
   currency: string | null;
   product_url: string | null;
   no_quote: boolean | null;
+  store_type: 'promotion' | 'standard';
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
@@ -151,13 +152,21 @@ export default function PromotionProductPage() {
   const translation = product.promotion_product_translations?.find(t => t.language === language) || product.promotion_product_translations?.[0];
   const promotionTranslation = promotion?.translations?.find(t => t.language === language) || promotion?.translations?.[0];
 
-  // Get store prices sorted by price
-  const validPrices = product.store_prices?.filter(p => p.store_id && p.current_price && !p.no_quote) || [];
-  const sortedPrices = [...validPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
+  // Get store prices sorted by price - only show promotion store prices on promotion detail page
+  const promotionPrices = (product.store_prices || [])
+    .filter(p => p.store_type === 'promotion' && p.store_id && p.current_price && !p.no_quote)
+    // Filter out prices where countdown has ended with 'close' action
+    .filter(p => {
+      if (p.time_type !== 'permanent' && p.end_time && p.countdown_action === 'close') {
+        return new Date(p.end_time).getTime() > Date.now();
+      }
+      return true;
+    });
+  const sortedPrices = [...promotionPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
   const lowestPrice = sortedPrices[0];
 
-  // Find countdown info from first price
-  const firstPrice = product.store_prices?.[0];
+  // Find countdown info from first promotion price
+  const firstPrice = promotionPrices[0];
   const timeType = firstPrice?.time_type || 'permanent';
   const startTime = firstPrice?.start_time;
   const endTime = firstPrice?.end_time;

@@ -29,6 +29,7 @@ interface PromotionProductPrice {
   currency: string | null;
   product_url: string | null;
   no_quote: boolean | null;
+  store_type: 'promotion' | 'standard';
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
@@ -314,10 +315,18 @@ export default function PromotionPage() {
                 t => t.language === language
               ) || product.promotion_product_translations?.[0];
               
-              // Get all valid store prices
-              const validPrices = product.store_prices?.filter(p => p.store_id && p.current_price) || [];
+              // Only show promotion store prices on the promotion detail page
+              const promotionPrices = (product.store_prices || [])
+                .filter(p => p.store_type === 'promotion' && p.store_id && p.current_price)
+                // Filter out prices where countdown has ended with 'close' action
+                .filter(p => {
+                  if (p.time_type !== 'permanent' && p.end_time && p.countdown_action === 'close') {
+                    return new Date(p.end_time).getTime() > Date.now();
+                  }
+                  return true;
+                });
               // Sort by price to find lowest
-              const sortedPrices = [...validPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
+              const sortedPrices = [...promotionPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
               const lowestPrice = sortedPrices[0];
 
               return (

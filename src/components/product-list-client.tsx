@@ -131,6 +131,7 @@ interface PromotionProductPrice {
   region: string | null;
   no_quote: boolean | null;
   special_price: string | number | null;
+  store_type: 'promotion' | 'standard';
   time_type: string;
   start_time: string | null;
   end_time: string | null;

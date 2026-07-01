@@ -5288,6 +5288,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     currency: string;
     product_url: string;
     no_quote: boolean;
+    store_type: 'promotion' | 'standard';
     time_type: 'permanent' | 'time_range' | 'countdown';
     start_time: string;
     end_time: string;
@@ -5298,7 +5299,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     countdown_minutes: number;
     countdown_seconds: number;
   }[]>(
-    (promotionProduct?.promotion_product_prices || promotionProduct?.stores)?.map((p: { store_id?: number | null; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; region?: string }) => {
+    (promotionProduct?.promotion_product_prices || promotionProduct?.stores)?.map((p: { store_id?: number | null; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; store_type?: 'promotion' | 'standard'; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; region?: string }) => {
       // Calculate countdown duration from end_time if countdown mode
       let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
       if (p.time_type === 'countdown' && p.end_time) {
@@ -5321,6 +5322,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         currency: p.currency || '$',
         product_url: p.product_url || '',
         no_quote: p.no_quote || false,
+        store_type: (p.store_type as 'promotion' | 'standard') || 'promotion',
         time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
         start_time: p.start_time ? new Date(p.start_time).toISOString().slice(0, 16) : '',
         end_time: p.end_time ? new Date(p.end_time).toISOString().slice(0, 16) : '',
@@ -5339,6 +5341,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
       currency: '$',
       product_url: '', 
       no_quote: false, 
+      store_type: 'promotion' as const,
       time_type: 'permanent', 
       start_time: '', 
       end_time: '', 
@@ -5415,10 +5418,11 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
             currency: p.currency,
             product_url: p.product_url,
             no_quote: p.no_quote,
-            time_type: p.time_type,
-            start_time: startTime,
-            end_time: endTime,
-            countdown_action: p.countdown_action
+            store_type: p.store_type,
+            time_type: p.store_type === 'standard' ? 'permanent' : p.time_type,
+            start_time: p.store_type === 'standard' ? null : startTime,
+            end_time: p.store_type === 'standard' ? null : endTime,
+            countdown_action: p.store_type === 'standard' ? null : p.countdown_action
           };
         })
       };
@@ -5610,17 +5614,20 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 <h3 className="text-sm font-semibold mb-2 text-left">{translate('Store Prices', '商城价格', lang)}</h3>
                 {(() => {
                   // Group prices by store_id (与标准产品弹窗完全一致的逻辑)
-                  const storeGroups: Array<{ storeId: string; indices: number[] }> = [];
+                  const storeGroups: Array<{ storeId: string; storeType: string; indices: number[] }> = [];
                   storePrices.forEach((p, idx) => {
-                    const gid = p.store_id || '__empty__' + idx;
-                    let group = storeGroups.find(g => g.storeId === (p.store_id || '__empty__' + idx));
+                    const gid = (p.store_id || '__empty__' + idx) + '_' + (p.store_type || 'promotion');
+                    let group = storeGroups.find(g => g.storeId === gid);
                     if (!group) {
-                      group = { storeId: gid, indices: [] };
+                      group = { storeId: gid, storeType: p.store_type || 'promotion', indices: [] };
                       storeGroups.push(group);
                     }
                     group.indices.push(idx);
                   });
-                  const selectedStoreIds = storeGroups.filter(g => !g.storeId.startsWith('__empty__')).map(g => Number(g.storeId));
+                  const selectedStoreIds = storeGroups.filter(g => !g.storeId.startsWith('__empty__')).map(g => {
+                    const parts = g.storeId.split('_');
+                    return Number(parts[0]);
+                  });
                   return <>{storeGroups.map((group) => {
                     const firstP = storePrices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
@@ -5629,7 +5636,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
                         <div className="mb-2">
-                          <label className="text-[10px] text-muted-foreground text-left block">{translate('Store', '商城', lang)}</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-muted-foreground text-left block">{translate('Store', '商城', lang)}</label>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
+                              {firstP.store_type === 'promotion' ? translate('Promotion Store', '特惠商城', lang) : translate('Standard Store', '标准商城', lang)}
+                            </span>
+                          </div>
                           <StoreSelect
                             stores={stores}
                             value={firstP.store_id}
@@ -5661,6 +5673,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   currency: r.currency,
                                   region: r.region,
                                   no_quote: existing?.no_quote || false,
+                                  store_type: existing?.store_type || 'promotion',
                                   time_type: existing?.time_type || 'permanent',
                                   start_time: existing?.start_time || '',
                                   end_time: existing?.end_time || '',
@@ -5682,6 +5695,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                     currency: sr.currency || '$',
                                     region: sr.region || '',
                                     no_quote: existing?.no_quote || false,
+                                    store_type: existing?.store_type || 'promotion',
                                     time_type: existing?.time_type || 'permanent',
                                     start_time: existing?.start_time || '',
                                     end_time: existing?.end_time || '',
@@ -5843,7 +5857,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             </div>
                           </div>
                         )}
-                        {/* Time Settings - 每个商城分组下方 */}
+                        {/* Time Settings - 仅特惠商城显示 */}
+                        {firstP.store_type === 'promotion' && (
                         <div className="border-t border-border/50 pt-2 mt-2">
                           <label className="text-[10px] text-muted-foreground block mb-1 text-left">{translate('Time Settings', '时间设置', lang)}</label>
                           <div className="grid grid-cols-3 gap-2 mb-2">
@@ -6007,6 +6022,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             </div>
                           )}
                         </div>
+                        )}
                         {storePrices.length > 1 && (
                           <button onClick={() => setStorePrices(storePrices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
                             {translate('Remove Store', '移除商城', lang)}
@@ -6016,9 +6032,14 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     );
                   })}</>
                 })()}
-                <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-primary hover:underline">
-                  + {translate('Add Store Price', '添加商城价格', lang)}
-                </button>
+                <div className="flex gap-3 mt-1">
+                  <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
+                    + {translate('Add Promotion Store', '添加特惠商城', lang)}
+                  </button>
+                  <button onClick={() => setStorePrices([...storePrices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'close', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
+                    + {translate('Add Standard Store', '添加标准商城', lang)}
+                  </button>
+                </div>
               </div>
             </div>
 

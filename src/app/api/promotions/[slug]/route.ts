@@ -79,6 +79,7 @@ export async function GET(
             currency,
             product_url,
             no_quote,
+            store_type,
             time_type,
             start_time,
             end_time,

@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
         start_time: string | null;
         end_time: string | null;
         countdown_action: string;
+        store_type: string;
       }) => ({
         promotion_product_id: promotionProduct.id,
         store_id: sp.store_id,
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         currency: sp.currency || '$',
         product_url: sp.product_url || null,
         no_quote: sp.no_quote ?? false,
+        store_type: sp.store_type || 'promotion',
         time_type: sp.time_type || 'permanent',
         start_time: sp.start_time || null,
         end_time: sp.end_time || null,
@@ -271,6 +273,7 @@ export async function PUT(request: NextRequest) {
           start_time: string | null;
           end_time: string | null;
           countdown_action: string;
+          store_type: string;
         }) => ({
           promotion_product_id: promotionProduct.id,
           store_id: sp.store_id,
@@ -281,6 +284,7 @@ export async function PUT(request: NextRequest) {
           currency: sp.currency || '$',
           product_url: sp.product_url || null,
           no_quote: sp.no_quote ?? false,
+          store_type: sp.store_type || 'promotion',
           time_type: sp.time_type || 'permanent',
           start_time: sp.start_time || null,
           end_time: sp.end_time || null,
