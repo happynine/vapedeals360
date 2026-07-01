@@ -14,6 +14,7 @@ interface PromotionTranslation {
   id: number;
   name: string | null;
   description: string | null;
+  cover_image_key: string | null;
   cover_image_url: string | null;
   language_code: string;
   language: string;
@@ -339,7 +340,7 @@ export default function PromotionPage() {
   }
 
   const translation = promotion.translations?.find(t => t.language_code === language || t.language === language) || promotion.translations?.[0];
-  const coverImage = translation?.cover_image_url;
+  const coverImage = translation?.cover_image_url || translation?.cover_image_key;
 
   // Filter active products
   const activeProducts = promotion.promotion_products?.filter(p => p.is_active) || [];

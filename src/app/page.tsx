@@ -73,19 +73,28 @@ async function getInitialData() {
       };
     }));
 
-    // 处理 promotions
-    const promotions = promotionsResult.data?.map((promo: any) => ({
-      id: promo.id,
-      slug: promo.slug,
-      is_active: promo.is_active,
-      sort_order: promo.sort_order,
-      time_type: promo.time_type,
-      start_time: promo.start_time,
-      end_time: promo.end_time,
-      countdown_action: promo.countdown_action,
-      translations: promo.promotion_translations || [],
-      product_count: 0,
-    })) || [];
+    // 处理 promotions - 转换 cover_image_key 为签名 URL
+    const promotions = await Promise.all((promotionsResult.data || []).map(async (promo: any) => {
+      const translations = await Promise.all((promo.promotion_translations || []).map(async (t: any) => ({
+        id: t.id,
+        language: t.language,
+        name: t.name,
+        cover_image_key: t.cover_image_key,
+        cover_image_url: await getPresignedUrl(t.cover_image_key) || t.cover_image_url,
+      })));
+      return {
+        id: promo.id,
+        slug: promo.slug,
+        is_active: promo.is_active,
+        sort_order: promo.sort_order,
+        time_type: promo.time_type,
+        start_time: promo.start_time,
+        end_time: promo.end_time,
+        countdown_action: promo.countdown_action,
+        translations,
+        product_count: 0,
+      };
+    }));
 
     // 计算总数
     const countResult = await supabase
