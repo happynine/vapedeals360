@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+interface StoreTranslation {
+  id: number;
+  store_id: number;
+  name: string;
+  language: string;
+}
+
 interface PriceStore {
   id: number;
   name: string;
   icon_url: string | null;
+  logo_url: string | null;
+  store_url: string | null;
+  translations?: StoreTranslation[];
 }
 
 interface StorePrice {
@@ -17,6 +27,7 @@ interface StorePrice {
   currency: string | null;
   product_url: string | null;
   no_quote: boolean | null;
+  store_type: 'promotion' | 'standard';
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
@@ -50,6 +61,7 @@ interface PromotionTranslation {
   id: number;
   promotion_id: number;
   name: string | null;
+  cover_image_key: string | null;
   cover_image_url: string | null;
   language: string;
 }
@@ -58,6 +70,7 @@ interface Promotion {
   id: number;
   slug: string;
   title: string | null;
+  time_type: string | null;
   promotion_translations?: PromotionTranslation[];
   translations?: PromotionTranslation[];
 }
@@ -117,6 +130,7 @@ export async function GET(
         currency,
         product_url,
         no_quote,
+        store_type,
         time_type,
         start_time,
         end_time,
@@ -134,14 +148,17 @@ export async function GET(
       if (storeIds.length > 0) {
         const { data: stores } = await supabase
           .from('stores')
-          .select('id, name, icon_url')
-          .in('id', storeIds) as { data: PriceStore[] | null; error: any };
+          .select('id, name, icon_url, logo_url, store_url, store_translations(id, store_id, name, language)')
+          .in('id', storeIds) as { data: (PriceStore & { store_translations?: StoreTranslation[] })[] | null; error: any };
 
         if (stores) {
           prices.forEach(price => {
             const store = stores.find(s => s.id === price.store_id);
             if (store) {
-              price.store = store;
+              price.store = {
+                ...store,
+                translations: store.store_translations || [],
+              };
             }
           });
         }
@@ -159,10 +176,12 @@ export async function GET(
           id,
           slug,
           title,
+          time_type,
           promotion_translations (
             id,
             promotion_id,
             name,
+            cover_image_key,
             cover_image_url,
             language
           )

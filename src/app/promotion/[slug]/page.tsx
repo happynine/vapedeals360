@@ -470,15 +470,35 @@ export default function PromotionPage() {
                         -{discountPct}%
                       </div>
                     )}
-                    {/* Promotion type badge */}
-                    <div className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
-                      {timeTypeLabel}
-                    </div>
+                    {/* Time type badge on image */}
+                    {countdownPrice?.end_time && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <TimeTypeBadge 
+                          timeType={countdownPrice.time_type} 
+                          endTime={countdownPrice.end_time} 
+                          language={language} 
+                        />
+                      </div>
+                    )}
+                    {!countdownPrice?.end_time && !hasTimeRange && (
+                      <div className="absolute top-2 right-2 z-10 rounded-lg bg-green-600 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
+                        {language === 'zh' ? '长期有效' : 'Permanent'}
+                      </div>
+                    )}
+                    {!countdownPrice?.end_time && hasTimeRange && sortedPrices.find(p => p.time_type === 'time_range' && p.end_time) && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <TimeTypeBadge 
+                          timeType="time_range" 
+                          endTime={sortedPrices.find(p => p.time_type === 'time_range' && p.end_time)!.end_time} 
+                          language={language} 
+                        />
+                      </div>
+                    )}
                   </Link>
                   <div className="p-2 sm:p-3">
                     <Link href={`/promotion-product/${product.id}?promotion=${slug}`}>
                       <h3 className="text-[11px] sm:text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
-                        {productTranslation?.name || product.slug || 'Unnamed Product'}
+                        {(productTranslation?.name || product.promotion_product_translations?.find(t => t.name)?.name) || product.slug || 'Unnamed Product'}
                       </h3>
                     </Link>
                     
@@ -498,17 +518,6 @@ export default function PromotionPage() {
                         </span>
                       )}
                     </div>
-
-                    {/* Countdown for countdown-type promotions */}
-                    {countdownPrice?.end_time && (
-                      <div className="mt-1">
-                        <TimeTypeBadge 
-                          timeType={countdownPrice.time_type} 
-                          endTime={countdownPrice.end_time} 
-                          language={language} 
-                        />
-                      </div>
-                    )}
 
                     {/* Mobile: top store price only */}
                     <div className="mt-1 sm:hidden">
