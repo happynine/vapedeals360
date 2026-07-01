@@ -136,7 +136,10 @@ interface PromotionProductPrice {
   start_time: string | null;
   end_time: string | null;
   countdown_action: string;
+  countdown_seconds: number | null;
+  discount_percent: string | number | null;
   product_url: string | null;
+  store_name?: string;
   store?: {
     id: number;
     slug: string;
@@ -542,6 +545,163 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     </div>
                   </div>
                 </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Promotion Products Section */}
+      {promotionProducts.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" clipRule="evenodd" />
+              </svg>
+              {language === "zh" ? "特惠活动" : "PROMOTION DEALS"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {promotionProducts.map((pp) => {
+              const ppt = getTranslation(pp.promotion_product_translations, language);
+              const promotionPrices = (pp.store_prices || []).filter((p: PromotionProductPrice) => p.store_type === 'promotion');
+              if (promotionPrices.length === 0) return null;
+
+              const lowestPrice = promotionPrices.reduce((min: number, p: PromotionProductPrice) => {
+                const val = parseFloat(String(p.current_price));
+                return val < min ? val : min;
+              }, Infinity);
+              const lowest = promotionPrices.find((p: PromotionProductPrice) => parseFloat(String(p.current_price)) === lowestPrice);
+              const originalPrice = promotionPrices.reduce((max: number, p: PromotionProductPrice) => {
+                const val = parseFloat(String(p.original_price));
+                return val > max ? val : max;
+              }, 0);
+              const discountAmt = originalPrice > lowestPrice ? (originalPrice - lowestPrice).toFixed(2) : null;
+              const discountPct = originalPrice > lowestPrice ? Math.round((1 - lowestPrice / originalPrice) * 100) : null;
+              const sortedPrices = [...promotionPrices].sort((a: PromotionProductPrice, b: PromotionProductPrice) => parseFloat(String(a.current_price)) - parseFloat(String(b.current_price)));
+
+              const promoLink = pp.promotion?.slug ? `/promotion/${pp.promotion.slug}` : '#';
+
+              return (
+                <div
+                  key={pp.id}
+                  className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-purple-300 transition-all animate-fade-in-up"
+                >
+                  <Link
+                    href={promoLink}
+                    className="block relative aspect-square bg-gray-50 overflow-hidden"
+                  >
+                    {pp.image_url && (
+                      <SafeImage
+                        src={pp.image_url}
+                        alt={ppt?.name || ""}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        loading="lazy"
+                      />
+                    )}
+                    {discountAmt && (
+                      <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold text-white animate-pulse-deal">
+                        Save ${discountAmt}
+                      </div>
+                    )}
+                    {!discountAmt && discountPct && discountPct > 0 && (
+                      <div className="absolute top-2 left-2 z-10 rounded-lg bg-red-500 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold text-white animate-pulse-deal">
+                        -{discountPct}%
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-white">
+                      {language === "zh" ? "特惠" : "DEAL"}
+                    </div>
+                  </Link>
+                  <div className="p-2 sm:p-3">
+                    <Link href={promoLink}>
+                      <h3 className="text-[11px] sm:text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
+                        {ppt?.name}
+                      </h3>
+                    </Link>
+                    <div className="mt-1 sm:mt-1.5 flex items-baseline gap-1 sm:gap-2">
+                      <span className="text-sm sm:text-xl font-bold text-emerald-600 tabular-nums">
+                        {lowest?.currency || '$'}{lowest?.current_price}
+                      </span>
+                      {promotionPrices.length >= 2 && (
+                        <span className="text-[9px] sm:text-xs text-emerald-600 font-medium">
+                          {language === "zh" ? "最低价" : "Lowest"}
+                        </span>
+                      )}
+                      {originalPrice > lowestPrice && promotionPrices.length < 2 && (
+                        <span className="text-[10px] sm:text-sm text-gray-400 line-through tabular-nums">
+                          ${originalPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    {/* Countdown for promotion stores */}
+                    {sortedPrices.filter(p => p.time_type === 'countdown' && (p.countdown_seconds ?? 0) > 0).length > 0 && (() => {
+                      const countdownPrice = sortedPrices.find(p => p.time_type === 'countdown' && (p.countdown_seconds ?? 0) > 0);
+                      if (!countdownPrice || countdownPrice.countdown_seconds == null) return null;
+                      return (
+                        <CountdownTimer
+                          key={`promo-pp-${pp.id}-${countdownPrice.countdown_seconds}`}
+                          seconds={countdownPrice.countdown_seconds}
+                          language={language}
+                        />
+                      );
+                    })()}
+                    {/* Mobile: top store price only */}
+                    <div className="mt-1 sm:hidden">
+                      {sortedPrices.slice(0, 1).map(price => {
+                        const storeName = price.store_name || "Store";
+                        return (
+                          <div key={price.id} className="flex items-center justify-between gap-1 rounded-md bg-gray-50 px-1.5 py-1">
+                            <span className="text-[9px] text-gray-500 truncate">{storeName}</span>
+                            <span className="text-[9px] font-semibold text-emerald-600 tabular-nums">
+                              {price.currency || '$'}{price.current_price}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {sortedPrices.length > 1 && (
+                        <Link href={promoLink} className="block text-center text-[9px] text-purple-700 hover:underline py-0.5">
+                          +{sortedPrices.length - 1} {language === "zh" ? "家商城" : "stores"}
+                        </Link>
+                      )}
+                    </div>
+                    {/* Desktop: store price list */}
+                    <div className="hidden sm:block mt-2 space-y-1">
+                      {sortedPrices.slice(0, 3).map(price => {
+                        const storeName = price.store_name || "Store";
+                        return (
+                          <div key={price.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-2 py-1">
+                            <span className="text-xs text-gray-500 truncate">{storeName}</span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-xs font-semibold text-emerald-600 tabular-nums">
+                                {price.currency || '$'}{price.current_price}
+                              </span>
+                              {price.product_url && (
+                                <a
+                                  href={price.product_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-700 hover:text-white transition-all"
+                                >
+                                  {language === "zh" ? "购买" : "Buy"}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {sortedPrices.length > 3 && (
+                        <Link href={promoLink} className="block text-center text-xs text-purple-700 hover:underline py-0.5">
+                          {language === "zh" ? `查看全部 ${sortedPrices.length} 家商城` : `View all ${sortedPrices.length} stores`}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1147,6 +1307,50 @@ function PromotionCarousel({
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+// Countdown Timer Component
+function CountdownTimer({ seconds, language }: { seconds: number; language: string }) {
+  const [timeLeft, setTimeLeft] = useState(seconds);
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  if (timeLeft <= 0) return null;
+
+  const days = Math.floor(timeLeft / 86400);
+  const hours = Math.floor((timeLeft % 86400) / 3600);
+  const minutes = Math.floor((timeLeft % 3600) / 60);
+  const secs = timeLeft % 60;
+
+  const pad = (n: number) => n.toString().padStart(2, "0");
+
+  return (
+    <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full bg-red-50 px-1.5 sm:px-2 py-0.5 sm:py-1">
+      <span className="text-[8px] sm:text-[10px] font-medium text-red-600">
+        {language === "zh" ? "倒计时" : "Countdown"}
+      </span>
+      {days > 0 && (
+        <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+          {days}d
+        </span>
+      )}
+      <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+        {pad(hours)}:{pad(minutes)}:{pad(secs)}
+      </span>
     </div>
   );
 }
