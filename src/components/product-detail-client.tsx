@@ -80,38 +80,9 @@ function getTranslation<T extends { language: string }>(translations: T[] | unde
   return translations.find((t) => t.language === language) || translations.find((t) => t.language === "en") || translations[0];
 }
 
-const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
-  'USA': [{ code: 'USD', symbol: '$' }],
-  'UK': [{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }],
-  'Canada': [{ code: 'USD', symbol: '$' }],
-  'Russia': [{ code: 'RUB', symbol: '₽' }],
-  'Japan': [{ code: 'JPY', symbol: '¥' }],
-  'Europe': [{ code: 'EUR', symbol: '€' }],
-  'Global': [{ code: 'USD', symbol: '$' }],
-};
-
 export function ProductDetailClient({ product }: { product: Product }) {
   const { language } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(product.image_url);
-  const [salesRegion, setSalesRegion] = useState<string>("USA");
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
-  const [mounted, setMounted] = useState(false);
-
-  // Load sales region and currency from sessionStorage
-  useEffect(() => {
-    const savedRegion = sessionStorage.getItem('salesRegion');
-    if (savedRegion) {
-      setSalesRegion(savedRegion);
-      const currencies = REGION_CURRENCIES[savedRegion] || [{ code: 'USD', symbol: '$' }];
-      const savedCurrency = sessionStorage.getItem(`selectedCurrency_${savedRegion}`);
-      if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
-        setSelectedCurrency(savedCurrency);
-      } else {
-        setSelectedCurrency(currencies[0].symbol);
-      }
-    }
-    setMounted(true);
-  }, []);
 
   // Track page view
   useEffect(() => {
@@ -148,24 +119,11 @@ export function ProductDetailClient({ product }: { product: Product }) {
     }
   } catch { specsEntries = []; }
 
-  // Filter prices by region and currency
+  // Filter prices - show all active store prices
   const filteredPrices = product.prices.filter((p) => {
     if (p.no_quote) return false;
     if (p.store && !p.store.is_active) return false;
-
-    const priceRegion = p.region;
-    const priceCurrency = p.currency || "$";
-
-    if (salesRegion === "Global") {
-      return priceRegion === "Global" && priceCurrency === selectedCurrency;
-    }
-
-    if (priceRegion === "Global") return true;
-    if (priceRegion === salesRegion) {
-      return priceCurrency === selectedCurrency;
-    }
-
-    return false;
+    return true;
   });
 
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
@@ -215,76 +173,6 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
   return (
     <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8 bg-white flex-1">
-      {/* Region/Currency selector */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-        {!mounted ? (
-          <div className="flex gap-2">
-            {["USA", "UK", "Canada", "Global"].map((region) => (
-              <div key={region} className="h-7 w-16 rounded-full bg-gray-100 animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          (["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
-            const regionLabels: Record<string, string> = {
-              Global: language === "zh" ? "全球" : "Global",
-              USA: language === "zh" ? "美国" : "USA",
-              Canada: language === "zh" ? "加拿大" : "Canada",
-              UK: language === "zh" ? "英国" : "UK",
-              Russia: language === "zh" ? "俄罗斯" : "Russia",
-              Japan: language === "zh" ? "日本" : "Japan",
-              Europe: language === "zh" ? "欧洲" : "Europe",
-            };
-            return (
-              <button
-                key={region}
-                onClick={() => {
-                  setSalesRegion(region);
-                  sessionStorage.setItem("salesRegion", region);
-                  const currencies = REGION_CURRENCIES[region] || [{ code: "USD", symbol: "$" }];
-                  const savedCurrency = sessionStorage.getItem(`selectedCurrency_${region}`);
-                  if (savedCurrency && currencies.some((c) => c.symbol === savedCurrency)) {
-                    setSelectedCurrency(savedCurrency);
-                  } else {
-                    setSelectedCurrency(currencies[0].symbol);
-                  }
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                  salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {regionLabels[region]}
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {/* Currency selector */}
-      {mounted && (() => {
-        const currencies = REGION_CURRENCIES[salesRegion] || [{ code: "USD", symbol: "$" }];
-        if (currencies.length <= 1) return null;
-        return (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
-            {currencies.map((currency) => (
-              <button
-                key={currency.code}
-                onClick={() => {
-                  setSelectedCurrency(currency.symbol);
-                  sessionStorage.setItem(`selectedCurrency_${salesRegion}`, currency.symbol);
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                  selectedCurrency === currency.symbol ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {currency.code} ({currency.symbol})
-              </button>
-            ))}
-          </div>
-        );
-      })()}
-
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500">
         <Link href="/" className="hover:text-gray-900 transition-colors">

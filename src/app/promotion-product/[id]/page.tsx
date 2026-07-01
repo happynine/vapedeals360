@@ -87,8 +87,6 @@ export default function PromotionProductPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeRegion, setActiveRegion] = useState<string>('USA');
-  const [allRegions, setAllRegions] = useState<string[]>([]);
 
   const fetchProduct = useCallback(async () => {
     try {
@@ -100,14 +98,6 @@ export default function PromotionProductPage() {
       const result = await response.json();
       setData(result);
 
-      // Extract unique regions from prices
-      const regions = new Set<string>();
-      (result.product?.store_prices || []).forEach((p: PromotionProductPrice) => {
-        if (p.region) regions.add(p.region);
-      });
-      if (regions.size > 0) {
-        setAllRegions(Array.from(regions));
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -170,7 +160,7 @@ export default function PromotionProductPage() {
   const translation = product.promotion_product_translations?.find(t => t.language === language) || product.promotion_product_translations?.[0];
   const promotionTranslation = promotion?.translations?.find(t => t.language === language) || promotion?.translations?.[0];
 
-  // Filter and sort prices - only show promotion store prices, filter by region
+  // Filter and sort prices - only show promotion store prices
   const filteredPrices = (product.store_prices || [])
     .filter(p => p.store_type === 'promotion' && p.store_id && p.current_price && !p.no_quote)
     .filter(p => {
@@ -179,11 +169,6 @@ export default function PromotionProductPage() {
         return new Date(p.end_time).getTime() > Date.now();
       }
       return true;
-    })
-    .filter(p => {
-      // Filter by active region
-      if (!p.region || p.region === 'Global') return true;
-      return p.region === activeRegion;
     });
 
   const sortedPrices = [...filteredPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
@@ -342,27 +327,6 @@ export default function PromotionProductPage() {
               </div>
             )}
 
-            {/* Region Selector */}
-            {allRegions.length > 1 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-500 font-medium">
-                  {language === 'zh' ? '地区:' : 'Region:'}
-                </span>
-                {allRegions.map(region => (
-                  <button
-                    key={region}
-                    onClick={() => setActiveRegion(region)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      activeRegion === region
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {region}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
