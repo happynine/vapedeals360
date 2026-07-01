@@ -6,7 +6,6 @@ import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supa
 import { getPresignedUrl } from "@/lib/storage";
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
-export const dynamic = 'force-dynamic';
 export const revalidate = 60;
 
 // 服务端获取初始数据
