@@ -1,4 +1,9 @@
 {
-  "installCommand": "npm install",
-  "buildCommand": "pnpm build"
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm build",
+  "functions": {
+    "app/**/*.tsx": {
+      "runtime": "nodejs22.x"
+    }
+  }
 }
