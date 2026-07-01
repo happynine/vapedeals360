@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
 import Link from "next/link";
@@ -451,7 +451,12 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       {/* Promotions Section - Cover Images */}
       {promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
         <div className="mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Mobile: Carousel with dots */}
+          <div className="sm:hidden">
+            <PromotionCarousel promotions={promotions} language={language} />
+          </div>
+          {/* Desktop: Grid */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {promotions.map((promotion) => {
               const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
               const coverImage = translation?.cover_image_url || translation?.cover_image_key;
@@ -710,11 +715,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       {/* Product Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-gray-200 bg-white p-4 animate-pulse">
-              <div className="h-48 w-full rounded-xl bg-gray-100" />
-              <div className="mt-4 h-4 w-3/4 rounded bg-gray-100" />
+            <div key={i} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 animate-pulse">
+              <div className="h-40 sm:h-48 w-full rounded-xl bg-gray-100" />
+              <div className="mt-3 h-4 w-3/4 rounded bg-gray-100" />
               <div className="mt-2 h-6 w-1/2 rounded bg-gray-100" />
               <div className="mt-3 space-y-2">
                 <div className="h-8 w-full rounded bg-gray-100" />
@@ -731,7 +736,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <p className="mt-4 text-lg text-gray-400">{language === "zh" ? "暂无产品" : "No products found"}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {filteredProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
             const regionFilteredPrices = product.prices.filter(p => {
@@ -798,26 +803,45 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     </div>
                   )}
                 </Link>
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   <Link href={`/product/${product.slug}`}>
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
                       {t?.name}
                     </h3>
                   </Link>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-emerald-600 tabular-nums">
+                  <div className="mt-1.5 sm:mt-2 flex items-baseline gap-1 sm:gap-2">
+                    <span className="text-base sm:text-2xl font-bold text-emerald-600 tabular-nums">
                       {lowest?.currency || '$'}{lowest?.current_price || "—"}
                     </span>
                     {highestOrig && product.prices.length >= 2 && (
-                      <span className="text-xs text-emerald-600 font-medium ml-0.5">
+                      <span className="text-[10px] sm:text-xs text-emerald-600 font-medium ml-0.5">
                         {language === "zh" ? "最低价" : "Lowest"}
                       </span>
                     )}
                     {highestOrig && product.prices.length < 2 && (
-                      <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>
+                      <span className="text-xs sm:text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>
                     )}
                   </div>
-                  <div className="mt-3 space-y-1.5">
+                  {/* Mobile: only show top store price; Desktop: show full store list */}
+                  <div className="mt-1.5 sm:hidden">
+                    {sortedPrices.slice(0, 1).map(price => {
+                      const st = price.store ? getTranslation(price.store.translations, language) : null;
+                      return (
+                        <div key={price.id} className="flex items-center justify-between gap-1 rounded-md bg-gray-50 px-2 py-1">
+                          <span className="text-[10px] text-gray-500 truncate">{st?.name || "Store"}</span>
+                          <span className="text-[10px] font-semibold text-emerald-600 tabular-nums">
+                            {price.currency || '$'}{price.current_price}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {sortedPrices.length > 1 && (
+                      <Link href={`/product/${product.slug}`} className="block text-center text-[10px] text-purple-700 hover:underline py-0.5">
+                        +{sortedPrices.length - 1} {language === "zh" ? "家商城" : "stores"}
+                      </Link>
+                    )}
+                  </div>
+                  <div className="hidden sm:block mt-3 space-y-1.5">
                     {sortedPrices.slice(0, 3).map(price => {
                       const st = price.store ? getTranslation(price.store.translations, language) : null;
                       return (
@@ -975,6 +999,153 @@ function Pagination({
         <span>{language === "zh" ? "页" : ""}</span>
       </div>
       <span className="ml-3 text-sm text-gray-400">{language === "zh" ? `共 ${total} 条` : `${total} items`}</span>
+    </div>
+  );
+}
+
+// Promotion Carousel for Mobile
+function PromotionCarousel({
+  promotions,
+  language,
+}: {
+  promotions: Promotion[];
+  language: string;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const validPromotions = promotions.filter((promotion) => {
+    const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
+    return translation?.cover_image_url || translation?.cover_image_key;
+  });
+
+  const startAutoPlay = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % validPromotions.length);
+    }, 4000);
+  }, [validPromotions.length]);
+
+  const stopAutoPlay = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (validPromotions.length > 1) {
+      startAutoPlay();
+    }
+    return stopAutoPlay;
+  }, [validPromotions.length, startAutoPlay, stopAutoPlay]);
+
+  const goTo = useCallback(
+    (index: number) => {
+      setCurrentIndex(index);
+      startAutoPlay();
+    },
+    [startAutoPlay]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    stopAutoPlay();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) {
+      startAutoPlay();
+      return;
+    }
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentIndex < validPromotions.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else if (isRightSwipe && currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+    startAutoPlay();
+  };
+
+  if (validPromotions.length === 0) return null;
+
+  if (validPromotions.length === 1) {
+    const promotion = validPromotions[0];
+    const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
+    const coverImage = translation?.cover_image_url || translation?.cover_image_key;
+    return (
+      <Link href={`/promotion/${promotion.slug}`} className="block relative aspect-[16/9] overflow-hidden rounded-xl">
+        <SafeImage
+          src={coverImage!}
+          alt={translation?.name || promotion.slug}
+          fill
+          className="object-cover"
+          sizes="100vw"
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-xl"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Slides */}
+      <div
+        className="flex transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {validPromotions.map((promotion) => {
+          const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
+          const coverImage = translation?.cover_image_url || translation?.cover_image_key;
+          return (
+            <Link
+              key={promotion.id}
+              href={`/promotion/${promotion.slug}`}
+              className="block w-full flex-shrink-0"
+            >
+              <div className="relative aspect-[16/9] overflow-hidden">
+                <SafeImage
+                  src={coverImage!}
+                  alt={translation?.name || promotion.slug}
+                  fill
+                  className="object-cover"
+                  sizes="100vw"
+                />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+        {validPromotions.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goTo(index)}
+            className={`rounded-full transition-all duration-300 ${
+              currentIndex === index
+                ? "w-5 h-1.5 bg-white"
+                : "w-1.5 h-1.5 bg-white/50"
+            }`}
+            aria-label={`${language === "zh" ? "切换到第" : "Go to slide"} ${index + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
