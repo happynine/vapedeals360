@@ -80,7 +80,7 @@ function getTranslation<T extends { language: string }>(translations: T[] | unde
   return translations.find((t) => t.language === language) || translations.find((t) => t.language === "en") || translations[0];
 }
 
-export function ProductDetailClient({ product }: { product: Product }) {
+export function ProductDetailClient({ product, promoBreadcrumb }: { product: Product; promoBreadcrumb?: boolean }) {
   const { language } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(product.image_url);
 
@@ -178,6 +178,14 @@ export function ProductDetailClient({ product }: { product: Product }) {
           {language === "zh" ? "首页" : "Home"}
         </Link>
         <span>/</span>
+        {promoBreadcrumb && (
+          <>
+            <Link href="/promotion/solobar" className="hover:text-gray-900 transition-colors text-purple-700">
+              {language === "zh" ? "促销活动" : "Promo"}
+            </Link>
+            <span>/</span>
+          </>
+        )}
         <span className="text-gray-900 truncate">{t?.name}</span>
       </nav>
 

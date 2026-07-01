@@ -10,10 +10,12 @@ interface StoreTranslation {
 
 interface PriceStore {
   id: number;
-  name: string;
-  icon_url: string | null;
+  slug: string;
   logo_url: string | null;
-  store_url: string | null;
+  website_url: string | null;
+  store_type: string;
+  is_active: boolean;
+  store_translations?: StoreTranslation[];
   translations?: StoreTranslation[];
 }
 
@@ -40,6 +42,8 @@ interface ProductTranslation {
   promotion_product_id: number;
   name: string | null;
   description: string | null;
+  features: string | null;
+  specs: string | null;
   language: string;
 }
 
@@ -106,6 +110,8 @@ export async function GET(
           promotion_product_id,
           name,
           description,
+          features,
+          specs,
           language
         )
       `)
@@ -148,7 +154,7 @@ export async function GET(
       if (storeIds.length > 0) {
         const { data: stores } = await supabase
           .from('stores')
-          .select('id, name, icon_url, logo_url, store_url, store_translations(id, store_id, name, language)')
+          .select('id, slug, logo_url, website_url, store_type, is_active, store_translations(id, store_id, name, language)')
           .in('id', storeIds) as { data: (PriceStore & { store_translations?: StoreTranslation[] })[] | null; error: any };
 
         if (stores) {

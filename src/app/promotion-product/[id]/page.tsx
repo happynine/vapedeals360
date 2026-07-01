@@ -56,9 +56,9 @@ export default function PromotionProductPage() {
         id: number;
         name: string | null;
         description: string | null;
+        features: string | null;
+        specs: string | null;
         language: string;
-        features?: string | null;
-        specs?: string | null;
       }[];
       store_prices: {
         id: number;
@@ -76,11 +76,12 @@ export default function PromotionProductPage() {
         countdown_action: string;
         store?: {
           id: number;
-          name: string;
-          icon_url: string | null;
+          slug: string;
           logo_url: string | null;
-          store_url: string | null;
-          translations?: { id: number; name: string; language: string }[];
+          website_url: string | null;
+          store_type: string;
+          is_active: boolean;
+          translations?: { id: number; store_id: number; name: string; language: string }[];
         };
       }[];
     };
@@ -111,16 +112,16 @@ export default function PromotionProductPage() {
       no_quote: false,
       store: p.store ? {
         id: p.store.id,
-        slug: String(p.store.id),
-        logo_url: p.store?.logo_url || p.store?.icon_url || null,
-        website_url: p.store?.store_url || null,
-        store_type: p.store_type,
-        is_active: true,
-        translations: (p.store?.translations || []).map((t: Record<string, unknown>) => ({
-          id: t.id as number,
-          store_id: p.store?.id as number,
-          language: t.language as string,
-          name: t.name as string,
+        slug: p.store.slug || String(p.store.id),
+        logo_url: p.store.logo_url || null,
+        website_url: p.store.website_url || null,
+        store_type: p.store.store_type || p.store_type,
+        is_active: p.store.is_active ?? true,
+        translations: (p.store.translations || []).map((t) => ({
+          id: t.id,
+          store_id: p.store!.id,
+          language: t.language,
+          name: t.name,
         })),
       } as Store : undefined,
     })) as ProductPrice[];
@@ -190,7 +191,7 @@ export default function PromotionProductPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="vape-deals" />
-      <ProductDetailClient product={product} />
+      <ProductDetailClient product={product} promoBreadcrumb />
     </div>
   );
 }
