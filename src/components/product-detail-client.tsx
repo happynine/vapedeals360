@@ -99,7 +99,6 @@ export function ProductDetailClient({ product }: { product: Product }) {
   }, [product.slug]);
 
   const t = getTranslation(product.translations, language);
-  const catT = product.category ? getTranslation(product.category.translations, language) : null;
   
   let features: string[] = [];
   try {
@@ -178,12 +177,6 @@ export function ProductDetailClient({ product }: { product: Product }) {
         <Link href="/" className="hover:text-gray-900 transition-colors">
           {language === "zh" ? "首页" : "Home"}
         </Link>
-        {catT && (
-          <>
-            <span className="hidden sm:inline">/</span>
-            <span className="hidden sm:inline hover:text-gray-900">{catT.name}</span>
-          </>
-        )}
         <span>/</span>
         <span className="text-gray-900 truncate">{t?.name}</span>
       </nav>
@@ -227,11 +220,6 @@ export function ProductDetailClient({ product }: { product: Product }) {
 
         {/* Right: Product Info */}
         <div>
-          {catT && (
-            <span className="inline-block rounded-full bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 mb-3">
-              {catT.name}
-            </span>
-          )}
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{t?.name}</h1>
 
           {/* Price Summary */}

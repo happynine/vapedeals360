@@ -239,7 +239,7 @@ export default function PromotionProductPage() {
           {promotionSlug && promotion ? (
             <>
               <Link href={`/promotion/${promotionSlug}`} className="hover:text-purple-600 transition-colors">
-                {promotionTranslation?.name || promotion.title || promotion.slug}
+                {language === 'zh' ? '促销活动' : 'Promo'}
               </Link>
               <span className="mx-2">/</span>
             </>
