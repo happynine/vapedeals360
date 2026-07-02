@@ -401,9 +401,9 @@ export default function PromotionPage() {
                 t => t.language === language
               ) || product.promotion_product_translations?.[0];
               
-              // Only show promotion store prices on the promotion detail page
+              // Show all store prices (both promotion and standard types) on the promotion detail page
               const promotionPrices = (product.store_prices || [])
-                .filter(p => p.store_type === 'promotion' && p.store_id && p.current_price)
+                .filter(p => p.store_id && p.current_price && !p.no_quote)
                 // Filter out prices where countdown has ended with 'close' action
                 .filter(p => {
                   if (p.time_type !== 'permanent' && p.end_time && p.countdown_action === 'close') {
