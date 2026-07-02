@@ -115,7 +115,7 @@ export default function PromotionProductPage() {
         logo_url: p.store.logo_url || null,
         website_url: p.store.website_url || null,
         store_type: p.store.store_type || p.store_type,
-        is_active: p.store.is_active ?? true,
+        is_active: true, // Always show stores on promotion product pages
         translations: (p.store.translations || []).map((t) => ({
           id: t.id,
           store_id: p.store!.id,
