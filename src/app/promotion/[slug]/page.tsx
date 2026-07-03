@@ -397,9 +397,11 @@ export default function PromotionPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {activeProducts.map((product, idx) => {
-              const productTranslation = product.promotion_product_translations?.find(
-                t => t.language === language
-              ) || product.promotion_product_translations?.[0];
+              // API returns translations under 'translations' key (aliased from promotion_product_translations)
+              const translations = (product as any).translations || product.promotion_product_translations;
+              const productTranslation = translations?.find(
+                (t: { language: string }) => t.language === language
+              ) || translations?.[0];
               
               // Show all store prices (both promotion and standard types) on the promotion detail page
               const promotionPrices = (product.store_prices || [])
@@ -498,7 +500,7 @@ export default function PromotionPage() {
                   <div className="p-2 sm:p-3">
                     <Link href={`/promotion-product/${product.id}?promotion=${slug}`}>
                       <h3 className="text-[11px] sm:text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors leading-snug">
-                        {(productTranslation?.name || product.promotion_product_translations?.find(t => t.name)?.name) || product.slug || 'Unnamed Product'}
+                        {(productTranslation?.name || translations?.find((t: { name: string }) => t.name)?.name) || product.slug || 'Unnamed Product'}
                       </h3>
                     </Link>
                     
