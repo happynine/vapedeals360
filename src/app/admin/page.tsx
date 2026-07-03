@@ -4694,6 +4694,26 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                             lang={lang} 
                           />
                         </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Activity Title', '活动标题', lang)}</label>
+                          <input
+                            type="text"
+                            value={tr.title || ''}
+                            onChange={(e) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, title: e.target.value } : t))}
+                            className="w-full px-2 py-1.5 text-xs border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            placeholder={t('Enter activity title', '输入活动标题', lang)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Activity Description', '活动简介', lang)}</label>
+                          <textarea
+                            value={tr.description || ''}
+                            onChange={(e) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, description: e.target.value } : t))}
+                            className="w-full px-2 py-1.5 text-xs border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
+                            rows={3}
+                            placeholder={t('Enter activity description', '输入活动简介', lang)}
+                          />
+                        </div>
                       </div>
                     </div>
                   );
