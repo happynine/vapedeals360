@@ -131,7 +131,7 @@ function CountdownDisplay({
   if (!endTime) return null;
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-sm font-semibold text-red-600 animate-pulse-deal">
+    <span className="text-sm font-semibold text-red-600">
       {remaining}
     </span>
   );

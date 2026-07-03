@@ -241,7 +241,7 @@ interface ProductTranslation { id: number; product_id: number; language: string;
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
-interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; cover_image_key: string | null; cover_image_url: string | null; }
+interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; title: string | null; description: string | null; cover_image_key: string | null; cover_image_url: string | null; }
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
 interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
@@ -4542,8 +4542,8 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
 
   const [sortOrder, setSortOrder] = useState(promotion?.sort_order || 0);
   const [isActive, setIsActive] = useState(promotion?.is_active !== false);
-  const [translations, setTranslations] = useState<{ language: string; name: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
-    promotion?.promotion_translations?.map((tr) => ({ language: tr.language, name: tr.name || '', cover_image_key: tr.cover_image_key, cover_image_url: tr.cover_image_url })) || activeLanguages.map(l => ({ language: l.code, name: '', cover_image_key: null, cover_image_url: null }))
+  const [translations, setTranslations] = useState<{ language: string; name: string; title: string; description: string; cover_image_key: string | null; cover_image_url: string | null }[]>(
+    promotion?.promotion_translations?.map((tr) => ({ language: tr.language, name: tr.name || '', title: tr.title || '', description: tr.description || '', cover_image_key: tr.cover_image_key, cover_image_url: tr.cover_image_url })) || activeLanguages.map(l => ({ language: l.code, name: '', title: '', description: '', cover_image_key: null, cover_image_url: null }))
   );
   // Filter promotion products linked to this promotion
   const linkedPromotionProducts = promotionProducts.filter(pp => pp.promotion_id === promotion?.id);
@@ -4587,7 +4587,7 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
       setTranslations(prev => {
         const existing = new Map(prev.map(t => [t.language, t]));
-        return activeLanguages.map(l => existing.get(l.code) || { language: l.code, name: '', cover_image_key: null, cover_image_url: null });
+        return activeLanguages.map(l => existing.get(l.code) || { language: l.code, name: '', title: '', description: '', cover_image_key: null, cover_image_url: null });
       });
       // Reset form fields for new promotion
       if (!isEdit) {

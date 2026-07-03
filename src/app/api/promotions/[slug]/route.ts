@@ -21,6 +21,8 @@ export async function GET(
         translations:promotion_translations (
           id,
           name,
+          title,
+          description,
           cover_image_key,
           cover_image_url,
           language

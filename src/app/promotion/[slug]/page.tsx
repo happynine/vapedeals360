@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 interface PromotionTranslation {
   id: number;
   name: string | null;
+  title: string | null;
   description: string | null;
   cover_image_key: string | null;
   cover_image_url: string | null;
@@ -355,29 +356,22 @@ export default function PromotionPage() {
             <div className="relative w-full h-64 sm:h-80 rounded-xl overflow-hidden mb-6">
               <SafeImage
                 src={coverImage}
-                alt={translation?.name || promotion.slug}
+                alt={translation?.title || translation?.name || promotion.slug}
                 fill
                 className="object-cover"
                 sizes="100vw"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                  {translation?.name || promotion.slug}
-                </h1>
-                {translation?.description && (
-                  <p className="text-sm text-white/80 max-w-xl">
-                    {translation.description}
-                  </p>
-                )}
-              </div>
             </div>
           )}
           
-          {!coverImage && (
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              {translation?.name || promotion.slug}
-            </h1>
+          {/* Activity Title and Description - Best Vapes style */}
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+            {translation?.title || translation?.name || promotion.slug}
+          </h1>
+          {translation?.description && (
+            <p className="text-sm text-gray-500 max-w-3xl mb-4">
+              {translation.description}
+            </p>
           )}
 
           <div className="flex items-center gap-4 text-sm text-gray-600">

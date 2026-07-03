@@ -53,6 +53,8 @@ export async function GET(request: NextRequest) {
             id,
             language,
             name,
+            title,
+            description,
             cover_image_key,
             cover_image_url
           )
@@ -239,6 +241,8 @@ export async function GET(request: NextRequest) {
             id,
             language,
             name,
+            title,
+            description,
             cover_image_key,
             cover_image_url
           )
