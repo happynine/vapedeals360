@@ -72,6 +72,7 @@ export default function PromotionProductPage() {
         no_quote: boolean | null;
         store_type: string;
         time_type: string;
+        start_time: string | null;
         end_time: string | null;
         countdown_action: string;
         store?: {
@@ -109,6 +110,11 @@ export default function PromotionProductPage() {
       currency: p.currency || '$',
       region: p.region,
       no_quote: false,
+      // Countdown fields
+      time_type: p.time_type,
+      start_time: p.start_time,
+      end_time: p.end_time,
+      countdown_action: p.countdown_action,
       store: p.store ? {
         id: p.store.id,
         slug: p.store.slug || String(p.store.id),

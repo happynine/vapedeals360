@@ -35,6 +35,11 @@ export interface ProductPrice {
   region?: string;
   no_quote?: boolean;
   store?: Store;
+  // Countdown fields for promotion products
+  time_type?: 'permanent' | 'time_range' | 'countdown';
+  start_time?: string | null;
+  end_time?: string | null;
+  countdown_action?: 'close' | 'original_price';
 }
 
 export interface ProductTranslation {
@@ -78,6 +83,58 @@ export interface Product {
 function getTranslation<T extends { language: string }>(translations: T[] | undefined | null, language: string): T | undefined {
   if (!translations || translations.length === 0) return undefined;
   return translations.find((t) => t.language === language) || translations.find((t) => t.language === "en") || translations[0];
+}
+
+// Countdown display component
+function CountdownDisplay({ 
+  endTime, 
+  language 
+}: { 
+  endTime: string | null | undefined; 
+  language: string;
+}) {
+  const [remaining, setRemaining] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!endTime) {
+      setRemaining(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const end = new Date(endTime).getTime();
+      const now = Date.now();
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setRemaining(language === "zh" ? "已结束" : "Ended");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setRemaining(`${days}${language === "zh" ? "天" : "d"} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      } else {
+        setRemaining(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [endTime, language]);
+
+  if (!endTime) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-sm font-semibold text-red-600 animate-pulse-deal">
+      {remaining}
+    </span>
+  );
 }
 
 export function ProductDetailClient({ product, promoBreadcrumb }: { product: Product; promoBreadcrumb?: boolean }) {
@@ -303,9 +360,10 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
         </h2>
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
           {/* Desktop header */}
-          <div className="hidden md:grid grid-cols-6 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <div className="hidden md:grid grid-cols-7 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <div>{language === "zh" ? "商城" : "Store"}</div>
             <div className="text-center">{language === "zh" ? "现价" : "Price"}</div>
+            <div className="text-center">{language === "zh" ? "倒计时" : "Countdown"}</div>
             <div className="text-center">{language === "zh" ? "原价" : "Original"}</div>
             <div className="text-center">{language === "zh" ? "折扣" : "Discount"}</div>
             <div className="text-center">{language === "zh" ? "类型" : "Type"}</div>
@@ -320,7 +378,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             return (
               <div key={price.id} className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? "bg-emerald-50/50" : ""}`}>
                 {/* Desktop row */}
-                <div className="hidden md:grid grid-cols-6 gap-4 px-5 py-4 items-center">
+                <div className="hidden md:grid grid-cols-7 gap-4 px-5 py-4 items-center">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
                       {price.store?.logo_url ? (
@@ -347,6 +405,20 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                     <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
                       {price.currency || "$"}{price.current_price}
                     </span>
+                  </div>
+                  {/* Countdown column */}
+                  <div className="text-center">
+                    {price.time_type === 'countdown' && price.end_time ? (
+                      <CountdownDisplay endTime={price.end_time} language={language} />
+                    ) : price.time_type === 'time_range' && price.end_time ? (
+                      <span className="inline-block rounded-md bg-orange-50 px-2 py-0.5 text-sm font-semibold text-orange-600">
+                        {language === "zh" ? "限时" : "Limited"}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">
+                        {language === "zh" ? "长期" : "Permanent"}
+                      </span>
+                    )}
                   </div>
                   <div className="text-center">
                     {price.original_price ? (
@@ -435,6 +507,18 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       )}
                     </div>
                   </div>
+                  {/* Countdown row for mobile */}
+                  {(price.time_type === 'countdown' || price.time_type === 'time_range') && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {price.time_type === 'countdown' && price.end_time ? (
+                        <CountdownDisplay endTime={price.end_time} language={language} />
+                      ) : price.time_type === 'time_range' && price.end_time ? (
+                        <span className="inline-block rounded-md bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-600">
+                          {language === "zh" ? "限时特惠" : "Limited Time"}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {price.original_price ? (
