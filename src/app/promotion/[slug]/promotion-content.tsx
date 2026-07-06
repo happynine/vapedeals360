@@ -1,5 +1,8 @@
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
 import { PromotionClientContent } from './promotion-client-content';
+
+// ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
+export const revalidate = 60;
 
 interface StoreTranslation {
   id: number;
