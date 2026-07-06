@@ -642,7 +642,7 @@ export default function AdminPage() {
   }, [adminLang]);
 
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
-  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); fetchPromotionProducts(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle, fetchPromotionProducts]);
   useEffect(() => { if (isLoggedIn && activeTab === 'products' && productTypeTab === 'promotion') fetchPromotionProducts(); }, [isLoggedIn, activeTab, productTypeTab, fetchPromotionProducts]);
 
   // Seed data
