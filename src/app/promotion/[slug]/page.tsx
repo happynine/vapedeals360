@@ -289,37 +289,9 @@ export default function PromotionPage() {
     fetchPromotion();
   }, [fetchPromotion]);
 
+  // 不在页面内部显示骨架屏，由 loading.tsx 处理加载状态
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white">
-        <SiteHeader />
-        <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse">
-            {/* Title skeleton */}
-            <div className="mb-6">
-              <div className="h-8 w-1/2 bg-gray-200 rounded mb-3"></div>
-              <div className="h-4 w-3/4 bg-gray-100 rounded mb-2"></div>
-              <div className="h-4 w-1/4 bg-gray-100 rounded"></div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 animate-pulse">
-                  <div className="h-40 sm:h-48 w-full rounded-xl bg-gray-100" />
-                  <div className="mt-3 h-4 w-3/4 rounded bg-gray-100" />
-                  <div className="mt-2 h-6 w-1/2 rounded bg-gray-100" />
-                  <div className="mt-3 space-y-2">
-                    <div className="h-8 w-full rounded bg-gray-100" />
-                    <div className="h-8 w-full rounded bg-gray-100" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-        <SiteFooter />
-        <CookieConsent />
-      </div>
-    );
+    return null;
   }
 
   if (error || !promotion) {
