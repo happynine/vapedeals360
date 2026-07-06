@@ -77,3 +77,5 @@ export default function AffiliateDisclosurePage() {
     </div>
   );
 }
+
+export const dynamic = 'force-dynamic';
