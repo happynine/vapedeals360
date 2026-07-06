@@ -295,7 +295,12 @@ export default function PromotionPage() {
         <SiteHeader />
         <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse">
-            <div className="h-64 sm:h-80 bg-gray-200 rounded-xl mb-6"></div>
+            {/* Title skeleton */}
+            <div className="mb-6">
+              <div className="h-8 w-1/2 bg-gray-200 rounded mb-3"></div>
+              <div className="h-4 w-3/4 bg-gray-100 rounded mb-2"></div>
+              <div className="h-4 w-1/4 bg-gray-100 rounded"></div>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 animate-pulse">
@@ -341,7 +346,6 @@ export default function PromotionPage() {
   }
 
   const translation = promotion.translations?.find(t => t.language_code === language || t.language === language) || promotion.translations?.[0];
-  const coverImage = translation?.cover_image_url || translation?.cover_image_key;
 
   // Filter active products
   const activeProducts = promotion.promotion_products?.filter(p => p.is_active) || [];
@@ -350,20 +354,8 @@ export default function PromotionPage() {
     <div className="min-h-screen bg-white">
       <SiteHeader />
       <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
-        {/* Promotion Header with Cover Image */}
+        {/* Promotion Header - Title and Description */}
         <div className="mb-8">
-          {coverImage && (
-            <div className="relative w-full h-64 sm:h-80 rounded-xl overflow-hidden mb-6">
-              <SafeImage
-                src={coverImage}
-                alt={translation?.title || translation?.name || promotion.slug}
-                fill
-                className="object-cover"
-                sizes="100vw"
-              />
-            </div>
-          )}
-          
           {/* Activity Title and Description - Best Vapes style */}
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
             {translation?.title || translation?.name || promotion.slug}
