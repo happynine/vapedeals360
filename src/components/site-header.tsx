@@ -1,8 +1,7 @@
 'use client';
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 
@@ -38,30 +37,28 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const desktopDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  // 从URL读取搜索参数并初始化搜索框
+
+  // 从URL读取搜索参数 - 不再使用useSearchParams，避免构建时预渲染错误
   useEffect(() => {
-    const urlSearch = searchParams.get('search');
+    const params = new URLSearchParams(window.location.search);
+    const urlSearch = params.get('search');
     if (urlSearch) {
       setDesktopSearchQuery(urlSearch);
       setSearchQuery(urlSearch);
     }
-  }, [searchParams]);
+  }, []);
 
   const displayName = siteSettings?.site_name || '';
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   // SSR and first client render must match; only use real logo after mount
   const displayLogo = mounted ? siteSettings?.logo_url : undefined;
-
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     setLangOpen(false);
     setMobileLangOpen(false);
     setMobileMenuOpen(false);
   };
-
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -69,7 +66,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setSearchQuery('');
     setSearchResults([]);
   }, [pathname]);
-
   // Cleanup debounce timers
   useEffect(() => {
     return () => {
@@ -81,14 +77,12 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       }
     };
   }, []);
-
   // Focus search input when mobile search opens
   useEffect(() => {
     if (mobileSearchOpen && mobileSearchInputRef.current) {
       mobileSearchInputRef.current.focus();
     }
   }, [mobileSearchOpen]);
-
   // Mobile search with debounce
   const handleMobileSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -133,7 +127,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       }
     }, 300);
   }, [language]);
-
   const handleSearchResultClick = () => {
     setSearchQuery('');
     setSearchResults([]);
@@ -142,7 +135,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setDesktopSearchResults([]);
     setDesktopSearchFocused(false);
   };
-
   // Desktop search with debounce
   const handleDesktopSearch = useCallback((query: string) => {
     setDesktopSearchQuery(query);
@@ -187,7 +179,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       }
     }, 300);
   }, [language]);
-
   // Close desktop search dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -198,13 +189,11 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   const navItems = [
     { href: '/', label: 'Vape Deals', tab: 'vape-deals' },
     { href: '/best-vapes', label: 'Best Vapes', tab: 'best-vapes' },
     { href: '/news', label: 'News', tab: 'news' },
   ];
-
   return (
     <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800 relative">
       {/* Desktop Header */}
@@ -365,7 +354,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
           </div>
         </div>
       </div>
-
       {/* Mobile Header */}
       <div className="md:hidden">
         <div className="flex h-14 items-center justify-between px-4">
@@ -383,7 +371,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               )}
             </svg>
           </button>
-
           {/* Center Logo */}
           <Link href="/" className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
             {displayLogo ? (
@@ -399,7 +386,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             )}
             <span className="text-lg font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>
           </Link>
-
           {/* Right: Language + Search */}
           <div className="flex items-center gap-1">
             {/* Language Toggle */}
@@ -424,7 +410,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             </button>
           </div>
         </div>
-
         {/* Mobile Language Dropdown */}
         {mobileLangOpen && (
           <>
@@ -447,7 +432,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             </div>
           </>
         )}
-
         {/* Mobile Search Bar - Overlay on content */}
         {mobileSearchOpen && (
           <div className="absolute left-0 right-0 top-full z-50 border-t border-gray-800 bg-[#0a0a0e] px-4 py-3">
@@ -547,7 +531,6 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
           </div>
         )}
       </div>
-
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
         <>
