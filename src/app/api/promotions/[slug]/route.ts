@@ -15,9 +15,11 @@ export async function GET(
       .select(`
         id,
         slug,
-        title,
         sort_order,
         is_active,
+        time_type,
+        start_time,
+        end_time,
         translations:promotion_translations (
           id,
           name,

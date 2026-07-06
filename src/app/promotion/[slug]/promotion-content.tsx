@@ -63,7 +63,6 @@ interface PromotionTranslation {
   description: string | null;
   cover_image_key: string | null;
   cover_image_url: string | null;
-  language_code: string;
   language: string;
 }
 
@@ -96,7 +95,6 @@ export async function PromotionContent({ slug }: { slug: string }) {
         description,
         cover_image_key,
         cover_image_url,
-        language_code,
         language
       ),
       promotion_products (
@@ -138,6 +136,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
     .single();
 
   if (error || !promotion) {
+    console.error('Promotion fetch error:', error);
     return (
       <div className="text-center py-16">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -145,6 +144,9 @@ export async function PromotionContent({ slug }: { slug: string }) {
         </h1>
         <p className="text-gray-600 mb-6">
           This promotion may have ended or does not exist
+        </p>
+        <p className="text-gray-500 text-sm mb-4">
+          Error: {error?.message || 'Unknown error'}
         </p>
         <a href="/" className="inline-flex items-center px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700">
           Back to Home
