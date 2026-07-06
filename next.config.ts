@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   allowedDevOrigins: ['*.dev.coze.site'],
+  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '50mb',
