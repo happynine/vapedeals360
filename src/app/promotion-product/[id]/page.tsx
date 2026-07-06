@@ -158,23 +158,9 @@ export default function PromotionProductPage() {
     } satisfies Product;
   }, [rawData]);
 
+  // loading.tsx 处理初始加载骨架，避免重复显示
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <SiteHeader />
-        <div className="mx-auto max-w-[1380px] px-4 py-8 bg-white flex-1">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
-            <div className="space-y-4">
-              <div className="h-8 w-3/4 rounded bg-gray-100 animate-pulse" />
-              <div className="h-12 w-1/3 rounded bg-gray-100 animate-pulse" />
-              <div className="h-4 w-full rounded bg-gray-100 animate-pulse" />
-              <div className="h-4 w-2/3 rounded bg-gray-100 animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (error || !product) {
