@@ -190,16 +190,16 @@ function CountdownTimer({ seconds, language }: { seconds: number; language: stri
   const pad = (n: number) => n.toString().padStart(2, "0");
 
   return (
-    <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full bg-red-50 px-1.5 sm:px-2 py-0.5 sm:py-1">
-      <span className="text-[8px] sm:text-[10px] font-medium text-red-600">
+    <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full bg-gray-100 px-1.5 sm:px-2 py-0.5 sm:py-1 hover:bg-red-50 transition-colors group">
+      <span className="text-[8px] sm:text-[10px] font-medium text-gray-500 group-hover:text-red-600">
         {language === "zh" ? "倒计时" : "Ends"}
       </span>
       {days > 0 && (
-        <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+        <span className="text-[9px] sm:text-xs font-bold text-gray-700 group-hover:text-red-600 tabular-nums">
           {days}d
         </span>
       )}
-      <span className="text-[9px] sm:text-xs font-bold text-red-600 tabular-nums">
+      <span className="text-[9px] sm:text-xs font-bold text-gray-700 group-hover:text-red-600 tabular-nums">
         {pad(hours)}:{pad(minutes)}:{pad(secs)}
       </span>
     </div>
@@ -214,7 +214,7 @@ function TimeTypeBadge({ timeType, endTime, language }: {
 }) {
   if (timeType === 'permanent') {
     return (
-      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-green-700">
+      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-gray-500 hover:bg-green-100 hover:text-green-700 transition-colors">
         {language === 'zh' ? '长期有效' : 'Permanent'}
       </span>
     );
@@ -251,7 +251,7 @@ function TimeTypeBadge({ timeType, endTime, language }: {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-amber-700">
+      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-gray-500 hover:bg-amber-100 hover:text-amber-700 transition-colors">
         {language === 'zh' ? `限时 ${days}天${hours}时` : `${days}d ${hours}h left`}
       </span>
     );
