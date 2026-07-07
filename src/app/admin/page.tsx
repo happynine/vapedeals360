@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHand
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
+import { ImageCropModal } from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -426,6 +427,11 @@ export default function AdminPage() {
   const [analyticsMonth, setAnalyticsMonth] = useState('all');
   const [analyticsRegion, setAnalyticsRegion] = useState('all');
 
+  // Image crop modal state
+  const [cropModalVisible, setCropModalVisible] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState('');
+  const [cropTargetImg, setCropTargetImg] = useState<HTMLImageElement | null>(null);
+
   const bestVapesRef = useRef<ContentPagesManagerRef>(null);
   const newsRef = useRef<ContentPagesManagerRef>(null);
   const privacyRef = useRef<StaticPageEditorRef>(null);
@@ -436,6 +442,17 @@ export default function AdminPage() {
 
   // Sub-page navigation within Site Settings
   const [siteSettingsSubPage, setSiteSettingsSubPage] = useState<StaticPageSlug | null>(null);
+
+  // Listen for image crop requests from RichTextEditor
+  useEffect(() => {
+    const handleCropRequest = (e: CustomEvent<{ imageSrc: string; imageElement: HTMLImageElement }>) => {
+      setCropImageSrc(e.detail.imageSrc || '');
+      setCropTargetImg(e.detail.imageElement);
+      setCropModalVisible(true);
+    };
+    window.addEventListener('request-image-crop', handleCropRequest as EventListener);
+    return () => window.removeEventListener('request-image-crop', handleCropRequest as EventListener);
+  }, []);
 
   // Check login state on mount
   useEffect(() => {
@@ -2076,6 +2093,27 @@ export default function AdminPage() {
           )}
         </div>
       </main>
+
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        visible={cropModalVisible}
+        imageSrc={cropImageSrc}
+        onCancel={() => {
+          setCropModalVisible(false);
+          setCropImageSrc('');
+          setCropTargetImg(null);
+        }}
+        onConfirm={(croppedData, dimensions) => {
+          // Update the target image with cropped data
+          if (cropTargetImg) {
+            cropTargetImg.src = croppedData;
+          }
+          setCropModalVisible(false);
+          setCropImageSrc('');
+          setCropTargetImg(null);
+        }}
+        title={t('Crop Image', '裁剪图片', adminLang)}
+      />
     </div>
   );
 }
@@ -2711,13 +2749,15 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       cropBtn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
       cropBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (isCropping) {
-          // Confirm crop — trigger the confirm callback
-          if (cropConfirmCallback) cropConfirmCallback();
-        } else {
-          if (!activeImg) return;
-          openImageCrop(activeImg);
-        }
+        if (!activeImg) return;
+        // Dispatch custom event to trigger crop modal in AdminPage
+        const cropEvent = new CustomEvent('request-image-crop', {
+          detail: {
+            imageSrc: activeImg.getAttribute('src'),
+            imageElement: activeImg
+          }
+        });
+        window.dispatchEvent(cropEvent);
       });
 
       cropGroup.appendChild(cropBtn);
