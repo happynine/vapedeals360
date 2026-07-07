@@ -3036,20 +3036,27 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         maskLayer.style.background = 'rgba(0,0,0,0.6)';
         maskLayer.style.clipPath = `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${cropX}px ${cropY}px, ${cropX}px ${cropY + cropBoxH}px, ${cropX + cropBoxW}px ${cropY + cropBoxH}px, ${cropX + cropBoxW}px ${cropY}px, ${cropX}px ${cropY}px)`;
 
-        // Position and size the image using CSS transform
-        // Image starts at initial size, then scaled and panned
-        const scaledW = initialImgW * imgScale;
-        const scaledH = initialImgH * imgScale;
-        
-        // Calculate image position: centered on crop box center + pan offset
+        // ===== 图片位置计算 =====
+        // 图片中心对齐裁剪框中心 + 位移偏移
         const imgCenterX = cropX + cropBoxW / 2 + imgPanX;
         const imgCenterY = cropY + cropBoxH / 2 + imgPanY;
         
-        cropPreviewImg.style.left = imgCenterX + 'px';
-        cropPreviewImg.style.top = imgCenterY + 'px';
+        // 缩放后的图片尺寸
+        const scaledW = initialImgW * imgScale;
+        const scaledH = initialImgH * imgScale;
+        
+        // 图片左上角位置 = 图片中心 - 缩放后尺寸的一半
+        const imgX = imgCenterX - scaledW / 2;
+        const imgY = imgCenterY - scaledH / 2;
+
+        // 设置图片位置和缩放
+        // 使用 transform-origin: 0 0 确保缩放从左上角开始
+        cropPreviewImg.style.left = imgX + 'px';
+        cropPreviewImg.style.top = imgY + 'px';
         cropPreviewImg.style.width = initialImgW + 'px';
         cropPreviewImg.style.height = initialImgH + 'px';
-        cropPreviewImg.style.transform = `translate(-50%, -50%) scale(${imgScale})`;
+        cropPreviewImg.style.transformOrigin = '0 0';
+        cropPreviewImg.style.transform = `scale(${imgScale})`;
 
         // Position handles (fixed, doesn't change with zoom)
         const hh = 5;
