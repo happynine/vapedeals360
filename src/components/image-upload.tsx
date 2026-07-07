@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -36,6 +36,17 @@ export function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Zoom and pan states
+  const [scale, setScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  // Real-time crop dimensions in pixels (from original image)
+  const [cropDimensions, setCropDimensions] = useState({ width: 0, height: 0 });
 
   const onSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,6 +55,10 @@ export function ImageUpload({
     reader.onload = () => {
       setSrc(reader.result as string);
       setShowCrop(true);
+      // Reset zoom and pan
+      setScale(1);
+      setPanX(0);
+      setPanY(0);
       // Initialize crop to cover full image with the aspect ratio
       if (aspectRatio) {
         setCrop({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
@@ -55,6 +70,41 @@ export function ImageUpload({
     // Reset input so same file can be re-selected
     e.target.value = '';
   }, [aspectRatio]);
+
+  // Calculate real crop dimensions based on original image size and current crop
+  const updateCropDimensions = useCallback(() => {
+    if (!imgRef.current || !crop) return;
+    const img = imgRef.current;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+    
+    let pixelCrop: PixelCrop;
+    if (crop.unit === '%') {
+      pixelCrop = {
+        unit: 'px',
+        x: Math.round((crop.x || 0) * img.width / 100 * scaleX),
+        y: Math.round((crop.y || 0) * img.height / 100 * scaleY),
+        width: Math.round((crop.width || 100) * img.width / 100 * scaleX),
+        height: Math.round((crop.height || 100) * img.height / 100 * scaleY),
+      };
+    } else {
+      pixelCrop = {
+        unit: 'px',
+        x: Math.round((crop.x || 0) * scaleX),
+        y: Math.round((crop.y || 0) * scaleY),
+        width: Math.round((crop.width || 100) * scaleX),
+        height: Math.round((crop.height || 100) * scaleY),
+      };
+    }
+    
+    setCropDimensions({ width: pixelCrop.width, height: pixelCrop.height });
+    setCompletedCrop(pixelCrop);
+  }, [crop]);
+
+  // Update dimensions when crop changes
+  useEffect(() => {
+    updateCropDimensions();
+  }, [updateCropDimensions]);
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -83,20 +133,22 @@ export function ImageUpload({
           y: cropY,
         };
         setCrop(initialCrop);
-        // Also initialize completedCrop so "Crop & Upload" works without user interaction
+        // Initialize completedCrop with actual pixel dimensions
+        const scaleX = e.currentTarget.naturalWidth / width;
+        const scaleY = e.currentTarget.naturalHeight / height;
         setCompletedCrop({
           unit: 'px',
-          width: Math.round(cropW * width / 100),
-          height: Math.round(cropH * height / 100),
-          x: Math.round(cropX * width / 100),
-          y: Math.round(cropY * height / 100),
+          width: Math.round(cropW * width / 100 * scaleX),
+          height: Math.round(cropH * height / 100 * scaleY),
+          x: Math.round(cropX * width / 100 * scaleX),
+          y: Math.round(cropY * height / 100 * scaleY),
         });
       } else {
         // No aspect ratio: initialize completedCrop to full image
         setCompletedCrop({
           unit: 'px',
-          width,
-          height,
+          width: e.currentTarget.naturalWidth,
+          height: e.currentTarget.naturalHeight,
           x: 0,
           y: 0,
         });
@@ -157,6 +209,42 @@ export function ImageUpload({
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
     setSrc(null);
+    setScale(1);
+    setPanX(0);
+    setPanY(0);
+  }, []);
+
+  // Pan handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only start pan if clicking on the container (not on crop area)
+    if ((e.target as HTMLElement).closest('.ReactCrop')) return;
+    setIsPanning(true);
+    setPanStart({ x: e.clientX, y: e.clientY, panX, panY });
+  }, [panX, panY]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    setPanX(panStart.panX + dx);
+    setPanY(panStart.panY + dy);
+  }, [isPanning, panStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  // Zoom handlers
+  const handleZoomIn = useCallback(() => {
+    setScale((s) => Math.min(3, s + 0.1));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((s) => Math.max(0.5, s - 0.1));
+  }, []);
+
+  const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setScale(parseFloat(e.target.value));
   }, []);
 
   return (
@@ -214,21 +302,83 @@ export function ImageUpload({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
             <h3 className="text-sm font-semibold mb-3">{lang === 'zh' ? '裁剪图片' : 'Crop Image'}</h3>
-            <div className="flex justify-center mb-4">
-              <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompletedCrop(c)}
-                aspect={aspectRatio}
-              >
-                <img
-                  src={src}
-                  alt="Crop"
-                  onLoad={onImageLoad}
-                  className="max-h-[60vh] max-w-full"
-                />
-              </ReactCrop>
+            
+            {/* Crop dimension display */}
+            <div className="mb-2 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-md bg-red-500 px-2 py-1 text-xs font-semibold text-white">
+                {cropDimensions.width}×{cropDimensions.height}px
+              </span>
+              {sizeHint && (
+                <span className="text-xs text-muted-foreground">
+                  {lang === 'zh' ? '建议尺寸:' : 'Recommended:'} {sizeHint}
+                </span>
+              )}
             </div>
+            
+            {/* Crop container with zoom/pan */}
+            <div 
+              ref={containerRef}
+              className="flex justify-center mb-4 overflow-hidden relative bg-gray-100 rounded-lg"
+              style={{ minHeight: '300px', cursor: isPanning ? 'grabbing' : 'grab' }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              <div 
+                style={{ 
+                  transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+                  transformOrigin: 'center center',
+                  transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+                }}
+              >
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c) => setCrop(c)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  aspect={aspectRatio}
+                >
+                  <img
+                    src={src}
+                    alt="Crop"
+                    onLoad={onImageLoad}
+                    className="max-h-[60vh] max-w-full"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </ReactCrop>
+              </div>
+            </div>
+            
+            {/* Zoom controls */}
+            <div className="flex items-center justify-center gap-3 mb-4 bg-white rounded-lg py-2 px-4 shadow-sm">
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.1"
+                value={scale}
+                onChange={handleZoomSlider}
+                className="w-24 h-2 cursor-pointer accent-purple-600"
+              />
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
+              >
+                +
+              </button>
+              <span className="text-sm text-gray-500 min-w-[50px] text-center">
+                {Math.round(scale * 100)}%
+              </span>
+            </div>
+            
             <div className="flex justify-end gap-2">
               <button
                 type="button"
