@@ -2796,6 +2796,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
     // Open inline image crop UI (Word-style: toolbar crop icon becomes ✓, blue dashed selection, dim masks)
     // FIXED: Crop box is fixed size, image can be zoomed/panned independently
+    // Layers: imageLayer (z-index 10) -> maskLayer (z-index 15) -> cropBoxLayer (z-index 20) -> controlsLayer (z-index 30)
     const openImageCrop = (img: HTMLImageElement) => {
       const src = img.getAttribute('src');
       if (!src) return;
@@ -2826,7 +2827,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         });
       }
 
-      // Create a full-size overlay on top of the editor area
+      // Create main container
       const editorWrapper = document.createElement('div');
       editorWrapper.className = 'ql-crop-container';
       editorWrapper.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:55;background:#1a1a2e;';
@@ -2843,63 +2844,39 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const containerW = containerRect.width;
       const containerH = containerRect.height;
 
-      // Calculate initial display size - fit image in container while maintaining aspect ratio
-      const calcInitialSize = () => {
-        const imgRatio = originalImg.naturalWidth / originalImg.naturalHeight;
-        const containerRatio = containerW / containerH;
-        let displayW, displayH;
-        if (imgRatio > containerRatio) {
-          displayW = Math.min(containerW * 0.8, originalImg.naturalWidth);
-          displayH = displayW / imgRatio;
-        } else {
-          displayH = Math.min(containerH * 0.8, originalImg.naturalHeight);
-          displayW = displayH * imgRatio;
-        }
-        return { width: displayW, height: displayH };
-      };
+      // Layer 1: Image layer (only the image, can be scaled/panned)
+      const imageLayer = document.createElement('div');
+      imageLayer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;overflow:hidden;';
+      editorWrapper.appendChild(imageLayer);
 
-      // Wait for image to load if not ready
-      const ensureImageLoaded = async () => {
-        if (!originalImg.complete) {
-          await new Promise<void>((resolve) => {
-            originalImg.onload = () => resolve();
-            originalImg.onerror = () => resolve();
-          });
-        }
-      };
-
-      // Create a separate image element for the crop preview (independent from original)
+      // Create a separate image element for the crop preview
       const cropPreviewImg = document.createElement('img');
       cropPreviewImg.src = src;
-      cropPreviewImg.style.cssText = 'position:absolute;max-width:none;max-height:none;cursor:move;';
-      editorWrapper.appendChild(cropPreviewImg);
+      cropPreviewImg.style.cssText = 'position:absolute;max-width:none;max-height:none;cursor:move;transform-origin:center center;';
+      imageLayer.appendChild(cropPreviewImg);
 
-      // Fixed crop box dimensions (initially based on displayed image size)
-      // Crop box stays fixed, image can be zoomed/panned
-      let cropBoxW = 200; // Default crop width in pixels
-      let cropBoxH = 200; // Default crop height in pixels
-      let imgScale = 1;   // Image zoom level
-      let imgPanX = 0;    // Image pan offset X
-      let imgPanY = 0;    // Image pan offset Y
+      // Layer 2: Mask layer (dark overlay with hole for crop area)
+      const maskLayer = document.createElement('div');
+      maskLayer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:15;pointer-events:none;';
+      editorWrapper.appendChild(maskLayer);
 
-      // Initialize after image loads
-      ensureImageLoaded().then(() => {
-        const initialSize = calcInitialSize();
-        cropPreviewImg.style.width = initialSize.width + 'px';
-        cropPreviewImg.style.height = initialSize.height + 'px';
-        // Initial crop box size - 50% of displayed image
-        cropBoxW = Math.round(initialSize.width * 0.5);
-        cropBoxH = Math.round(initialSize.height * 0.5);
-        updateCropUI();
-      });
+      // Layer 3: Crop box layer (the visible crop selection)
+      const cropBoxLayer = document.createElement('div');
+      cropBoxLayer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:20;pointer-events:none;';
+      editorWrapper.appendChild(cropBoxLayer);
 
       // Crop box (fixed position in center)
       const cropBox = document.createElement('div');
       cropBox.className = 'ql-crop-selection';
-      cropBox.style.cssText = 'position:absolute;border:2px dashed #2b7cd8;pointer-events:none;box-shadow:0 0 0 1px rgba(43,124,216,0.3);z-index:20;';
-      editorWrapper.appendChild(cropBox);
+      cropBox.style.cssText = 'position:absolute;border:2px dashed #2b7cd8;pointer-events:none;box-shadow:0 0 0 1px rgba(43,124,216,0.3);';
+      cropBoxLayer.appendChild(cropBox);
 
-      // Crop box handles for resizing the crop area (not the image)
+      // Layer 4: Controls layer (handles, dimension label, buttons)
+      const controlsLayer = document.createElement('div');
+      controlsLayer.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:25;';
+      editorWrapper.appendChild(controlsLayer);
+
+      // Crop box handles for resizing the crop area
       const cropHandles: HTMLDivElement[] = [];
       const handleConfigs = [
         { id: 'nw', cursor: 'nw-resize' },
@@ -2917,31 +2894,26 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         h.dataset.handle = cfg.id;
         const isCorner = ['nw', 'ne', 'sw', 'se'].includes(cfg.id);
         const size = isCorner ? 10 : 8;
-        h.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:#fff;border:2px solid #2b7cd8;cursor:${cfg.cursor};z-index:25;`;
-        editorWrapper.appendChild(h);
+        h.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:#fff;border:2px solid #2b7cd8;cursor:${cfg.cursor};`;
+        controlsLayer.appendChild(h);
         cropHandles.push(h);
       }
 
       // Dimension label (shows crop box size in output pixels)
       const dimLabel = document.createElement('div');
       dimLabel.className = 'ql-crop-dimension';
-      dimLabel.style.cssText = 'position:absolute;background:#ef4444;color:#fff;padding:2px 6px;font-size:12px;font-weight:500;border-radius:4px;pointer-events:none;z-index:30;white-space:nowrap;';
-      editorWrapper.appendChild(dimLabel);
+      dimLabel.style.cssText = 'position:absolute;background:#ef4444;color:#fff;padding:2px 6px;font-size:12px;font-weight:500;border-radius:4px;pointer-events:none;white-space:nowrap;';
+      controlsLayer.appendChild(dimLabel);
 
-      // Dark mask around crop area
-      const maskOverlay = document.createElement('div');
-      maskOverlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);pointer-events:none;z-index:15;';
-      editorWrapper.appendChild(maskOverlay);
+      // Layer 5: Top controls (zoom slider, crop size) - fixed position, never moves
+      const topControlsLayer = document.createElement('div');
+      topControlsLayer.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:30;pointer-events:none;';
+      editorWrapper.appendChild(topControlsLayer);
 
-      // Clear area inside crop box (no mask)
-      const clearArea = document.createElement('div');
-      clearArea.style.cssText = 'position:absolute;background:transparent;pointer-events:none;z-index:16;mix-blend-mode:normal;';
-      editorWrapper.appendChild(clearArea);
-
-      // Zoom controls
+      // Zoom controls (fixed at bottom center)
       const zoomControls = document.createElement('div');
       zoomControls.className = 'ql-crop-zoom-controls';
-      zoomControls.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;z-index:35;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+      zoomControls.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);pointer-events:auto;';
       editorWrapper.appendChild(zoomControls);
 
       const zoomOutBtn = document.createElement('button');
@@ -2968,9 +2940,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       zoomLevelDisplay.style.cssText = 'font-size:12px;color:#6b7280;min-width:40px;text-align:center;';
       zoomControls.appendChild(zoomLevelDisplay);
 
-      // Crop size controls
+      // Crop size controls (fixed at top center)
       const sizeControls = document.createElement('div');
-      sizeControls.style.cssText = 'position:absolute;top:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;z-index:35;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+      sizeControls.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);pointer-events:auto;z-index:35;';
       editorWrapper.appendChild(sizeControls);
 
       const sizeLabel = document.createElement('span');
@@ -2999,54 +2971,98 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       sizeApplyBtn.style.cssText = 'padding:4px 12px;background:#2b7cd8;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;';
       sizeControls.appendChild(sizeApplyBtn);
 
+      // State variables
+      let cropBoxW = 200;
+      let cropBoxH = 200;
+      let imgScale = 1;
+      let imgPanX = 0;
+      let imgPanY = 0;
+      let initialImgW = 0;
+      let initialImgH = 0;
+
+      // Wait for image to load
+      const ensureImageLoaded = async () => {
+        if (!originalImg.complete) {
+          await new Promise<void>((resolve) => {
+            originalImg.onload = () => resolve();
+            originalImg.onerror = () => resolve();
+          });
+        }
+      };
+
+      // Calculate initial display size - fit image in container
+      const calcInitialSize = () => {
+        const imgRatio = originalImg.naturalWidth / originalImg.naturalHeight;
+        const containerRatio = containerW / containerH;
+        let displayW, displayH;
+        if (imgRatio > containerRatio) {
+          displayW = Math.min(containerW * 0.8, originalImg.naturalWidth);
+          displayH = displayW / imgRatio;
+        } else {
+          displayH = Math.min(containerH * 0.8, originalImg.naturalHeight);
+          displayW = displayH * imgRatio;
+        }
+        return { width: displayW, height: displayH };
+      };
+
+      // Initialize after image loads
+      ensureImageLoaded().then(() => {
+        const initialSize = calcInitialSize();
+        initialImgW = initialSize.width;
+        initialImgH = initialSize.height;
+        cropBoxW = Math.round(initialImgW * 0.5);
+        cropBoxH = Math.round(initialImgH * 0.5);
+        cropPreviewImg.style.width = initialImgW + 'px';
+        cropPreviewImg.style.height = initialImgH + 'px';
+        updateCropUI();
+      });
+
       // Update crop UI - positions all elements based on current state
       const updateCropUI = () => {
-        const containerRect = container.getBoundingClientRect();
-        const cW = containerRect.width;
-        const cH = containerRect.height;
+        const cW = containerW;
+        const cH = containerH;
 
-        // Center the crop box
+        // Center the crop box (fixed position)
         const cropX = (cW - cropBoxW) / 2;
         const cropY = (cH - cropBoxH) / 2;
 
-        // Position crop box
+        // Position crop box (fixed, doesn't change with zoom)
         cropBox.style.left = cropX + 'px';
         cropBox.style.top = cropY + 'px';
         cropBox.style.width = cropBoxW + 'px';
         cropBox.style.height = cropBoxH + 'px';
 
-        // Position clear area (hole in mask)
-        clearArea.style.left = cropX + 'px';
-        clearArea.style.top = cropY + 'px';
-        clearArea.style.width = cropBoxW + 'px';
-        clearArea.style.height = cropBoxH + 'px';
+        // Create mask with hole for crop area using clip-path
+        maskLayer.style.background = 'rgba(0,0,0,0.6)';
+        maskLayer.style.clipPath = `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${cropX}px ${cropY}px, ${cropX}px ${cropY + cropBoxH}px, ${cropX + cropBoxW}px ${cropY + cropBoxH}px, ${cropX + cropBoxW}px ${cropY}px, ${cropX}px ${cropY}px)`;
 
-        // Position and size the image
-        // Image center should align with crop box center when pan is 0
-        const imgDisplayW = cropPreviewImg.naturalWidth * imgScale;
-        const imgDisplayH = cropPreviewImg.naturalHeight * imgScale;
-        cropPreviewImg.style.width = imgDisplayW + 'px';
-        cropPreviewImg.style.height = imgDisplayH + 'px';
-
-        // Position image so its center is at crop box center + pan offset
+        // Position and size the image using CSS transform
+        // Image starts at initial size, then scaled and panned
+        const scaledW = initialImgW * imgScale;
+        const scaledH = initialImgH * imgScale;
+        
+        // Calculate image position: centered on crop box center + pan offset
         const imgCenterX = cropX + cropBoxW / 2 + imgPanX;
         const imgCenterY = cropY + cropBoxH / 2 + imgPanY;
-        cropPreviewImg.style.left = (imgCenterX - imgDisplayW / 2) + 'px';
-        cropPreviewImg.style.top = (imgCenterY - imgDisplayH / 2) + 'px';
+        
+        cropPreviewImg.style.left = imgCenterX + 'px';
+        cropPreviewImg.style.top = imgCenterY + 'px';
+        cropPreviewImg.style.width = initialImgW + 'px';
+        cropPreviewImg.style.height = initialImgH + 'px';
+        cropPreviewImg.style.transform = `translate(-50%, -50%) scale(${imgScale})`;
 
-        // Position handles
+        // Position handles (fixed, doesn't change with zoom)
         const hh = 5;
-        cropHandles[0].style.left = (cropX - hh) + 'px'; cropHandles[0].style.top = (cropY - hh) + 'px'; // nw
-        cropHandles[1].style.left = (cropX + cropBoxW/2 - hh) + 'px'; cropHandles[1].style.top = (cropY - hh) + 'px'; // n
-        cropHandles[2].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[2].style.top = (cropY - hh) + 'px'; // ne
-        cropHandles[3].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[3].style.top = (cropY + cropBoxH/2 - hh) + 'px'; // e
-        cropHandles[4].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[4].style.top = (cropY + cropBoxH - hh) + 'px'; // se
-        cropHandles[5].style.left = (cropX + cropBoxW/2 - hh) + 'px'; cropHandles[5].style.top = (cropY + cropBoxH - hh) + 'px'; // s
-        cropHandles[6].style.left = (cropX - hh) + 'px'; cropHandles[6].style.top = (cropY + cropBoxH - hh) + 'px'; // sw
-        cropHandles[7].style.left = (cropX - hh) + 'px'; cropHandles[7].style.top = (cropY + cropBoxH/2 - hh) + 'px'; // w
+        cropHandles[0].style.left = (cropX - hh) + 'px'; cropHandles[0].style.top = (cropY - hh) + 'px';
+        cropHandles[1].style.left = (cropX + cropBoxW/2 - hh) + 'px'; cropHandles[1].style.top = (cropY - hh) + 'px';
+        cropHandles[2].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[2].style.top = (cropY - hh) + 'px';
+        cropHandles[3].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[3].style.top = (cropY + cropBoxH/2 - hh) + 'px';
+        cropHandles[4].style.left = (cropX + cropBoxW - hh) + 'px'; cropHandles[4].style.top = (cropY + cropBoxH - hh) + 'px';
+        cropHandles[5].style.left = (cropX + cropBoxW/2 - hh) + 'px'; cropHandles[5].style.top = (cropY + cropBoxH - hh) + 'px';
+        cropHandles[6].style.left = (cropX - hh) + 'px'; cropHandles[6].style.top = (cropY + cropBoxH - hh) + 'px';
+        cropHandles[7].style.left = (cropX - hh) + 'px'; cropHandles[7].style.top = (cropY + cropBoxH/2 - hh) + 'px';
 
-        // Calculate output dimensions (what the cropped image will be)
-        // The output size equals crop box size (since crop box defines the output)
+        // Dimension label (fixed, shows output size)
         dimLabel.textContent = `${cropBoxW}×${cropBoxH}px`;
         dimLabel.style.left = (cropX + cropBoxW + 5) + 'px';
         dimLabel.style.top = (cropY - 2) + 'px';
@@ -3054,33 +3070,27 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           dimLabel.style.left = (cropX + cropBoxW - 80) + 'px';
         }
 
-        // Update inputs
+        // Update inputs and zoom display
         widthInput.value = String(cropBoxW);
         heightInput.value = String(cropBoxH);
-
-        // Update zoom display
         zoomLevelDisplay.textContent = Math.round(imgScale * 100) + '%';
         zoomSlider.value = String(imgScale);
       };
 
       // Zoom handlers
-      const applyZoom = () => {
-        updateCropUI();
-      };
-
       zoomSlider.addEventListener('input', (e) => {
         imgScale = parseFloat((e.target as HTMLInputElement).value);
-        applyZoom();
+        updateCropUI();
       });
 
       zoomOutBtn.addEventListener('click', () => {
         imgScale = Math.max(0.5, imgScale - 0.1);
-        applyZoom();
+        updateCropUI();
       });
 
       zoomInBtn.addEventListener('click', () => {
         imgScale = Math.min(3, imgScale + 0.1);
-        applyZoom();
+        updateCropUI();
       });
 
       // Crop size handlers
@@ -3097,14 +3107,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const startPan = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
-        if (target.closest('.ql-crop-handle') || target.closest('.ql-crop-zoom-controls') || target.closest('.ql-crop-toolbar') || target.closest('.ql-crop-dimension')) return;
-        // Only pan when clicking on the image or empty area
+        if (target.closest('.ql-crop-handle') || target.closest('.ql-crop-zoom-controls') || target.closest('.ql-crop-dimension') || target.closest('input') || target.closest('button')) return;
         isPanning = true;
         panStartX = e.clientX;
         panStartY = e.clientY;
         panStartPanX = imgPanX;
         panStartPanY = imgPanY;
-        editorWrapper.style.cursor = 'grabbing';
+        imageLayer.style.cursor = 'grabbing';
         e.preventDefault();
         e.stopPropagation();
       };
@@ -3120,11 +3129,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const endPan = () => {
         isPanning = false;
-        editorWrapper.style.cursor = '';
+        imageLayer.style.cursor = '';
       };
 
-      cropPreviewImg.addEventListener('mousedown', startPan);
-      editorWrapper.addEventListener('mousedown', startPan);
+      imageLayer.addEventListener('mousedown', startPan);
       document.addEventListener('mousemove', doPan);
       document.addEventListener('mouseup', endPan);
 
@@ -3152,14 +3160,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const dy = e.clientY - resizeStartY;
 
         let newW = startCropW, newH = startCropH;
-
         if (resizeType.includes('e')) newW = startCropW + dx;
         if (resizeType.includes('w')) newW = startCropW - dx;
         if (resizeType.includes('s')) newH = startCropH + dy;
         if (resizeType.includes('n')) newH = startCropH - dy;
 
-        cropBoxW = Math.max(50, Math.min(containerRect.width - 100, newW));
-        cropBoxH = Math.max(50, Math.min(containerRect.height - 100, newH));
+        cropBoxW = Math.max(50, Math.min(containerW - 100, newW));
+        cropBoxH = Math.max(50, Math.min(containerH - 100, newH));
         updateCropUI();
       };
 
@@ -3172,9 +3179,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       document.addEventListener('mouseup', onHandleUp);
 
       // Initial update
-      ensureImageLoaded().then(() => {
-        updateCropUI();
-      });
+      updateCropUI();
 
       // Cleanup function: restore toolbar and remove crop overlay
       const cleanup = () => {
@@ -3237,22 +3242,26 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const natW = originalImg.naturalWidth;
         const natH = originalImg.naturalHeight;
 
+        if (initialImgW === 0 || initialImgH === 0) {
+          cleanup();
+          return;
+        }
+
         // Calculate where the crop box is on the original image
         // 1. Crop box is centered in container
         // 2. Image is scaled and panned relative to crop box center
         // 3. We need to find what part of the original image appears in the crop box
 
-        const containerRect = container.getBoundingClientRect();
-        const cW = containerRect.width;
-        const cH = containerRect.height;
+        const cW = containerW;
+        const cH = containerH;
 
         // Crop box center in screen coordinates
         const cropCenterX = cW / 2;
         const cropCenterY = cH / 2;
 
-        // Image display dimensions (scaled)
-        const imgDisplayW = natW * imgScale;
-        const imgDisplayH = natH * imgScale;
+        // Image display dimensions (initial size scaled by imgScale)
+        const imgDisplayW = initialImgW * imgScale;
+        const imgDisplayH = initialImgH * imgScale;
 
         // Image center in screen coordinates (crop center + pan offset)
         const imgCenterX = cropCenterX + imgPanX;
@@ -3266,17 +3275,25 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const cropLeft = (cW - cropBoxW) / 2;
         const cropTop = (cH - cropBoxH) / 2;
 
-        // Convert crop box position to image coordinates (in scaled image)
+        // Convert crop box position to image coordinates (in scaled displayed image)
         const cropInImgX = cropLeft - imgLeft;
         const cropInImgY = cropTop - imgTop;
 
-        // Convert to original image coordinates (divide by scale)
-        const srcX = cropInImgX / imgScale;
-        const srcY = cropInImgY / imgScale;
+        // Convert to displayed image coordinates (divide by scale to get position on unscaled displayed image)
+        const displayX = cropInImgX / imgScale;
+        const displayY = cropInImgY / imgScale;
+        const displayW = cropBoxW / imgScale;
+        const displayH = cropBoxH / imgScale;
 
-        // Crop dimensions in original image coordinates
-        const srcW = cropBoxW / imgScale;
-        const srcH = cropBoxH / imgScale;
+        // Convert displayed image coordinates to original image coordinates
+        // Scale factor: original image size / initial displayed size
+        const scaleX = natW / initialImgW;
+        const scaleY = natH / initialImgH;
+        
+        const srcX = displayX * scaleX;
+        const srcY = displayY * scaleY;
+        const srcW = displayW * scaleX;
+        const srcH = displayH * scaleY;
 
         // Clamp to image bounds
         const cx = Math.max(0, Math.min(natW - 1, Math.round(srcX)));
