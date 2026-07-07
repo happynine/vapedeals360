@@ -2870,6 +2870,110 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       selBorder.style.cssText = 'position:absolute;border:2px dashed #2b7cd8;pointer-events:none;box-shadow:0 0 0 1px rgba(43,124,216,0.3);';
       editorWrapper.appendChild(selBorder);
 
+      // Dimension label (shows current crop size in pixels)
+      const dimLabel = document.createElement('div');
+      dimLabel.className = 'ql-crop-dimension';
+      dimLabel.style.cssText = 'position:absolute;background:#ef4444;color:#fff;padding:2px 6px;font-size:12px;font-weight:500;border-radius:4px;pointer-events:none;z-index:20;white-space:nowrap;';
+      editorWrapper.appendChild(dimLabel);
+
+      // Zoom controls
+      let imgScale = 1; // Current zoom level
+      let imgPanX = 0, imgPanY = 0; // Pan offset (in pixels relative to displayed image)
+
+      // Zoom slider container
+      const zoomControls = document.createElement('div');
+      zoomControls.className = 'ql-crop-zoom-controls';
+      zoomControls.style.cssText = 'position:absolute;bottom:60px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;z-index:25;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+      editorWrapper.appendChild(zoomControls);
+
+      // Zoom out button
+      const zoomOutBtn = document.createElement('button');
+      zoomOutBtn.innerHTML = '−';
+      zoomOutBtn.style.cssText = 'width:28px;height:28px;border:none;background:#f3f4f6;border-radius:4px;cursor:pointer;font-size:18px;font-weight:bold;color:#374151;';
+      zoomControls.appendChild(zoomOutBtn);
+
+      // Zoom slider
+      const zoomSlider = document.createElement('input');
+      zoomSlider.type = 'range';
+      zoomSlider.min = '0.5';
+      zoomSlider.max = '3';
+      zoomSlider.step = '0.1';
+      zoomSlider.value = '1';
+      zoomSlider.style.cssText = 'width:120px;height:4px;cursor:pointer;';
+      zoomControls.appendChild(zoomSlider);
+
+      // Zoom in button
+      const zoomInBtn = document.createElement('button');
+      zoomInBtn.innerHTML = '+';
+      zoomInBtn.style.cssText = 'width:28px;height:28px;border:none;background:#f3f4f6;border-radius:4px;cursor:pointer;font-size:18px;font-weight:bold;color:#374151;';
+      zoomControls.appendChild(zoomInBtn);
+
+      // Zoom level display
+      const zoomLevelDisplay = document.createElement('span');
+      zoomLevelDisplay.textContent = '100%';
+      zoomLevelDisplay.style.cssText = 'font-size:12px;color:#6b7280;min-width:40px;text-align:center;';
+      zoomControls.appendChild(zoomLevelDisplay);
+
+      // Apply zoom to image
+      const applyZoom = () => {
+        img.style.transform = `scale(${imgScale}) translate(${imgPanX/imgScale}px, ${imgPanY/imgScale}px)`;
+        img.style.transformOrigin = 'center center';
+        zoomLevelDisplay.textContent = Math.round(imgScale * 100) + '%';
+        zoomSlider.value = String(imgScale);
+        updateSelection();
+      };
+
+      zoomSlider.addEventListener('input', (e) => {
+        imgScale = parseFloat((e.target as HTMLInputElement).value);
+        applyZoom();
+      });
+
+      zoomOutBtn.addEventListener('click', () => {
+        imgScale = Math.max(0.5, imgScale - 0.1);
+        applyZoom();
+      });
+
+      zoomInBtn.addEventListener('click', () => {
+        imgScale = Math.min(3, imgScale + 0.1);
+        applyZoom();
+      });
+
+      // Pan (drag image to move)
+      let isPanning = false;
+      let panStartX = 0, panStartY = 0;
+      let panStartPanX = 0, panStartPanY = 0;
+
+      const startPan = (e: MouseEvent) => {
+        // Only pan when clicking outside selection area and not on handles
+        const target = e.target as HTMLElement;
+        if (target.closest('.ql-crop-handle') || target.closest('.ql-crop-zoom-controls') || target.closest('.ql-crop-toolbar')) return;
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartPanX = imgPanX;
+        panStartPanY = imgPanY;
+        editorWrapper.style.cursor = 'grabbing';
+        e.preventDefault();
+      };
+
+      const doPan = (e: MouseEvent) => {
+        if (!isPanning) return;
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        imgPanX = panStartPanX + dx;
+        imgPanY = panStartPanY + dy;
+        applyZoom();
+      };
+
+      const endPan = () => {
+        isPanning = false;
+        editorWrapper.style.cursor = 'crosshair';
+      };
+
+      editorWrapper.addEventListener('mousedown', startPan);
+      document.addEventListener('mousemove', doPan);
+      document.addEventListener('mouseup', endPan);
+
       // 8 handles: 4 corners + 4 edge midpoints (like Word)
       const handles: HTMLDivElement[] = [];
       const handleConfigs = [
@@ -2903,6 +3007,21 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
         const sx = selX * imgW, sy = selY * imgH;
         const sw = selW * imgW, sh = selH * imgH;
+
+        // Calculate actual pixel dimensions from original image
+        const actualWidth = Math.round(originalImg.naturalWidth * selW);
+        const actualHeight = Math.round(originalImg.naturalHeight * selH);
+
+        // Update dimension label
+        dimLabel.textContent = `${actualWidth}×${actualHeight}px`;
+        dimLabel.style.left = (ox + sx + sw + 5) + 'px';
+        dimLabel.style.top = (oy + sy - 2) + 'px';
+        // If label would overflow right edge, position it inside selection
+        const containerRect = container.getBoundingClientRect();
+        if (ox + sx + sw + 5 + 80 > containerRect.width) {
+          dimLabel.style.left = (ox + sx + sw - 80) + 'px';
+          dimLabel.style.top = (oy + sy - 2) + 'px';
+        }
 
         // Masks (positioned relative to editorWrapper which is over qlEditor)
         maskTop.style.cssText = `position:absolute;top:${oy}px;left:${ox}px;width:${imgW}px;height:${sy}px;background:rgba(0,0,0,0.5);pointer-events:none;z-index:11;`;
