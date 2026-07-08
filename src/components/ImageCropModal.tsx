@@ -1,238 +1,235 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Modal, Slider, Button, Space, InputNumber } from '@arco-design/web-react';
-import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
-import '@arco-design/web-react/dist/css/arco.css';
+import React, { useState, useCallback, useEffect } from 'react';
+import Cropper from 'react-easy-crop';
+import { Modal, Grid, Slider, Button, Message } from '@arco-design/web-react';
+import { IconMinus, IconPlus, IconRotateLeft } from '@arco-design/web-react/icon';
+
+interface CropArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface ImageCropModalProps {
   visible: boolean;
   imageSrc: string;
+  targetImageElement?: HTMLImageElement | null;
   onCancel: () => void;
-  onConfirm: (croppedImageData: string, cropDimensions: { width: number; height: number }) => void;
-  defaultWidth?: number;
-  defaultHeight?: number;
-  aspectRatio?: number;
+  onConfirm: (croppedDataUrl: string, dimensions: { width: number; height: number }) => void;
   title?: string;
+  aspect?: number; // 裁剪比例，默认 1:1
 }
 
-// Helper function to create a centered crop
-function createCenteredCrop(
-  imageWidth: number,
-  imageHeight: number,
-  cropWidth: number,
-  cropHeight: number
-): Crop {
-  const scaleX = cropWidth / imageWidth;
-  const scaleY = cropHeight / imageHeight;
-  
-  return centerCrop(
-    makeAspectCrop(
-      {
-        unit: '%',
-        width: Math.min(scaleX * 100, 100),
-        height: Math.min(scaleY * 100, 100),
-      },
-      cropWidth / cropHeight,
-      imageWidth,
-      imageHeight
-    ),
-    imageWidth,
-    imageHeight
+// 获取裁剪后的图片 Data URL 和尺寸
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: CropArea,
+  rotation: number = 0
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', (error) => reject(error));
+    img.src = imageSrc;
+  });
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx || !image) {
+    return null;
+  }
+
+  const imageSize = 2 * ((Math.max(image.width, image.height) / 2) * Math.sqrt(2));
+  canvas.width = imageSize;
+  canvas.height = imageSize;
+
+  if (rotation) {
+    ctx.translate(imageSize / 2, imageSize / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
+    ctx.translate(-imageSize / 2, -imageSize / 2);
+  }
+
+  ctx.drawImage(image, imageSize / 2 - image.width / 2, imageSize / 2 - image.height / 2);
+  const data = ctx.getImageData(0, 0, imageSize, imageSize);
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+  ctx.putImageData(
+    data,
+    Math.round(0 - imageSize / 2 + image.width * 0.5 - pixelCrop.x),
+    Math.round(0 - imageSize / 2 + image.height * 0.5 - pixelCrop.y)
   );
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  return {
+    dataUrl,
+    width: pixelCrop.width,
+    height: pixelCrop.height,
+  };
 }
 
-export function ImageCropModal({
-  visible,
-  imageSrc,
-  onCancel,
-  onConfirm,
-  defaultWidth = 400,
-  defaultHeight = 400,
-  aspectRatio,
-  title = '裁剪图片',
-}: ImageCropModalProps) {
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
-  const [scale, setScale] = useState(100);
-  const [cropWidth, setCropWidth] = useState(defaultWidth);
-  const [cropHeight, setCropHeight] = useState(defaultHeight);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 });
+// 内部裁剪器组件
+interface CropperContentProps {
+  imageSrc: string;
+  aspect: number;
+  onCropComplete: (croppedAreaPixels: CropArea) => void;
+  onOk: () => void;
+  onCancel: () => void;
+}
 
-  // Initialize crop when image loads
-  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const { naturalWidth, naturalHeight } = img;
-    setImgDimensions({ width: naturalWidth, height: naturalHeight });
-    
-    // Create initial centered crop
-    const initialCrop = createCenteredCrop(naturalWidth, naturalHeight, cropWidth, cropHeight);
-    setCrop(initialCrop);
-  }, [cropWidth, cropHeight]);
+function CropperContent({ imageSrc, aspect, onCropComplete, onOk, onCancel }: CropperContentProps) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
 
-  // Update crop when dimensions change
-  useEffect(() => {
-    if (imgDimensions.width && imgDimensions.height && crop) {
-      const newCrop = createCenteredCrop(imgDimensions.width, imgDimensions.height, cropWidth, cropHeight);
-      setCrop(newCrop);
-    }
-  }, [cropWidth, cropHeight]);
-
-  // Generate cropped image
-  const getCroppedImage = useCallback(async (): Promise<string> => {
-    const image = imgRef.current;
-    const canvas = previewCanvasRef.current;
-    if (!image || !canvas || !completedCrop) {
-      return '';
-    }
-
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-
-    const cropX = completedCrop.x * scaleX;
-    const cropY = completedCrop.y * scaleY;
-    const cropW = completedCrop.width * scaleX;
-    const cropH = completedCrop.height * scaleY;
-
-    // Calculate the actual crop dimensions respecting aspect ratio
-    const actualWidth = Math.min(cropW, image.naturalWidth - cropX);
-    const actualHeight = aspectRatio ? actualWidth / aspectRatio : Math.min(cropH, image.naturalHeight - cropY);
-
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return '';
-
-    ctx.drawImage(
-      image,
-      cropX,
-      cropY,
-      actualWidth,
-      actualHeight,
-      0,
-      0,
-      cropWidth,
-      cropHeight
-    );
-
-    // Return as data URL (PNG)
-    return canvas.toDataURL('image/png', 0.9);
-  }, [completedCrop, cropWidth, cropHeight, aspectRatio]);
-
-  const handleConfirm = async () => {
-    const croppedData = await getCroppedImage();
-    if (croppedData) {
-      onConfirm(croppedData, { width: cropWidth, height: cropHeight });
-    }
-  };
+  const handleCropComplete = useCallback((_: CropArea, croppedPixels: CropArea) => {
+    setCroppedAreaPixels(croppedPixels);
+    onCropComplete(croppedPixels);
+  }, [onCropComplete]);
 
   return (
-    <Modal
-      visible={visible}
-      title={title}
-      onCancel={onCancel}
-      footer={null}
-      style={{ width: 800, maxWidth: '90vw' }}
-      autoFocus={false}
-      focusLock={false}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Crop dimensions input */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <span style={{ fontWeight: 500 }}>裁剪尺寸:</span>
-          <Space>
-            <InputNumber
-              value={cropWidth}
-              onChange={(val) => setCropWidth(val || defaultWidth)}
-              min={50}
-              max={2000}
-              style={{ width: 100 }}
-              suffix="px"
-            />
-            <span>×</span>
-            <InputNumber
-              value={cropHeight}
-              onChange={(val) => setCropHeight(val || defaultHeight)}
-              min={50}
-              max={2000}
-              style={{ width: 100 }}
-              suffix="px"
-            />
-          </Space>
-        </div>
-
-        {/* Scale control */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <span style={{ fontWeight: 500 }}>缩放:</span>
-          <Slider
-            value={scale}
-            onChange={(val) => setScale(val as number)}
-            min={50}
-            max={200}
-            style={{ width: 200 }}
-            showInput
-          />
-          <span>{scale}%</span>
-        </div>
-
-        {/* Crop area */}
-        <div 
-          style={{ 
-            position: 'relative',
-            width: '100%',
-            height: 400,
-            overflow: 'hidden',
-            background: '#f2f3f5',
-            borderRadius: 8,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+    <>
+      <div style={{ width: '100%', height: 280, position: 'relative', background: '#1a1a1a' }}>
+        <Cropper
+          image={imageSrc}
+          crop={crop}
+          zoom={zoom}
+          rotation={rotation}
+          aspect={aspect}
+          onCropChange={setCrop}
+          onCropComplete={handleCropComplete}
+          onZoomChange={setZoom}
+          onRotationChange={setRotation}
+          style={{
+            containerStyle: {
+              width: '100%',
+              height: 280,
+              background: '#1a1a1a',
+            },
+            cropAreaStyle: {
+              border: '2px solid #7c3aed',
+            },
           }}
-        >
-          <div style={{ transform: `scale(${scale / 100})`, transformOrigin: 'center' }}>
-            <ReactCrop
-              crop={crop}
-              onChange={(c) => setCrop(c)}
-              onComplete={(c) => setCompletedCrop(c)}
-              aspect={aspectRatio || cropWidth / cropHeight}
-              minWidth={cropWidth * 0.1}
-              minHeight={cropHeight * 0.1}
-            >
-              <img
-                ref={imgRef}
-                src={imageSrc}
-                onLoad={onImageLoad}
-                style={{ maxWidth: '100%', maxHeight: 400 }}
-                alt="Crop preview"
-              />
-            </ReactCrop>
-          </div>
-        </div>
-
-        {/* Dimension info */}
-        <div style={{ display: 'flex', gap: 16, color: '#86909c' }}>
-          <span>原图尺寸: {imgDimensions.width} × {imgDimensions.height} px</span>
-          <span>|</span>
-          <span>裁剪输出: {cropWidth} × {cropHeight} px</span>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <Button onClick={onCancel}>取消</Button>
-          <Button type="primary" onClick={handleConfirm}>
-            确认裁剪
-          </Button>
-        </div>
+        />
       </div>
 
-      {/* Hidden canvas for processing */}
-      <canvas ref={previewCanvasRef} style={{ display: 'none' }} />
-    </Modal>
+      {/* 缩放和旋转控制 */}
+      <Grid.Row justify="space-between" style={{ marginTop: 20, marginBottom: 20 }}>
+        {/* 缩放控制 */}
+        <Grid.Row style={{ flex: 1, marginLeft: 12, marginRight: 12 }}>
+          <IconMinus
+            style={{ marginRight: 10, cursor: 'pointer', color: '#7c3aed' }}
+            onClick={() => setZoom(Math.max(0.8, zoom - 0.1))}
+          />
+          <Slider
+            style={{ flex: 1 }}
+            step={0.1}
+            value={zoom}
+            onChange={(v) => setZoom(v as number)}
+            min={0.8}
+            max={3}
+          />
+          <IconPlus
+            style={{ marginLeft: 10, cursor: 'pointer', color: '#7c3aed' }}
+            onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+          />
+        </Grid.Row>
+
+        {/* 旋转控制 */}
+        <IconRotateLeft
+          style={{ cursor: 'pointer', color: '#7c3aed' }}
+          onClick={() => setRotation(rotation - 90)}
+        />
+      </Grid.Row>
+
+      {/* 确定和取消按钮 */}
+      <Grid.Row justify="end">
+        <Button onClick={onCancel} style={{ marginRight: 20 }}>
+          取消
+        </Button>
+        <Button type="primary" onClick={onOk}>
+          确定
+        </Button>
+      </Grid.Row>
+    </>
   );
 }
 
-export default ImageCropModal;
+export default function ImageCropModal({
+  visible,
+  imageSrc,
+  targetImageElement,
+  onCancel,
+  onConfirm,
+  title = '裁剪图片',
+  aspect = 1,
+}: ImageCropModalProps) {
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
+  const [modalRef, setModalRef] = useState<ReturnType<typeof Modal.confirm> | null>(null);
+
+  // 当 visible 变化时，打开或关闭 Modal
+  useEffect(() => {
+    if (visible && imageSrc) {
+      const modal = Modal.confirm({
+        title: title,
+        simple: false,
+        style: { width: 500 },
+        footer: null,
+        content: (
+          <CropperContent
+            imageSrc={imageSrc}
+            aspect={aspect}
+            onCropComplete={(pixels) => setCroppedAreaPixels(pixels)}
+            onOk={async () => {
+              if (!imageSrc || !croppedAreaPixels) {
+                Message.error('裁剪区域无效');
+                return;
+              }
+              try {
+                const result = await getCroppedImg(imageSrc, croppedAreaPixels, 0);
+                if (result) {
+                  onConfirm(result.dataUrl, { width: result.width, height: result.height });
+                  Message.success('裁剪成功');
+                } else {
+                  Message.error('裁剪失败');
+                }
+              } catch (error) {
+                console.error('裁剪错误:', error);
+                Message.error('裁剪失败');
+              }
+              modal.close();
+            }}
+            onCancel={() => {
+              Message.info('取消裁剪');
+              modal.close();
+            }}
+          />
+        ),
+        onCancel: () => {
+          Message.info('取消裁剪');
+          onCancel();
+        },
+      });
+      setModalRef(modal);
+    } else if (!visible && modalRef) {
+      modalRef.close();
+      setModalRef(null);
+    }
+  }, [visible, imageSrc]);
+
+  // 清理：当组件卸载时关闭 Modal
+  useEffect(() => {
+    return () => {
+      if (modalRef) {
+        modalRef.close();
+      }
+    };
+  }, [modalRef]);
+
+  return null; // 这个组件不渲染任何内容，Modal.confirm 会自动渲染
+}

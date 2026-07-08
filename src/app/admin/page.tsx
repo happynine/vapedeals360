@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHand
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
-import { ImageCropModal } from '@/components/ImageCropModal';
+import ImageCropModal from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
