@@ -1,19 +1,17 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 
 interface ImageUploadProps {
-  value: string | null; // image_key from S3
+  value: string | null;
   onUploadComplete?: (key: string) => void;
-  onChange?: (key: string | null) => void; // alias for onUploadComplete
-  aspectRatio?: number; // locked aspect ratio, e.g. 21/6 for banner
-  suggestedSize?: string; // e.g. "1200x400px"
-  recommendedSize?: string; // alias for suggestedSize
+  onChange?: (key: string | null) => void;
+  aspectRatio?: number;
+  suggestedSize?: string;
+  recommendedSize?: string;
   label?: string;
-  folder?: string; // upload folder in S3
-  lang?: string; // language for UI text
+  folder?: string;
+  lang?: string;
 }
 
 export function ImageUpload({
@@ -29,25 +27,24 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const sizeHint = suggestedSize || recommendedSize;
   const handleComplete = onChange || onUploadComplete || (() => {});
+
   const [showCrop, setShowCrop] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [uploading, setUploading] = useState(false);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  
-  // Zoom and pan states
+
+  /* ── 图片缩放 & 平移 ── */
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
-  // Real-time crop dimensions in pixels (from original image)
-  const [cropDimensions, setCropDimensions] = useState({ width: 0, height: 0 });
+  const imgRef = useRef<HTMLImageElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cropFrame, setCropFrame] = useState({ width: 300, height: 300 });
 
+  /* ── 选择文件 ── */
   const onSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -55,133 +52,75 @@ export function ImageUpload({
     reader.onload = () => {
       setSrc(reader.result as string);
       setShowCrop(true);
-      // Reset zoom and pan
       setScale(1);
       setPanX(0);
       setPanY(0);
-      // Initialize crop to cover full image with the aspect ratio
-      if (aspectRatio) {
-        setCrop({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
-      } else {
-        setCrop({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
-      }
     };
     reader.readAsDataURL(file);
-    // Reset input so same file can be re-selected
     e.target.value = '';
-  }, [aspectRatio]);
+  }, []);
 
-  // Calculate real crop dimensions based on original image size and current crop
-  const updateCropDimensions = useCallback(() => {
-    if (!imgRef.current || !crop) return;
-    const img = imgRef.current;
-    const scaleX = img.naturalWidth / img.width;
-    const scaleY = img.naturalHeight / img.height;
-    
-    let pixelCrop: PixelCrop;
-    if (crop.unit === '%') {
-      pixelCrop = {
-        unit: 'px',
-        x: Math.round((crop.x || 0) * img.width / 100 * scaleX),
-        y: Math.round((crop.y || 0) * img.height / 100 * scaleY),
-        width: Math.round((crop.width || 100) * img.width / 100 * scaleX),
-        height: Math.round((crop.height || 100) * img.height / 100 * scaleY),
-      };
-    } else {
-      pixelCrop = {
-        unit: 'px',
-        x: Math.round((crop.x || 0) * scaleX),
-        y: Math.round((crop.y || 0) * scaleY),
-        width: Math.round((crop.width || 100) * scaleX),
-        height: Math.round((crop.height || 100) * scaleY),
-      };
-    }
-    
-    setCropDimensions({ width: pixelCrop.width, height: pixelCrop.height });
-    setCompletedCrop(pixelCrop);
-  }, [crop]);
-
-  // Update dimensions when crop changes
-  useEffect(() => {
-    updateCropDimensions();
-  }, [updateCropDimensions]);
-
-  const onImageLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      imgRef.current = e.currentTarget;
-      const { width, height } = e.currentTarget;
-      if (aspectRatio) {
-        const imgAspect = width / height;
-        const targetAspect = aspectRatio;
-        let cropW: number, cropH: number, cropX: number, cropY: number;
-        if (imgAspect > targetAspect) {
-          cropH = 100;
-          cropW = (targetAspect / imgAspect) * 100;
-          cropX = (100 - cropW) / 2;
-          cropY = 0;
-        } else {
-          cropW = 100;
-          cropH = (imgAspect / targetAspect) * 100;
-          cropX = 0;
-          cropY = (100 - cropH) / 2;
-        }
-        const initialCrop: Crop = {
-          unit: '%',
-          width: cropW,
-          height: cropH,
-          x: cropX,
-          y: cropY,
-        };
-        setCrop(initialCrop);
-        // Initialize completedCrop with actual pixel dimensions
-        const scaleX = e.currentTarget.naturalWidth / width;
-        const scaleY = e.currentTarget.naturalHeight / height;
-        setCompletedCrop({
-          unit: 'px',
-          width: Math.round(cropW * width / 100 * scaleX),
-          height: Math.round(cropH * height / 100 * scaleY),
-          x: Math.round(cropX * width / 100 * scaleX),
-          y: Math.round(cropY * height / 100 * scaleY),
-        });
-      } else {
-        // No aspect ratio: initialize completedCrop to full image
-        setCompletedCrop({
-          unit: 'px',
-          width: e.currentTarget.naturalWidth,
-          height: e.currentTarget.naturalHeight,
-          x: 0,
-          y: 0,
-        });
-      }
+  /* ── 拖拽平移 ── */
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX, panY };
     },
-    [aspectRatio]
+    [panX, panY],
   );
 
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setPanX(panStartRef.current.panX + dx);
+      setPanY(panStartRef.current.panY + dy);
+    },
+    [isPanning],
+  );
+
+  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+
+  /* ── 缩放 ── */
+  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.1).toFixed(1))), []);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
+  const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setScale(parseFloat(e.target.value));
+  }, []);
+
+  /* ── 裁剪并上传 ── */
   const handleCropAndUpload = useCallback(async () => {
-    if (!completedCrop || !imgRef.current) return;
+    if (!imgRef.current) return;
     const image = imgRef.current;
 
+    const dispW = image.clientWidth;
+    const dispH = image.clientHeight;
+    const ratio = image.naturalWidth / dispW;
+
+    const cropCenterX = dispW / 2 - panX / scale;
+    const cropCenterY = dispH / 2 - panY / scale;
+
+    const cropDispW = cropFrame.width / scale;
+    const cropDispH = cropFrame.height / scale;
+
+    const sx = (cropCenterX - cropDispW / 2) * ratio;
+    const sy = (cropCenterY - cropDispH / 2) * ratio;
+    const sw = cropDispW * ratio;
+    const sh = cropDispH * ratio;
+
     const canvas = document.createElement('canvas');
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-
-    const cropX = completedCrop.x * scaleX;
-    const cropY = completedCrop.y * scaleY;
-    const cropWidth = completedCrop.width * scaleX;
-    const cropHeight = completedCrop.height * scaleY;
-
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-
+    canvas.width = Math.round(sw);
+    canvas.height = Math.round(sh);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     setUploading(true);
     try {
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/jpeg', 0.9)
+        canvas.toBlob(resolve, 'image/jpeg', 0.9),
       );
       if (!blob) throw new Error('Failed to create image');
 
@@ -204,7 +143,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [completedCrop, folder, handleComplete]);
+  }, [scale, panX, panY, cropFrame, folder, handleComplete]);
 
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
@@ -214,38 +153,32 @@ export function ImageUpload({
     setPanY(0);
   }, []);
 
-  // Pan handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only start pan if clicking on the container (not on crop area)
-    if ((e.target as HTMLElement).closest('.ReactCrop')) return;
-    setIsPanning(true);
-    setPanStart({ x: e.clientX, y: e.clientY, panX, panY });
-  }, [panX, panY]);
+  /* ── 计算裁剪框尺寸 ── */
+  useEffect(() => {
+    if (!showCrop || !containerRef.current) return;
+    const el = containerRef.current;
+    const updateFrame = () => {
+      const { clientWidth: cw, clientHeight: ch } = el;
+      const pad = 32;
+      const maxW = cw - pad;
+      const maxH = ch - pad;
+      const ar = aspectRatio || 1;
+      let w: number, h: number;
+      if (maxW / maxH > ar) {
+        h = maxH;
+        w = h * ar;
+      } else {
+        w = maxW;
+        h = w / ar;
+      }
+      setCropFrame({ width: Math.round(w), height: Math.round(h) });
+    };
+    updateFrame();
+    window.addEventListener('resize', updateFrame);
+    return () => window.removeEventListener('resize', updateFrame);
+  }, [showCrop, aspectRatio]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isPanning) return;
-    const dx = e.clientX - panStart.x;
-    const dy = e.clientY - panStart.y;
-    setPanX(panStart.panX + dx);
-    setPanY(panStart.panY + dy);
-  }, [isPanning, panStart]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
-  }, []);
-
-  // Zoom handlers
-  const handleZoomIn = useCallback(() => {
-    setScale((s) => Math.min(3, s + 0.1));
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setScale((s) => Math.max(0.5, s - 0.1));
-  }, []);
-
-  const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setScale(parseFloat(e.target.value));
-  }, []);
+  const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
   return (
     <div>
@@ -256,7 +189,7 @@ export function ImageUpload({
         )}
       </label>
 
-      {/* Preview current image */}
+      {/* 预览 */}
       {value && !showCrop && (
         <div className="mb-2 relative group">
           <img
@@ -267,7 +200,7 @@ export function ImageUpload({
         </div>
       )}
 
-      {/* Upload button */}
+      {/* 上传按钮 */}
       {!showCrop && (
         <div className="flex items-center gap-2">
           <button
@@ -276,7 +209,11 @@ export function ImageUpload({
             disabled={uploading}
             className="rounded-lg border border-dashed border-border bg-secondary/50 px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
           >
-            {uploading ? (lang === 'zh' ? '上传中...' : 'Uploading...') : value ? (lang === 'zh' ? '替换图片' : 'Replace Image') : (lang === 'zh' ? '选择图片' : 'Select Image')}
+            {uploading
+              ? t('上传中...', 'Uploading...')
+              : value
+                ? t('替换图片', 'Replace Image')
+                : t('选择图片', 'Select Image')}
           </button>
           {value && (
             <button
@@ -284,76 +221,75 @@ export function ImageUpload({
               onClick={() => handleComplete('')}
               className="text-xs text-destructive hover:underline"
             >
-              {lang === 'zh' ? '移除' : 'Remove'}
+              {t('移除', 'Remove')}
             </button>
           )}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={onSelectFile}
-            className="hidden"
-          />
+          <input ref={inputRef} type="file" accept="image/*" onChange={onSelectFile} className="hidden" />
         </div>
       )}
 
-      {/* Crop Modal */}
+      {/* 裁剪弹窗 */}
       {showCrop && src && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
-            <h3 className="text-sm font-semibold mb-3">{lang === 'zh' ? '裁剪图片' : 'Crop Image'}</h3>
-            
-            {/* Crop dimension display */}
-            <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-md bg-red-500 px-2 py-1 text-xs font-semibold text-white">
-                {cropDimensions.width}×{cropDimensions.height}px
-              </span>
-              {sizeHint && (
-                <span className="text-xs text-muted-foreground">
-                  {lang === 'zh' ? '建议尺寸:' : 'Recommended:'} {sizeHint}
-                </span>
-              )}
-            </div>
-            
-            {/* Crop container with zoom/pan */}
-            <div 
+            <h3 className="text-sm font-semibold mb-3">{t('裁剪图片', 'Crop Image')}</h3>
+
+            {/* 裁剪区域 */}
+            <div
               ref={containerRef}
-              className="flex justify-center mb-4 overflow-hidden relative bg-gray-100 rounded-lg"
-              style={{ minHeight: '300px', cursor: isPanning ? 'grabbing' : 'grab' }}
+              className="relative bg-[#1a1a1a] rounded-lg mb-4 overflow-hidden"
+              style={{
+                height: 350,
+                cursor: isPanning ? 'grabbing' : 'grab',
+                userSelect: 'none',
+              }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
             >
-              <div 
-                style={{ 
-                  transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
-                  transformOrigin: 'center center',
-                  transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+              {/* 固定裁剪框 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  width: cropFrame.width,
+                  height: cropFrame.height,
+                  transform: 'translate(-50%, -50%)',
+                  border: '2px solid #fff',
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+                  zIndex: 2,
+                  pointerEvents: 'none',
                 }}
-              >
-                <ReactCrop
-                  crop={crop}
-                  onChange={(c) => setCrop(c)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  aspect={aspectRatio}
-                >
-                  <img
-                    src={src}
-                    alt="Crop"
-                    onLoad={onImageLoad}
-                    className="max-h-[60vh] max-w-full"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                </ReactCrop>
-              </div>
+              />
+
+              {/* 可缩放/拖拽的图片 */}
+              <img
+                ref={imgRef}
+                src={src}
+                alt="Crop"
+                draggable={false}
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                  objectFit: 'contain',
+                  transform: `translate(-50%, -50%) scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+                  transformOrigin: 'center center',
+                  transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+                  pointerEvents: 'none',
+                }}
+              />
             </div>
-            
-            {/* Zoom controls */}
+
+            {/* 缩放控制 */}
             <div className="flex items-center justify-center gap-3 mb-4 bg-white rounded-lg py-2 px-4 shadow-sm">
               <button
                 type="button"
-                onClick={handleZoomOut}
+                onClick={zoomOut}
                 className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
               >
                 −
@@ -369,7 +305,7 @@ export function ImageUpload({
               />
               <button
                 type="button"
-                onClick={handleZoomIn}
+                onClick={zoomIn}
                 className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
               >
                 +
@@ -378,14 +314,15 @@ export function ImageUpload({
                 {Math.round(scale * 100)}%
               </span>
             </div>
-            
+
+            {/* 按钮 */}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={handleCancelCrop}
                 className="rounded-lg border border-border px-4 py-2 text-sm"
               >
-                {lang === 'zh' ? '取消' : 'Cancel'}
+                {t('取消', 'Cancel')}
               </button>
               <button
                 type="button"
@@ -393,7 +330,7 @@ export function ImageUpload({
                 disabled={uploading}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {uploading ? (lang === 'zh' ? '上传中...' : 'Uploading...') : (lang === 'zh' ? '裁剪并上传' : 'Crop & Upload')}
+                {uploading ? t('上传中...', 'Uploading...') : t('裁剪并上传', 'Crop & Upload')}
               </button>
             </div>
           </div>

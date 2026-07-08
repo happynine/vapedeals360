@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import Cropper from 'react-easy-crop';
-import { Modal, Grid, Slider, Button, Message } from '@arco-design/web-react';
-import { IconMinus, IconPlus, IconRotateLeft } from '@arco-design/web-react/icon';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Modal, Grid, Slider, Button } from '@arco-design/web-react';
+import { IconMinus, IconPlus } from '@arco-design/web-react/icon';
 
 interface CropArea {
   x: number;
@@ -19,147 +18,228 @@ interface ImageCropModalProps {
   onCancel: () => void;
   onConfirm: (croppedDataUrl: string, dimensions: { width: number; height: number }) => void;
   title?: string;
-  aspect?: number; // 裁剪比例，默认 1:1
+  aspect?: number;
 }
 
-// 获取裁剪后的图片 Data URL 和尺寸
+/* ── 根据 scale/pan 计算裁剪区域并在 canvas 上输出 ── */
 async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: CropArea,
-  rotation: number = 0
+  scale: number,
+  panX: number,
+  panY: number,
+  cropFrameW: number,
+  cropFrameH: number,
 ): Promise<{ dataUrl: string; width: number; height: number } | null> {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.addEventListener('load', () => resolve(img));
-    img.addEventListener('error', (error) => reject(error));
+    img.addEventListener('error', (e) => reject(e));
     img.src = imageSrc;
   });
 
+  const dispW = image.width;
+  const dispH = image.height;
+  const ratio = image.naturalWidth / dispW;
+
+  const imgCenterX = dispW / 2;
+  const imgCenterY = dispH / 2;
+  const cropCenterImgX = imgCenterX - panX / scale;
+  const cropCenterImgY = imgCenterY - panY / scale;
+
+  const cropW = cropFrameW / scale;
+  const cropH = cropFrameH / scale;
+
+  const sx = cropCenterImgX - cropW / 2;
+  const sy = cropCenterImgY - cropH / 2;
+
+  const outW = Math.round(cropW * ratio);
+  const outH = Math.round(cropH * ratio);
+
   const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
 
-  if (!ctx || !image) {
-    return null;
-  }
-
-  const imageSize = 2 * ((Math.max(image.width, image.height) / 2) * Math.sqrt(2));
-  canvas.width = imageSize;
-  canvas.height = imageSize;
-
-  if (rotation) {
-    ctx.translate(imageSize / 2, imageSize / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.translate(-imageSize / 2, -imageSize / 2);
-  }
-
-  ctx.drawImage(image, imageSize / 2 - image.width / 2, imageSize / 2 - image.height / 2);
-  const data = ctx.getImageData(0, 0, imageSize, imageSize);
-
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  ctx.putImageData(
-    data,
-    Math.round(0 - imageSize / 2 + image.width * 0.5 - pixelCrop.x),
-    Math.round(0 - imageSize / 2 + image.height * 0.5 - pixelCrop.y)
-  );
-
+  ctx.drawImage(image, sx, sy, cropW, cropH, 0, 0, outW, outH);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-  return {
-    dataUrl,
-    width: pixelCrop.width,
-    height: pixelCrop.height,
-  };
+  return { dataUrl, width: outW, height: outH };
 }
 
-// 内部裁剪器组件
-interface CropperContentProps {
+/* ── 裁剪器内容 ── */
+function CropperContent({
+  imageSrc,
+  aspect,
+  onConfirm,
+  onCancel,
+  uploading,
+  lang,
+}: {
   imageSrc: string;
   aspect: number;
-  onCropComplete: (croppedAreaPixels: CropArea) => void;
-  onOk: () => void;
+  onConfirm: (dataUrl: string, dims: { width: number; height: number }) => void;
   onCancel: () => void;
-}
+  uploading: boolean;
+  lang: string;
+}) {
+  const [scale, setScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const imgRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cropFrame, setCropFrame] = useState({ width: 300, height: 300 });
 
-function CropperContent({ imageSrc, aspect, onCropComplete, onOk, onCancel }: CropperContentProps) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
+  /* 计算裁剪框尺寸（相对于容器） */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { clientWidth: cw, clientHeight: ch } = el;
+    const pad = 40;
+    const maxW = cw - pad;
+    const maxH = ch - pad;
+    let w: number, h: number;
+    if (maxW / maxH > aspect) {
+      h = maxH;
+      w = h * aspect;
+    } else {
+      w = maxW;
+      h = w / aspect;
+    }
+    setCropFrame({ width: Math.round(w), height: Math.round(h) });
+  }, [aspect]);
 
-  const handleCropComplete = useCallback((_: CropArea, croppedPixels: CropArea) => {
-    setCroppedAreaPixels(croppedPixels);
-    onCropComplete(croppedPixels);
-  }, [onCropComplete]);
+  /* ── 拖拽平移 ── */
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX, panY };
+    },
+    [panX, panY],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setPanX(panStartRef.current.panX + dx);
+      setPanY(panStartRef.current.panY + dy);
+    },
+    [isPanning],
+  );
+
+  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+
+  /* ── 缩放 ── */
+  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.1).toFixed(1))), []);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
+
+  /* ── 确认裁剪 ── */
+  const handleOk = useCallback(async () => {
+    if (!imgRef.current) return;
+    const result = await getCroppedImg(imageSrc, scale, panX, panY, cropFrame.width, cropFrame.height);
+    if (result) onConfirm(result.dataUrl, { width: result.width, height: result.height });
+  }, [imageSrc, scale, panX, panY, cropFrame, onConfirm]);
+
+  const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
   return (
     <>
-      <div style={{ width: '100%', height: 280, position: 'relative', background: '#1a1a1a' }}>
-        <Cropper
-          image={imageSrc}
-          crop={crop}
-          zoom={zoom}
-          rotation={rotation}
-          aspect={aspect}
-          onCropChange={setCrop}
-          onCropComplete={handleCropComplete}
-          onZoomChange={setZoom}
-          onRotationChange={setRotation}
+      {/* 图片区域 */}
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: 350,
+          position: 'relative',
+          background: '#1a1a1a',
+          borderRadius: 8,
+          overflow: 'hidden',
+          cursor: isPanning ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* 固定裁剪框 */}
+        <div
           style={{
-            containerStyle: {
-              width: '100%',
-              height: 280,
-              background: '#1a1a1a',
-            },
-            cropAreaStyle: {
-              border: '2px solid #7c3aed',
-            },
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: cropFrame.width,
+            height: cropFrame.height,
+            transform: 'translate(-50%, -50%)',
+            border: '2px solid #fff',
+            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* 可缩放/拖拽的图片 */}
+        <img
+          ref={imgRef}
+          src={imageSrc}
+          alt="crop"
+          draggable={false}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            maxHeight: '100%',
+            maxWidth: '100%',
+            objectFit: 'contain',
+            transform: `translate(-50%, -50%) scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+            transformOrigin: 'center center',
+            transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+            pointerEvents: 'none',
           }}
         />
       </div>
 
-      {/* 缩放和旋转控制 */}
-      <Grid.Row justify="space-between" style={{ marginTop: 20, marginBottom: 20 }}>
-        {/* 缩放控制 */}
-        <Grid.Row style={{ flex: 1, marginLeft: 12, marginRight: 12 }}>
-          <IconMinus
-            style={{ marginRight: 10, cursor: 'pointer', color: '#7c3aed' }}
-            onClick={() => setZoom(Math.max(0.8, zoom - 0.1))}
-          />
-          <Slider
-            style={{ flex: 1 }}
-            step={0.1}
-            value={zoom}
-            onChange={(v) => setZoom(v as number)}
-            min={0.8}
-            max={3}
-          />
-          <IconPlus
-            style={{ marginLeft: 10, cursor: 'pointer', color: '#7c3aed' }}
-            onClick={() => setZoom(Math.min(3, zoom + 0.1))}
-          />
-        </Grid.Row>
-
-        {/* 旋转控制 */}
-        <IconRotateLeft
-          style={{ cursor: 'pointer', color: '#7c3aed' }}
-          onClick={() => setRotation(rotation - 90)}
+      {/* 缩放控制 */}
+      <Grid.Row justify="center" style={{ marginTop: 20, marginBottom: 20 }}>
+        <IconMinus
+          style={{ marginRight: 10, cursor: 'pointer', color: '#7c3aed', fontSize: 18 }}
+          onClick={zoomOut}
         />
+        <Slider
+          style={{ width: 200 }}
+          step={0.1}
+          value={scale}
+          min={0.5}
+          max={3}
+          onChange={(v) => setScale(v as number)}
+        />
+        <IconPlus
+          style={{ marginLeft: 10, cursor: 'pointer', color: '#7c3aed', fontSize: 18 }}
+          onClick={zoomIn}
+        />
+        <span style={{ marginLeft: 12, fontSize: 13, color: '#888', minWidth: 40, textAlign: 'center' }}>
+          {Math.round(scale * 100)}%
+        </span>
       </Grid.Row>
 
-      {/* 确定和取消按钮 */}
+      {/* 按钮 */}
       <Grid.Row justify="end">
         <Button onClick={onCancel} style={{ marginRight: 20 }}>
-          取消
+          {t('取消', 'Cancel')}
         </Button>
-        <Button type="primary" onClick={onOk}>
-          确定
+        <Button type="primary" loading={uploading} onClick={handleOk}>
+          {t('确定', 'OK')}
         </Button>
       </Grid.Row>
     </>
   );
 }
 
+/* ── 主组件 ── */
 export default function ImageCropModal({
   visible,
   imageSrc,
@@ -169,51 +249,35 @@ export default function ImageCropModal({
   title = '裁剪图片',
   aspect = 1,
 }: ImageCropModalProps) {
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
   const [modalRef, setModalRef] = useState<ReturnType<typeof Modal.confirm> | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  // 当 visible 变化时，打开或关闭 Modal
   useEffect(() => {
     if (visible && imageSrc) {
       const modal = Modal.confirm({
-        title: title,
+        title,
         simple: false,
-        style: { width: 500 },
+        style: { width: 560 },
         footer: null,
         content: (
           <CropperContent
             imageSrc={imageSrc}
             aspect={aspect}
-            onCropComplete={(pixels) => setCroppedAreaPixels(pixels)}
-            onOk={async () => {
-              if (!imageSrc || !croppedAreaPixels) {
-                Message.error('裁剪区域无效');
-                return;
-              }
-              try {
-                const result = await getCroppedImg(imageSrc, croppedAreaPixels, 0);
-                if (result) {
-                  onConfirm(result.dataUrl, { width: result.width, height: result.height });
-                  Message.success('裁剪成功');
-                } else {
-                  Message.error('裁剪失败');
-                }
-              } catch (error) {
-                console.error('裁剪错误:', error);
-                Message.error('裁剪失败');
-              }
+            uploading={uploading}
+            lang="zh"
+            onConfirm={(dataUrl, dims) => {
+              onConfirm(dataUrl, dims);
               modal.close();
+              setModalRef(null);
+              setUploading(false);
             }}
             onCancel={() => {
-              Message.info('取消裁剪');
               modal.close();
+              setModalRef(null);
+              onCancel();
             }}
           />
         ),
-        onCancel: () => {
-          Message.info('取消裁剪');
-          onCancel();
-        },
       });
       setModalRef(modal);
     } else if (!visible && modalRef) {
@@ -222,14 +286,11 @@ export default function ImageCropModal({
     }
   }, [visible, imageSrc]);
 
-  // 清理：当组件卸载时关闭 Modal
   useEffect(() => {
     return () => {
-      if (modalRef) {
-        modalRef.close();
-      }
+      if (modalRef) modalRef.close();
     };
   }, [modalRef]);
 
-  return null; // 这个组件不渲染任何内容，Modal.confirm 会自动渲染
+  return null;
 }
