@@ -338,6 +338,12 @@ function CropperContent({
           value={scale}
           min={minScale}
           max={3}
+          marks={{
+            [minScale]: `${Math.round(minScale * 100)}%`,
+            1: '100%',
+            2: '200%',
+            3: '300%',
+          }}
           onChange={(v) => {
             // 优化2: 缩放步长从 10% 改为 2%，四舍五入到最近的 2% 倍数
             const step = 0.02;
