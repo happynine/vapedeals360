@@ -5,6 +5,6 @@ echo "Installing dependencies..."
 npm install --no-package-lock 2>&1
 
 echo "Building Next.js..."
-npx next build 2>&1
+pnpm next build 2>&1
 
 echo "Build completed."
