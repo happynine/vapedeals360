@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-npm install -g pnpm@latest 2>&1
+#npm install -g pnpm@latest 2>&1
 
 COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
 cd "${COZE_WORKSPACE_PATH}"
 
-COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
-cd "${COZE_WORKSPACE_PATH}"
+#COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
+#cd "${COZE_WORKSPACE_PATH}"
 
 echo "=========================================="
 echo "Build Environment Info"
@@ -22,13 +22,13 @@ echo "COZE_SUPABASE_SERVICE_ROLE_KEY set: $([ -n "${COZE_SUPABASE_SERVICE_ROLE_K
 echo "=========================================="
 
 echo "Installing dependencies..."
-pnpm install --no-frozen-lockfile 2>&1
+npm install --no-frozen-lockfile 2>&1
 
 echo "Compiling custom server (src/server.ts -> dist/server.js)..."
-pnpm tsup src/server.ts --format cjs --out-dir dist --clean 2>&1
+npx tsup src/server.ts --format cjs --out-dir dist --clean 2>&1
 
 echo "Building the Next.js project..."
-pnpm next build 2>&1
+npm run build 2>&1
 
 BUILD_EXIT_CODE=$?
 echo "=========================================="
