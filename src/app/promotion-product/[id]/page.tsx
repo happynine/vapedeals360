@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
-import SiteFooter from '@/components/site-footer';
-import CookieConsent from '@/components/cookie-consent';
 import { ProductDetailClient, Product, ProductPrice, Store, StoreTranslation } from '@/components/product-detail-client';
 
 export default function PromotionProductPage() {
@@ -193,8 +191,6 @@ export default function PromotionProductPage() {
             </div>
           </div>
         </main>
-        <SiteFooter />
-        <CookieConsent />
       </div>
     );
   }

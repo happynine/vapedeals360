@@ -1,7 +1,5 @@
 import { Suspense } from 'react';
 import { SiteHeader } from '@/components/site-header';
-import SiteFooter from '@/components/site-footer';
-import CookieConsent from '@/components/cookie-consent';
 import { PromotionContent } from './promotion-content';
 import { PromotionSkeleton } from './promotion-skeleton';
 
@@ -17,8 +15,6 @@ export default async function PromotionPage({ params }: { params: Promise<{ slug
           <PromotionContent slug={slug} />
         </Suspense>
       </main>
-      <SiteFooter />
-      <CookieConsent />
     </div>
   );
 }
