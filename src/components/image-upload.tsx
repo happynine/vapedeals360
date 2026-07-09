@@ -9,6 +9,8 @@ interface ImageUploadProps {
   aspectRatio?: number;
   suggestedSize?: string;
   recommendedSize?: string;
+  minWidth?: number;
+  minHeight?: number;
   label?: string;
   folder?: string;
   lang?: string;
@@ -21,6 +23,8 @@ export function ImageUpload({
   aspectRatio,
   suggestedSize,
   recommendedSize,
+  minWidth,
+  minHeight,
   label = 'Image',
   folder = 'uploads',
   lang = 'en',
@@ -43,6 +47,29 @@ export function ImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [cropFrame, setCropFrame] = useState({ width: 300, height: 300 });
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
+  const [imageDisplayedSize, setImageDisplayedSize] = useState({ width: 0, height: 0 });
+
+  // Calculate the output crop size in real pixels
+  const outputSize = (() => {
+    if (!imageNaturalSize.width || !imageDisplayedSize.width) return { width: 0, height: 0 };
+    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
+    const outputW = Math.round((cropFrame.width / scale) * ratio);
+    const outputH = Math.round((cropFrame.height / scale) * ratio);
+    return { width: outputW, height: outputH };
+  })();
+
+  // Calculate minimum scale to ensure output is at least minWidth x minHeight
+  const minScale = (() => {
+    if (!minWidth || !minHeight || !imageNaturalSize.width || !imageDisplayedSize.width) return 0.5;
+    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
+    const scaleForWidth = (cropFrame.width * ratio) / minWidth;
+    const scaleForHeight = (cropFrame.height * ratio) / minHeight;
+    return Math.max(0.5, Math.min(scaleForWidth, scaleForHeight));
+  })();
+
+  // Calculate maximum scale (3x or limited by min size)
+  const maxScale = 3;
 
   /* ── 选择文件 ── */
   const onSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,11 +110,12 @@ export function ImageUpload({
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
   /* ── 缩放 ── */
-  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.1).toFixed(1))), []);
+  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.1).toFixed(1))), [minScale]);
   const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setScale(parseFloat(e.target.value));
-  }, []);
+    const val = parseFloat(e.target.value);
+    setScale(Math.max(minScale, val));
+  }, [minScale]);
 
   /* ── 裁剪并上传 ── */
   const handleCropAndUpload = useCallback(async () => {
@@ -234,6 +262,24 @@ export function ImageUpload({
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
             <h3 className="text-sm font-semibold mb-3">{t('裁剪图片', 'Crop Image')}</h3>
 
+            {/* 实时尺寸显示 */}
+            {imageNaturalSize.width > 0 && (
+              <div className="flex items-center justify-center gap-4 mb-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-sm text-gray-600">
+                  {t('输出尺寸', 'Output size')}: 
+                  <span className="font-mono font-semibold text-purple-600 ml-1">
+                    {Math.round(outputSize.width)} × {Math.round(outputSize.height)}
+                  </span>
+                  px
+                </span>
+                {(minWidth || minHeight) && (
+                  <span className="text-xs text-gray-400">
+                    ({t('最小', 'Min')}: {minWidth || '—'} × {minHeight || '—'}px)
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* 裁剪区域 */}
             <div
               ref={containerRef}
@@ -270,6 +316,10 @@ export function ImageUpload({
                 src={src}
                 alt="Crop"
                 draggable={false}
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+                }}
                 style={{
                   position: 'absolute',
                   left: '50%',
@@ -296,7 +346,7 @@ export function ImageUpload({
               </button>
               <input
                 type="range"
-                min="0.5"
+                min={minScale}
                 max="3"
                 step="0.1"
                 value={scale}

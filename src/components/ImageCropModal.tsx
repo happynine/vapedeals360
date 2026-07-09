@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Modal, Grid, Slider, Button } from '@arco-design/web-react';
 import { IconMinus, IconPlus } from '@arco-design/web-react/icon';
 
@@ -19,6 +19,8 @@ interface ImageCropModalProps {
   onConfirm: (croppedDataUrl: string, dimensions: { width: number; height: number }) => void;
   title?: string;
   aspect?: number;
+  minWidth?: number;
+  minHeight?: number;
 }
 
 /* ── 根据 scale/pan 计算裁剪区域并在 canvas 上输出 ── */
@@ -75,6 +77,8 @@ function CropperContent({
   onCancel,
   uploading,
   lang,
+  minWidth,
+  minHeight,
 }: {
   imageSrc: string;
   aspect: number;
@@ -82,6 +86,8 @@ function CropperContent({
   onCancel: () => void;
   uploading: boolean;
   lang: string;
+  minWidth?: number;
+  minHeight?: number;
 }) {
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -91,6 +97,38 @@ function CropperContent({
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [cropFrame, setCropFrame] = useState({ width: 300, height: 300 });
+  const [imgNaturalSize, setImgNaturalSize] = useState({ width: 0, height: 0 });
+  const [imgDisplaySize, setImgDisplaySize] = useState({ width: 0, height: 0 });
+
+  /* 获取图片自然尺寸和显示尺寸，并自动调整初始缩放 */
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const handleLoad = () => {
+      const natW = img.naturalWidth;
+      const natH = img.naturalHeight;
+      setImgNaturalSize({ width: natW, height: natH });
+      setImgDisplaySize({ width: img.clientWidth, height: img.clientHeight });
+      
+      // 优化1: 如果图片实际尺寸小于要求尺寸，自动放大到贴合裁图框
+      if (minWidth && minHeight && cropFrame.width > 0 && cropFrame.height > 0) {
+        // 计算图片在裁图框中需要的缩放比例
+        const scaleNeededW = minWidth / natW;
+        const scaleNeededH = minHeight / natH;
+        const minScaleNeeded = Math.max(scaleNeededW, scaleNeededH);
+        // 如果需要的缩放比例大于当前最小缩放，则自动设置
+        if (minScaleNeeded > 1) {
+          setScale(Math.max(minScaleNeeded, 1));
+        }
+      }
+    };
+    if (img.complete) {
+      handleLoad();
+    } else {
+      img.addEventListener('load', handleLoad);
+      return () => img.removeEventListener('load', handleLoad);
+    }
+  }, [imageSrc, minWidth, minHeight, cropFrame]);
 
   /* 计算裁剪框尺寸（相对于容器） */
   useEffect(() => {
@@ -110,6 +148,38 @@ function CropperContent({
     }
     setCropFrame({ width: Math.round(w), height: Math.round(h) });
   }, [aspect]);
+
+  // 计算最小缩放比例（确保输出图片不小于指定尺寸）
+  const minScale = useMemo(() => {
+    if (!minWidth || !minHeight || !imgNaturalSize.width) return 0.5;
+    // 计算裁剪框相对于图片自然尺寸的比例
+    const ratioX = imgNaturalSize.width / cropFrame.width;
+    const ratioY = imgNaturalSize.height / cropFrame.height;
+    const ratio = Math.min(ratioX, ratioY);
+    // 最小缩放 = 最小输出尺寸 / (裁剪框尺寸 * 比例)
+    const scaleX = minWidth / (cropFrame.width * ratio);
+    const scaleY = minHeight / (cropFrame.height * ratio);
+    return Math.max(Math.max(scaleX, scaleY), 0.1);
+  }, [minWidth, minHeight, imgNaturalSize, cropFrame]);
+
+  // 计算当前裁剪框对应的实际输出尺寸
+  const outputSize = useMemo(() => {
+    if (!imgNaturalSize.width || !imgDisplaySize.width) return { width: 0, height: 0 };
+    // 图片自然尺寸与显示尺寸的比例
+    const ratio = imgNaturalSize.width / imgDisplaySize.width;
+    // 裁剪框在图片上对应的实际像素尺寸（考虑缩放）
+    const outputW = Math.round((cropFrame.width / scale) * ratio);
+    const outputH = Math.round((cropFrame.height / scale) * ratio);
+    return { width: outputW, height: outputH };
+  }, [imgNaturalSize, imgDisplaySize, cropFrame, scale]);
+
+  // 检查输出尺寸是否满足最小要求
+  const isSizeValid = useMemo(() => {
+    if (!minWidth && !minHeight) return true;
+    const wValid = !minWidth || outputSize.width >= minWidth;
+    const hValid = !minHeight || outputSize.height >= minHeight;
+    return wValid && hValid;
+  }, [outputSize, minWidth, minHeight]);
 
   /* ── 拖拽平移 ── */
   const handleMouseDown = useCallback(
@@ -134,8 +204,9 @@ function CropperContent({
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
   /* ── 缩放 ── */
-  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.1).toFixed(1))), []);
-  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
+  // 优化2: 缩放步长从 10% 改为 2%
+  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(2))), [minScale]);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(2))), []);
 
   /* ── 确认裁剪 ── */
   const handleOk = useCallback(async () => {
@@ -148,6 +219,40 @@ function CropperContent({
 
   return (
     <>
+      {/* 实时尺寸显示 */}
+      {(minWidth || minHeight) && (
+        <div style={{
+          marginBottom: 8,
+          padding: '6px 12px',
+          background: isSizeValid ? '#f0fdf4' : '#fef2f2',
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13,
+          color: isSizeValid ? '#166534' : '#991b1b',
+          border: `1px solid ${isSizeValid ? '#bbf7d0' : '#fecaca'}`,
+        }}>
+          <span style={{ fontWeight: 500 }}>输出尺寸:</span>
+          <span style={{ 
+            color: isSizeValid ? '#7c3aed' : '#dc2626', 
+            fontWeight: 600,
+            fontVariantNumeric: 'tabular-nums'
+          }}>
+            {outputSize.width} × {outputSize.height} px
+          </span>
+          {(minWidth || minHeight) && (
+            <span style={{ color: isSizeValid ? '#9ca3af' : '#dc2626', fontSize: 12 }}>
+              (最小: {minWidth || '∞'} × {minHeight || '∞'})
+            </span>
+          )}
+          {!isSizeValid && (
+            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500 }}>
+              ⚠️ 尺寸不足，请放大图片
+            </span>
+          )}
+        </div>
+      )}
       {/* 图片区域 */}
       <div
         ref={containerRef}
@@ -180,7 +285,25 @@ function CropperContent({
             zIndex: 2,
             pointerEvents: 'none',
           }}
-        />
+        >
+          {/* 显示实际输出尺寸 */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(0,0,0,0.7)',
+              color: '#fff',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {outputSize.width} × {outputSize.height} px
+          </div>
+        </div>
 
         {/* 可缩放/拖拽的图片 */}
         <img
@@ -211,9 +334,9 @@ function CropperContent({
         />
         <Slider
           style={{ width: 200 }}
-          step={0.1}
+          step={0.02}
           value={scale}
-          min={0.5}
+          min={minScale}
           max={3}
           onChange={(v) => setScale(v as number)}
         />
@@ -231,7 +354,12 @@ function CropperContent({
         <Button onClick={onCancel} style={{ marginRight: 20 }}>
           {t('取消', 'Cancel')}
         </Button>
-        <Button type="primary" loading={uploading} onClick={handleOk}>
+        <Button 
+          type="primary" 
+          loading={uploading} 
+          onClick={handleOk}
+          disabled={!isSizeValid}
+        >
           {t('确定', 'OK')}
         </Button>
       </Grid.Row>
@@ -248,6 +376,8 @@ export default function ImageCropModal({
   onConfirm,
   title = '裁剪图片',
   aspect = 1,
+  minWidth,
+  minHeight,
 }: ImageCropModalProps) {
   const [modalRef, setModalRef] = useState<ReturnType<typeof Modal.confirm> | null>(null);
   const [uploading, setUploading] = useState(false);
