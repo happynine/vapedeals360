@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
 interface Banner {
   id: number;
@@ -17,6 +17,8 @@ interface Banner {
 export default function BannerCarousel({ banners, language }: { banners: Banner[]; language: string }) {
   const [current, setCurrent] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const hoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -26,6 +28,12 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
     }, 5000);
     return () => clearInterval(timer);
   }, [banners.length]);
+
+  // Reset image state when current banner changes
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [current]);
 
   if (banners.length === 0) return null;
 
@@ -40,7 +48,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
 
   const content = (
     <div
-      className="relative w-full overflow-hidden bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 sm:aspect-[1200/343]"
+      className="relative w-full overflow-hidden bg-gray-100 sm:aspect-[1200/343]"
       onMouseEnter={() => {
         if (hoverRef.current) clearTimeout(hoverRef.current);
         setHovered(true);
@@ -49,7 +57,26 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
         hoverRef.current = setTimeout(() => setHovered(false), 200);
       }}
     >
-      {safeImageUrl ? (
+      {/* Loading skeleton */}
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+            <ImageOff className="w-6 h-6 text-gray-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {imageError && (
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-cyan-50 flex flex-col items-center justify-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+            <ImageOff className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-500">Image failed to load</p>
+        </div>
+      )}
+
+      {safeImageUrl && !imageError ? (
         <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
           {safeMobileImgUrl && (
             <img
@@ -57,13 +84,17 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
               alt={banner.title || "Banner"}
               className="w-full h-auto block sm:hidden"
               loading={current === 0 ? "eager" : "lazy"}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
             />
           )}
           <img
             src={safeImageUrl.startsWith("http") || safeImageUrl.startsWith("/") ? safeImageUrl : `/api/image?key=${encodeURIComponent(safeImageUrl)}`}
             alt={banner.title || "Banner"}
-            className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${safeMobileImgUrl ? "hidden sm:block sm:absolute" : ""}`}
+            className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${safeMobileImgUrl ? "hidden sm:block sm:absolute" : ""} ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
             loading={current === 0 ? "eager" : "lazy"}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
           />
         </div>
       ) : null}

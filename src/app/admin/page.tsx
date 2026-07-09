@@ -431,6 +431,8 @@ export default function AdminPage() {
   const [cropModalVisible, setCropModalVisible] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState('');
   const [cropTargetImg, setCropTargetImg] = useState<HTMLImageElement | null>(null);
+  const [cropMinWidth, setCropMinWidth] = useState<number | undefined>(undefined);
+  const [cropMinHeight, setCropMinHeight] = useState<number | undefined>(undefined);
 
   const bestVapesRef = useRef<ContentPagesManagerRef>(null);
   const newsRef = useRef<ContentPagesManagerRef>(null);
@@ -445,9 +447,11 @@ export default function AdminPage() {
 
   // Listen for image crop requests from RichTextEditor
   useEffect(() => {
-    const handleCropRequest = (e: CustomEvent<{ imageSrc: string; imageElement: HTMLImageElement }>) => {
+    const handleCropRequest = (e: CustomEvent<{ imageSrc: string; imageElement: HTMLImageElement; minWidth?: number; minHeight?: number }>) => {
       setCropImageSrc(e.detail.imageSrc || '');
       setCropTargetImg(e.detail.imageElement);
+      setCropMinWidth(e.detail.minWidth);
+      setCropMinHeight(e.detail.minHeight);
       setCropModalVisible(true);
     };
     window.addEventListener('request-image-crop', handleCropRequest as EventListener);
@@ -2098,6 +2102,8 @@ export default function AdminPage() {
       <ImageCropModal
         visible={cropModalVisible}
         imageSrc={cropImageSrc}
+        minWidth={cropMinWidth}
+        minHeight={cropMinHeight}
         onCancel={() => {
           setCropModalVisible(false);
           setCropImageSrc('');
