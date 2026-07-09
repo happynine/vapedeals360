@@ -17,7 +17,7 @@ echo "COZE_SUPABASE_SERVICE_ROLE_KEY set: $([ -n "${COZE_SUPABASE_SERVICE_ROLE_K
 echo "=========================================="
 
 echo "Installing dependencies..."
-#pnpm install --no-frozen-lockfile 2>&1
+pnpm install --no-frozen-lockfile 2>&1
 
 echo "Compiling custom server (src/server.ts -> dist/server.js)..."
 pnpm tsup src/server.ts --format cjs --out-dir dist --clean 2>&1
