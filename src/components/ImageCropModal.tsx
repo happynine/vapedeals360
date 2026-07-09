@@ -338,7 +338,12 @@ function CropperContent({
           value={scale}
           min={minScale}
           max={3}
-          onChange={(v) => setScale(v as number)}
+          onChange={(v) => {
+            // 优化2: 缩放步长从 10% 改为 2%，四舍五入到最近的 2% 倍数
+            const step = 0.02;
+            const rounded = Math.round((v as number) / step) * step;
+            setScale(Math.max(minScale, Math.min(3, +rounded.toFixed(2))));
+          }}
         />
         <IconPlus
           style={{ marginLeft: 10, cursor: 'pointer', color: '#7c3aed', fontSize: 18 }}
