@@ -134,11 +134,10 @@ async function getInitialData() {
 function HomePageSkeleton() {
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="h-16 bg-[#0a0a0e]" />
       <main className="flex-1 bg-white">
         <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 pt-6 pb-6">
           {/* Banner skeleton */}
-          <div className="mb-8 h-[200px] sm:h-[343px] bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 rounded-2xl animate-pulse" />
+          <div className="mb-8 h-[200px] sm:h-[343px] bg-gray-100 rounded-2xl animate-pulse" />
           
           {/* Filter skeleton */}
           <div className="mb-6 space-y-3">

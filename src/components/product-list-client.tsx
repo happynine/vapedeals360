@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 
 // 动态导入 BannerCarousel，减少首屏 JS bundle
 const BannerCarousel = dynamic(() => import("./banner-carousel"), {
-  loading: () => <div className="h-[200px] sm:h-[343px] bg-gradient-to-r from-purple-900 via-purple-800 to-cyan-900 rounded-2xl animate-pulse" />,
+  loading: () => <div className="h-[200px] sm:h-[343px] bg-gray-100 rounded-2xl animate-pulse" />,
   ssr: true,
 });
 
