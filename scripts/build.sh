@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+npm install -g pnpm@latest 2>&1
+
+COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
+cd "${COZE_WORKSPACE_PATH}"
+
 COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
 cd "${COZE_WORKSPACE_PATH}"
 
