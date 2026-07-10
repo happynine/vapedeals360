@@ -100,27 +100,12 @@ function CropperContent({
   const [imgNaturalSize, setImgNaturalSize] = useState({ width: 0, height: 0 });
   const [imgDisplaySize, setImgDisplaySize] = useState({ width: 0, height: 0 });
 
-  /* 获取图片自然尺寸和显示尺寸，并自动调整初始缩放 */
+  /* 获取图片自然尺寸 */
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
     const handleLoad = () => {
-      const natW = img.naturalWidth;
-      const natH = img.naturalHeight;
-      setImgNaturalSize({ width: natW, height: natH });
-      setImgDisplaySize({ width: img.clientWidth, height: img.clientHeight });
-      
-      // 优化1: 如果图片实际尺寸小于要求尺寸，自动放大到贴合裁图框
-      if (minWidth && minHeight && cropFrame.width > 0 && cropFrame.height > 0) {
-        // 计算图片在裁图框中需要的缩放比例
-        const scaleNeededW = minWidth / natW;
-        const scaleNeededH = minHeight / natH;
-        const minScaleNeeded = Math.max(scaleNeededW, scaleNeededH);
-        // 如果需要的缩放比例大于当前最小缩放，则自动设置
-        if (minScaleNeeded > 1) {
-          setScale(Math.max(minScaleNeeded, 1));
-        }
-      }
+      setImgNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
     };
     if (img.complete) {
       handleLoad();
@@ -128,7 +113,31 @@ function CropperContent({
       img.addEventListener('load', handleLoad);
       return () => img.removeEventListener('load', handleLoad);
     }
-  }, [imageSrc, minWidth, minHeight, cropFrame]);
+  }, [imageSrc]);
+
+  /* 用 ResizeObserver 实时追踪图片显示尺寸 */
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const ro = new ResizeObserver(() => {
+      if (img.clientWidth > 0 && img.clientHeight > 0) {
+        setImgDisplaySize({ width: img.clientWidth, height: img.clientHeight });
+      }
+    });
+    ro.observe(img);
+    return () => ro.disconnect();
+  }, [imageSrc]);
+
+  /* 图片加载后自动调整缩放 */
+  useEffect(() => {
+    if (!minWidth || !minHeight || !imgNaturalSize.width || !cropFrame.width) return;
+    const scaleNeededW = minWidth / imgNaturalSize.width;
+    const scaleNeededH = minHeight / imgNaturalSize.height;
+    const minScaleNeeded = Math.max(scaleNeededW, scaleNeededH);
+    if (minScaleNeeded > 1) {
+      setScale(Math.max(minScaleNeeded, 1));
+    }
+  }, [imageSrc, minWidth, minHeight, imgNaturalSize, cropFrame]);
 
   /* 计算裁剪框尺寸（相对于容器） */
   useEffect(() => {
@@ -164,9 +173,10 @@ function CropperContent({
 
   // 计算当前裁剪框对应的实际输出尺寸
   const outputSize = useMemo(() => {
-    if (!imgNaturalSize.width || !imgDisplaySize.width) return { width: 0, height: 0 };
-    // 图片自然尺寸与显示尺寸的比例
-    const ratio = imgNaturalSize.width / imgDisplaySize.width;
+    if (!imgNaturalSize.width) return { width: 0, height: 0 };
+    // 如果显示尺寸尚未获取，用自然尺寸作为兜底（ratio = 1）
+    const displayW = imgDisplaySize.width || imgNaturalSize.width;
+    const ratio = imgNaturalSize.width / displayW;
     // 裁剪框在图片上对应的实际像素尺寸（考虑缩放）
     const outputW = Math.round((cropFrame.width / scale) * ratio);
     const outputH = Math.round((cropFrame.height / scale) * ratio);
@@ -220,39 +230,37 @@ function CropperContent({
   return (
     <>
       {/* 实时尺寸显示 */}
-      {(minWidth || minHeight) && (
-        <div style={{
-          marginBottom: 8,
-          padding: '6px 12px',
-          background: isSizeValid ? '#f0fdf4' : '#fef2f2',
-          borderRadius: 6,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 13,
-          color: isSizeValid ? '#166534' : '#991b1b',
-          border: `1px solid ${isSizeValid ? '#bbf7d0' : '#fecaca'}`,
+      <div style={{
+        marginBottom: 8,
+        padding: '6px 12px',
+        background: isSizeValid ? '#f0fdf4' : '#fef2f2',
+        borderRadius: 6,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 13,
+        color: isSizeValid ? '#166534' : '#991b1b',
+        border: `1px solid ${isSizeValid ? '#bbf7d0' : '#fecaca'}`,
+      }}>
+        <span style={{ fontWeight: 500 }}>输出尺寸:</span>
+        <span style={{ 
+          color: isSizeValid ? '#7c3aed' : '#dc2626', 
+          fontWeight: 600,
+          fontVariantNumeric: 'tabular-nums'
         }}>
-          <span style={{ fontWeight: 500 }}>输出尺寸:</span>
-          <span style={{ 
-            color: isSizeValid ? '#7c3aed' : '#dc2626', 
-            fontWeight: 600,
-            fontVariantNumeric: 'tabular-nums'
-          }}>
-            {outputSize.width} × {outputSize.height} px
+          {outputSize.width} × {outputSize.height} px
+        </span>
+        {(minWidth || minHeight) && (
+          <span style={{ color: isSizeValid ? '#9ca3af' : '#dc2626', fontSize: 12 }}>
+            (最小: {minWidth || '∞'} × {minHeight || '∞'})
           </span>
-          {(minWidth || minHeight) && (
-            <span style={{ color: isSizeValid ? '#9ca3af' : '#dc2626', fontSize: 12 }}>
-              (最小: {minWidth || '∞'} × {minHeight || '∞'})
-            </span>
-          )}
-          {!isSizeValid && (
-            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500 }}>
-              ⚠️ 尺寸不足，请放大图片
-            </span>
-          )}
-        </div>
-      )}
+        )}
+        {!isSizeValid && (
+          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500 }}>
+            ⚠️ 尺寸不足，请放大图片
+          </span>
+        )}
+      </div>
       {/* 图片区域 */}
       <div
         ref={containerRef}
