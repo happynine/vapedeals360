@@ -113,9 +113,19 @@ export function ImageUpload({
   const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.1).toFixed(1))), [minScale]);
   const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    setScale(Math.max(minScale, val));
-  }, [minScale]);
+  const val = parseFloat(e.target.value);
+  setScale(Math.max(minScale, val));
+}, [minScale]);
+
+// 缩放时更新显示尺寸
+useEffect(() => {
+  if (imgRef.current && imageNaturalSize.width > 0) {
+    setImageDisplayedSize({
+      width: imgRef.current.clientWidth,
+      height: imgRef.current.clientHeight,
+    });
+  }
+}, [scale, imageNaturalSize.width]);
 
   /* ── 裁剪并上传 ── */
   const handleCropAndUpload = useCallback(async () => {
@@ -317,9 +327,10 @@ export function ImageUpload({
                 alt="Crop"
                 draggable={false}
                 onLoad={(e) => {
-                  const img = e.currentTarget;
-                  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
-                }}
+  const img = e.currentTarget;
+  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+  setImageDisplayedSize({ width: img.clientWidth, height: img.clientHeight });
+}}
                 style={{
                   position: 'absolute',
                   left: '50%',
