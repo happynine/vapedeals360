@@ -110,8 +110,8 @@ export function ImageUpload({
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
   /* ── 缩放 ── */
-  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.1).toFixed(1))), [minScale]);
-  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(1))), []);
+  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(1))), [minScale]);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(1))), []);
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
   const val = parseFloat(e.target.value);
   setScale(Math.max(minScale, val));
@@ -359,7 +359,7 @@ useEffect(() => {
                 type="range"
                 min={minScale}
                 max="3"
-                step="0.1"
+                step="0.02"
                 value={scale}
                 onChange={handleZoomSlider}
                 className="w-24 h-2 cursor-pointer accent-purple-600"
@@ -372,7 +372,7 @@ useEffect(() => {
                 +
               </button>
               <span className="text-sm text-gray-500 min-w-[50px] text-center">
-                {Math.round(scale * 100)}%
+                {(Math.round(scale * 1000) / 10).toFixed(0)}%
               </span>
             </div>
 
