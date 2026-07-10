@@ -110,8 +110,8 @@ export function ImageUpload({
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
   /* ── 缩放 ── */
-  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(1))), [minScale]);
-  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(1))), []);
+  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(2))), [minScale]);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(2))), []);
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
   const val = parseFloat(e.target.value);
   setScale(Math.max(minScale, val));
@@ -400,3 +400,4 @@ useEffect(() => {
     </div>
   );
 }
+
