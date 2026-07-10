@@ -405,8 +405,10 @@ export default function ImageCropModal({
 
   useEffect(() => {
     if (visible && imageSrc) {
+      // Build title with required dimensions
+      const dimLabel = (minWidth && minHeight) ? `${title} (${minWidth}×${minHeight}px)` : title;
       const modal = Modal.confirm({
-        title,
+        title: dimLabel,
         simple: false,
         style: { width: 560 },
         footer: null,
@@ -416,6 +418,8 @@ export default function ImageCropModal({
             aspect={aspect}
             uploading={uploading}
             lang="zh"
+            minWidth={minWidth}
+            minHeight={minHeight}
             onConfirm={(dataUrl, dims) => {
               onConfirm(dataUrl, dims);
               modal.close();

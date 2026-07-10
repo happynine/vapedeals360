@@ -270,7 +270,14 @@ useEffect(() => {
       {showCrop && src && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
-            <h3 className="text-sm font-semibold mb-3">{t('裁剪图片', 'Crop Image')}</h3>
+            <h3 className="text-sm font-semibold mb-3">
+              {t('裁剪图片', 'Crop Image')}
+              {sizeHint && (
+                <span className="ml-2 text-xs font-normal text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                  {t('要求尺寸', 'Required')}: {sizeHint.replace('px', '')}px
+                </span>
+              )}
+            </h3>
 
             {/* 实时尺寸显示 */}
             {imageNaturalSize.width > 0 && (
