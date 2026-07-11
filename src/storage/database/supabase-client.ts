@@ -65,7 +65,7 @@ function getPool(): pg.Pool {
 
   // Support both DATABASE_URL and individual PG* vars
   if (process.env.DATABASE_URL) {
-    return new Pool({ connectionString: process.env.DATABASE_URL });
+    return new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   }
 
   return new Pool({
@@ -74,7 +74,7 @@ function getPool(): pg.Pool {
     database: process.env.PGDATABASE || 'postgres',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || '',
-    ssl: false,
+    ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
@@ -177,7 +177,7 @@ function parseSelect(input: string): ParsedSelect {
   const result: ParsedSelect = { includeStar: false, explicitCols: [], relationships: [] };
   let pos = 0;
 
-  function skipSpaces() { while (pos < input.length && input[pos] === ' ') pos++; }
+  function skipSpaces() { while (pos < input.length && /\s/.test(input[pos])) pos++; }
 
   function readName(): string {
     let s = pos;
@@ -194,15 +194,18 @@ function parseSelect(input: string): ParsedSelect {
       const name = readName();
       if (!name) { pos++; continue; }
       if (name === '*') { r.includeStar = true; }
-      else { r.explicitCols.push(name); }
 
       skipSpaces();
       if (pos < input.length && input[pos] === '(') {
+        // This is a relationship, not a column
         pos++; // skip (
         const childSel = parseInner();
         skipSpaces();
         if (pos < input.length && input[pos] === ')') pos++;
         r.relationships.push({ name, select: childSel });
+      } else {
+        // This is a regular column
+        if (name !== '*') r.explicitCols.push(name);
       }
 
       skipSpaces();
@@ -222,14 +225,17 @@ function parseSelect(input: string): ParsedSelect {
     const name = readName();
     if (!name) { pos++; continue; }
     if (name === '*') { result.includeStar = true; }
-    else { result.explicitCols.push(name); }
     skipSpaces();
     if (pos < input.length && input[pos] === '(') {
+      // This is a relationship, not a column
       pos++;
       const childSel = parseInner();
       skipSpaces();
       if (pos < input.length && input[pos] === ')') pos++;
       result.relationships.push({ name, select: childSel });
+    } else {
+      // This is a regular column
+      if (name !== '*') result.explicitCols.push(name);
     }
     skipSpaces();
     if (pos < input.length && input[pos] === ',') pos++;
@@ -1125,6 +1131,13 @@ class PgClient {
   async rpc(fnName: string, params?: any): Promise<{ data: any; error: any }> {
     return { data: null, error: { message: `RPC ${fnName} not supported in pg mode` } };
   }
+
+  // Auth stub (not implemented in pg mode)
+  auth = {
+    getUser: async (_token?: string): Promise<{ data: { user: { id: string } | null }; error: { message: string } | null }> => {
+      return { data: { user: null }, error: { message: 'Auth not supported in pg mode' } };
+    },
+  };
 }
 
 // ─── Singleton ──────────────────────────────────────────────────────────────

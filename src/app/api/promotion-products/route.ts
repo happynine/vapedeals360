@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     const promotionIds = activePromotions.map((p: { id: number }) => p.id);
-    const promotionMap = new Map(activePromotions.map((p: { id: number; slug: string; promotion_translations: Array<{ language: string; name: string | null; cover_image_url: string | null }> }) => [p.id, p]));
+    const promotionMap = new Map<number, { id: number; slug: string; promotion_translations: Array<{ language: string; name: string | null; cover_image_url: string | null }> }>(activePromotions.map((p: { id: number; slug: string; promotion_translations: Array<{ language: string; name: string | null; cover_image_url: string | null }> }) => [p.id, p]));
 
     // 获取这些活动下的活跃产品
     const { data: promotionProducts, error: ppError } = await client

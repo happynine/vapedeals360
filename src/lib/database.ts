@@ -141,7 +141,7 @@ export async function fetchProducts(options?: {
       .select('product_id')
       .ilike('name', `%${q}%`);
     if (transError) throw new Error(`Search translations failed: ${transError.message}`);
-    matchingProductIds = [...new Set((transData || []).map((t: Record<string, unknown>) => t.product_id as number))];
+    matchingProductIds = [...new Set(((transData || []) as Array<Record<string, unknown>>).map((t) => t.product_id as number))];
     // No matching products found
     if (matchingProductIds.length === 0) return [];
   }
@@ -223,7 +223,7 @@ export async function fetchProducts(options?: {
       productIds = [...matchingProductIdsSet];
     } else {
       // No currency filter, just get unique product IDs
-      productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+      productIds = [...new Set(((priceData || []) as Array<Record<string, unknown>>).map((p) => p.product_id as number))];
     }
     
     if (productIds.length === 0) return [];
@@ -411,7 +411,7 @@ export async function countProducts(category_id?: number, sales_region?: string,
       .select('product_id')
       .ilike('name', `%${q}%`);
     if (transError) throw new Error(`Search translations failed: ${transError.message}`);
-    matchingProductIds = [...new Set((transData || []).map((t: Record<string, unknown>) => t.product_id as number))];
+    matchingProductIds = [...new Set(((transData || []) as Array<Record<string, unknown>>).map((t) => t.product_id as number))];
     if (matchingProductIds.length === 0) return 0;
   }
 
@@ -484,7 +484,7 @@ export async function countProducts(category_id?: number, sales_region?: string,
       productIds = [...matchingProductIdsSet];
     } else {
       // No currency filter, just get unique product IDs
-      productIds = [...new Set((priceData || []).map((p: Record<string, unknown>) => p.product_id as number))];
+      productIds = [...new Set(((priceData || []) as Array<Record<string, unknown>>).map((p) => p.product_id as number))];
     }
     
     if (productIds.length === 0) return 0;
