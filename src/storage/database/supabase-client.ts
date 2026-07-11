@@ -267,6 +267,13 @@ class PgQueryBuilder {
   private _rangeStart: number | null = null;
   private _rangeEnd: number | null = null;
 
+  // ── Mutation state (for chainable insert/update/delete) ──
+  private _opType: 'insert' | 'upsert' | 'update' | 'delete' | null = null;
+  private _opRows: any[] | null = null;
+  private _opValues: Record<string, any> | null = null;
+  private _opUpsertOptions: { onConflict?: string; ignoreDuplicates?: boolean } | null = null;
+  private _opSelectAfterInsert = false;
+
   constructor(table: string) {
     this._table = table;
   }
@@ -807,10 +814,12 @@ class PgQueryBuilder {
   ): Promise<TResult1 | TResult2> {
     let promise: Promise<any>;
 
-    if (this._isCount || this._isHead) {
+    if (this._opType) {
+      // Mutation operation
+      promise = this._executeMutation();
+    } else if (this._isCount || this._isHead) {
       promise = this._executeCount();
       if (this._isHead) {
-        // For head queries, return { count, data: null }
         promise = promise.then(r => ({ count: r.count, data: null, error: null }));
       } else {
         promise = promise.then(r => ({ data: r, error: null }));
@@ -832,6 +841,133 @@ class PgQueryBuilder {
     }
 
     return promise.then(onfulfilled, onrejected);
+  }
+
+  // ── Execute mutation operations ──
+
+  private async _executeMutation(): Promise<{ data: any; error: any }> {
+    const pool = getPoolSingleton();
+
+    if (this._opType === 'insert') {
+      const arr = this._opRows;
+      if (!arr || arr.length === 0) return { data: null, error: null };
+
+      const keys = Object.keys(arr[0]);
+      const cols = keys.map(k => this._ident(k)).join(', ');
+      const valuesClauses: string[] = [];
+      const params: any[] = [];
+
+      for (const row of arr) {
+        const placeholders: string[] = [];
+        for (const key of keys) {
+          params.push(row[key] ?? null);
+          placeholders.push(`$${params.length}`);
+        }
+        valuesClauses.push(`(${placeholders.join(', ')})`);
+      }
+
+      let sql = `INSERT INTO ${this._ident(this._table)} (${cols}) VALUES ${valuesClauses.join(', ')}`;
+      if (this._opSelectAfterInsert) {
+        sql += ' RETURNING *';
+      }
+      const result = await pool.query(sql, params);
+
+      if (this._isSingle && result.rows.length > 0) {
+        return { data: result.rows[0], error: null };
+      }
+      return { data: result.rows, error: null };
+    }
+
+    if (this._opType === 'upsert') {
+      const arr = this._opRows;
+      if (!arr || arr.length === 0) return { data: null, error: null };
+
+      const keys = Object.keys(arr[0]);
+      const cols = keys.map(k => this._ident(k)).join(', ');
+      const valuesClauses: string[] = [];
+      const params: any[] = [];
+
+      for (const row of arr) {
+        const placeholders: string[] = [];
+        for (const key of keys) {
+          params.push(row[key] ?? null);
+          placeholders.push(`$${params.length}`);
+        }
+        valuesClauses.push(`(${placeholders.join(', ')})`);
+      }
+
+      let conflictCols = 'id';
+      if (this._opUpsertOptions?.onConflict) conflictCols = this._opUpsertOptions.onConflict;
+
+      const conflictColSet = new Set(conflictCols.split(',').map(c => c.trim()));
+      const updateCols = keys.filter(k => !conflictColSet.has(k));
+      const updateSet = updateCols
+        .map(k => `${this._ident(k)} = EXCLUDED.${this._ident(k)}`)
+        .join(', ');
+
+      let sql = `INSERT INTO ${this._ident(this._table)} (${cols}) VALUES ${valuesClauses.join(', ')}`;
+
+      if (this._opUpsertOptions?.ignoreDuplicates) {
+        sql += ` ON CONFLICT (${conflictCols}) DO NOTHING`;
+      } else if (updateSet) {
+        sql += ` ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}`;
+      } else {
+        sql += ` ON CONFLICT (${conflictCols}) DO NOTHING`;
+      }
+
+      if (this._opSelectAfterInsert) {
+        sql += ' RETURNING *';
+      }
+      const result = await pool.query(sql, params);
+
+      if (this._isSingle && result.rows.length > 0) {
+        return { data: result.rows[0], error: null };
+      }
+      return { data: result.rows, error: null };
+    }
+
+    if (this._opType === 'update') {
+      const values = this._opValues;
+      if (!values) return { data: null, error: null };
+
+      const keys = Object.keys(values);
+      if (keys.length === 0) return { data: null, error: null };
+
+      const params: any[] = [];
+      const setClauses = keys.map(k => {
+        params.push(values[k] ?? null);
+        return `${this._ident(k)} = $${params.length}`;
+      });
+
+      let sql = `UPDATE ${this._ident(this._table)} SET ${setClauses.join(', ')}`;
+      sql += this._buildWhere(params);
+      if (this._opSelectAfterInsert) {
+        sql += ' RETURNING *';
+      }
+
+      const result = await pool.query(sql, params);
+      if (this._isSingle && result.rows.length > 0) {
+        return { data: result.rows[0], error: null };
+      }
+      return { data: result.rows, error: null };
+    }
+
+    if (this._opType === 'delete') {
+      const params: any[] = [];
+      let sql = `DELETE FROM ${this._ident(this._table)}`;
+      sql += this._buildWhere(params);
+      if (this._opSelectAfterInsert) {
+        sql += ' RETURNING *';
+      }
+
+      const result = await pool.query(sql, params);
+      if (this._isSingle && result.rows.length > 0) {
+        return { data: result.rows[0], error: null };
+      }
+      return { data: result.rows, error: null };
+    }
+
+    return { data: null, error: null };
   }
 
   // ── Filter methods ──
@@ -915,6 +1051,10 @@ class PgQueryBuilder {
       this._selectExpr = fields;
       this._parsedSelect = parseSelect(fields);
     }
+    // Mark that .select() was called after a mutation (insert/update/delete)
+    if (this._opType) {
+      this._opSelectAfterInsert = true;
+    }
     return this;
   }
 
@@ -946,113 +1086,31 @@ class PgQueryBuilder {
 
   // ── Mutation methods ──
 
-  async insert(rows: any | any[]): Promise<{ data: any; error: any }> {
-    const pool = getPoolSingleton();
-    const arr = Array.isArray(rows) ? rows : [rows];
-    if (arr.length === 0) return { data: null, error: null };
-
-    const keys = Object.keys(arr[0]);
-    const cols = keys.map(k => this._ident(k)).join(', ');
-    const valuesClauses: string[] = [];
-    const params: any[] = [];
-
-    for (const row of arr) {
-      const placeholders: string[] = [];
-      for (const key of keys) {
-        params.push(row[key] ?? null);
-        placeholders.push(`$${params.length}`);
-      }
-      valuesClauses.push(`(${placeholders.join(', ')})`);
-    }
-
-    let sql = `INSERT INTO ${this._ident(this._table)} (${cols}) VALUES ${valuesClauses.join(', ')} RETURNING *`;
-    const result = await pool.query(sql, params);
-
-    return {
-      data: arr.length === 1 ? result.rows[0] : result.rows,
-      error: null,
-    };
+  insert(rows: any | any[]): this {
+    this._opType = 'insert';
+    this._opRows = Array.isArray(rows) ? rows : [rows];
+    return this;
   }
 
-  async upsert(
+  upsert(
     rows: any | any[],
     options?: { onConflict?: string; ignoreDuplicates?: boolean }
-  ): Promise<{ data: any; error: any }> {
-    const pool = getPoolSingleton();
-    const arr = Array.isArray(rows) ? rows : [rows];
-    if (arr.length === 0) return { data: null, error: null };
-
-    const keys = Object.keys(arr[0]);
-    const cols = keys.map(k => this._ident(k)).join(', ');
-    const valuesClauses: string[] = [];
-    const params: any[] = [];
-
-    for (const row of arr) {
-      const placeholders: string[] = [];
-      for (const key of keys) {
-        params.push(row[key] ?? null);
-        placeholders.push(`$${params.length}`);
-      }
-      valuesClauses.push(`(${placeholders.join(', ')})`);
-    }
-
-    let conflictCols = 'id';
-    if (options?.onConflict) conflictCols = options.onConflict;
-
-    // Build update set (exclude conflict columns)
-    const conflictColSet = new Set(conflictCols.split(',').map(c => c.trim()));
-    const updateCols = keys.filter(k => !conflictColSet.has(k));
-    const updateSet = updateCols
-      .map(k => `${this._ident(k)} = EXCLUDED.${this._ident(k)}`)
-      .join(', ');
-
-    let sql = `INSERT INTO ${this._ident(this._table)} (${cols}) VALUES ${valuesClauses.join(', ')}`;
-
-    if (options?.ignoreDuplicates) {
-      sql += ` ON CONFLICT (${conflictCols}) DO NOTHING`;
-    } else if (updateSet) {
-      sql += ` ON CONFLICT (${conflictCols}) DO UPDATE SET ${updateSet}`;
-    } else {
-      sql += ` ON CONFLICT (${conflictCols}) DO NOTHING`;
-    }
-
-    sql += ' RETURNING *';
-    const result = await pool.query(sql, params);
-
-    return {
-      data: arr.length === 1 ? result.rows[0] : result.rows,
-      error: null,
-    };
+  ): this {
+    this._opType = 'upsert';
+    this._opRows = Array.isArray(rows) ? rows : [rows];
+    this._opUpsertOptions = options || null;
+    return this;
   }
 
-  async update(values: Record<string, any>): Promise<{ data: any; error: any }> {
-    const pool = getPoolSingleton();
-    const keys = Object.keys(values);
-    if (keys.length === 0) return { data: null, error: null };
-
-    const params: any[] = [];
-    const setClauses = keys.map(k => {
-      params.push(values[k] ?? null);
-      return `${this._ident(k)} = $${params.length}`;
-    });
-
-    let sql = `UPDATE ${this._ident(this._table)} SET ${setClauses.join(', ')}`;
-    sql += this._buildWhere(params);
-    sql += ' RETURNING *';
-
-    const result = await pool.query(sql, params);
-    return { data: result.rows, error: null };
+  update(values: Record<string, any>): this {
+    this._opType = 'update';
+    this._opValues = values;
+    return this;
   }
 
-  async delete(): Promise<{ data: any; error: any }> {
-    const pool = getPoolSingleton();
-    const params: any[] = [];
-    let sql = `DELETE FROM ${this._ident(this._table)}`;
-    sql += this._buildWhere(params);
-    sql += ' RETURNING *';
-
-    const result = await pool.query(sql, params);
-    return { data: result.rows, error: null };
+  delete(): this {
+    this._opType = 'delete';
+    return this;
   }
 }
 
