@@ -7,7 +7,7 @@ import { ImageUpload } from '@/components/image-upload';
 import ImageCropModal from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
 
 import dynamic from 'next/dynamic';
 
@@ -249,7 +249,7 @@ interface PromotionProduct { id: number; promotion_id: number; product_id?: numb
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
+type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
 interface Language { id: number; code: string; name: string; is_active: boolean; is_hidden: boolean; sort_order: number; }
 const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, is_hidden: false, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, is_hidden: false, sort_order: 1 }];
@@ -423,9 +423,6 @@ export default function AdminPage() {
   const [socialLinks, setSocialLinks] = useState<Array<{ id: number; platform: string; url: string; icon: string | null; sort_order: number; is_active: boolean }>>([]);
   const [editingSocial, setEditingSocial] = useState<{ id: number | null; platform: string; url: string; sort_order: number }>({ id: null, platform: '', url: '', sort_order: 0 });
   const [showSocialForm, setShowSocialForm] = useState(false);
-  const [analyticsData, setAnalyticsData] = useState<Record<string, unknown> | null>(null);
-  const [analyticsMonth, setAnalyticsMonth] = useState('all');
-  const [analyticsRegion, setAnalyticsRegion] = useState('all');
 
   // Image crop modal state
   const [cropModalVisible, setCropModalVisible] = useState(false);
@@ -511,16 +508,6 @@ export default function AdminPage() {
       adminFetch('/api/admin/languages').then(r => r.json()).then(d => { if (d.success) setLanguages(d.data || []); }).catch(() => {});
     }
   }, [isLoggedIn]);
-
-  useEffect(() => {
-    if (isLoggedIn && activeTab === 'analytics') {
-      const params = new URLSearchParams({ month: analyticsMonth });
-      if (analyticsRegion && analyticsRegion !== 'all') {
-        params.set('region', analyticsRegion);
-      }
-      fetch(`/api/analytics?${params.toString()}`).then(r => r.json()).then(d => { if (d.success) setAnalyticsData(d.data); }).catch(() => {});
-    }
-  }, [isLoggedIn, activeTab, analyticsMonth, analyticsRegion]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -752,7 +739,6 @@ export default function AdminPage() {
     banners: { en: 'Banners', zh: 'Banner' },
     best_vapes: { en: 'Best Vapes', zh: 'Best Vapes' },
     news: { en: 'News', zh: '新闻' },
-    analytics: { en: 'Analytics', zh: '数据统计' },
   };
 
   // Login page
@@ -836,7 +822,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['site_settings', 'products', 'promotions', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'promotions', 'categories', 'stores', 'banners', 'best_vapes', 'news'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -850,7 +836,7 @@ export default function AdminPage() {
               {tab === 'banners' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
               {tab === 'best_vapes' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}
               {tab === 'news' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>}
-              {tab === 'analytics' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+
               {t(tabLabels[tab].en, tabLabels[tab].zh, adminLang)}
             </button>
           ))}
@@ -1319,138 +1305,6 @@ export default function AdminPage() {
               </div>
                 </>
               )}
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">{t('Analytics', '数据统计', adminLang)}</h2>
-                <div className="flex items-center gap-3">
-                  <select
-                    value={analyticsRegion}
-                    onChange={(e) => setAnalyticsRegion(e.target.value)}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="all">{t('Global', '全球', adminLang)}</option>
-                    <option value="USA">{t('USA', '美国', adminLang)}</option>
-                    <option value="UK">{t('UK', '英国', adminLang)}</option>
-                    <option value="Canada">{t('Canada', '加拿大', adminLang)}</option>
-                    <option value="Russia">{t('Russia', '俄罗斯', adminLang)}</option>
-                    <option value="Japan">{t('Japan', '日本', adminLang)}</option>
-                    <option value="Europe">{t('Europe', '欧洲', adminLang)}</option>
-                  </select>
-                  <select
-                    value={analyticsMonth}
-                    onChange={(e) => setAnalyticsMonth(e.target.value)}
-                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="all">{t('All', '全部', adminLang)}</option>
-                    {Array.from({ length: 12 }, (_, i) => {
-                      const d = new Date();
-                      d.setMonth(d.getMonth() - i);
-                      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                      const label = d.toLocaleDateString(adminLang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
-                      return <option key={val} value={val}>{label}</option>;
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                  { key: 'pv', label: t('Page Views', '浏览量', adminLang), color: 'text-blue-400' },
-                  { key: 'uv', label: t('Unique Visitors', '独立访客', adminLang), color: 'text-green-400' },
-                  { key: 'vv', label: t('Visit Sessions', '访问次数', adminLang), color: 'text-purple-400' },
-                  { key: 'ip', label: t('IP Count', 'IP 数', adminLang), color: 'text-orange-400' },
-                ].map(({ key, label, color }) => (
-                  <div key={key} className="bg-card rounded-xl border border-border p-4">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className={`text-2xl font-bold ${color}`}>{(analyticsData as Record<string, Record<string, number>>)?.summary?.[key] ?? 0}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Extra Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                {[
-                  { key: 'new_visitor_rate', label: t('New Visitor Rate', '新访客占比', adminLang), suffix: '%' },
-                  { key: 'bounce_rate', label: t('Bounce Rate', '跳出率', adminLang), suffix: '%' },
-                  { key: 'avg_duration', label: t('Avg Duration', '平均访问时长', adminLang), suffix: 's' },
-                ].map(({ key, label, suffix }) => (
-                  <div key={key} className="bg-card rounded-xl border border-border p-4">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-xl font-bold">{(analyticsData as Record<string, Record<string, number>>)?.summary?.[key]?.toFixed(1) ?? '0.0'}{suffix}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* PV Trend Chart */}
-              <div className="bg-card rounded-xl border border-border p-6 mb-8">
-                <h3 className="text-lg font-semibold mb-4">{t('PV/UV Trend', 'PV/UV 趋势', adminLang)}</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={((analyticsData as Record<string, unknown>)?.trend as Array<Record<string, number | string>>) || []}
-                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fontSize: 10, fill: '#9ca3af' }}
-                        tickFormatter={(value: string) => value.slice(-5)}
-                      />
-                      <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#1f2937', 
-                          border: '1px solid #374151',
-                          borderRadius: '8px',
-                          color: '#fff'
-                        }}
-                        labelStyle={{ color: '#9ca3af' }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="pv" name="PV" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey="uv" name="UV" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Click Rate Table */}
-              <div className="bg-card rounded-xl border border-border p-6">
-                <h3 className="text-lg font-semibold mb-4">{t('Click Rate Details', '点击率详情', adminLang)}</h3>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4">{t('Metric', '指标', adminLang)}</th>
-                      <th className="text-right py-3 px-4">{t('Clicks', '点击次数', adminLang)}</th>
-                      <th className="text-right py-3 px-4">{t('Rate', '点击率', adminLang)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { key: 'product_card', label: t('Product Card Click', '产品卡片点击', adminLang) },
-                      { key: 'buy_button', label: t('Buy Button Click', '首页 Buy 点击', adminLang) },
-                      { key: 'visit_store', label: t('Visit Store Click', '详情页 Visit Store 点击', adminLang) },
-                      { key: 'banner', label: t('Banner Click', 'Banner 点击', adminLang) },
-                    ].map(({ key, label }) => {
-                      const clicks = ((analyticsData as Record<string, Record<string, number>>)?.clickRates?.[key] as number) || 0;
-                      const pv = (analyticsData as Record<string, Record<string, number>>)?.summary?.pv || 1;
-                      return (
-                        <tr key={key} className="border-b border-border/50">
-                          <td className="py-3 px-4">{label}</td>
-                          <td className="text-right py-3 px-4 font-mono">{clicks}</td>
-                          <td className="text-right py-3 px-4 font-mono">{pv > 0 ? (clicks / pv * 100).toFixed(2) : '0.00'}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
 
