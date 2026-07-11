@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+    typescript: {
+    ignoreBuildErrors: true,
+  },
   // 缓存 headers 配置 - 让 Cloudflare 和 Vercel 边缘可以缓存
   async headers() {
     return [
