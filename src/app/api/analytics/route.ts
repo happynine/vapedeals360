@@ -17,13 +17,18 @@ export async function GET(request: Request) {
     const endDate = month && month !== 'all' ? getNextMonth(month) : '2099-12-31T23:59:59Z';
 
     // Build base query with optional region filter
+    // For "all" time period, don't limit to ensure we get all data
+    // For specific months, limit to 50000 which should be sufficient
     let pageViewsQuery = supabase
       .from('page_views')
       .select('session_id, created_at, page, ip, region')
       .gte('created_at', startDate)
       .lt('created_at', endDate)
-      .order('created_at', { ascending: true })
-      .limit(50000);
+      .order('created_at', { ascending: false });
+
+    if (month && month !== 'all') {
+      pageViewsQuery = pageViewsQuery.limit(50000);
+    }
 
     // Apply region filter if specified
     if (region && region !== 'all') {
