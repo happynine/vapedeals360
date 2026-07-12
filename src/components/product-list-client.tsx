@@ -153,7 +153,7 @@ const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
 
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
   if (!prices || prices.length === 0) return null;
-  return prices.reduce((min, p) => parseFloat(p.currenif (mout_price) < parseFloat(min.current_price) ? p : min, prices[0]);
+  return prices.reduce((min, p) => parseFloat(p.current_price) < parseFloat(min.current_price) ? p : min, prices[0]);
 }
 
 function getHighestOriginal(prices: ProductPrice[]): string | null {
