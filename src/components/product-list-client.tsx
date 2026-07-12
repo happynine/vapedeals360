@@ -321,7 +321,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
   // Fetch when filters change (debounced)
   useEffect(() => {
-    if (mounted && (page !== 1 || selectedCategory !== null || searchQuery !== '' || sortBy !== 'newest')) {
+    if (mounted) {
       fetchData();
     }
   }, [mounted, fetchData]);
