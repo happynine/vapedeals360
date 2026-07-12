@@ -460,16 +460,8 @@ export default function AdminPage() {
 
   // Check login state on mount
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const supabase = await getSupabaseBrowserClientWithRetry();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) setIsLoggedIn(true);
-      } catch {
-        // Supabase not ready yet
-      }
-    };
-    checkSession();
+    const token = localStorage.getItem('admin_token');
+    if (token) setIsLoggedIn(true);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -477,15 +469,18 @@ export default function AdminPage() {
     setLoginError('');
     setLoginLoading(true);
     try {
-      const supabase = await getSupabaseBrowserClientWithRetry();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginEmail, password: loginPassword }),
       });
-      if (error) {
-        setLoginError(error.message || t('Invalid email or password', '邮箱或密码错误', adminLang));
-      } else if (data.session) {
+      const result = await res.json();
+      if (result.success) {
+        localStorage.setItem('admin_token', result.token);
         setIsLoggedIn(true);
+        setLoginError('');
+      } else {
+        setLoginError(result.error || t('Invalid email or password', '邮箱或密码错误', adminLang));
       }
     } catch {
       setLoginError(t('Login failed', '登录失败', adminLang));
@@ -495,12 +490,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = async () => {
-    try {
-      const supabase = await getSupabaseBrowserClientWithRetry();
-      await supabase.auth.signOut();
-    } catch {
-      // Ignore
-    }
+    localStorage.removeItem('admin_token');
     setIsLoggedIn(false);
   };
 
