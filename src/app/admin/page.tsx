@@ -15,19 +15,15 @@ const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loadin
 
 // Auth-aware fetch helper: auto-attaches x-session header
 async function adminFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  try {
-    const supabase = await getSupabaseBrowserClientWithRetry();
-    const { data: { session } } = await supabase.auth.getSession();
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> || {}),
-    };
-    if (session?.access_token) {
-      headers['x-session'] = session.access_token;
-    }
-    return fetch(url, { ...options, headers });
-  } catch {
-    return fetch(url, options);
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
+  };
+  // Use admin_token from localStorage (set by login API)
+  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+  if (adminToken) {
+    headers['x-session'] = adminToken;
   }
+  return fetch(url, { ...options, headers });
 }
 
 let mammothInstance: typeof import('mammoth') | null = null;
