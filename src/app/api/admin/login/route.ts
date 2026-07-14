@@ -20,7 +20,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成简单的 session token
-    const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+    const now = Math.floor(Date.now() / 1000);
+const header = { alg: 'HS256', typ: 'JWT' };
+const payload = {
+  sub: username,
+  email: username,
+  role: 'admin',
+  iat: now,
+  exp: now + 7 * 24 * 3600,
+};
+const toBase64Url = (obj: object) =>
+  Buffer.from(JSON.stringify(obj))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+const token = `${toBase64Url(header)}.${toBase64Url(payload)}.admin-signature`;
 
     return NextResponse.json({ success: true, token });
   } catch (err) {
