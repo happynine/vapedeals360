@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, "auth");
@@ -9,21 +8,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { username, password } = body as { username: string; password: string };
 
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: username,
-      password,
-    });
+    // 使用硬编码的账号密码验证（不依赖 Supabase Auth）
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'funan9999@gmail.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'fn491374665';
 
-    if (error || !data.session) {
+    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
       return NextResponse.json(
-        { success: false, error: error?.message || 'Invalid email or password' },
+        { success: false, error: 'Invalid login credentials' },
         { status: 401 }
       );
     }
 
-    // Use Supabase access token as admin token
-    return NextResponse.json({ success: true, token: data.session.access_token });
+    // 生成简单的 session token
+    const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+
+    return NextResponse.json({ success: true, token });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ success: false, error: 'Login failed' }, { status: 500 });
