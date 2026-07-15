@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // GET - 获取活动列表（前端展示）
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     
     // 检查促销活动全局开关
     const { data: siteSettings, error: settingsError } = await client
