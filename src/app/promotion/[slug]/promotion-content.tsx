@@ -97,7 +97,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
         cover_image_url,
         language
       ),
-      promotion_products (
+      promotion_products!inner (
         id,
         promotion_id,
         slug,
