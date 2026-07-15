@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHand
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { ImageUpload } from '@/components/image-upload';
+import LogoUpload from '@/components/logo-upload';
 import ImageCropModal from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
@@ -971,13 +972,11 @@ export default function AdminPage() {
                         {t('Site Logo', '网站 Logo', adminLang)}
                         <span className="ml-2 text-xs text-muted-foreground">({t('Recommended: 36x36px, 1:1 ratio', '建议尺寸: 36x36px, 1:1 比例', adminLang)})</span>
                       </label>
-                      <ImageUpload
+                      <LogoUpload
                         value={editSiteLogo}
                         onChange={setEditSiteLogo}
-                        aspectRatio={1}
-                        recommendedSize="36x36px"
+                        recommendedSize={t('Recommended: 36x36px, 1:1 ratio', '建议尺寸: 36x36px, 1:1 比例', adminLang)}
                         label={t('Logo', 'Logo', adminLang)}
-                        lang={adminLang}
                       />
                     </div>
                     <div className="pt-2 flex gap-3">
