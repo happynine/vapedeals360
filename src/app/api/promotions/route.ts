@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
               original_price,
               currency,
               region,
-              discount_percentage,
+              discount_percent,
               no_quote,
               stores (
                 id,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
               original_price?: number | null;
               currency?: string;
               region?: string;
-              discount_percentage?: number | null;
+              discount_percent?: number | null;
               no_quote?: boolean;
               stores?: { 
                 is_active?: boolean; 
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
               current_price?: number; 
               original_price?: number | null; 
               currency?: string; 
-              discount_percentage?: number | null;
+              discount_percent?: number | null;
               stores?: { 
                 id?: number; 
                 slug?: string; 
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
               // 如果活动有特惠价，则使用特惠价
               current_price: pp.special_price || promotion.special_price || price.current_price,
               original_price: price.original_price,
-              discount_percentage: price.discount_percentage,
+              discount_percent: price.discount_percent,
               has_promotion: true,
               promotion_price: pp.special_price || promotion.special_price,
               end_time: promotion.end_time,
