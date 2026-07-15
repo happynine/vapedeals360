@@ -37,7 +37,6 @@ async function getInitialData() {
         .select(`
           id,
           slug,
-
           is_active,
           sort_order,
           time_type,
@@ -48,6 +47,8 @@ async function getInitialData() {
             id,
             language,
             name,
+            title,
+            description,
             cover_image_key,
             cover_image_url
           )
@@ -75,13 +76,26 @@ async function getInitialData() {
 
     // 处理 promotions - 转换 cover_image_key 为签名 URL
     const promotions = await Promise.all((promotionsResult.data || []).map(async (promo: any) => {
-      const translations = await Promise.all((promo.promotion_translations || []).map(async (t: any) => ({
-        id: t.id,
-        language: t.language,
-        name: t.name,
-        cover_image_key: t.cover_image_key,
-        cover_image_url: await getPresignedUrl(t.cover_image_key) || t.cover_image_url,
-      })));
+      const translations = await Promise.all((promo.promotion_translations || []).map(async (t: any) => {
+        // 如果 cover_image_key 已经是完整 URL，直接使用；否则通过 getPresignedUrl 转换
+        let coverImageUrl = t.cover_image_url;
+        if (!coverImageUrl && t.cover_image_key) {
+          if (t.cover_image_key.startsWith('http')) {
+            coverImageUrl = t.cover_image_key;
+          } else {
+            coverImageUrl = await getPresignedUrl(t.cover_image_key);
+          }
+        }
+        return {
+          id: t.id,
+          language: t.language,
+          name: t.name,
+          title: t.title,
+          description: t.description,
+          cover_image_key: t.cover_image_key,
+          cover_image_url: coverImageUrl,
+        };
+      }));
       return {
         id: promo.id,
         slug: promo.slug,

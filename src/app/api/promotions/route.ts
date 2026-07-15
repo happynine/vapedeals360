@@ -214,12 +214,26 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // 处理翻译中的图片 URL
+      const translations = (promotion.promotion_translations || []).map((t: any) => {
+        let coverImageUrl = t.cover_image_url;
+        if (!coverImageUrl && t.cover_image_key) {
+          if (t.cover_image_key.startsWith('http')) {
+            coverImageUrl = t.cover_image_key;
+          }
+        }
+        return {
+          ...t,
+          cover_image_url: coverImageUrl,
+        };
+      });
+
       return NextResponse.json({
         success: true,
         data: {
           promotion: {
             ...promotion,
-            translations: promotion.promotion_translations,
+            translations,
             countdown
           },
           products: formattedProducts,
@@ -279,9 +293,25 @@ export async function GET(request: NextRequest) {
             .select('*', { count: 'exact', head: true })
             .eq('promotion_id', promotion.id);
 
+          // 处理翻译中的图片 URL
+          const translations = (promotion.promotion_translations || []).map((t: any) => {
+            let coverImageUrl = t.cover_image_url;
+            if (!coverImageUrl && t.cover_image_key) {
+              // 如果 cover_image_key 已经是完整 URL，直接使用
+              if (t.cover_image_key.startsWith('http')) {
+                coverImageUrl = t.cover_image_key;
+              }
+              // 否则保持原样（需要 getPresignedUrl 转换，但 API 层不做异步处理）
+            }
+            return {
+              ...t,
+              cover_image_url: coverImageUrl,
+            };
+          });
+
           return {
             ...promotion,
-            translations: promotion.promotion_translations,
+            translations,
             countdown,
             product_count: productCount || 0
           };
