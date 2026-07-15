@@ -34,9 +34,9 @@ function getSupabaseClient(): SupabaseClient {
 function getServiceRoleClient(): SupabaseClient {
   if (!_serviceClient) {
     const url = getSupabaseUrl();
-    const key = getServiceRoleKey() || getAnonKey();
+    const key = getServiceRoleKey();
     if (!url || !key) {
-      throw new Error('Supabase not configured: missing URL or key');
+      throw new Error('Supabase not configured: missing URL or service role key');
     }
     _serviceClient = createClient(url, key);
   }

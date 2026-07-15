@@ -80,6 +80,9 @@ interface Promotion {
 export async function PromotionContent({ slug }: { slug: string }) {
   const supabase = getServiceRoleClient();
   
+  // Decode URL-encoded slug
+  const decodedSlug = decodeURIComponent(slug);
+  
   // Fetch promotion with products and store info
   const { data: promotions, error } = await supabase
     .from('promotions')
@@ -97,7 +100,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
         cover_image_url,
         language
       ),
-      promotion_products!inner (
+      promotion_products (
         id,
         promotion_id,
         slug,
@@ -131,7 +134,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
         )
       )
     `)
-    .eq('slug', slug)
+    .eq('slug', decodedSlug)
     .eq('is_active', true)
     .limit(1);
 
