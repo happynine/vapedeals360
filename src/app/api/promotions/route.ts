@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     if (slug) {
       // 获取单个活动及其产品
-      const { data: promotion, error: promotionError } = await client
+      const { data: promotions, error: promotionError } = await client
         .from('promotions')
         .select(`
           *,
@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
         .eq('slug', slug)
         .eq('promotion_translations.language', language)
         .eq('is_active', true)
-        .single();
+        .limit(1);
+
+      const promotion = promotions?.[0] || null;
 
       if (promotionError || !promotion) {
         return NextResponse.json({ error: 'Promotion not found' }, { status: 404 });

@@ -81,7 +81,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
   const supabase = getSupabaseClient();
   
   // Fetch promotion with products and store info
-  const { data: promotion, error } = await supabase
+  const { data: promotions, error } = await supabase
     .from('promotions')
     .select(`
       id,
@@ -133,7 +133,9 @@ export async function PromotionContent({ slug }: { slug: string }) {
     `)
     .eq('slug', slug)
     .eq('is_active', true)
-    .single();
+    .limit(1);
+
+  const promotion = promotions?.[0] || null;
 
   if (error || !promotion) {
     console.error('Promotion fetch error:', error);
