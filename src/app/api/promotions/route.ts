@@ -75,39 +75,31 @@ export async function GET(request: NextRequest) {
         .from('promotion_products')
         .select(`
           *,
-          products (
+          promotion_product_translations (
             id,
-            slug,
-            image_url,
-            is_active,
-            product_translations!inner (
-              id,
-              language,
-              name,
-              description
-            ),
-            product_prices (
-              id,
-              current_price,
-              original_price,
-              currency,
-              region,
-              discount_percent,
-              no_quote,
-              stores (
-                id,
-                slug,
-                is_active,
-                store_translations!inner (
-                  id,
-                  language,
-                  name
-                )
-              )
-            )
+            language,
+            name,
+            description
+          ),
+          promotion_product_prices (
+            id,
+            store_id,
+            region,
+            current_price,
+            original_price,
+            discount_percent,
+            currency,
+            product_url,
+            no_quote,
+            store_type,
+            time_type,
+            start_time,
+            end_time,
+            countdown_action
           )
         `)
         .eq('promotion_id', promotion.id)
+        .eq('is_active', true)
         .range(offset, offset + limit - 1);
 
       if (productsError) {
@@ -116,62 +108,64 @@ export async function GET(request: NextRequest) {
 
       // 过滤和格式化产品数据
       const formattedProducts = (promotionProducts || [])
-        .filter((pp: { products?: { is_active?: boolean } }) => pp.products?.is_active)
+        .filter((pp: { is_active?: boolean }) => pp.is_active)
         .map((pp: { 
-          products?: { 
-            id?: number; 
-            slug?: string; 
-            image_url?: string | null; 
-            product_translations?: Array<{ name?: string; description?: string }>; 
-            product_prices?: Array<{
-              current_price?: number;
-              original_price?: number | null;
-              currency?: string;
-              region?: string;
-              discount_percent?: number | null;
-              no_quote?: boolean;
-              stores?: { 
-                is_active?: boolean; 
-                store_translations?: Array<{ name?: string }> 
-              };
-            }>;
-          };
+          id?: number;
+          slug?: string;
+          image_key?: string | null;
+          image_url?: string | null;
           special_price?: number | null;
+          promotion_product_translations?: Array<{ 
+            language?: string; 
+            name?: string; 
+            description?: string 
+          }>;
+          promotion_product_prices?: Array<{
+            id?: number;
+            store_id?: number;
+            region?: string;
+            current_price?: number;
+            original_price?: number | null;
+            currency?: string;
+            discount_percent?: number | null;
+            product_url?: string;
+            no_quote?: boolean;
+            store_type?: string;
+            time_type?: string;
+            start_time?: string;
+            end_time?: string;
+            countdown_action?: string;
+          }>;
         }) => {
-          const product = pp.products;
-          if (!product) return null;
-
-          const translation = product.product_translations?.[0] || {};
+          const translation = pp.promotion_product_translations?.find(t => t.language === language) || 
+                             pp.promotion_product_translations?.[0] || {};
           
           // 过滤价格
-          const filteredPrices = (product.product_prices || [])
+          const filteredPrices = (pp.promotion_product_prices || [])
             .filter((price: { 
               no_quote?: boolean; 
-              stores?: { is_active?: boolean }; 
               region?: string;
             }) => {
               if (price.no_quote) return false;
-              if (price.stores && !price.stores.is_active) return false;
               return price.region === region || price.region === 'Global';
             })
             .map((price: { 
+              id?: number;
+              store_id?: number;
+              region?: string;
               current_price?: number; 
               original_price?: number | null; 
               currency?: string; 
               discount_percent?: number | null;
-              stores?: { 
-                id?: number; 
-                slug?: string; 
-                store_translations?: Array<{ name?: string }> 
-              };
+              product_url?: string;
+              store_type?: string;
+              time_type?: string;
+              start_time?: string;
+              end_time?: string;
+              countdown_action?: string;
             }) => ({
               ...price,
-              store: price.stores ? {
-                id: price.stores.id,
-                slug: price.stores.slug,
-                name: price.stores.store_translations?.[0]?.name || ''
-              } : null,
-              stores: undefined,
+              store_id: price.store_id,
               // 如果活动有特惠价，则使用特惠价
               current_price: pp.special_price || promotion.special_price || price.current_price,
               original_price: price.original_price,
@@ -183,9 +177,9 @@ export async function GET(request: NextRequest) {
             }));
 
           return {
-            id: product.id,
-            slug: product.slug,
-            image_url: product.image_url,
+            id: pp.id,
+            slug: pp.slug,
+            image_url: pp.image_url || pp.image_key,
             name: translation.name || '',
             description: translation.description || '',
             prices: filteredPrices,
