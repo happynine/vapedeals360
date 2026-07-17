@@ -238,6 +238,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   const [sortBy, setSortBy] = useState<"newest" | "price_low" | "price_high">("newest");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [salesRegion, setSalesRegion] = useState<string>("USA");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
 
@@ -311,14 +312,16 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       }
     }
     setMounted(true);
+    // Use initial data on first load, skip fetch
+    setIsInitialLoad(false);
   }, []);
 
-  // Fetch when filters change (debounced)
+  // Fetch when filters change (skip initial load since data is already passed as props)
   useEffect(() => {
-    if (mounted) {
+    if (mounted && !isInitialLoad) {
       fetchData();
     }
-  }, [mounted, fetchData]);
+  }, [mounted, isInitialLoad, fetchData]);
 
   // Track page view
   useEffect(() => {
