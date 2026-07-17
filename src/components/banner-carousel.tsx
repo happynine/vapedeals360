@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
 interface Banner {
@@ -79,20 +80,24 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
       {safeImageUrl && !imageError ? (
         <div className="relative w-full sm:absolute sm:inset-0 sm:w-full sm:h-full">
           {safeMobileImgUrl && (
-            <img
+            <Image
               src={safeMobileImgUrl.startsWith("http") || safeMobileImgUrl.startsWith("/") ? safeMobileImgUrl : `/api/image?key=${encodeURIComponent(safeMobileImgUrl)}`}
               alt={banner.title || "Banner"}
-              className="w-full h-auto block sm:hidden"
-              loading={current === 0 ? "eager" : "lazy"}
+              fill
+              sizes="100vw"
+              className="block sm:hidden object-contain"
+              priority={current === 0}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
             />
           )}
-          <img
+          <Image
             src={safeImageUrl.startsWith("http") || safeImageUrl.startsWith("/") ? safeImageUrl : `/api/image?key=${encodeURIComponent(safeImageUrl)}`}
             alt={banner.title || "Banner"}
-            className={`w-full h-auto block sm:absolute sm:inset-0 sm:w-full sm:h-full sm:object-fill ${safeMobileImgUrl ? "hidden sm:block sm:absolute" : ""} ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
-            loading={current === 0 ? "eager" : "lazy"}
+            fill
+            sizes="100vw"
+            className={`block sm:absolute sm:inset-0 sm:object-fill ${safeMobileImgUrl ? "hidden sm:block" : ""} ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+            priority={current === 0}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
           />

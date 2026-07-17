@@ -6,13 +6,7 @@ import { useLanguage } from "@/hooks/use-language";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import dynamic from "next/dynamic";
-
-// 动态导入 BannerCarousel，减少首屏 JS bundle
-const BannerCarousel = dynamic(() => import("./banner-carousel"), {
-  loading: () => <div className="h-[200px] sm:h-[343px] bg-gray-100 rounded-2xl animate-pulse" />,
-  ssr: true,
-});
+import BannerCarousel from "./banner-carousel";
 
 // Types
 interface CategoryTranslation {
