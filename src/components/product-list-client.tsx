@@ -1,4 +1,4 @@
-"use client";    
+import"use client";    
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -241,6 +241,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [salesRegion, setSalesRegion] = useState<string>("USA");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
+    const hasFetchedRef = useRef(false);
 
   // Fetch data when filters change (after initial load)
   const fetchData = useCallback(async () => {
@@ -319,10 +320,14 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   // Fetch when filters change (skip initial load since data is already passed as props)
   useEffect(() => {
     if (mounted && !isInitialLoad) {
-      fetchData();
+      if (hasFetchedRef.current) {
+        fetchData();
+      } else {
+        hasFetchedRef.current = true;
+      }
     }
   }, [mounted, isInitialLoad, fetchData]);
-
+  
   // Track page view
   useEffect(() => {
     const sessionId = sessionStorage.getItem("vp_session_id") || (() => {
