@@ -79,6 +79,9 @@ export function getImageUrl(key: string | null | undefined): string | null {
   if (key.startsWith('http://') || key.startsWith('https://')) {
     return key;
   }
+  if (key.startsWith('/')) {
+    return key;
+}
 
   // S3 key - use proxy
   return `/api/image?key=${encodeURIComponent(key)}`;
@@ -95,7 +98,9 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
   if (key.startsWith('http://') || key.startsWith('https://')) {
     return key;
   }
-
+if (key.startsWith('/')) {
+    return key;
+}
   // S3 key - only works in sandbox
   if (useVercelBlob) {
     // On Vercel, S3 keys can't be resolved without Coze sandbox auth
