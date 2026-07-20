@@ -83,65 +83,84 @@ export async function PromotionContent({ slug }: { slug: string }) {
   // Decode URL-encoded slug
   const decodedSlug = decodeURIComponent(slug);
   
-  // Fetch promotion with products and store info
-  const { data: promotions, error } = await supabase
-    .from('promotions')
-    .select(`
-      id,
-      slug,
-      sort_order,
-      is_active,
-      promotion_translations (
+  // Fetch promotion with products and store info (with retry)
+  let promotions: any[] = [];
+  let error: any = null;
+  
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await supabase
+      .from('promotions')
+      .select(`
         id,
-        name,
-        title,
-        description,
-        cover_image_key,
-        cover_image_url,
-        language
-      ),
-      promotion_products (
-        id,
-        promotion_id,
         slug,
-        category_id,
-        image_key,
-        image_url,
+        sort_order,
         is_active,
-        is_featured,
-        notes,
-        promotion_product_translations (
+        promotion_translations (
           id,
           name,
+          title,
           description,
+          cover_image_key,
+          cover_image_url,
           language
         ),
-        promotion_product_prices (
+        promotion_products (
           id,
-          store_id,
-          region,
-          current_price,
-          original_price,
-          discount_percent,
-          currency,
-          product_url,
-          no_quote,
-          store_type,
-          time_type,
-          start_time,
-          end_time,
-          countdown_action
+          promotion_id,
+          slug,
+          category_id,
+          image_key,
+          image_url,
+          is_active,
+          is_featured,
+          notes,
+          promotion_product_translations (
+            id,
+            name,
+            description,
+            language
+          ),
+          promotion_product_prices (
+            id,
+            store_id,
+            region,
+            current_price,
+            original_price,
+            discount_percent,
+            currency,
+            product_url,
+            no_quote,
+            store_type,
+            time_type,
+            start_time,
+            end_time,
+            countdown_action
+          )
         )
-      )
-    `)
-    .eq('slug', decodedSlug)
-    .eq('is_active', true)
-    .limit(1);
+      `)
+      .eq('slug', decodedSlug)
+      .eq('is_active', true)
+      .limit(1);
+    
+    if (!result.error) {
+      promotions = result.data || [];
+      error = null;
+      break;
+    }
+    
+    error = result.error;
+    promotions = [];
+    
+    // Wait before retrying (exponential backoff)
+    if (attempt < 2) {
+      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+    }
+  }
 
   const promotion = promotions?.[0] || null;
 
-  if (error || !promotion) {
-    console.error('Promotion fetch error:', error);
+  if (!promotion) {
+    console.error('Promotion not found:', decodedSlug, error);
     return (
       <div className="text-center py-16">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -149,9 +168,6 @@ export async function PromotionContent({ slug }: { slug: string }) {
         </h1>
         <p className="text-gray-600 mb-6">
           This promotion may have ended or does not exist
-        </p>
-        <p className="text-gray-500 text-sm mb-4">
-          Error: {error?.message || 'Unknown error'}
         </p>
         <a href="/" className="inline-flex items-center px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700">
           Back to Home
