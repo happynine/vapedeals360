@@ -417,7 +417,7 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
 
                   {/* Mobile: top store price only */}
                   <div className="mt-1 sm:hidden">
-                    {sortedPrices.slice(0, 1).map(price => {
+                    {sortedPrices.filter(p => p.product_url).slice(0, 1).map(price => {
                       const st = price.store?.store_translations ? getTranslation(price.store.store_translations, language) : null;
                       const storeName = st?.name || "Store";
                       return (
@@ -429,16 +429,16 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                         </div>
                       );
                     })}
-                    {sortedPrices.length > 1 && (
+                    {sortedPrices.filter(p => p.product_url).length > 1 && (
                       <Link href={`/promotion-product/${product.id}?promotion=${promotion.slug}`} className="block text-center text-[9px] text-purple-700 hover:underline py-0.5">
-                        +{sortedPrices.length - 1} {language === 'zh' ? '家商城' : 'stores'}
+                        +{sortedPrices.filter(p => p.product_url).length - 1} {language === 'zh' ? '家商城' : 'stores'}
                       </Link>
                     )}
                   </div>
 
                   {/* Desktop: store price list with Buy buttons */}
                   <div className="hidden sm:block mt-2 space-y-1">
-                    {sortedPrices.slice(0, 3).map(price => {
+                    {sortedPrices.filter(p => p.product_url).slice(0, 3).map(price => {
                       const st = price.store?.store_translations ? getTranslation(price.store.store_translations, language) : null;
                       const storeName = st?.name || "Store";
                       return (
@@ -477,9 +477,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                         </div>
                       );
                     })}
-                    {sortedPrices.length > 3 && (
+                    {sortedPrices.filter(p => p.product_url).length > 3 && (
                       <Link href={`/promotion-product/${product.id}?promotion=${promotion.slug}`} className="block text-center text-xs text-purple-700 hover:underline py-0.5">
-                        {language === 'zh' ? `查看全部 ${sortedPrices.length} 家商城` : `View all ${sortedPrices.length} stores`}
+                        {language === 'zh' ? `查看全部 ${sortedPrices.filter(p => p.product_url).length} 家商城` : `View all ${sortedPrices.filter(p => p.product_url).length} stores`}
                       </Link>
                     )}
                   </div>
