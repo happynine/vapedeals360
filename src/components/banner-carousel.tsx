@@ -30,11 +30,20 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  // Reset image state when current banner changes
+  // Reset image state only on initial mount, not when switching banners
+  // This keeps the previous image visible while the new one loads
+
+  // Preload next banner image
   useEffect(() => {
-    setImageLoaded(false);
-    setImageError(false);
-  }, [current]);
+    if (banners.length <= 1) return;
+    const nextIdx = (current + 1) % banners.length;
+    const nextBanner = banners[nextIdx];
+    const nextUrl = nextBanner.translated_image_url || nextBanner.image_url;
+    if (typeof nextUrl === 'string' && nextUrl) {
+      const img = new window.Image();
+      img.src = nextUrl.startsWith("http") || nextUrl.startsWith("/") ? nextUrl : `/api/image?key=${encodeURIComponent(nextUrl)}`;
+    }
+  }, [current, banners]);
 
   if (banners.length === 0) return null;
 
@@ -58,13 +67,9 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
         hoverRef.current = setTimeout(() => setHovered(false), 200);
       }}
     >
-      {/* Loading skeleton */}
-      {!imageLoaded && !imageError && (
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-            <ImageOff className="w-6 h-6 text-gray-400" />
-          </div>
-        </div>
+      {/* Loading skeleton - only show on initial load, not when switching */}
+      {!imageLoaded && !imageError && current === 0 && (
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse" />
       )}
 
       {/* Error state */}
