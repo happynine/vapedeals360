@@ -111,7 +111,13 @@ export async function POST(request: NextRequest) {
     if (ppError) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
-
+    // 自动关联 products 表
+    if (promotionProduct) {
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true);
+      if (productId) {
+        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
+      }
+    }
     // Create translations if provided
     if (translations && translations.length > 0 && promotionProduct) {
       const translationRecords = translations.map((t: { language: string; name: string; description: string | null; features: string | null; specs: string | null }) => ({
@@ -228,7 +234,13 @@ export async function PUT(request: NextRequest) {
     if (ppError) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
-
+    // 自动关联 products 表
+    if (promotionProduct) {
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true);
+      if (productId) {
+        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
+      }
+    }
     // Update translations if provided
     if (translations && translations.length > 0 && promotionProduct) {
       // Delete existing translations
