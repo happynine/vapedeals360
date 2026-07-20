@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+// 自动在 products 表创建/查找对应产品，返回 product_id
+async function ensureProductInProductsTable(
+  supabase: any,
+  slug: string,
+  categoryId: number | null,
+  imageUrl: string | null,
+  isActive: boolean
+): Promise<number | null> {
+  const { data: existing } = await supabase
+    .from('products')
+    .select('id')
+    .eq('slug', slug)
+    .single();
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from('products')
+    .insert({ slug, category_id: categoryId, image_url: imageUrl, is_active: isActive })
+    .select()
+    .single();
+  if (error) {
+    console.error('Auto-create product failed:', error);
+    return null;
+  }
+  return created?.id || null;
+}
 // GET - Fetch all promotion products
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseClient();
