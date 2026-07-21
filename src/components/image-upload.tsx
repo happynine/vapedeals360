@@ -157,12 +157,12 @@ useEffect(() => {
 
     setUploading(true);
     try {
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/jpeg', 0.9),
+          const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/webp', 0.9),
       );
       if (!blob) throw new Error('Failed to create image');
-
-      const file = new File([blob], `crop-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      const file = new File([blob], `crop-${Date.now()}.webp`, { type: 'image/webp' });
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
