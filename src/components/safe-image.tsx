@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { ImageProps } from 'next/image';
 
@@ -53,6 +54,13 @@ function isVercelBlobUrl(src: string): boolean {
 interface SafeImageProps extends Omit<ImageProps, 'src'> {
   src: string | null | undefined;
   fallback?: React.ReactNode;
+  /**
+   * Control image optimization behavior:
+   * - true: always use plain img tag (no compression, for images <=200KB)
+   * - false: always use Next.js Image (auto-optimize, for images >200KB)
+   * - undefined: auto-detect by fetching image size (>200KB = optimize, <=200KB = no optimize)
+   */
+  unoptimized?: boolean;
 }
 
 /**
@@ -62,8 +70,17 @@ interface SafeImageProps extends Omit<ImageProps, 'src'> {
  * - S3 keys (e.g. "stores/logo.png") → proxy through /api/image?key=...
  * - Invalid/empty → render fallback
  * For SVG-returning URLs (like placehold.co), adds unoptimized to avoid Next.js errors.
+ * 
+ * Image optimization logic:
+ * - If unoptimized=true: always skip optimization (use plain img)
+ * - If unoptimized=false: always use Next.js Image (auto-optimize)
+ * - If unoptimized=undefined: auto-detect by fetching image size
+ *   - >200KB: use Next.js Image (auto-optimize)
+ *   - <=200KB: use plain img tag (no compression)
  */
-export function SafeImage({ src, fallback, alt, ...rest }: SafeImageProps) {
+export function SafeImage({ src, fallback, alt, unoptimized: forceUnoptimized, ...rest }: SafeImageProps) {
+  const [shouldOptimize, setShouldOptimize] = useState<boolean | null>(null);
+
   if (!src) {
     if (fallback) return <>{fallback}</>;
     return (
@@ -91,8 +108,67 @@ export function SafeImage({ src, fallback, alt, ...rest }: SafeImageProps) {
     );
   }
 
-  // Vercel Blob URLs and SVG URLs need unoptimized
-  const needsUnoptimized = isSvgUrl(trimmedSrc) || isVercelBlobUrl(trimmedSrc);
+  // Determine if we need unoptimized mode
+  const isSvg = isSvgUrl(trimmedSrc);
+  const isVercelBlob = isVercelBlobUrl(trimmedSrc);
+  
+  // If explicitly set or known types that should skip optimization
+  if (forceUnoptimized !== undefined) {
+    // User explicitly set the value
+    if (forceUnoptimized || isSvg || isVercelBlob) {
+      return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
+    }
+    return <Image src={trimmedSrc} alt={alt} {...rest} />;
+  }
 
-  return <Image src={trimmedSrc} alt={alt} unoptimized={needsUnoptimized} {...rest} />;
+  // Auto-detect mode: fetch image size to decide optimization
+  // For SVG and Vercel Blob, always skip optimization
+  if (isSvg || isVercelBlob) {
+    return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
+  }
+
+  // Check image size on client side
+  useEffect(() => {
+    let cancelled = false;
+    
+    async function checkSize() {
+      try {
+        const response = await fetch(trimmedSrc, { method: 'HEAD' });
+        const contentLength = response.headers.get('content-length');
+        const sizeInBytes = contentLength ? parseInt(contentLength, 10) : 0;
+        const sizeInKB = sizeInBytes / 1024;
+        
+        if (!cancelled) {
+          // >200KB: optimize; <=200KB: no optimize
+          setShouldOptimize(sizeInKB > 200);
+        }
+      } catch {
+        // If fetch fails, default to no optimization to be safe
+        if (!cancelled) {
+          setShouldOptimize(false);
+        }
+      }
+    }
+    
+    checkSize();
+    return () => { cancelled = true; };
+  }, [trimmedSrc]);
+
+  // While checking size, show placeholder
+  if (shouldOptimize === null) {
+    return (
+      <div 
+        className={typeof rest.className === 'string' ? rest.className : undefined} 
+        style={{ ...rest.style, backgroundColor: 'var(--color-secondary)', opacity: 0.5 }}
+      />
+    );
+  }
+
+  // Use Next.js Image for large files (auto-optimize)
+  if (shouldOptimize) {
+    return <Image src={trimmedSrc} alt={alt} {...rest} />;
+  }
+
+  // Use plain img for small files (no compression)
+  return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
 }
