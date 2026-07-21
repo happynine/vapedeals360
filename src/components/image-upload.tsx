@@ -158,7 +158,7 @@ useEffect(() => {
     setUploading(true);
     try {
           const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/webp', 0.9),
+        canvas.toBlob(resolve, 'image/webp', 1.0),
       );
       if (!blob) throw new Error('Failed to create image');
       
