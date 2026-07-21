@@ -90,7 +90,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
               alt={banner.title || "Banner"}
               fill
               sizes="100vw"
-               quality={100}
+              quality={100}
               className="block sm:hidden object-contain"
               priority={current === 0}
               onLoad={() => setImageLoaded(true)}
