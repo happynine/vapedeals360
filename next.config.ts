@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
-    quality: 100,
     dangerouslyAllowSVG: true,
     remotePatterns: [
       {
