@@ -90,6 +90,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
               alt={banner.title || "Banner"}
               fill
               sizes="100vw"
+               quality={100}
               className="block sm:hidden object-contain"
               priority={current === 0}
               onLoad={() => setImageLoaded(true)}
@@ -101,6 +102,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
             alt={banner.title || "Banner"}
             fill
             sizes="100vw"
+            quality={100}
             className={`block sm:absolute sm:inset-0 sm:object-fill ${safeMobileImgUrl ? "hidden sm:block" : ""} ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
             priority={current === 0}
             onLoad={() => setImageLoaded(true)}
