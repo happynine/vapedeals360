@@ -687,6 +687,22 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           {filteredProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
+
+            // 获取所有商城的地区-货币映射
+            const storeRegionCurrencyMap = new Map<string, string>();
+            product.prices.forEach(p => {
+              if (p.store && Array.isArray(p.store.regions)) {
+                p.store.regions.forEach((r: { region: string; currency: string }) => {
+                  if (r.region && r.currency) {
+                    storeRegionCurrencyMap.set(r.region, r.currency);
+                  }
+                });
+              }
+            });
+
+            // 根据地区获取对应的货币
+            const regionCurrency = storeRegionCurrencyMap.get(salesRegion) || selectedCurrency;
+
             const regionFilteredPrices = product.prices.filter(p => {
               if (p.no_quote) return false;
               if (p.store && !p.store.is_active) return false;
@@ -702,10 +718,10 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             const displayPrices = regionFilteredPrices.filter(p => {
               const priceCurrency = p.currency || '$';
               const priceRegion = p.region;
-              // 如果价格没有设置 region，根据货币筛选
-              if (!priceRegion) return priceCurrency === selectedCurrency;
+              // 如果价格没有设置 region，根据商城的地区-货币映射筛选
+              if (!priceRegion) return priceCurrency === regionCurrency;
               if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
-              return priceCurrency === selectedCurrency;
+              return priceCurrency === regionCurrency;
             });
 
             // 如果没有匹配货币的价格，fallback 到显示所有价格（避免产品不显示）
