@@ -229,13 +229,25 @@ export function ImageUpload({
       const maxH = ch - pad;
       // 优先使用用户指定的输出尺寸比例
       const ar = userOutputSize.width / userOutputSize.height;
+      
+      // 默认目标尺寸：640x640px（当 aspectRatio 为 1 时）
+      const targetSize = 640;
+      let targetW = targetSize;
+      let targetH = targetSize / ar;
+      
+      // 如果目标尺寸超过容器大小，则缩小到容器大小
       let w: number, h: number;
-      if (maxW / maxH > ar) {
-        h = maxH;
-        w = h * ar;
+      if (targetW > maxW || targetH > maxH) {
+        if (maxW / maxH > ar) {
+          h = maxH;
+          w = h * ar;
+        } else {
+          w = maxW;
+          h = w / ar;
+        }
       } else {
-        w = maxW;
-        h = w / ar;
+        w = targetW;
+        h = targetH;
       }
       setCropFrame({ width: Math.round(w), height: Math.round(h) });
     };

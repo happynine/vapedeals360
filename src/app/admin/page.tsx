@@ -5789,12 +5789,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 
               {/* Product Image Upload */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (400x400px)</label>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (640x640px)</label>
                 <ImageUpload
                   value={imageKey}
                   onUploadComplete={setImageKey}
                   aspectRatio={1}
-                  suggestedSize="400x400px"
+                  suggestedSize="640x640px"
                   folder="products"
                 />
               </div>
@@ -6464,7 +6464,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                 value={imageKey}
                 onUploadComplete={setImageKey}
                 aspectRatio={1}
-                suggestedSize="400x400px"
+                suggestedSize="640x640px"
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
               />
