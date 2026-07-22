@@ -3571,8 +3571,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const COMPRESS_TARGET_MAX = 300 * 1024; // 300KB
 
   const compressImage = useCallback(async (file: File): Promise<File> => {
-    const imageBitmap = await createImageBitmap(file);
-    let { width, height } = imageBitmap;
+    // Use Image instead of createImageBitmap to avoid SharedArrayBuffer issues
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.addEventListener('load', () => resolve(img));
+      img.addEventListener('error', (e) => reject(e));
+      img.src = URL.createObjectURL(file);
+    });
+    let { width, height } = image;
 
     // If image is wider than editor max width, resize to editor width first
     let needsResize = width > EDITOR_MAX_WIDTH;
@@ -3589,8 +3595,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(imageBitmap, 0, 0, width, height);
-    imageBitmap.close();
+    ctx.drawImage(image, 0, 0, width, height);
+    URL.revokeObjectURL(image.src);
 
     // If no compression needed and no resize happened, return original
     if (skipCompression) return file;
