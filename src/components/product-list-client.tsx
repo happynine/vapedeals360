@@ -690,6 +690,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
               if (p.no_quote) return false;
               if (p.store && !p.store.is_active) return false;
               const priceRegion = p.region;
+              // 如果价格没有设置 region，fallback 到显示所有地区
+              if (!priceRegion) return true;
               if (salesRegion === 'Global') return priceRegion === 'Global';
               if (priceRegion === 'Global') return true;
               if (priceRegion === salesRegion) return true;
@@ -699,6 +701,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             const displayPrices = regionFilteredPrices.filter(p => {
               const priceCurrency = p.currency || '$';
               const priceRegion = p.region;
+              // 如果价格没有设置 region，根据货币筛选
+              if (!priceRegion) return priceCurrency === selectedCurrency;
               if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
               return priceCurrency === selectedCurrency;
             });
