@@ -52,9 +52,13 @@ export function ImageUpload({
   const [userOutputSize, setUserOutputSize] = useState(() => {
     const hint = suggestedSize || recommendedSize;
     if (hint) {
-      const match = hint.match(/(\d+)/);
-      if (match) {
-        const n = parseInt(match[1]);
+      const wMatch = hint.match(/(\d+)\s*x\s*(\d+)/i);
+      if (wMatch) {
+        return { width: parseInt(wMatch[1]), height: parseInt(wMatch[2]) };
+      }
+      const singleMatch = hint.match(/(\d+)/);
+      if (singleMatch) {
+        const n = parseInt(singleMatch[1]);
         if (n > 0) return { width: n, height: n };
       }
     }
