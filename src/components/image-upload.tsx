@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface ImageUploadProps {
@@ -31,7 +30,6 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const sizeHint = suggestedSize || recommendedSize;
   const handleComplete = onChange || onUploadComplete || (() => {});
-
   const [showCrop, setShowCrop] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -50,26 +48,50 @@ export function ImageUpload({
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
   const [imageDisplayedSize, setImageDisplayedSize] = useState({ width: 0, height: 0 });
 
-  // Calculate the output crop size in real pixels
-  const outputSize = (() => {
-    if (!imageNaturalSize.width || !imageDisplayedSize.width) return { width: 0, height: 0 };
-    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
-    const outputW = Math.round((cropFrame.width / scale) * ratio);
-    const outputH = Math.round((cropFrame.height / scale) * ratio);
-    return { width: outputW, height: outputH };
-  })();
+  /* ── 用户可编辑的输出尺寸 ── */
+  const [userOutputSize, setUserOutputSize] = useState(() => {
+    const hint = suggestedSize || recommendedSize;
+    if (hint) {
+      const match = hint.match(/(\d+)/);
+      if (match) {
+        const n = parseInt(match[1]);
+        if (n > 0) return { width: n, height: n };
+      }
+    }
+    return { width: 400, height: 400 };
+  });
 
-  // Calculate minimum scale to ensure output is at least minWidth x minHeight
-  const minScale = (() => {
-    if (!minWidth || !minHeight || !imageNaturalSize.width || !imageDisplayedSize.width) return 0.5;
-    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
-    const scaleForWidth = (cropFrame.width * ratio) / minWidth;
-    const scaleForHeight = (cropFrame.height * ratio) / minHeight;
-    return Math.max(0.5, Math.min(scaleForWidth, scaleForHeight));
-  })();
-
-  // Calculate maximum scale (3x or limited by min size)
-  const maxScale = 3;
+  const handleOutputSizeChange = (dim: 'width' | 'height', value: string) => {
+    const num = parseInt(value);
+    if (!num || num <= 0) return;
+    setUserOutputSize(prev => {
+      const next = { ...prev, [dim]: num };
+      // 只更新裁图框的比例，不改变图片缩放和位置
+      const ratio = next.width / next.height;
+      const maxW = containerRef.current?.clientWidth ?? 400;
+      const maxH = containerRef.current?.clientHeight ?? 400;
+      const imgW = imageNaturalSize.width || maxW;
+      const imgH = imageNaturalSize.height || maxH;
+      let cw: number, ch: number;
+      if (ratio >= 1) {
+        cw = Math.min(maxW * 0.9, imgW);
+        ch = cw / ratio;
+        if (ch > maxH * 0.9 || ch > imgH) {
+          ch = Math.min(maxH * 0.9, imgH);
+          cw = ch * ratio;
+        }
+      } else {
+        ch = Math.min(maxH * 0.9, imgH);
+        cw = ch * ratio;
+        if (cw > maxW * 0.9 || cw > imgW) {
+          cw = Math.min(maxW * 0.9, imgW);
+          ch = cw / ratio;
+        }
+      }
+      setCropFrame({ width: Math.round(cw), height: Math.round(ch) });
+      return next;
+    });
+  };
 
   /* ── 选择文件 ── */
   const onSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,29 +132,13 @@ export function ImageUpload({
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
   /* ── 缩放 ── */
-  const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(2))), [minScale]);
+  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.02).toFixed(2))), []);
   const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(2))), []);
+
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
-    setScale(Math.max(minScale, val));
-  }, [minScale]);
-
-  /* ── 输出尺寸编辑 ── */
-  const handleOutputWidthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newW = parseInt(e.target.value, 10);
-    if (!newW || newW <= 0 || !imageNaturalSize.width || !imageDisplayedSize.width) return;
-    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
-    const newScale = (cropFrame.width * ratio) / newW;
-    setScale(Math.max(minScale, Math.min(maxScale, +newScale.toFixed(2))));
-  }, [imageNaturalSize, imageDisplayedSize, cropFrame, minScale]);
-
-  const handleOutputHeightChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newH = parseInt(e.target.value, 10);
-    if (!newH || newH <= 0 || !imageNaturalSize.height || !imageDisplayedSize.height) return;
-    const ratio = imageNaturalSize.height / imageDisplayedSize.height;
-    const newScale = (cropFrame.height * ratio) / newH;
-    setScale(Math.max(minScale, Math.min(maxScale, +newScale.toFixed(2))));
-  }, [imageNaturalSize, imageDisplayedSize, cropFrame, minScale]);
+    setScale(Math.max(0.5, val));
+  }, []);
 
   // 缩放时更新显示尺寸
   useEffect(() => {
@@ -148,14 +154,12 @@ export function ImageUpload({
   const handleCropAndUpload = useCallback(async () => {
     if (!imgRef.current) return;
     const image = imgRef.current;
-
     const dispW = image.clientWidth;
     const dispH = image.clientHeight;
     const ratio = image.naturalWidth / dispW;
 
     const cropCenterX = dispW / 2 - panX / scale;
     const cropCenterY = dispH / 2 - panY / scale;
-
     const cropDispW = cropFrame.width / scale;
     const cropDispH = cropFrame.height / scale;
 
@@ -164,12 +168,13 @@ export function ImageUpload({
     const sw = cropDispW * ratio;
     const sh = cropDispH * ratio;
 
+    // 使用用户指定的输出尺寸
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(sw);
-    canvas.height = Math.round(sh);
+    canvas.width = userOutputSize.width;
+    canvas.height = userOutputSize.height;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     setUploading(true);
@@ -186,6 +191,7 @@ export function ImageUpload({
 
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const json = await res.json();
+
       if (json.success) {
         handleComplete(json.data.key);
         setShowCrop(false);
@@ -198,7 +204,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [scale, panX, panY, cropFrame, folder, handleComplete]);
+  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize]);
 
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
@@ -217,7 +223,8 @@ export function ImageUpload({
       const pad = 32;
       const maxW = cw - pad;
       const maxH = ch - pad;
-      const ar = aspectRatio || 1;
+      // 优先使用用户指定的输出尺寸比例
+      const ar = userOutputSize.width / userOutputSize.height;
       let w: number, h: number;
       if (maxW / maxH > ar) {
         h = maxH;
@@ -231,7 +238,7 @@ export function ImageUpload({
     updateFrame();
     window.addEventListener('resize', updateFrame);
     return () => window.removeEventListener('resize', updateFrame);
-  }, [showCrop, aspectRatio]);
+  }, [showCrop, userOutputSize.width, userOutputSize.height]);
 
   const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
@@ -296,33 +303,33 @@ export function ImageUpload({
               )}
             </h3>
 
-            {/* 实时尺寸显示 */}
-            {imageNaturalSize.width > 0 && (
-              <div className="flex items-center justify-center gap-4 mb-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                <span className="text-sm text-gray-600 flex items-center gap-1">
-                  {t('输出尺寸', 'Output size')}:
-                  <input
-                    type="number"
-                    value={Math.round(outputSize.width)}
-                    onChange={handleOutputWidthChange}
-                    className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 bg-white border border-gray-300 rounded text-sm"
-                  />
-                  <span className="text-gray-400">×</span>
-                  <input
-                    type="number"
-                    value={Math.round(outputSize.height)}
-                    onChange={handleOutputHeightChange}
-                    className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 bg-white border border-gray-300 rounded text-sm"
-                  />
-                  <span>px</span>
+            {/* 可编辑的输出尺寸 */}
+            <div className="flex items-center justify-center gap-2 mb-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="text-sm text-gray-600">
+                {t('输出尺寸', 'Output size')}:
+              </span>
+              <input
+                type="number"
+                value={userOutputSize.width}
+                onChange={(e) => handleOutputSizeChange('width', e.target.value)}
+                className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 border border-gray-300 rounded bg-white"
+                min={1}
+              />
+              <span className="text-gray-400">×</span>
+              <input
+                type="number"
+                value={userOutputSize.height}
+                onChange={(e) => handleOutputSizeChange('height', e.target.value)}
+                className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 border border-gray-300 rounded bg-white"
+                min={1}
+              />
+              <span className="text-sm text-gray-500">px</span>
+              {(minWidth || minHeight) && (
+                <span className="text-xs text-gray-400 ml-2">
+                  ({t('最小', 'Min')}: {minWidth || '—'} × {minHeight || '—'}px)
                 </span>
-                {(minWidth || minHeight) && (
-                  <span className="text-xs text-gray-400">
-                    ({t('最小', 'Min')}: {minWidth || '—'} × {minHeight || '—'}px)
-                  </span>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* 裁剪区域 */}
             <div
@@ -353,7 +360,6 @@ export function ImageUpload({
                   pointerEvents: 'none',
                 }}
               />
-
               {/* 可缩放/拖拽的图片 */}
               <img
                 ref={imgRef}
@@ -391,7 +397,7 @@ export function ImageUpload({
               </button>
               <input
                 type="range"
-                min={minScale}
+                min="0.5"
                 max="3"
                 step="0.02"
                 value={scale}
