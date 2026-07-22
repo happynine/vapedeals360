@@ -113,19 +113,36 @@ export function ImageUpload({
   const zoomOut = useCallback(() => setScale((s) => Math.max(minScale, +(s - 0.02).toFixed(2))), [minScale]);
   const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(2))), []);
   const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-  const val = parseFloat(e.target.value);
-  setScale(Math.max(minScale, val));
-}, [minScale]);
+    const val = parseFloat(e.target.value);
+    setScale(Math.max(minScale, val));
+  }, [minScale]);
 
-// 缩放时更新显示尺寸
-useEffect(() => {
-  if (imgRef.current && imageNaturalSize.width > 0) {
-    setImageDisplayedSize({
-      width: imgRef.current.clientWidth,
-      height: imgRef.current.clientHeight,
-    });
-  }
-}, [scale, imageNaturalSize.width]);
+  /* ── 输出尺寸编辑 ── */
+  const handleOutputWidthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newW = parseInt(e.target.value, 10);
+    if (!newW || newW <= 0 || !imageNaturalSize.width || !imageDisplayedSize.width) return;
+    const ratio = imageNaturalSize.width / imageDisplayedSize.width;
+    const newScale = (cropFrame.width * ratio) / newW;
+    setScale(Math.max(minScale, Math.min(maxScale, +newScale.toFixed(2))));
+  }, [imageNaturalSize, imageDisplayedSize, cropFrame, minScale]);
+
+  const handleOutputHeightChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newH = parseInt(e.target.value, 10);
+    if (!newH || newH <= 0 || !imageNaturalSize.height || !imageDisplayedSize.height) return;
+    const ratio = imageNaturalSize.height / imageDisplayedSize.height;
+    const newScale = (cropFrame.height * ratio) / newH;
+    setScale(Math.max(minScale, Math.min(maxScale, +newScale.toFixed(2))));
+  }, [imageNaturalSize, imageDisplayedSize, cropFrame, minScale]);
+
+  // 缩放时更新显示尺寸
+  useEffect(() => {
+    if (imgRef.current && imageNaturalSize.width > 0) {
+      setImageDisplayedSize({
+        width: imgRef.current.clientWidth,
+        height: imgRef.current.clientHeight,
+      });
+    }
+  }, [scale, imageNaturalSize.width]);
 
   /* ── 裁剪并上传 ── */
   const handleCropAndUpload = useCallback(async () => {
@@ -157,11 +174,11 @@ useEffect(() => {
 
     setUploading(true);
     try {
-          const blob = await new Promise<Blob | null>((resolve) =>
+      const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/webp', 1.0),
       );
       if (!blob) throw new Error('Failed to create image');
-      
+
       const file = new File([blob], `crop-${Date.now()}.webp`, { type: 'image/webp' });
       const formData = new FormData();
       formData.append('file', file);
@@ -282,12 +299,22 @@ useEffect(() => {
             {/* 实时尺寸显示 */}
             {imageNaturalSize.width > 0 && (
               <div className="flex items-center justify-center gap-4 mb-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                <span className="text-sm text-gray-600">
-                  {t('输出尺寸', 'Output size')}: 
-                  <span className="font-mono font-semibold text-purple-600 ml-1">
-                    {Math.round(outputSize.width)} × {Math.round(outputSize.height)}
-                  </span>
-                  px
+                <span className="text-sm text-gray-600 flex items-center gap-1">
+                  {t('输出尺寸', 'Output size')}:
+                  <input
+                    type="number"
+                    value={Math.round(outputSize.width)}
+                    onChange={handleOutputWidthChange}
+                    className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 bg-white border border-gray-300 rounded text-sm"
+                  />
+                  <span className="text-gray-400">×</span>
+                  <input
+                    type="number"
+                    value={Math.round(outputSize.height)}
+                    onChange={handleOutputHeightChange}
+                    className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 bg-white border border-gray-300 rounded text-sm"
+                  />
+                  <span>px</span>
                 </span>
                 {(minWidth || minHeight) && (
                   <span className="text-xs text-gray-400">
@@ -334,10 +361,10 @@ useEffect(() => {
                 alt="Crop"
                 draggable={false}
                 onLoad={(e) => {
-  const img = e.currentTarget;
-  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
-  setImageDisplayedSize({ width: img.clientWidth, height: img.clientHeight });
-}}
+                  const img = e.currentTarget;
+                  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+                  setImageDisplayedSize({ width: img.clientWidth, height: img.clientHeight });
+                }}
                 style={{
                   position: 'absolute',
                   left: '50%',
@@ -407,4 +434,3 @@ useEffect(() => {
     </div>
   );
 }
-
