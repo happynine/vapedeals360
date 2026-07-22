@@ -7,7 +7,8 @@ async function ensureProductInProductsTable(
   slug: string,
   categoryId: number | null,
   imageUrl: string | null,
-  isActive: boolean
+  isActive: boolean,
+  productName?: string
 ): Promise<number | null> {
   const { data: existing } = await supabase
     .from('products')
@@ -25,6 +26,24 @@ async function ensureProductInProductsTable(
     console.error('Auto-create product failed:', error);
     return null;
   }
+
+  // 同步创建 product_translations 记录
+  if (created?.id && productName) {
+    const { error: transError } = await supabase
+      .from('product_translations')
+      .insert({
+        product_id: created.id,
+        language: 'en',
+        name: productName,
+        description: null,
+        features: null,
+        specs: null,
+      });
+    if (transError) {
+      console.error('Auto-create product_translation failed:', transError);
+    }
+  }
+
   return created?.id || null;
 }
 // GET - Fetch all promotion products
@@ -137,13 +156,7 @@ export async function POST(request: NextRequest) {
     if (ppError) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
-    // 自动关联 products 表
-    if (promotionProduct) {
-      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true);
-      if (productId) {
-        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
-      }
-    }
+
     // Create translations if provided
     if (translations && translations.length > 0 && promotionProduct) {
       const translationRecords = translations.map((t: { language: string; name: string; description: string | null; features: string | null; specs: string | null }) => ({
@@ -163,6 +176,16 @@ export async function POST(request: NextRequest) {
         // Rollback promotion product creation
         await supabase.from('promotion_products').delete().eq('id', promotionProduct.id);
         return NextResponse.json({ success: false, error: transError.message }, { status: 500 });
+      }
+    }
+
+    // 自动关联 products 表（在翻译创建之后，这样可以拿到产品名）
+    if (promotionProduct) {
+      const enTranslation = translations?.find((t: any) => t.language === 'en');
+      const productName = enTranslation?.name || slug;
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName);
+      if (productId) {
+        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
       }
     }
 
@@ -260,13 +283,7 @@ export async function PUT(request: NextRequest) {
     if (ppError) {
       return NextResponse.json({ success: false, error: ppError.message }, { status: 500 });
     }
-    // 自动关联 products 表
-    if (promotionProduct) {
-      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true);
-      if (productId) {
-        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
-      }
-    }
+
     // Update translations if provided
     if (translations && translations.length > 0 && promotionProduct) {
       // Delete existing translations
@@ -288,6 +305,16 @@ export async function PUT(request: NextRequest) {
 
       if (transError) {
         return NextResponse.json({ success: false, error: transError.message }, { status: 500 });
+      }
+    }
+
+    // 自动关联 products 表（在翻译更新之后）
+    if (promotionProduct) {
+      const enTranslation = translations?.find((t: any) => t.language === 'en');
+      const productName = enTranslation?.name || slug;
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName);
+      if (productId) {
+        await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
       }
     }
 
