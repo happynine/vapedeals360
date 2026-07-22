@@ -38,6 +38,7 @@ export interface Product {
   slug: string;
   category_id: number | null;
   image_url: string | null;
+  image_url_small: string | null;
   images: string | null;
   sales_region: string | null;
   is_active: boolean;

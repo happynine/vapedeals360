@@ -244,7 +244,7 @@ interface PromotionProductTranslation { language: string; name: string; descript
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
 interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
@@ -5796,6 +5796,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   aspectRatio={1}
                   suggestedSize="640x640px"
                   folder="products"
+                  isProductImage={true}
                 />
               </div>
 
@@ -6345,6 +6346,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
 
   const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
+  const [imageKeySmall, setImageKeySmall] = useState(product?.image_url_small || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [notes, setNotes] = useState(product?.notes || '');
@@ -6395,6 +6397,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
         slug,
         category_id: categoryId ? parseInt(categoryId) : null,
         image_url: imageKey || null,
+        image_url_small: imageKeySmall || null,
         is_active: isActive,
         is_featured: isFeatured,
         notes,
@@ -6462,11 +6465,25 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
               {/* Product Image Upload */}
               <ImageUpload
                 value={imageKey}
-                onUploadComplete={setImageKey}
+                onUploadComplete={(key) => {
+                  // For product images, key is a JSON string with large and small URLs
+                  try {
+                    const urls = JSON.parse(key);
+                    if (urls.large && urls.small) {
+                      setImageKey(urls.large);
+                      setImageKeySmall(urls.small);
+                    } else {
+                      setImageKey(key);
+                    }
+                  } catch {
+                    setImageKey(key);
+                  }
+                }}
                 aspectRatio={1}
                 suggestedSize="640x640px"
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
+                isProductImage={true}
               />
 
               <div className="flex gap-4">

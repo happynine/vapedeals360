@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { slug, category_id, image_url, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
+    const { slug, category_id, image_url, image_url_small, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
 
     // Create product
     const { data: product, error: prodError } = await client
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
         slug,
         category_id,
         image_url,
+        image_url_small,
         images: images ? JSON.stringify(images) : null,
         is_active: is_active !== false,
         is_featured: is_featured || false,
@@ -111,7 +112,7 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { id, slug, category_id, image_url, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
+    const { id, slug, category_id, image_url, image_url_small, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
 
     const { data: product, error: prodError } = await client
       .from('products')
@@ -119,6 +120,7 @@ export async function PUT(request: NextRequest) {
         slug,
         category_id,
         image_url,
+        image_url_small,
         images: images ? (typeof images === 'string' ? images : JSON.stringify(images)) : null,
         is_active,
         is_featured,

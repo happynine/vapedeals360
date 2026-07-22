@@ -13,6 +13,7 @@ interface ImageUploadProps {
   label?: string;
   folder?: string;
   lang?: string;
+  isProductImage?: boolean;  // If true, upload two sizes (315x315 and 640x640)
 }
 
 export function ImageUpload({
@@ -27,6 +28,7 @@ export function ImageUpload({
   label = 'Image',
   folder = 'uploads',
   lang = 'en',
+  isProductImage = false,
 }: ImageUploadProps) {
   const sizeHint = suggestedSize || recommendedSize;
   const handleComplete = onChange || onUploadComplete || (() => {});
@@ -192,12 +194,25 @@ export function ImageUpload({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
+      if (isProductImage) {
+        formData.append('product_image', 'true');
+      }
 
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const json = await res.json();
 
       if (json.success) {
-        handleComplete(json.data.key);
+        // For product images, store both large and small URLs
+        if (isProductImage && json.data.large && json.data.small) {
+          // Store as JSON string with both URLs
+          const imageUrls = JSON.stringify({
+            large: json.data.large.url,
+            small: json.data.small.url,
+          });
+          handleComplete(imageUrls);
+        } else {
+          handleComplete(json.data.key);
+        }
         setShowCrop(false);
         setSrc(null);
       } else {

@@ -1,5 +1,6 @@
 import { put } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
+import sharp from 'sharp';
 
 // Use Vercel Blob when BLOB_READ_WRITE_TOKEN is available (Vercel deployment)
 // Otherwise fall back to S3Storage (Coze sandbox)
@@ -171,4 +172,59 @@ export function extractImageKeysFromHtml(html: string | null | undefined): strin
     }
   }
   return keys;
+}
+
+/**
+ * Upload a product image and generate two sizes:
+ * - 315x315px for product list cards
+ * - 640x640px for product detail page
+ *
+ * Returns both URLs for storage in database.
+ */
+export async function uploadProductImage(params: {
+  fileContent: Buffer;
+  fileName: string;
+  contentType: string;
+  folder?: string;
+}): Promise<{
+  large: UploadResult;  // 640x640px for detail page
+  small: UploadResult;  // 315x315px for list cards
+}> {
+  const { fileContent, fileName, contentType, folder = 'products' } = params;
+
+  // Resize to 640x640 (large for detail page)
+  const largeBuffer = await sharp(fileContent)
+    .resize(640, 640, { fit: 'cover', position: 'center' })
+    .toFormat('webp', { quality: 85 })
+    .toBuffer();
+
+  // Resize to 315x315 (small for list cards)
+  const smallBuffer = await sharp(fileContent)
+    .resize(315, 315, { fit: 'cover', position: 'center' })
+    .toFormat('webp', { quality: 85 })
+    .toBuffer();
+
+  const timestamp = Date.now();
+  const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
+
+  // Upload large version
+  const largeResult = await uploadFile({
+    fileContent: largeBuffer,
+    fileName: `${baseName}-640.webp`,
+    contentType: 'image/webp',
+    folder,
+  });
+
+  // Upload small version
+  const smallResult = await uploadFile({
+    fileContent: smallBuffer,
+    fileName: `${baseName}-315.webp`,
+    contentType: 'image/webp',
+    folder,
+  });
+
+  return {
+    large: largeResult,
+    small: smallResult,
+  };
 }
