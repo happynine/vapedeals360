@@ -149,15 +149,15 @@ type Currency = {
 };
 
 const CURRENCIES: Currency[] = [
-  { code: 'USD', symbol: '$', flag: 'https://flagcdn.com/w40/us.png', flagAlt: 'US', name: 'US Dollar' },
-  { code: 'JPY', symbol: '¥', flag: 'https://flagcdn.com/w40/jp.png', flagAlt: 'JP', name: 'Japanese Yen' },
-  { code: 'KRW', symbol: '₩', flag: 'https://flagcdn.com/w40/kr.png', flagAlt: 'KR', name: 'Korean Won' },
-  { code: 'AUD', symbol: 'A$', flag: 'https://flagcdn.com/w40/au.png', flagAlt: 'AU', name: 'Australian Dollar' },
-  { code: 'GBP', symbol: '£', flag: 'https://flagcdn.com/w40/gb.png', flagAlt: 'GB', name: 'British Pound' },
-  { code: 'EUR', symbol: '€', flag: 'https://flagcdn.com/w40/eu.png', flagAlt: 'EU', name: 'Euro' },
-  { code: 'RUB', symbol: '₽', flag: 'https://flagcdn.com/w40/ru.png', flagAlt: 'RU', name: 'Russian Ruble' },
-  { code: 'CAD', symbol: 'C$', flag: 'https://flagcdn.com/w40/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
-  { code: 'IDR', symbol: 'Rp', flag: 'https://flagcdn.com/w40/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
+  { code: 'USD', symbol: '$', flag: '/flags/us.png', flagAlt: 'US', name: 'US Dollar' },
+  { code: 'JPY', symbol: '¥', flag: '/flags/jp.png', flagAlt: 'JP', name: 'Japanese Yen' },
+  { code: 'KRW', symbol: '₩', flag: '/flags/kr.png', flagAlt: 'KR', name: 'Korean Won' },
+  { code: 'AUD', symbol: 'A$', flag: '/flags/au.png', flagAlt: 'AU', name: 'Australian Dollar' },
+  { code: 'GBP', symbol: '£', flag: '/flags/gb.png', flagAlt: 'GB', name: 'British Pound' },
+  { code: 'EUR', symbol: '€', flag: '/flags/eu.png', flagAlt: 'EU', name: 'Euro' },
+  { code: 'RUB', symbol: '₽', flag: '/flags/ru.png', flagAlt: 'RU', name: 'Russian Ruble' },
+  { code: 'CAD', symbol: 'C$', flag: '/flags/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
+  { code: 'IDR', symbol: 'Rp', flag: '/flags/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
 ];
 
 
