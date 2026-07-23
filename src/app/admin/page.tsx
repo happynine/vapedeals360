@@ -1638,6 +1638,7 @@ export default function AdminPage() {
                         <thead>
                           <tr className="border-b border-border bg-secondary/50">
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Promotion', '活动', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Store', '商城', adminLang)}</th>
@@ -1650,7 +1651,7 @@ export default function AdminPage() {
                         <tbody>
                           {promotionProducts.length === 0 ? (
                             <tr>
-                              <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                              <td colSpan={9} className="py-12 text-center text-muted-foreground">
                                 {t('No promotion products yet. Click "Add Promotion Product" to get started.', '暂无促销产品。点击"添加促销产品"开始。', adminLang)}
                               </td>
                             </tr>
@@ -1695,6 +1696,13 @@ export default function AdminPage() {
                               return (
                                 <tr key={pp.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
+                                  <td className="px-4 py-3">
+                                    {pp.image_url ? (
+                                      <img src={pp.image_url} alt={productName} className="w-10 h-10 rounded object-cover" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center text-muted-foreground text-xs">—</div>
+                                    )}
+                                  </td>
                                   <td className="px-4 py-3">
                                     <div className="text-sm font-medium">{productName}</div>
                                     <div className="text-xs text-muted-foreground">#<span className="text-purple-400">{pp.slug}</span></div>
