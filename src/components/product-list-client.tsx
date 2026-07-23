@@ -501,7 +501,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                 const priceCurrency = p.currency || '$';
                 return priceCurrency === selectedCurrency;
               });
-              const displayPrices = currencyPrices.length > 0 ? currencyPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
+              const displayPrices = currencyPrices;
               const lowest = getLowestPrice(displayPrices);
               const highestOrig = getHighestOriginal(displayPrices);
               const discountInfo = getDiscountDisplay(displayPrices);
@@ -709,8 +709,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
               return priceCurrency === selectedCurrency;
             });
 
-            // 如果没有匹配货币的价格，fallback 到显示所有价格（避免产品不显示）
-            const finalPrices = displayPrices.length > 0 ? displayPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
+            const finalPrices = displayPrices;
 
             if (finalPrices.length === 0) return null;
 
