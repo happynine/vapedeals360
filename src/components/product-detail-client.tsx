@@ -5,6 +5,12 @@ import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { useLanguage } from "@/hooks/use-language";
 
+// 货币代码 → 符号映射（与首页保持一致）
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', JPY: '¥', KRW: '₩', AUD: 'A$',
+  GBP: '£', EUR: '€', RUB: '₽', CAD: 'C$', IDR: 'Rp',
+};
+
 export interface StoreTranslation {
   id: number;
   store_id: number;
@@ -141,6 +147,16 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
   const { language } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(product.image_url);
 
+  // 读取用户在首页选择的货币（与首页保持一致）
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('$');
+  useEffect(() => {
+    const savedCurrencyCode = sessionStorage.getItem('selectedCurrencyCode');
+    if (savedCurrencyCode) {
+      const symbol = CURRENCY_SYMBOLS[savedCurrencyCode];
+      if (symbol) setSelectedCurrency(symbol);
+    }
+  }, []);
+
   // Track page view
   useEffect(() => {
     const sessionId = sessionStorage.getItem("vp_session_id") || (() => {
@@ -175,12 +191,14 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
     }
   } catch { specsEntries = []; }
 
-  // Filter prices - show all active store prices
-  const filteredPrices = product.prices.filter((p) => {
+  // Filter prices - 按选中货币筛选（与首页逻辑一致）
+  const allActivePrices = product.prices.filter((p) => {
     if (p.no_quote) return false;
     if (p.store && !p.store.is_active) return false;
     return true;
   });
+  const currencyFiltered = allActivePrices.filter((p) => (p.currency || '$') === selectedCurrency);
+  const filteredPrices = currencyFiltered.length > 0 ? currencyFiltered : allActivePrices;
 
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
