@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-    typescript: {
+  typescript: {
     ignoreBuildErrors: true,
   },
   // 缓存 headers 配置 - 让 Cloudflare 和 Vercel 边缘可以缓存
@@ -42,6 +42,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
         // HTML 页面 - ISR 缓存 60 秒
         source: '/:path*',
         headers: [
