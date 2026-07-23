@@ -40,6 +40,7 @@ interface Store {
   store_type: string;
   is_active: boolean;
   translations: StoreTranslation[];
+  regions?: Array<{ region: string; currency: string }>;
 }
 
 interface ProductPrice {
@@ -720,7 +721,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
               const priceRegion = p.region;
               // 如果价格没有设置 region，根据商城的地区-货币映射筛选
               if (!priceRegion) return priceCurrency === regionCurrency;
-              if (salesRegion !== 'Global' && priceRegion === 'Global') return true;
+              // Global 地区的价格也要检查货币是否匹配
+              if (salesRegion !== 'Global' && priceRegion === 'Global') return priceCurrency === regionCurrency;
               return priceCurrency === regionCurrency;
             });
 
