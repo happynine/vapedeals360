@@ -578,11 +578,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     setPage(1);
                     sessionStorage.setItem('selectedCurrencyCode', currency.code);
                   }}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5 ${
                     selectedCurrencyCode === currency.code ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  <img src={currency.flag} alt={currency.flagAlt} className="w-4 h-3 rounded-sm object-cover" />
+                  <img src={currency.flag} alt={currency.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
                   <span>{currency.code}</span>
                   <span>({currency.symbol})</span>
                 </button>
@@ -631,7 +631,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
           <button
             onClick={() => { setSortBy("newest"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
               sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -639,7 +639,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           </button>
           <button
             onClick={() => { setSortBy("price_low"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
               sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -647,7 +647,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           </button>
           <button
             onClick={() => { setSortBy("price_high"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
               sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
