@@ -1965,7 +1965,7 @@ export default function AdminPage() {
                                   const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
                                   return (
                                     <span key={i} className="inline-flex items-center gap-1 mr-2">
-                                      <img src={curr?.flag || ''} alt={curr?.flagAlt || ''} className="w-4 h-3 rounded-sm object-cover" />
+                                      <img src={curr?.flag || ''} alt={curr?.flagAlt || ''} className="w-4 h-4 rounded-sm object-cover" />
                                       <span>{curr?.code || r.currency} ({curr?.symbol || ''})</span>
                                     </span>
                                   );
