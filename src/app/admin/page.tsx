@@ -5492,7 +5492,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                               const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
                               return curr ? (
                                 <span className="flex items-center gap-1.5">
-                                  <img src={curr.flag} alt={curr.flagAlt} className="w-5 h-3.5 rounded-sm object-cover" />
+                                  <img src={curr.flag} alt={curr.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
                                   <span>{curr.code} ({curr.symbol})</span>
                                 </span>
                               ) : r.currency;
@@ -5514,7 +5514,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                                 >
                                   {r.currency === opt.code && <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                   <span className={r.currency === opt.code ? '' : 'ml-6'}>
-                                    <img src={opt.flag} alt={opt.flagAlt} className="w-5 h-3.5 rounded-sm object-cover inline-block mr-1.5" />
+                                    <img src={opt.flag} alt={opt.flagAlt} className="w-4 h-4 rounded-sm object-cover inline-block mr-1.5" />
                                     {opt.code} ({opt.symbol})
                                   </span>
                                 </button>
