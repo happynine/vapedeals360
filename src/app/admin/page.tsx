@@ -1534,6 +1534,7 @@ export default function AdminPage() {
                                 </svg>
                               </span>
                             </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
@@ -1548,6 +1549,8 @@ export default function AdminPage() {
                             const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                             const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
                             const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
+                            // 获取产品缩略图
+                            const thumbnailUrl = product.image_url_small || product.image_url || null;
                             // 从产品关联的商城中获取地区信息
                             const productRegions = new Set<string>();
                             product.product_prices?.forEach((price: ProductPrice) => {
@@ -1561,6 +1564,17 @@ export default function AdminPage() {
                               <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
+                                <td className="px-4 py-3">
+                                  {thumbnailUrl ? (
+                                    <img src={thumbnailUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                                      <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </td>
                                 <td className="px-4 py-3">
                                   <div className="text-sm font-medium">{enName}</div>
                                   <div className="text-xs text-muted-foreground">{zhName}</div>
