@@ -11,20 +11,17 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
-
     const { data, error } = await client
       .from('products')
       .select('*, product_translations(*), product_prices(*, stores(*, store_translations(*))), categories(*, category_translations(*))', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
     if (error) throw new Error(`Fetch failed: ${error.message}`);
-
     // Get total count
     const { count, error: countError } = await client
       .from('products')
       .select('*', { count: 'exact', head: true });
     if (countError) throw new Error(`Count failed: ${countError.message}`);
-
     return NextResponse.json({
       success: true,
       data: { products: data, total: count, page, limit },
@@ -43,8 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { slug, category_id, image_url, image_url_small, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
-
+    const { slug, category_id, image_url, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
     // Create product
     const { data: product, error: prodError } = await client
       .from('products')
@@ -52,7 +48,6 @@ export async function POST(request: NextRequest) {
         slug,
         category_id,
         image_url,
-        image_url_small,
         images: images ? JSON.stringify(images) : null,
         is_active: is_active !== false,
         is_featured: is_featured || false,
@@ -62,9 +57,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Create product failed: ${prodError.message}`);
-
     const productId = (product as Record<string, unknown>).id as number;
-
     // Create translations
     if (translations && translations.length > 0) {
       const transRows = translations.map((t: Record<string, unknown>) => ({
@@ -78,7 +71,6 @@ export async function POST(request: NextRequest) {
       const { error: transError } = await client.from('product_translations').insert(transRows);
       if (transError) throw new Error(`Create translations failed: ${transError.message}`);
     }
-
     // Create prices
     if (prices && prices.length > 0) {
       const priceRows = prices.map((p: Record<string, unknown>) => ({
@@ -96,7 +88,6 @@ export async function POST(request: NextRequest) {
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Create prices failed: ${priceError.message}`);
     }
-
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -112,15 +103,13 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { id, slug, category_id, image_url, image_url_small, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
-
+    const { id, slug, category_id, image_url, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
     const { data: product, error: prodError } = await client
       .from('products')
       .update({
         slug,
         category_id,
         image_url,
-        image_url_small,
         images: images ? (typeof images === 'string' ? images : JSON.stringify(images)) : null,
         is_active,
         is_featured,
@@ -132,7 +121,6 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Update product failed: ${prodError.message}`);
-
     // Update translations
     if (translations && translations.length > 0) {
       await client.from('product_translations').delete().eq('product_id', id);
@@ -147,7 +135,6 @@ export async function PUT(request: NextRequest) {
       const { error: transError } = await client.from('product_translations').insert(transRows);
       if (transError) throw new Error(`Update translations failed: ${transError.message}`);
     }
-
     // Update prices
     if (prices && prices.length > 0) {
       await client.from('product_prices').delete().eq('product_id', id);
@@ -166,7 +153,6 @@ export async function PUT(request: NextRequest) {
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Update prices failed: ${priceError.message}`);
     }
-
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -184,10 +170,8 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) throw new Error('Missing id parameter');
-
     const { error } = await client.from('products').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete product failed: ${error.message}`);
-
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
