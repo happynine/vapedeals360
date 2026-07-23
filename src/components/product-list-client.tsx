@@ -418,17 +418,28 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       return hasValidPrice;
     });
 
+    // 排序时只取当前选中货币的价格
+    const getSortedPrice = (product: Product): number | null => {
+      const filtered = product.prices.filter(p => {
+        if (p.no_quote) return false;
+        if (p.store && !p.store.is_active) return false;
+        return (p.currency || '$') === selectedCurrency;
+      });
+      const lowest = getLowestPrice(filtered);
+      return lowest ? parseFloat(lowest.current_price) : null;
+    };
+
     if (sortBy === "price_low") {
       list = [...list].sort((a, b) => {
-        const aPrice = getLowestPrice(a.prices);
-        const bPrice = getLowestPrice(b.prices);
-        return (aPrice ? parseFloat(aPrice.current_price) : Infinity) - (bPrice ? parseFloat(bPrice.current_price) : Infinity);
+        const aPrice = getSortedPrice(a);
+        const bPrice = getSortedPrice(b);
+        return (aPrice ?? Infinity) - (bPrice ?? Infinity);
       });
     } else if (sortBy === "price_high") {
       list = [...list].sort((a, b) => {
-        const aPrice = getLowestPrice(a.prices);
-        const bPrice = getLowestPrice(b.prices);
-        return (bPrice ? parseFloat(bPrice.current_price) : 0) - (aPrice ? parseFloat(aPrice.current_price) : 0);
+        const aPrice = getSortedPrice(a);
+        const bPrice = getSortedPrice(b);
+        return (bPrice ?? 0) - (aPrice ?? 0);
       });
     }
     return list;
