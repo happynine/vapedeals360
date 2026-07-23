@@ -138,17 +138,28 @@ function getTranslation<T extends { language: string }>(translations: T[] | unde
 }
 
 // 货币定义：国旗 emoji + 货币代码 + 货币符号
-const CURRENCIES = [
-  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
-  { code: 'JPY', symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
-  { code: 'KRW', symbol: '₩', flag: '🇰🇷', name: 'Korean Won' },
-  { code: 'AUD', symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
-  { code: 'GBP', symbol: '£', flag: '🇬🇧', name: 'British Pound' },
-  { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
-  { code: 'RUB', symbol: '₽', flag: '🇺', name: 'Russian Ruble' },
-  { code: 'CAD', symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
-  { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+// 货币定义：国旗图片 URL + 货币代码 + 货币符号
+// 使用 flagcdn.com 的国旗图片
+type Currency = {
+  code: string;
+  symbol: string;
+  flag: string;
+  flagAlt: string;
+  name: string;
+};
+
+const CURRENCIES: Currency[] = [
+  { code: 'USD', symbol: '$', flag: 'https://flagcdn.com/w40/us.png', flagAlt: 'US', name: 'US Dollar' },
+  { code: 'JPY', symbol: '¥', flag: 'https://flagcdn.com/w40/jp.png', flagAlt: 'JP', name: 'Japanese Yen' },
+  { code: 'KRW', symbol: '₩', flag: 'https://flagcdn.com/w40/kr.png', flagAlt: 'KR', name: 'Korean Won' },
+  { code: 'AUD', symbol: 'A$', flag: 'https://flagcdn.com/w40/au.png', flagAlt: 'AU', name: 'Australian Dollar' },
+  { code: 'GBP', symbol: '£', flag: 'https://flagcdn.com/w40/gb.png', flagAlt: 'GB', name: 'British Pound' },
+  { code: 'EUR', symbol: '€', flag: 'https://flagcdn.com/w40/eu.png', flagAlt: 'EU', name: 'Euro' },
+  { code: 'RUB', symbol: '₽', flag: 'https://flagcdn.com/w40/ru.png', flagAlt: 'RU', name: 'Russian Ruble' },
+  { code: 'CAD', symbol: 'C$', flag: 'https://flagcdn.com/w40/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
+  { code: 'IDR', symbol: 'Rp', flag: 'https://flagcdn.com/w40/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
 ];
+
 
 // 多语言货币名称
 const CURRENCY_NAMES: Record<string, Record<string, string>> = {
@@ -571,7 +582,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     selectedCurrencyCode === currency.code ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  <span>{currency.flag}</span>
+                  <img src={currency.flag} alt={currency.flagAlt} className="w-4 h-3 rounded-sm object-cover" />
                   <span>{currency.code}</span>
                   <span>({currency.symbol})</span>
                 </button>
