@@ -29,7 +29,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-              {
         // Admin 页面需要 SharedArrayBuffer（裁图上传），加跨域隔离头
         source: '/admin/:path*',
         headers: [
