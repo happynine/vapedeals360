@@ -147,6 +147,45 @@ const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
   'Global': [{ code: 'USD', symbol: '$' }],
 };
 
+/**
+ * Filter product prices by sales region.
+ * 
+ * Matching priority:
+ * 1. price.region matches salesRegion
+ * 2. price has no region set → check store.regions for a match
+ * 3. If still no match → check if price.currency matches the region's expected symbol
+ * 
+ * Prices with region set to 'Global' are included for any region selection.
+ * Prices and stores marked inactive/no_quote are always excluded.
+ */
+function filterPricesByRegion(prices: ProductPrice[], salesRegion: string): ProductPrice[] {
+  return prices.filter(p => {
+    // Skip invalid prices
+    if (p.no_quote) return false;
+    if (p.store && !p.store.is_active) return false;
+
+    // 1. Direct region match on the price
+    if (p.region) {
+      if (p.region === 'Global') return true;
+      if (p.region === salesRegion) return true;
+      return false;
+    }
+
+    // 2. No region on price → check store's regions array
+    const storeRegions = p.store?.regions || [];
+    if (storeRegions.length > 0) {
+      const matched = storeRegions.find(r => r.region === salesRegion || r.region === 'Global');
+      if (matched) return true;
+      // Store has regions but none match → try currency fallback below
+    }
+
+    // 3. Currency symbol fallback (for prices without region data)
+    const priceCurrency = p.currency || '$';
+    const expectedSymbols = REGION_CURRENCIES[salesRegion]?.map(c => c.symbol) || ['$'];
+    return expectedSymbols.includes(priceCurrency);
+  });
+}
+
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
   if (!prices || prices.length === 0) return null;
   return prices.reduce((min, p) => parseFloat(p.current_price) < parseFloat(min.current_price) ? p : min, prices[0]);
@@ -438,7 +477,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <div className="flex items-center gap-2 mb-4">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 animate-pulse-deal">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
+                <path d="M12.395 2.553a1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
               </svg>
               {language === "zh" ? "今日特价" : "HOT DEALS"}
             </span>
@@ -446,9 +485,12 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {featuredProducts.slice(0, 3).map(product => {
               const t = getTranslation(product.translations, language);
-              const lowest = getLowestPrice(product.prices);
-              const highestOrig = getHighestOriginal(product.prices);
-              const discountInfo = getDiscountDisplay(product.prices);
+              // Apply region filtering to featured products too
+              const regionPrices = filterPricesByRegion(product.prices, salesRegion);
+              const displayPrices = regionPrices.length > 0 ? regionPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
+              const lowest = getLowestPrice(displayPrices);
+              const highestOrig = getHighestOriginal(displayPrices);
+              const discountInfo = getDiscountDisplay(displayPrices);
 
               return (
                 <Link
@@ -475,17 +517,17 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                         <span className="text-xl font-bold text-emerald-600 tabular-nums">
                           {lowest?.currency || '$'}{lowest?.current_price || "—"}
                         </span>
-                        {highestOrig && product.prices.length >= 2 && (
+                        {highestOrig && displayPrices.length >= 2 && (
                           <span className="text-xs text-emerald-600 font-medium ml-0.5">
                             {language === "zh" ? "最低价" : "Lowest"}
                           </span>
                         )}
-                        {highestOrig && product.prices.length < 2 && (
+                        {highestOrig && displayPrices.length < 2 && (
                           <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>
                         )}
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
-                        {product.prices.length} {language === "zh" ? "家商城比价" : "stores compared"}
+                        {displayPrices.length} {language === "zh" ? "家商城比价" : "stores compared"}
                       </p>
                     </div>
                   </div>
@@ -680,7 +722,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       ) : filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 0 00-.707.293l-2.414 2.414a1 0 01-.707.293h-3.172a1 0 01-.707-.293l-2.414-2.414A1 0 006.586 13H4" />
           </svg>
           <p className="mt-4 text-lg text-gray-400">{language === "zh" ? "暂无产品" : "No products found"}</p>
         </div>
@@ -689,52 +731,16 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           {filteredProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
 
-            // 获取所有商城的地区-货币映射
-            const storeRegionCurrencyMap = new Map<string, string>();
-            product.prices.forEach(p => {
-              if (p.store && Array.isArray(p.store.regions)) {
-                p.store.regions.forEach((r: { region: string; currency: string }) => {
-                  if (r.region && r.currency) {
-                    storeRegionCurrencyMap.set(r.region, r.currency);
-                  }
-                });
-              }
-            });
+            // ===== Region-based price filtering (single helper function) =====
+            const regionFiltered = filterPricesByRegion(product.prices, salesRegion);
+            // If no prices match the selected region, hide this product entirely
+            if (regionFiltered.length === 0) return null;
+            const displayPrices = regionFiltered;
 
-            // 根据地区获取对应的货币
-            const regionCurrency = storeRegionCurrencyMap.get(salesRegion) || selectedCurrency;
-
-            const regionFilteredPrices = product.prices.filter(p => {
-              if (p.no_quote) return false;
-              if (p.store && !p.store.is_active) return false;
-              const priceRegion = p.region;
-              // 如果价格没有设置 region，fallback 到显示所有地区
-              if (!priceRegion) return true;
-              if (salesRegion === 'Global') return priceRegion === 'Global';
-              if (priceRegion === 'Global') return true;
-              if (priceRegion === salesRegion) return true;
-              return false;
-            });
-
-            const displayPrices = regionFilteredPrices.filter(p => {
-              const priceCurrency = p.currency || '$';
-              const priceRegion = p.region;
-              // 如果价格没有设置 region，根据商城的地区-货币映射筛选
-              if (!priceRegion) return priceCurrency === regionCurrency;
-              // Global 地区的价格也要检查货币是否匹配
-              if (salesRegion !== 'Global' && priceRegion === 'Global') return priceCurrency === regionCurrency;
-              return priceCurrency === regionCurrency;
-            });
-
-            // 如果没有匹配货币的价格，fallback 到显示所有价格（避免产品不显示）
-            const finalPrices = displayPrices.length > 0 ? displayPrices : regionFilteredPrices;
-
-            if (finalPrices.length === 0) return null;
-
-            const lowest = getLowestPrice(finalPrices);
-            const highestOrig = getHighestOriginal(finalPrices);
-            const discountInfo = getDiscountDisplay(finalPrices);
-            const sortedPrices = [...finalPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+            const lowest = getLowestPrice(displayPrices);
+            const highestOrig = getHighestOriginal(displayPrices);
+            const discountInfo = getDiscountDisplay(displayPrices);
+            const sortedPrices = [...displayPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
 
             return (
               <div
@@ -786,13 +792,13 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     <span className="text-base sm:text-2xl font-bold text-emerald-600 tabular-nums">
                       {lowest?.currency || '$'}{lowest?.current_price || "—"}
                     </span>
-                    {highestOrig && product.prices.length >= 2 && (
+                    {highestOrig && displayPrices.length >= 2 && (
                       <span className="text-[10px] sm:text-xs text-emerald-600 font-medium ml-0.5">
                         {language === "zh" ? "最低价" : "Lowest"}
                       </span>
                     )}
-                    {highestOrig && product.prices.length < 2 && (
-                      <span className="text-xs sm:text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>
+                    {highestOrig && displayPrices.length < 2 && (
+                      <span className="text-xs sm:text-sm text-gray-400 line-through tabular-nums">{lowest?.currency || '$'}{highestOrig}</span>
                     )}
                   </div>
                   {/* Mobile: only show top store price; Desktop: show full store list */}
@@ -901,7 +907,7 @@ function Pagination({
   totalPages: number;
   total: number;
   language: string;
-  onPageChange: (page: number) => void;
+  onPageChange: (newPage: number) => void;
 }) {
   const [jumpValue, setJumpValue] = useState("");
 
