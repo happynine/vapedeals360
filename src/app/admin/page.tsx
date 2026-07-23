@@ -10,6 +10,19 @@ import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// Currency options with flag, code, and symbol
+const CURRENCY_OPTIONS = [
+  { code: 'USD', symbol: '$', flag: '🇺🇸' },
+  { code: 'JPY', symbol: '¥', flag: '🇯🇵' },
+  { code: 'GBP', symbol: '£', flag: '🇬🇧' },
+  { code: 'EUR', symbol: '€', flag: '🇺' },
+  { code: 'CAD', symbol: 'CA$', flag: '🇨🇦' },
+  { code: 'AUD', symbol: 'A$', flag: '🇦🇺' },
+  { code: 'RUB', symbol: '₽', flag: '🇷' },
+  { code: 'KRW', symbol: '₩', flag: '🇰🇷' },
+  { code: 'IDR', symbol: 'Rp', flag: '🇩' },
+];
+
 import dynamic from 'next/dynamic';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="min-h-[300px] rounded-lg border border-border bg-secondary animate-pulse" /> });
@@ -1906,7 +1919,6 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (EN)', '名称 (英文)', adminLang)}</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Regions', '地区', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Currencies', '货币', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Website', '网址', adminLang)}</th>
@@ -1940,8 +1952,15 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'en')?.name || '—'}</td>
-                          <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.region).join(', ') || '—' : '—'}</td>
-                          <td className="px-4 py-3 text-sm">{Array.isArray(store.regions) ? store.regions.map((r: any) => r.currency).join(', ') || '—' : '—'}</td>
+                          <td className="px-4 py-3 text-sm">
+                            {Array.isArray(store.regions) && store.regions.length > 0
+                              ? store.regions.map((r: any) => {
+                                  const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
+                                  return curr ? `${curr.flag} ${curr.code} (${curr.symbol})` : r.currency;
+                                }).join(', ')
+                              : '—'
+                            }
+                          </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-32" title={store.notes || ''}>{store.notes || '—'}</td>
                           <td className="px-4 py-3 text-sm truncate max-w-48">
                             {Array.isArray(store.website_urls) && store.website_urls.length > 0
@@ -5269,20 +5288,21 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
   const [isActive, setIsActive] = useState(store?.is_active !== false);
   const [regions, setRegions] = useState<Array<{region: string; currency: string}>>(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
   const [notes, setNotes] = useState(store?.notes || '');
-  const [regionDropdownOpen, setRegionDropdownOpen] = useState(false);
-  const [regionDropdownIdx, setRegionDropdownIdx] = useState<number | null>(null);
+  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
+  const [currencyDropdownIdx, setCurrencyDropdownIdx] = useState<number | null>(null);
 
-  const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Russia', 'Japan', 'Europe'];
+  // 货币选项：国旗 + 代码 + 符号
   const CURRENCY_OPTIONS = [
-    { value: '$', label: 'USD ($)' },
-    { value: '€', label: 'EUR (€)' },
-    { value: '£', label: 'GBP (£)' },
-    { value: 'Fr.', label: 'CHF (Fr.)' },
-    { value: '₽', label: 'RUB (₽)' },
-    { value: '¥', label: 'JPY (¥)' },
-    { value: '₩', label: 'KRW (₩)' },
+    { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+    { code: 'JPY', symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+    { code: 'KRW', symbol: '₩', flag: '🇰', name: 'Korean Won' },
+    { code: 'AUD', symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
+    { code: 'GBP', symbol: '£', flag: '🇬🇧', name: 'British Pound' },
+    { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
+    { code: 'RUB', symbol: '₽', flag: '', name: 'Russian Ruble' },
+    { code: 'CAD', symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
+    { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
   ];
-  const DEFAULT_CURRENCY_MAP: Record<string, string> = { Global: '$', USA: '$', Canada: '$', UK: '£', Russia: '₽', Japan: '¥', Europe: '€' };
 
   const addRegion = () => {
     setRegions([...regions, { region: '', currency: '' }]);
@@ -5293,9 +5313,6 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
   const updateRegion = (idx: number, field: 'region' | 'currency', value: string) => {
     const newRegions = [...regions];
     newRegions[idx] = { ...newRegions[idx], [field]: value };
-    if (field === 'region') {
-      newRegions[idx].currency = DEFAULT_CURRENCY_MAP[value] || '';
-    }
     setRegions(newRegions);
   };
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
@@ -5446,49 +5463,43 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 </div>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{t('Sales Region', '售卖地区', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Currency', '货币', lang)}</label>
                 <div className="mt-1 space-y-2">
                   {regions.map((r, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <button
                           type="button"
-                          onClick={() => { setRegionDropdownOpen(regionDropdownOpen && regionDropdownIdx === idx ? false : true); setRegionDropdownIdx(idx); }}
+                          onClick={() => { setCurrencyDropdownOpen(currencyDropdownOpen && currencyDropdownIdx === idx ? false : true); setCurrencyDropdownIdx(idx); }}
                           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-left flex items-center justify-between"
                         >
-                          <span>{r.region || t('Select Region', '选择地区', lang)}</span>
+                          <span>
+                            {r.currency ? (() => {
+                              const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
+                              return curr ? `${curr.flag} ${curr.code} (${curr.symbol})` : r.currency;
+                            })() : t('Select Currency', '选择货币', lang)}
+                          </span>
                           <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </button>
-                        {regionDropdownOpen && regionDropdownIdx === idx && (
+                        {currencyDropdownOpen && currencyDropdownIdx === idx && (
                           <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg">
-                            {REGION_OPTIONS.map((opt) => {
-                              const hasGlobal = regions.some((rr, ii) => ii !== idx && rr.region === 'Global');
-                              const disabled = (opt === 'Global' && regions.some((rr, ii) => ii !== idx && rr.region !== '')) || (opt !== 'Global' && hasGlobal) || regions.some((rr, ii) => ii !== idx && rr.region === opt);
+                            {CURRENCY_OPTIONS.map((opt) => {
+                              const disabled = regions.some((rr, ii) => ii !== idx && rr.currency === opt.code);
                               return (
                                 <button
-                                  key={opt}
+                                  key={opt.code}
                                   type="button"
                                   disabled={disabled}
-                                  onClick={() => { updateRegion(idx, 'region', opt); setRegionDropdownOpen(false); setRegionDropdownIdx(null); }}
-                                  className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'} ${r.region === opt ? 'bg-secondary' : ''}`}
+                                  onClick={() => { updateRegion(idx, 'currency', opt.code); setCurrencyDropdownOpen(false); setCurrencyDropdownIdx(null); }}
+                                  className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'} ${r.currency === opt.code ? 'bg-secondary' : ''}`}
                                 >
-                                  {r.region === opt && <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                                  <span className={r.region === opt ? '' : 'ml-6'}>{opt}</span>
+                                  {r.currency === opt.code && <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                  <span className={r.currency === opt.code ? '' : 'ml-6'}>{opt.flag} {opt.code} ({opt.symbol})</span>
                                 </button>
                               );
                             })}
                           </div>
                         )}
-                      </div>
-                      <div className="relative">
-                        <select
-                          value={r.currency}
-                          onChange={(e) => updateRegion(idx, 'currency', e.target.value)}
-                          className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
-                        >
-                          <option value="">{t('Currency', '货币', lang)}</option>
-                          {CURRENCY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
                       </div>
                       <button type="button" onClick={() => removeRegion(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive">
                         <X className="w-4 h-4" />
@@ -5496,7 +5507,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                     </div>
                   ))}
                   <button type="button" onClick={addRegion} className="text-xs text-primary hover:underline">
-                    + {t('Add Sales Region', '添加售卖地区', lang)}
+                    + {t('Add Currency', '添加货币', lang)}
                   </button>
                 </div>
               </div>

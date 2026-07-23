@@ -137,14 +137,54 @@ function getTranslation<T extends { language: string }>(translations: T[] | unde
   return translations.find(t => t.language === language) || translations.find(t => t.language === "en") || translations[0];
 }
 
-const REGION_CURRENCIES: Record<string, { code: string; symbol: string }[]> = {
-  'USA': [{ code: 'USD', symbol: '$' }],
-  'UK': [{ code: 'GBP', symbol: '£' }, { code: 'USD', symbol: '$' }],
-  'Canada': [{ code: 'USD', symbol: '$' }],
-  'Russia': [{ code: 'RUB', symbol: '₽' }],
-  'Japan': [{ code: 'JPY', symbol: '¥' }],
-  'Europe': [{ code: 'EUR', symbol: '€' }],
-  'Global': [{ code: 'USD', symbol: '$' }],
+// 货币定义：国旗 emoji + 货币代码 + 货币符号
+const CURRENCIES = [
+  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  { code: 'JPY', symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+  { code: 'KRW', symbol: '₩', flag: '🇰🇷', name: 'Korean Won' },
+  { code: 'AUD', symbol: 'A$', flag: '🇦🇺', name: 'Australian Dollar' },
+  { code: 'GBP', symbol: '£', flag: '🇬🇧', name: 'British Pound' },
+  { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
+  { code: 'RUB', symbol: '₽', flag: '🇺', name: 'Russian Ruble' },
+  { code: 'CAD', symbol: 'C$', flag: '🇨🇦', name: 'Canadian Dollar' },
+  { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+];
+
+// 多语言货币名称
+const CURRENCY_NAMES: Record<string, Record<string, string>> = {
+  en: {
+    USD: 'US Dollar',
+    JPY: 'Japanese Yen',
+    KRW: 'Korean Won',
+    AUD: 'Australian Dollar',
+    GBP: 'British Pound',
+    EUR: 'Euro',
+    RUB: 'Russian Ruble',
+    CAD: 'Canadian Dollar',
+    IDR: 'Indonesian Rupiah',
+  },
+  zh: {
+    USD: '美元',
+    JPY: '日元',
+    KRW: '韩元',
+    AUD: '澳元',
+    GBP: '英镑',
+    EUR: '欧元',
+    RUB: '卢布',
+    CAD: '加元',
+    IDR: '印尼盾',
+  },
+  ja: {
+    USD: '米ドル',
+    JPY: '日本円',
+    KRW: '韓国ウォン',
+    AUD: 'オーストラリアドル',
+    GBP: '英国ポンド',
+    EUR: 'ユーロ',
+    RUB: 'ロシアルーブル',
+    CAD: 'カナダドル',
+    IDR: 'インドネシアルピア',
+  },
 };
 
 /**
@@ -280,7 +320,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [salesRegion, setSalesRegion] = useState<string>("USA");
+  // 默认选择美元
+  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>("USD");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
     const hasFetchedRef = useRef(false);
 
@@ -296,8 +337,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       if (selectedCategory) params.set("category_id", selectedCategory.toString());
       if (searchQuery) params.set("search", searchQuery);
-      if (salesRegion) params.set("sales_region", salesRegion);
-      if (selectedCurrency) params.set("currency", selectedCurrency);
+      if (selectedCurrencyCode) params.set("currency", selectedCurrencyCode);
       if (sortBy === "newest") {
         params.set("sort_by", "id");
         params.set("sort_order", "desc");
@@ -337,20 +377,17 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
     } finally {
       setLoading(false);
     }
-  }, [language, page, selectedCategory, salesRegion, selectedCurrency, searchQuery, sortBy]);
+  }, [language, page, selectedCategory, selectedCurrencyCode, selectedCurrency, searchQuery, sortBy]);
 
   // Mount effect - read from sessionStorage
   useEffect(() => {
-    const savedRegion = sessionStorage.getItem('salesRegion');
-    const savedCurrency = savedRegion ? sessionStorage.getItem(`selectedCurrency_${savedRegion}`) : null;
+    const savedCurrencyCode = sessionStorage.getItem('selectedCurrencyCode');
     
-    if (savedRegion) {
-      setSalesRegion(savedRegion);
-      const currencies = REGION_CURRENCIES[savedRegion] || [{ code: 'USD', symbol: '$' }];
-      if (savedCurrency && currencies.some(c => c.symbol === savedCurrency)) {
-        setSelectedCurrency(savedCurrency);
-      } else {
-        setSelectedCurrency(currencies[0].symbol);
+    if (savedCurrencyCode) {
+      const currency = CURRENCIES.find(c => c.code === savedCurrencyCode);
+      if (currency) {
+        setSelectedCurrencyCode(currency.code);
+        setSelectedCurrency(currency.symbol);
       }
     }
     setMounted(true);
@@ -540,86 +577,42 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       {/* Filter Controls */}
       <div className="mb-6 space-y-3">
-        {/* Region */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "地区" : "Region"}</span>
-          {!mounted ? (
+        {/* Currency Filter */}
+        {!mounted ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
             <div className="flex gap-2">
-              {["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"].map((region) => (
-                <div key={region} className="h-7 w-16 rounded-full bg-gray-100 animate-pulse" />
+              {CURRENCIES.slice(0, 6).map((currency) => (
+                <div key={currency.code} className="h-7 w-20 rounded-full bg-gray-100 animate-pulse" />
               ))}
             </div>
-          ) : (
-            (["USA", "UK", "Canada", "Russia", "Japan", "Europe", "Global"] as const).map((region) => {
-              const regionLabels: Record<string, string> = {
-                "Global": language === "zh" ? "全球" : "Global",
-                "USA": language === "zh" ? "美国" : "USA",
-                "Canada": language === "zh" ? "加拿大" : "Canada",
-                "UK": language === "zh" ? "英国" : "UK",
-                "Russia": language === "zh" ? "俄罗斯" : "Russia",
-                "Japan": language === "zh" ? "日本" : "Japan",
-                "Europe": language === "zh" ? "欧洲" : "Europe",
-              };
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
+            {CURRENCIES.map((currency) => {
+              const currencyName = CURRENCY_NAMES[language]?.[currency.code] || currency.name;
               return (
                 <button
-                  key={region}
+                  key={currency.code}
                   onClick={() => {
-                    setSalesRegion(region);
+                    setSelectedCurrencyCode(currency.code);
+                    setSelectedCurrency(currency.symbol);
                     setPage(1);
-                    sessionStorage.setItem('salesRegion', region);
-                    const currencies = REGION_CURRENCIES[region] || [{ code: 'USD', symbol: '$' }];
-                    const regionCurrency = sessionStorage.getItem(`selectedCurrency_${region}`);
-                    if (regionCurrency && currencies.some(c => c.symbol === regionCurrency)) {
-                      setSelectedCurrency(regionCurrency);
-                    } else {
-                      setSelectedCurrency(currencies[0].symbol);
-                    }
+                    sessionStorage.setItem('selectedCurrencyCode', currency.code);
                   }}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                    salesRegion === region ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    selectedCurrencyCode === currency.code ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  {regionLabels[region]}
+                  <span>{currency.flag}</span>
+                  <span>{currency.code}</span>
+                  <span>({currency.symbol})</span>
                 </button>
               );
-            })
-          )}
-        </div>
-
-        {/* Currency */}
-        {mounted && (() => {
-          const currencies = REGION_CURRENCIES[salesRegion] || [{ code: 'USD', symbol: '$' }];
-          if (currencies.length <= 1) return null;
-          return (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
-              {currencies.map((currency) => {
-                const currencyLabels: Record<string, string> = {
-                  'USD': `USD (${currency.symbol})`,
-                  'GBP': `GBP (${currency.symbol})`,
-                  'EUR': `EUR (${currency.symbol})`,
-                  'JPY': `JPY (${currency.symbol})`,
-                  'RUB': `RUB (${currency.symbol})`,
-                };
-                return (
-                  <button
-                    key={currency.code}
-                    onClick={() => {
-                      setSelectedCurrency(currency.symbol);
-                      setPage(1);
-                      sessionStorage.setItem(`selectedCurrency_${salesRegion}`, currency.symbol);
-                    }}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                      selectedCurrency === currency.symbol ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {currencyLabels[currency.code] || `${currency.code} (${currency.symbol})`}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })()}
+            })}
+          </div>
+        )}
 
         {/* Category */}
         <div className="flex flex-wrap items-center gap-3">
@@ -731,16 +724,23 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           {filteredProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
 
-            // ===== Region-based price filtering (single helper function) =====
-            const regionFiltered = filterPricesByRegion(product.prices, salesRegion);
-            // If no prices match the selected region, hide this product entirely
-            if (regionFiltered.length === 0) return null;
-            const displayPrices = regionFiltered;
+            // 直接按货币筛选价格
+            const displayPrices = product.prices.filter(p => {
+              if (p.no_quote) return false;
+              if (p.store && !p.store.is_active) return false;
+              const priceCurrency = p.currency || '$';
+              return priceCurrency === selectedCurrency;
+            });
 
-            const lowest = getLowestPrice(displayPrices);
-            const highestOrig = getHighestOriginal(displayPrices);
-            const discountInfo = getDiscountDisplay(displayPrices);
-            const sortedPrices = [...displayPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+            // 如果没有匹配货币的价格，fallback 到显示所有价格（避免产品不显示）
+            const finalPrices = displayPrices.length > 0 ? displayPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
+
+            if (finalPrices.length === 0) return null;
+
+            const lowest = getLowestPrice(finalPrices);
+            const highestOrig = getHighestOriginal(finalPrices);
+            const discountInfo = getDiscountDisplay(finalPrices);
+            const sortedPrices = [...finalPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
 
             return (
               <div
