@@ -187,45 +187,6 @@ const CURRENCY_NAMES: Record<string, Record<string, string>> = {
   },
 };
 
-/**
- * Filter product prices by sales region.
- * 
- * Matching priority:
- * 1. price.region matches salesRegion
- * 2. price has no region set → check store.regions for a match
- * 3. If still no match → check if price.currency matches the region's expected symbol
- * 
- * Prices with region set to 'Global' are included for any region selection.
- * Prices and stores marked inactive/no_quote are always excluded.
- */
-function filterPricesByRegion(prices: ProductPrice[], salesRegion: string): ProductPrice[] {
-  return prices.filter(p => {
-    // Skip invalid prices
-    if (p.no_quote) return false;
-    if (p.store && !p.store.is_active) return false;
-
-    // 1. Direct region match on the price
-    if (p.region) {
-      if (p.region === 'Global') return true;
-      if (p.region === salesRegion) return true;
-      return false;
-    }
-
-    // 2. No region on price → check store's regions array
-    const storeRegions = p.store?.regions || [];
-    if (storeRegions.length > 0) {
-      const matched = storeRegions.find(r => r.region === salesRegion || r.region === 'Global');
-      if (matched) return true;
-      // Store has regions but none match → try currency fallback below
-    }
-
-    // 3. Currency symbol fallback (for prices without region data)
-    const priceCurrency = p.currency || '$';
-    const expectedSymbols = REGION_CURRENCIES[salesRegion]?.map(c => c.symbol) || ['$'];
-    return expectedSymbols.includes(priceCurrency);
-  });
-}
-
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
   if (!prices || prices.length === 0) return null;
   return prices.reduce((min, p) => parseFloat(p.current_price) < parseFloat(min.current_price) ? p : min, prices[0]);
@@ -522,9 +483,14 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {featuredProducts.slice(0, 3).map(product => {
               const t = getTranslation(product.translations, language);
-              // Apply region filtering to featured products too
-              const regionPrices = filterPricesByRegion(product.prices, salesRegion);
-              const displayPrices = regionPrices.length > 0 ? regionPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
+              // Apply currency filtering to featured products
+              const currencyPrices = product.prices.filter(p => {
+                if (p.no_quote) return false;
+                if (p.store && !p.store.is_active) return false;
+                const priceCurrency = p.currency || '$';
+                return priceCurrency === selectedCurrency;
+              });
+              const displayPrices = currencyPrices.length > 0 ? currencyPrices : product.prices.filter(p => !p.no_quote && (!p.store || p.store.is_active));
               const lowest = getLowestPrice(displayPrices);
               const highestOrig = getHighestOriginal(displayPrices);
               const discountInfo = getDiscountDisplay(displayPrices);
