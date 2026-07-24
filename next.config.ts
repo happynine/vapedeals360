@@ -28,21 +28,6 @@ const nextConfig: NextConfig = {
   // 缓存 headers 配置 - 让 Cloudflare 和 Vercel 边缘可以缓存
   async headers() {
     return [
-      {
-        // Admin 页面需要 SharedArrayBuffer（裁图上传），加跨域隔离头
-        source: '/admin/:path*',
-        headers: [
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
-          },
-        ],
-      },
-      {
         // HTML 页面 - ISR 缓存 60 秒
         source: '/:path*',
         headers: [
