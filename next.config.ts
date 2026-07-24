@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Cross-Origin-Embedder-Policy',
-            value: 'credentialless',
+            value: 'require-corp',
           },
         ],
       },
