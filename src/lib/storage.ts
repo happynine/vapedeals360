@@ -19,10 +19,13 @@ export function getS3Storage(): S3Storage {
 }
 
 export interface UploadResult {
-  key: string;
-  url: string;
+  key: string;   // The storage key or URL to persist in DB
+  url: string;   // The accessible URL for display
 }
 
+/**
+ * Upload a file. On Vercel uses Vercel Blob; in Coze sandbox uses S3Storage.
+ */
 export async function uploadFile(params: {
   fileContent: Buffer;
   fileName: string;
@@ -75,6 +78,7 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
   if (useVercelBlob) {
     return `/api/image?key=${encodeURIComponent(key)}`;
   }
+
   try {
     return await getS3Storage().generatePresignedUrl({ key, expireTime: 3600 });
   } catch {
@@ -86,6 +90,7 @@ export { useVercelBlob };
 
 export async function deleteFile(key: string | null | undefined): Promise<boolean> {
   if (!key) return false;
+
   if (useVercelBlob) {
     if (key.startsWith('http://') || key.startsWith('https://')) {
       try {
@@ -99,7 +104,9 @@ export async function deleteFile(key: string | null | undefined): Promise<boolea
     }
     return false;
   } else {
-    if (key.startsWith('http://') || key.startsWith('https://')) return false;
+    if (key.startsWith('http://') || key.startsWith('https://')) {
+      return false;
+    }
     try {
       return await getS3Storage().deleteFile({ fileKey: key });
     } catch (err) {
@@ -124,7 +131,7 @@ export function extractImageKeysFromHtml(html: string | null | undefined): strin
 }
 
 /**
- * 动态加载 sharp 并强制单线程运行
+ * 彻底移除 sharp，直接利用前端裁好的图片流进行上传存储
  */
 export async function uploadProductImage(params: {
   fileContent: Buffer;
@@ -136,43 +143,19 @@ export async function uploadProductImage(params: {
   small: UploadResult;
 }> {
   const { fileContent, fileName, contentType, folder = 'products' } = params;
-
-  // 使用 import() 动态引入 sharp，防止在打包和启动时触发多线程初始化
-  const { default: sharp } = await import('sharp');
-  // 确保关闭并发
-  sharp.concurrency(1);
-
-  // Resize to 640x640
-  const largeBuffer = await sharp(fileContent)
-    .resize(640, 640, { fit: 'cover', position: 'center' })
-    .toFormat('webp', { quality: 85 })
-    .toBuffer();
-
-  // Resize to 315x315
-  const smallBuffer = await sharp(fileContent)
-    .resize(315, 315, { fit: 'cover', position: 'center' })
-    .toFormat('webp', { quality: 85 })
-    .toBuffer();
-
-  const timestamp = Date.now();
   const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
 
-  const largeResult = await uploadFile({
-    fileContent: largeBuffer,
-    fileName: `${baseName}-640.webp`,
-    contentType: 'image/webp',
+  // 直接上传前端已裁剪过的原生图片流
+  const uploadResult = await uploadFile({
+    fileContent,
+    fileName: `${baseName}.jpg`,
+    contentType,
     folder,
   });
 
-  const smallResult = await uploadFile({
-    fileContent: smallBuffer,
-    fileName: `${baseName}-315.webp`,
-    contentType: 'image/webp',
-    folder,
-  });
-
+  // 同时作为大图和小图返回（前端已做适当的尺寸缩放控制）
   return {
-    large: largeResult,
-    small: smallResult,
+    large: uploadResult,
+    small: uploadResult,
   };
 }
