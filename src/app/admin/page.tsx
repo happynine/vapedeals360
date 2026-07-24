@@ -8,7 +8,7 @@ import LogoUpload from '@/components/logo-upload';
 import ImageCropModal from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
-import { getImageUrl } from '@/lib/storage';
+import { getImageUrl } from '@/lib/image-url';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Currency options with flag, code, and symbol
