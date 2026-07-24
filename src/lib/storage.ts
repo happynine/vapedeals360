@@ -2,6 +2,9 @@ import { put } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
 import sharp from 'sharp';
 
+// 【关键修改点】显式关闭 sharp 的多线程并发，防止在 Vercel Serverless 环境中触发 SharedArrayBuffer 报错
+sharp.concurrency(1);
+
 // Use Vercel Blob when BLOB_READ_WRITE_TOKEN is available (Vercel deployment)
 // Otherwise fall back to S3Storage (Coze sandbox)
 const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
@@ -82,7 +85,7 @@ export function getImageUrl(key: string | null | undefined): string | null {
   }
   if (key.startsWith('/')) {
     return key;
-}
+  }
 
   // S3 key - use proxy
   return `/api/image?key=${encodeURIComponent(key)}`;
@@ -99,9 +102,9 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
   if (key.startsWith('http://') || key.startsWith('https://')) {
     return key;
   }
-if (key.startsWith('/')) {
+  if (key.startsWith('/')) {
     return key;
-}
+  }
   // S3 key - only works in sandbox
   if (useVercelBlob) {
     // On Vercel, S3 keys can't be resolved without Coze sandbox auth
