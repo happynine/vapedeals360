@@ -1,15 +1,9 @@
 import { put } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
-import sharp from 'sharp';
-
-// 【关键修改点】显式关闭 sharp 的多线程并发，防止在 Vercel Serverless 环境中触发 SharedArrayBuffer 报错
-sharp.concurrency(1);
 
 // Use Vercel Blob when BLOB_READ_WRITE_TOKEN is available (Vercel deployment)
-// Otherwise fall back to S3Storage (Coze sandbox)
 const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
-// S3Storage for development (sandbox) - only initialize when needed
 let s3StorageInstance: S3Storage | null = null;
 export function getS3Storage(): S3Storage {
   if (!s3StorageInstance) {
@@ -25,14 +19,10 @@ export function getS3Storage(): S3Storage {
 }
 
 export interface UploadResult {
-  key: string;   // The storage key or URL to persist in DB
-  url: string;   // The accessible URL for display
+  key: string;
+  url: string;
 }
 
-/**
- * Upload a file. On Vercel uses Vercel Blob; in Coze sandbox uses S3Storage.
- * Returns both the key (to store in DB) and the accessible URL.
- */
 export async function uploadFile(params: {
   fileContent: Buffer;
   fileName: string;
@@ -42,7 +32,6 @@ export async function uploadFile(params: {
   const { fileContent, fileName, contentType, folder = 'uploads' } = params;
 
   if (useVercelBlob) {
-    // Vercel Blob: returns a full public URL
     const timestamp = Date.now();
     const ext = fileName.split('.').pop() || 'jpg';
     const path = `${folder}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -53,11 +42,10 @@ export async function uploadFile(params: {
     });
 
     return {
-      key: blob.url,    // Store the full URL in DB (Vercel Blob URLs are permanent)
-      url: blob.url,    // Same URL is directly accessible
+      key: blob.url,
+      url: blob.url,
     };
   } else {
-    // Sandbox: use S3Storage, returns S3 key
     const key = await getS3Storage().uploadFile({
       fileContent,
       fileName: `${folder}/${Date.now()}-${fileName}`,
@@ -65,53 +53,28 @@ export async function uploadFile(params: {
     });
 
     return {
-      key,              // Store the S3 key in DB
-      url: `/api/image?key=${encodeURIComponent(key)}`,  // Proxy URL for display
+      key,
+      url: `/api/image?key=${encodeURIComponent(key)}`,
     };
   }
 }
 
-/**
- * Get an accessible URL for an image key.
- * - If it's already a full URL (Vercel Blob), return as-is.
- * - If it's an S3 key (dev), generate a proxy URL.
- */
 export function getImageUrl(key: string | null | undefined): string | null {
   if (!key) return null;
-
-  // Already a full URL (Vercel Blob or external)
-  if (key.startsWith('http://') || key.startsWith('https://')) {
+  if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('/')) {
     return key;
   }
-  if (key.startsWith('/')) {
-    return key;
-  }
-
-  // S3 key - use proxy
   return `/api/image?key=${encodeURIComponent(key)}`;
 }
 
-/**
- * Generate a presigned URL for an S3 key (dev only).
- * For Vercel Blob URLs, return as-is.
- */
 export async function getPresignedUrl(key: string | null | undefined): Promise<string | null> {
   if (!key) return null;
-
-  // Already a full URL
-  if (key.startsWith('http://') || key.startsWith('https://')) {
+  if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('/')) {
     return key;
   }
-  if (key.startsWith('/')) {
-    return key;
-  }
-  // S3 key - only works in sandbox
   if (useVercelBlob) {
-    // On Vercel, S3 keys can't be resolved without Coze sandbox auth
-    // Fallback to proxy endpoint
     return `/api/image?key=${encodeURIComponent(key)}`;
   }
-
   try {
     return await getS3Storage().generatePresignedUrl({ key, expireTime: 3600 });
   } catch {
@@ -121,17 +84,9 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
 
 export { useVercelBlob };
 
-/**
- * Delete a file from storage by its key or URL.
- * - For S3 keys (dev sandbox), uses S3Storage.deleteFile.
- * - For Vercel Blob URLs, uses @vercel/blob del.
- * - For external URLs (http/https not matching Vercel Blob), skip deletion (not our storage).
- */
 export async function deleteFile(key: string | null | undefined): Promise<boolean> {
   if (!key) return false;
-
   if (useVercelBlob) {
-    // Vercel Blob: key is stored as a full URL
     if (key.startsWith('http://') || key.startsWith('https://')) {
       try {
         const { del } = await import('@vercel/blob');
@@ -142,14 +97,9 @@ export async function deleteFile(key: string | null | undefined): Promise<boolea
         return false;
       }
     }
-    // Not a URL in Vercel mode - can't delete
     return false;
   } else {
-    // Sandbox: key is an S3 key
-    if (key.startsWith('http://') || key.startsWith('https://')) {
-      // External URL, not our storage - skip
-      return false;
-    }
+    if (key.startsWith('http://') || key.startsWith('https://')) return false;
     try {
       return await getS3Storage().deleteFile({ fileKey: key });
     } catch (err) {
@@ -159,10 +109,6 @@ export async function deleteFile(key: string | null | undefined): Promise<boolea
   }
 }
 
-/**
- * Extract all image URLs/keys from HTML content.
- * Returns an array of src values from <img> tags.
- */
 export function extractImageKeysFromHtml(html: string | null | undefined): string[] {
   if (!html) return [];
   const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
@@ -178,11 +124,7 @@ export function extractImageKeysFromHtml(html: string | null | undefined): strin
 }
 
 /**
- * Upload a product image and generate two sizes:
- * - 315x315px for product list cards
- * - 640x640px for product detail page
- *
- * Returns both URLs for storage in database.
+ * 动态加载 sharp 并强制单线程运行
  */
 export async function uploadProductImage(params: {
   fileContent: Buffer;
@@ -190,18 +132,23 @@ export async function uploadProductImage(params: {
   contentType: string;
   folder?: string;
 }): Promise<{
-  large: UploadResult;  // 640x640px for detail page
-  small: UploadResult;  // 315x315px for list cards
+  large: UploadResult;
+  small: UploadResult;
 }> {
   const { fileContent, fileName, contentType, folder = 'products' } = params;
 
-  // Resize to 640x640 (large for detail page)
+  // 使用 import() 动态引入 sharp，防止在打包和启动时触发多线程初始化
+  const { default: sharp } = await import('sharp');
+  // 确保关闭并发
+  sharp.concurrency(1);
+
+  // Resize to 640x640
   const largeBuffer = await sharp(fileContent)
     .resize(640, 640, { fit: 'cover', position: 'center' })
     .toFormat('webp', { quality: 85 })
     .toBuffer();
 
-  // Resize to 315x315 (small for list cards)
+  // Resize to 315x315
   const smallBuffer = await sharp(fileContent)
     .resize(315, 315, { fit: 'cover', position: 'center' })
     .toFormat('webp', { quality: 85 })
@@ -210,7 +157,6 @@ export async function uploadProductImage(params: {
   const timestamp = Date.now();
   const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
 
-  // Upload large version
   const largeResult = await uploadFile({
     fileContent: largeBuffer,
     fileName: `${baseName}-640.webp`,
@@ -218,7 +164,6 @@ export async function uploadProductImage(params: {
     folder,
   });
 
-  // Upload small version
   const smallResult = await uploadFile({
     fileContent: smallBuffer,
     fileName: `${baseName}-315.webp`,
