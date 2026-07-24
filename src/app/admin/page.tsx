@@ -8,6 +8,7 @@ import LogoUpload from '@/components/logo-upload';
 import ImageCropModal from '@/components/ImageCropModal';
 import { useSupabaseConfig } from '@/lib/supabase-config-inject';
 import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
+import { getImageUrl } from '@/lib/storage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Currency options with flag, code, and symbol
@@ -834,7 +835,7 @@ export default function AdminPage() {
         <div className="p-6">
           <Link href="/" className="flex items-center gap-2">
             {adminSiteSettings?.logo_url ? (
-              <img src={adminSiteSettings.logo_url.startsWith('http') ? adminSiteSettings.logo_url : `/api/image?key=${encodeURIComponent(adminSiteSettings.logo_url)}`} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
+              <img src={getImageUrl(adminSiteSettings.logo_url)} alt="Logo" className="h-9 w-9 rounded-lg object-cover" />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">{(adminSiteSettings?.site_name || 'V').charAt(0)}</div>
             )}
@@ -1551,6 +1552,7 @@ export default function AdminPage() {
                             const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
                             // 获取产品缩略图
                             const thumbnailUrl = product.image_url_small || product.image_url || null;
+                            const thumbnailDisplayUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
                             // 从产品关联的商城中获取地区信息
                             const productRegions = new Set<string>();
                             product.product_prices?.forEach((price: ProductPrice) => {
@@ -1565,8 +1567,8 @@ export default function AdminPage() {
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
                                 <td className="px-4 py-3">
-                                  {thumbnailUrl ? (
-                                    <img src={thumbnailUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
+                                  {thumbnailDisplayUrl ? (
+                                    <img src={thumbnailDisplayUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
                                   ) : (
                                     <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
                                       <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1698,7 +1700,7 @@ export default function AdminPage() {
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
                                   <td className="px-4 py-3">
                                     {pp.image_url ? (
-                                       <img src={pp.image_key || pp.image_url} alt={productName} className="w-10 h-10 rounded object-cover" />
+                                       <img src={getImageUrl(pp.image_key || pp.image_url)} alt={productName} className="w-10 h-10 rounded object-cover" />
                                     ) : (
                                       <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center text-muted-foreground text-xs">—</div>
                                     )}
@@ -1964,7 +1966,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             {store.logo_url || store.logo_key ? (
                               <img
-                                src={store.logo_url || `/api/image?key=${encodeURIComponent(store.logo_key || '')}`}
+                                src={getImageUrl(store.logo_url || store.logo_key)}
                                 alt="Logo"
                                 className="h-8 w-8 rounded object-contain bg-secondary"
                               />
@@ -2057,9 +2059,9 @@ export default function AdminPage() {
                     return (
                       <div key={banner.id} className="rounded-xl border border-border bg-card overflow-hidden">
                         <div className="relative aspect-[21/6] bg-secondary">
-                          {banner.image_url && <img src={banner.image_url} alt="Banner" className="w-full h-full object-cover" />}
+                          {banner.image_url && <img src={getImageUrl(banner.image_url)} alt="Banner" className="w-full h-full object-cover" />}
                           {!banner.image_url && enTrans?.image_key && (
-                            <img src={`/api/image?key=${encodeURIComponent(enTrans.image_key)}`} alt="Banner" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(enTrans.image_key)} alt="Banner" className="w-full h-full object-cover" />
                           )}
                           {!banner.image_url && !enTrans?.image_key && (
                             <div className="flex items-center justify-center h-full text-xs text-muted-foreground">{t('No image', '无图片', adminLang)}</div>
@@ -4500,7 +4502,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
               <div key={page.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
-                    {page.cover_image ? <img src={page.cover_image.startsWith('http') ? page.cover_image : `/api/image?key=${encodeURIComponent(page.cover_image)}`} alt="" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-primary">{enTitle.charAt(0)}</span>}
+                    {page.cover_image ? <img src={getImageUrl(page.cover_image)} alt="" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-primary">{enTitle.charAt(0)}</span>}
                   </div>
                   <div>
                     <p className="text-sm font-medium">{enTitle}</p>
