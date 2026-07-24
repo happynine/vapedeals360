@@ -13,7 +13,7 @@ export default async function PromotionPage({ params }: { params: Promise<{ slug
   return (
     <div className="min-h-screen bg-white">
       <SiteHeader />
-      <main className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8">
         <Suspense fallback={<PromotionSkeleton />}>
           <PromotionContent slug={slug} />
         </Suspense>

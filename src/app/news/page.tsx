@@ -52,7 +52,7 @@ export default function NewsPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold mb-4">News</h1>
             {description && <p className="text-gray-500 mb-8 max-w-3xl">{description}</p>}
 

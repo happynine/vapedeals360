@@ -164,7 +164,7 @@ export default function PromotionProductPage() {
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
         <main className="flex-1 bg-white">
-          <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* 产品图片骨架 */}
               <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />

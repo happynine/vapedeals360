@@ -687,8 +687,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       {/* Product Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5 gap-3 sm:gap-4">
+          {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 animate-pulse">
               <div className="h-40 sm:h-48 w-full rounded-xl bg-gray-100" />
               <div className="mt-3 h-4 w-3/4 rounded bg-gray-100" />
@@ -708,7 +708,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           <p className="mt-4 text-lg text-gray-400">{language === "zh" ? "暂无产品" : "No products found"}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5 gap-3 sm:gap-4">
           {filteredProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
 

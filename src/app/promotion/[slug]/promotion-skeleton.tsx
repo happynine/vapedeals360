@@ -11,7 +11,7 @@ export function PromotionSkeleton() {
       {/* 产品数量骨架 */}
       <div className="h-6 bg-gray-200 rounded w-20 mb-6"></div>
       {/* 产品卡片网格骨架 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="aspect-[4/3] bg-gray-200"></div>

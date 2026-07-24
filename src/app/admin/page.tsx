@@ -1699,7 +1699,7 @@ export default function AdminPage() {
                                 <tr key={pp.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                                   <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
                                   <td className="px-4 py-3">
-                                    {pp.image_url ? (
+                                    {(pp.image_key || pp.image_url) ? (
                                        <img src={getImageUrl(pp.image_key || pp.image_url)} alt={productName} className="w-10 h-10 rounded object-cover" />
                                     ) : (
                                       <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center text-muted-foreground text-xs">—</div>

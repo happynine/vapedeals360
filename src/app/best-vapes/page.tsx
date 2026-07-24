@@ -39,25 +39,25 @@ export default function BestVapesPage() {
 
       <main className="flex-1 bg-white">
         {loading ? (
-          <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-[40vh]">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-[40vh]">
             {siteSettings?.logo_url ? (
               <img src={siteSettings.logo_url} alt="Logo" className="h-12 mb-4 animate-pulse" />
             ) : (
               <div className="h-12 w-12 rounded-full bg-purple-100 animate-pulse mb-4" />
             )}
             <p className="text-gray-400 text-sm animate-pulse">{siteSettings?.site_name || 'Loading...'}</p>
-            <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {[1,2,3].map(i => (
                 <div key={i} className="h-48 rounded-xl bg-gray-100 animate-pulse" />
               ))}
             </div>
           </div>
         ) : (
-          <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold mb-4">Best Vapes</h1>
             {description && <p className="text-gray-500 mb-8 max-w-3xl">{description}</p>}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
               {pages.map((page) => (
                 <Link
                   key={page.id}

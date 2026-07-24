@@ -28,7 +28,7 @@ export default function DisclaimerPage() {
       <SiteHeader activeTab="" />
 
       <main className="flex-1 bg-white">
-      <div className="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-6">Disclaimer</h1>
         {loading ? (
           <div className="text-center py-20">

@@ -30,7 +30,7 @@ function ProductDetailSkeleton() {
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="" />
-      <div className="mx-auto max-w-[1380px] px-4 py-8 bg-white flex-1">
+      <div className="mx-auto max-w-[1440px] px-4 py-8 bg-white flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
           <div className="space-y-4">

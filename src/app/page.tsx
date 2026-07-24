@@ -149,7 +149,7 @@ function HomePageSkeleton() {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 bg-white">
-        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 pt-6 pb-6">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-6 pb-6">
           {/* Banner skeleton */}
           <div className="mb-8 h-[200px] sm:h-[343px] bg-gray-100 rounded-2xl animate-pulse" />
           
@@ -168,7 +168,7 @@ function HomePageSkeleton() {
           </div>
 
           {/* Product grid skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="rounded-2xl border border-gray-200 bg-white p-4 animate-pulse">
                 <div className="h-48 w-full rounded-xl bg-gray-100" />
@@ -194,7 +194,7 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="vape-deals" />
       <main className="flex-1 bg-white">
-        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-6 pb-6">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-0 sm:pt-6 pb-6">
           <Suspense fallback={<HomePageSkeleton />}>
             <ProductListClient initialData={initialData as unknown as InitialData} />
           </Suspense>

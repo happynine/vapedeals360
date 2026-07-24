@@ -14,7 +14,7 @@ export default function SiteFooter() {
     <>
       {/* Footer Navigation */}
       <footer className="bg-[#0a0a0e] border-t border-gray-800 mt-0">
-        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             {/* Contact Column */}
             <div>
@@ -84,7 +84,7 @@ export default function SiteFooter() {
 
       {/* FDA & NIXODINE Disclaimer */}
       <div className="bg-[#0a0a0e] border-t border-gray-800 py-8">
-        <div className="mx-auto max-w-[1380px] px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 space-y-6">
           <div>
             <h3 className="text-sm font-bold text-gray-400 mb-2">FDA Disclaimer</h3>
             <p className="text-xs text-gray-500 leading-relaxed">
