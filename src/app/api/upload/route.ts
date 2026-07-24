@@ -17,8 +17,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Convert file to buffer safely (avoid SharedArrayBuffer issues)
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
     if (isProductImage) {
       // Upload product image with two sizes
