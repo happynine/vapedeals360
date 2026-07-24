@@ -585,17 +585,17 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       <div className="mb-6 space-y-3">
         {/* Currency Filter */}
         {!mounted ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
+          <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
+            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "货币" : "Currency"}</span>
             <div className="flex gap-2">
               {CURRENCIES.slice(0, 6).map((currency) => (
-                <div key={currency.code} className="h-7 w-20 rounded-full bg-gray-100 animate-pulse" />
+                <div key={currency.code} className="h-7 w-20 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "货币" : "Currency"}</span>
+          <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
+            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "货币" : "Currency"}</span>
             {CURRENCIES.map((currency) => {
               const currencyName = CURRENCY_NAMES[language]?.[currency.code] || currency.name;
               return (
@@ -607,7 +607,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     setPage(1);
                     sessionStorage.setItem('selectedCurrencyCode', currency.code);
                   }}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5 flex-shrink-0 ${
                     selectedCurrencyCode === currency.code ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
@@ -621,15 +621,15 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         )}
 
         {/* Category */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "类型" : "Type"}</span>
+        <div className="flex items-center gap-3 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
+          <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "类型" : "Type"}</span>
           <button
             onClick={() => {
               setSelectedCategory(null);
               setPage(1);
               updateUrl({ category: null, page: 1 });
             }}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all flex-shrink-0 ${
               selectedCategory === null ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200"
             }`}
           >
@@ -645,7 +645,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   setPage(1);
                   updateUrl({ category: cat.id, page: 1 });
                 }}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all flex-shrink-0 ${
                   selectedCategory === cat.id ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200"
                 }`}
               >
@@ -656,11 +656,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         </div>
 
         {/* Sort */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700">{language === "zh" ? "排序" : "Sort By"}</span>
+        <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
+          <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "排序" : "Sort By"}</span>
           <button
             onClick={() => { setSortBy("newest"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex-shrink-0 ${
               sortBy === "newest" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -668,7 +668,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           </button>
           <button
             onClick={() => { setSortBy("price_low"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex-shrink-0 ${
               sortBy === "price_low" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -676,7 +676,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
           </button>
           <button
             onClick={() => { setSortBy("price_high"); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex-shrink-0 ${
               sortBy === "price_high" ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
