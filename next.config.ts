@@ -29,6 +29,34 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Admin 页面和 API 需要 SharedArrayBuffer（裁图上传），加跨域隔离头
+        source: '/admin/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+        ],
+      },
+      {
+        // Upload API 也需要 SharedArrayBuffer 支持
+        source: '/api/upload',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+        ],
+      },
+      {
         // HTML 页面 - ISR 缓存 60 秒
         source: '/:path*',
         headers: [
