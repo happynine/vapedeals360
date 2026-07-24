@@ -1551,7 +1551,7 @@ export default function AdminPage() {
                             const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
                             const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
                             // 获取产品缩略图
-                            const thumbnailUrl = product.image_url_small || product.image_url || null;
+                            const thumbnailUrl = product.image_key || product.image_url || null;
                             const thumbnailDisplayUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
                             // 从产品关联的商城中获取地区信息
                             const productRegions = new Set<string>();
