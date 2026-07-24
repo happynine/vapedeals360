@@ -190,15 +190,12 @@ export function ImageUpload({
       );
       if (!blob) throw new Error('Failed to create image');
 
-      const file = new File([blob], `crop-${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', folder);
-      if (isProductImage) {
-        formData.append('product_image', 'true');
-      }
-
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      // 绕过 FormData，直接发送原始 blob（避免 Vercel Edge 运行时解析 FormData 时的 SharedArrayBuffer 问题）
+      const res = await fetch(`/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
       const json = await res.json();
 
       if (json.success) {
