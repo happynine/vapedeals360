@@ -1,3 +1,6 @@
+// 强制声明使用 Node.js 运行时，以避免 Edge 环境下的 SharedArrayBuffer 报错
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { uploadFile, uploadProductImage } from '@/lib/storage';
