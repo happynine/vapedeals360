@@ -5855,7 +5855,21 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (640x640px)</label>
                 <ImageUpload
                   value={imageKey}
-                  onUploadComplete={setImageKey}
+                  onUploadComplete={(uploadedData) => {
+                    // Parse JSON string with large/small URLs
+                    try {
+                      const parsed = JSON.parse(uploadedData);
+                      if (parsed.large && parsed.small) {
+                        setImageKey(parsed.large);
+                        setImageKeySmall(parsed.small);
+                      } else {
+                        setImageKey(uploadedData);
+                      }
+                    } catch {
+                      // Not JSON, use as-is
+                      setImageKey(uploadedData);
+                    }
+                  }}
                   aspectRatio={1}
                   suggestedSize="640x640px"
                   folder="products"
