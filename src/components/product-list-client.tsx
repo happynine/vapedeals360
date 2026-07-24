@@ -323,7 +323,25 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       if (json.success) {
         setCategories(json.data.categories || []);
-        setProducts(json.data.products || []);
+        // Auto-fill: if filtered products are less than 20, fetch next page
+        let allProducts = json.data.products || [];
+        const validProducts = allProducts.filter((p: Product) => 
+          p.prices.some((pr: ProductPrice) => !pr.no_quote && (!pr.store || pr.store.is_active))
+        );
+        
+        // If we have less than 20 valid products and there are more pages, fetch next page
+        if (validProducts.length < 20 && json.data.pagination?.hasMore) {
+          const nextPage = page + 1;
+          const nextParams = new URLSearchParams(params);
+          nextParams.set("page", nextPage.toString());
+          const nextRes = await fetch(`/api/products?${nextParams}`);
+          const nextJson = await nextRes.json();
+          if (nextJson.success) {
+            allProducts = [...allProducts, ...(nextJson.data.products || [])];
+          }
+        }
+        
+        setProducts(allProducts);
         setTotalPages(json.data.pagination?.totalPages || 1);
         setTotal(json.data.pagination?.total || 0);
       }
