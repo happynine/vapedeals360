@@ -8,25 +8,28 @@ export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, "public");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const folder = (formData.get('folder') as string) || 'uploads';
-    const isProductImage = formData.get('product_image') === 'true';
+    // 从 URL query 参数获取 metadata（绕过 FormData，避免 SharedArrayBuffer 问题）
+    const url = new URL(request.url);
+    const folder = url.searchParams.get('folder') || 'uploads';
+    const isProductImage = url.searchParams.get('product_image') === 'true';
 
-    if (!file) {
+    // 直接读取原始 body（不使用 request.formData()）
+    const arrayBuffer = await request.arrayBuffer();
+    const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+
+    if (buffer.byteLength === 0) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
 
-    // Convert file to buffer safely (avoid SharedArrayBuffer issues)
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+    const fileName = `crop-${Date.now()}.jpg`;
+    const contentType = 'image/jpeg';
 
     if (isProductImage) {
       // Upload product image with two sizes
       const result = await uploadProductImage({
         fileContent: buffer,
-        fileName: file.name,
-        contentType: file.type || 'image/jpeg',
+        fileName: fileName,
+        contentType: contentType,
         folder,
       });
 
@@ -47,8 +50,8 @@ export async function POST(request: NextRequest) {
       // Regular upload
       const result = await uploadFile({
         fileContent: buffer,
-        fileName: file.name,
-        contentType: file.type || 'image/jpeg',
+        fileName: fileName,
+        contentType: contentType,
         folder,
       });
 
