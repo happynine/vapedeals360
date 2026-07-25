@@ -5002,27 +5002,29 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                         <span className="text-xs text-muted-foreground">{langInfo?.name || ''}</span>
                       </div>
                       <div className="space-y-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Cover Image', '封面图', lang)}</label>
-                          <ImageUpload 
-                            value={tr.cover_image_url || tr.cover_image_key} 
-                            onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, cover_image_key: v, cover_image_url: null } : t))} 
-                            aspectRatio={16/9} 
-                            recommendedSize="320x180px" 
-                            label={t('Cover', '封面', lang)} 
-                            lang={lang} 
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Mobile Cover Image', '移动端封面图', lang)}</label>
-                          <ImageUpload 
-                            value={tr.mobile_cover_image_url || tr.mobile_cover_image_key} 
-                            onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, mobile_cover_image_key: v, mobile_cover_image_url: null } : t))} 
-                            aspectRatio={16/9} 
-                            recommendedSize="750x422px" 
-                            label={t('Mobile Cover', '移动端封面', lang)} 
-                            lang={lang} 
-                          />
+                        <div className="flex gap-4">
+                          <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Cover Image', '封面图', lang)}</label>
+                            <ImageUpload 
+                              value={tr.cover_image_url || tr.cover_image_key} 
+                              onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, cover_image_key: v, cover_image_url: null } : t))} 
+                              aspectRatio={16/9} 
+                              recommendedSize="320x180px" 
+                              label={t('Cover', '封面', lang)} 
+                              lang={lang} 
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Mobile Cover Image', '移动端封面图', lang)}</label>
+                            <ImageUpload 
+                              value={tr.mobile_cover_image_url || tr.mobile_cover_image_key} 
+                              onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, mobile_cover_image_key: v, mobile_cover_image_url: null } : t))} 
+                              aspectRatio={16/9} 
+                              recommendedSize="750x422px" 
+                              label={t('Mobile Cover', '移动端封面', lang)} 
+                              lang={lang} 
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] text-muted-foreground block mb-0.5 text-left">{t('Activity Title', '活动标题', lang)}</label>
