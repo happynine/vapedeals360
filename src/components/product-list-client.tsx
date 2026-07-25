@@ -467,24 +467,30 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Banner Section */}
+      {/* Mobile: Combined Banner + Promotion Carousel */}
+      {(banners.length > 0 || (promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery)) && (
+        <div className="sm:hidden -mx-4">
+          <MobileCombinedCarousel
+            banners={banners}
+            promotions={page === 1 && !selectedCategory && !searchQuery ? promotions : []}
+            language={language}
+          />
+        </div>
+      )}
+
+      {/* Desktop: Banner Section */}
       {banners.length > 0 && (
-        <div className="mb-8 -mx-4 sm:mx-0 sm:mt-0">
-          <div className="relative overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border sm:border-gray-200 bg-gray-50">
+        <div className="hidden sm:block mb-8 sm:mt-0">
+          <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
             <BannerCarousel banners={banners} language={language} />
           </div>
         </div>
       )}
 
-      {/* Promotions Section - Cover Images */}
+      {/* Desktop: Promotions Section - Cover Images Grid */}
       {promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
-        <div className="mb-8">
-          {/* Mobile: Carousel with dots */}
-          <div className="sm:hidden">
-            <PromotionCarousel promotions={promotions} language={language} />
-          </div>
-          {/* Desktop: Grid */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="hidden sm:block mb-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {promotions.map((promotion) => {
               const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
               const coverImage = translation?.cover_image_url || translation?.cover_image_key;
@@ -501,7 +507,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                       alt={translation?.name || promotion.slug}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      sizes="(max-width: 1024px) 50vw, 25vw"
                     />
                   </div>
                 </Link>
@@ -1120,6 +1126,188 @@ function PromotionCarousel({
       {/* Dots */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
         {validPromotions.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goTo(index)}
+            className={`rounded-full transition-all duration-300 ${
+              currentIndex === index
+                ? "w-5 h-1.5 bg-white"
+                : "w-1.5 h-1.5 bg-white/50"
+            }`}
+            aria-label={`${language === "zh" ? "切换到第" : "Go to slide"} ${index + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Combined Mobile Carousel for Banners and Promotions
+interface MobileCarouselItem {
+  id: string;
+  type: 'banner' | 'promotion';
+  imageUrl: string;
+  linkUrl: string;
+  alt: string;
+}
+
+function MobileCombinedCarousel({
+  banners,
+  promotions,
+  language,
+}: {
+  banners: Banner[];
+  promotions: Promotion[];
+  language: string;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Build combined list: banners first, then promotions
+  const items: MobileCarouselItem[] = [];
+
+  // Add banners (use mobile image)
+  banners.forEach((banner) => {
+    const mobileImg = banner.translated_mobile_image_url || banner.mobile_image_url;
+    if (mobileImg) {
+      items.push({
+        id: `banner-${banner.id}`,
+        type: 'banner',
+        imageUrl: mobileImg,
+        linkUrl: banner.link_url || '#',
+        alt: banner.title || 'Banner',
+      });
+    }
+  });
+
+  // Add promotions (use mobile cover image)
+  promotions.forEach((promotion) => {
+    const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
+    const mobileCover = translation?.mobile_cover_image_url || translation?.mobile_cover_image_key || translation?.cover_image_url || translation?.cover_image_key;
+    if (mobileCover) {
+      items.push({
+        id: `promo-${promotion.id}`,
+        type: 'promotion',
+        imageUrl: mobileCover,
+        linkUrl: `/promotion/${promotion.slug}`,
+        alt: translation?.name || promotion.slug,
+      });
+    }
+  });
+
+  const startAutoPlay = useCallback(() => {
+    if (items.length <= 1) return;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % items.length);
+    }, 4000);
+  }, [items.length]);
+
+  const stopAutoPlay = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (items.length > 1) {
+      startAutoPlay();
+    }
+    return stopAutoPlay;
+  }, [items.length, startAutoPlay, stopAutoPlay]);
+
+  const goTo = useCallback(
+    (index: number) => {
+      setCurrentIndex(index);
+      startAutoPlay();
+    },
+    [startAutoPlay]
+  );
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    stopAutoPlay();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) {
+      startAutoPlay();
+      return;
+    }
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentIndex < items.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else if (isRightSwipe && currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+    startAutoPlay();
+  };
+
+  if (items.length === 0) return null;
+
+  if (items.length === 1) {
+    const item = items[0];
+    return (
+      <Link href={item.linkUrl} className="block w-full">
+        <div className="relative w-full aspect-[750/422]">
+          <SafeImage
+            src={item.imageUrl}
+            alt={item.alt}
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
+          />
+        </div>
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className="relative w-full overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Slides */}
+      <div
+        className="flex transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={item.linkUrl}
+            className="block w-full flex-shrink-0"
+          >
+            <div className="relative w-full aspect-[750/422]">
+              <SafeImage
+                src={item.imageUrl}
+                alt={item.alt}
+                fill
+                className="object-cover"
+                sizes="100vw"
+              />
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10">
+        {items.map((_, index) => (
           <button
             key={index}
             onClick={() => goTo(index)}

@@ -50,7 +50,9 @@ async function getInitialData() {
             title,
             description,
             cover_image_key,
-            cover_image_url
+            cover_image_url,
+            mobile_cover_image_key,
+            mobile_cover_image_url
           )
         `)
         .eq("is_active", true)
@@ -86,6 +88,15 @@ async function getInitialData() {
             coverImageUrl = await getPresignedUrl(t.cover_image_key);
           }
         }
+        // 处理移动端封面图
+        let mobileCoverImageUrl = t.mobile_cover_image_url;
+        if (!mobileCoverImageUrl && t.mobile_cover_image_key) {
+          if (t.mobile_cover_image_key.startsWith('http')) {
+            mobileCoverImageUrl = t.mobile_cover_image_key;
+          } else {
+            mobileCoverImageUrl = await getPresignedUrl(t.mobile_cover_image_key);
+          }
+        }
         return {
           id: t.id,
           language: t.language,
@@ -94,6 +105,8 @@ async function getInitialData() {
           description: t.description,
           cover_image_key: t.cover_image_key,
           cover_image_url: coverImageUrl,
+          mobile_cover_image_key: t.mobile_cover_image_key,
+          mobile_cover_image_url: mobileCoverImageUrl,
         };
       }));
       return {
