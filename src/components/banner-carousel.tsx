@@ -30,8 +30,11 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  // Reset image state only on initial mount, not when switching banners
-  // This keeps the previous image visible while the new one loads
+  // Reset image state when switching banners
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [current]);
 
   // Preload next banner image
   useEffect(() => {
@@ -67,8 +70,8 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
         hoverRef.current = setTimeout(() => setHovered(false), 200);
       }}
     >
-      {/* Loading skeleton - only show on initial load, not when switching */}
-      {!imageLoaded && !imageError && current === 0 && (
+      {/* Loading skeleton */}
+      {!imageLoaded && !imageError && (
         <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse" />
       )}
 
