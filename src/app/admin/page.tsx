@@ -923,6 +923,31 @@ export default function AdminPage() {
               }}
             />
           </label>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/admin/backup/blob-export');
+                const result = await res.json();
+                if (result.success) {
+                  const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `vapedeal-blob-files-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  alert(`Exported ${result.total} files (${(result.totalSize / 1024 / 1024).toFixed(2)} MB)`);
+                } else {
+                  alert('Blob export failed: ' + result.error);
+                }
+              } catch (e) {
+                alert('Blob export failed');
+              }
+            }}
+            className="w-full rounded-lg border border-blue-800 bg-blue-900/20 px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-900/40 transition-colors"
+          >
+            📦 Export Blob Files
+          </button>
         </div>
         <div className="px-3 mt-4">
           <Link
