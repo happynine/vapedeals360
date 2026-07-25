@@ -946,8 +946,43 @@ export default function AdminPage() {
             }}
             className="w-full rounded-lg border border-blue-800 bg-blue-900/20 px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-900/40 transition-colors"
           >
-            📦 Export Blob Files
+             Export Blob Files
           </button>
+          <label className="block w-full mt-2 cursor-pointer">
+            <input
+              type="file"
+              accept="image/*,.zip"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+                if (!confirm(`Upload ${files.length} file(s) to Blob storage?`)) {
+                  e.target.value = '';
+                  return;
+                }
+                try {
+                  const formData = new FormData();
+                  for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                  }
+                  const res = await fetch('/api/admin/backup/blob-import', { method: 'POST', body: formData });
+                  const result = await res.json();
+                  if (result.success) {
+                    alert(`Uploaded: ${result.data.uploaded}, Skipped: ${result.data.skipped}, Failed: ${result.data.failed}`);
+                  } else {
+                    alert('Blob import failed: ' + result.error);
+                  }
+                } catch (err) {
+                  alert('Blob import failed: ' + (err as Error).message);
+                }
+                e.target.value = '';
+              }}
+            />
+            <div className="w-full rounded-lg border border-green-800 bg-green-900/20 px-3 py-2 text-xs font-medium text-green-400 hover:bg-green-900/40 transition-colors text-center">
+              📥 Import Blob Files
+            </div>
+          </label>
         </div>
         <div className="px-3 mt-4">
           <Link
