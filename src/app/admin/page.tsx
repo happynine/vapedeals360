@@ -871,6 +871,59 @@ export default function AdminPage() {
             {t('Seed Demo Data', '添加演示数据', adminLang)}
           </button>
         </div>
+        {/* Backup Export/Import */}
+        <div className="px-3 mt-4 space-y-2">
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/admin/backup/export');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `vapedeal-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                alert('Export failed');
+              }
+            }}
+            className="w-full rounded-lg border border-green-800 bg-green-900/20 px-3 py-2 text-xs font-medium text-green-400 hover:bg-green-900/40 transition-colors"
+          >
+            {t('Export Backup', '导出备份', adminLang)}
+          </button>
+          <label className="w-full rounded-lg border border-orange-800 bg-orange-900/20 px-3 py-2 text-xs font-medium text-orange-400 hover:bg-orange-900/40 transition-colors cursor-pointer block text-center">
+            {t('Import Backup', '导入备份', adminLang)}
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const mode = confirm('Click OK to REPLACE all data, Cancel to APPEND') ? 'replace' : 'append';
+                try {
+                  const json = await file.text();
+                  const res = await fetch('/api/admin/backup/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: JSON.parse(json), mode }),
+                  });
+                  const result = await res.json();
+                  if (result.success) {
+                    alert('Import successful! Refreshing...');
+                    window.location.reload();
+                  } else {
+                    alert('Import failed: ' + result.error);
+                  }
+                } catch (err) {
+                  alert('Import failed: ' + (err as Error).message);
+                }
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
         <div className="px-3 mt-4">
           <Link
             href="/"
