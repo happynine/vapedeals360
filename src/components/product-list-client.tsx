@@ -469,7 +469,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
     <div className="min-h-screen flex flex-col">
       {/* Mobile: Combined Banner + Promotion Carousel */}
       {(banners.length > 0 || (promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery)) && (
-        <div className="sm:hidden -mx-4">
+        <div className="sm:hidden -mx-4 mb-4 bg-white">
           <MobileCombinedCarousel
             banners={banners}
             promotions={page === 1 && !selectedCategory && !searchQuery ? promotions : []}
