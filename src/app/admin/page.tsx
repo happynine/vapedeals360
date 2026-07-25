@@ -267,7 +267,7 @@ interface PromotionProduct { id: number; promotion_id: number; product_id?: numb
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
-type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news';
+type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'database_backup';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
 interface Language { id: number; code: string; name: string; is_active: boolean; is_hidden: boolean; sort_order: number; }
 const DEFAULT_LANGUAGES: Language[] = [{ id: 1, code: 'en', name: 'English', is_active: true, is_hidden: false, sort_order: 0 }, { id: 2, code: 'zh', name: '中文', is_active: true, is_hidden: false, sort_order: 1 }];
@@ -761,6 +761,7 @@ export default function AdminPage() {
     best_vapes: { en: 'Best Vapes', zh: 'Best Vapes' },
     news: { en: 'News', zh: '新闻' },
     analytics: { en: 'Analytics', zh: '数据统计' },
+    database_backup: { en: 'Database Backup', zh: '数据库备份' },
   };
 
   // Login page
@@ -844,7 +845,7 @@ export default function AdminPage() {
           <p className="mt-1 text-xs text-muted-foreground">{t('Admin Panel', '管理后台', adminLang)}</p>
         </div>
         <nav className="px-3 space-y-1">
-          {(['site_settings', 'products', 'promotions', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics'] as Tab[]).map((tab) => (
+          {(['site_settings', 'products', 'promotions', 'categories', 'stores', 'banners', 'best_vapes', 'news', 'analytics', 'database_backup'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -859,132 +860,12 @@ export default function AdminPage() {
               {tab === 'best_vapes' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>}
               {tab === 'news' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>}
               {tab === 'analytics' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+              {tab === 'database_backup' && <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>}
               {t(tabLabels[tab].en, tabLabels[tab].zh, adminLang)}
             </button>
           ))}
         </nav>
         <div className="px-3 mt-8">
-          <button
-            onClick={handleSeed}
-            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
-          >
-            {t('Seed Demo Data', '添加演示数据', adminLang)}
-          </button>
-        </div>
-        {/* Backup Export/Import */}
-        <div className="px-3 mt-4 space-y-2">
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch('/api/admin/backup/export');
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `vapedeal-backup-${new Date().toISOString().slice(0, 10)}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-              } catch (e) {
-                alert('Export failed');
-              }
-            }}
-            className="w-full rounded-lg border border-green-800 bg-green-900/20 px-3 py-2 text-xs font-medium text-green-400 hover:bg-green-900/40 transition-colors"
-          >
-            {t('Export Backup', '导出备份', adminLang)}
-          </button>
-          <label className="w-full rounded-lg border border-orange-800 bg-orange-900/20 px-3 py-2 text-xs font-medium text-orange-400 hover:bg-orange-900/40 transition-colors cursor-pointer block text-center">
-            {t('Import Backup', '导入备份', adminLang)}
-            <input
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const mode = confirm('Click OK to REPLACE all data, Cancel to APPEND') ? 'replace' : 'append';
-                try {
-                  const json = await file.text();
-                  const res = await fetch('/api/admin/backup/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: JSON.parse(json), mode }),
-                  });
-                  const result = await res.json();
-                  if (result.success) {
-                    alert('Import successful! Refreshing...');
-                    window.location.reload();
-                  } else {
-                    alert('Import failed: ' + result.error);
-                  }
-                } catch (err) {
-                  alert('Import failed: ' + (err as Error).message);
-                }
-                e.target.value = '';
-              }}
-            />
-          </label>
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch('/api/admin/backup/blob-export');
-                const result = await res.json();
-                if (result.success) {
-                  const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `vapedeal-blob-files-${new Date().toISOString().slice(0, 10)}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  alert(`Exported ${result.total} files (${(result.totalSize / 1024 / 1024).toFixed(2)} MB)`);
-                } else {
-                  alert('Blob export failed: ' + result.error);
-                }
-              } catch (e) {
-                alert('Blob export failed');
-              }
-            }}
-            className="w-full rounded-lg border border-blue-800 bg-blue-900/20 px-3 py-2 text-xs font-medium text-blue-400 hover:bg-blue-900/40 transition-colors"
-          >
-             Export Blob Files
-          </button>
-          <label className="block w-full mt-2 cursor-pointer">
-            <input
-              type="file"
-              accept="image/*,.zip"
-              multiple
-              className="hidden"
-              onChange={async (e) => {
-                const files = e.target.files;
-                if (!files || files.length === 0) return;
-                if (!confirm(`Upload ${files.length} file(s) to Blob storage?`)) {
-                  e.target.value = '';
-                  return;
-                }
-                try {
-                  const formData = new FormData();
-                  for (let i = 0; i < files.length; i++) {
-                    formData.append('files', files[i]);
-                  }
-                  const res = await fetch('/api/admin/backup/blob-import', { method: 'POST', body: formData });
-                  const result = await res.json();
-                  if (result.success) {
-                    alert(`Uploaded: ${result.data.uploaded}, Skipped: ${result.data.skipped}, Failed: ${result.data.failed}`);
-                  } else {
-                    alert('Blob import failed: ' + result.error);
-                  }
-                } catch (err) {
-                  alert('Blob import failed: ' + (err as Error).message);
-                }
-                e.target.value = '';
-              }}
-            />
-            <div className="w-full rounded-lg border border-green-800 bg-green-900/20 px-3 py-2 text-xs font-medium text-green-400 hover:bg-green-900/40 transition-colors text-center">
-              📥 Import Blob Files
-            </div>
-          </label>
-        </div>
-        <div className="px-3 mt-4">
           <Link
             href="/"
             className="w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
@@ -1569,6 +1450,160 @@ export default function AdminPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* Database Backup Tab */}
+          {activeTab === 'database_backup' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">{t('Database Backup', '数据库备份', adminLang)}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Seed Demo Data */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold mb-2">{t('Seed Demo Data', '添加演示数据', adminLang)}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('Insert sample data for testing', '插入示例数据用于测试', adminLang)}</p>
+                  <button
+                    onClick={handleSeed}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    {t('Seed Demo Data', '添加演示数据', adminLang)}
+                  </button>
+                </div>
+
+                {/* Export Database */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold mb-2">{t('Export Database', '导出数据库', adminLang)}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('Download all table data as JSON', '下载所有表数据为 JSON 文件', adminLang)}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/admin/backup/export');
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `vapedeal-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch (e) {
+                        alert('Export failed');
+                      }
+                    }}
+                    className="w-full rounded-lg border border-green-800 bg-green-900/20 px-4 py-2.5 text-sm font-medium text-green-400 hover:bg-green-900/40 transition-colors"
+                  >
+                    {t('Export Backup', '导出备份', adminLang)}
+                  </button>
+                </div>
+
+                {/* Import Database */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold mb-2">{t('Import Database', '导入数据库', adminLang)}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('Restore data from JSON backup file', '从 JSON 备份文件恢复数据', adminLang)}</p>
+                  <label className="w-full rounded-lg border border-orange-800 bg-orange-900/20 px-4 py-2.5 text-sm font-medium text-orange-400 hover:bg-orange-900/40 transition-colors cursor-pointer block text-center">
+                    {t('Import Backup', '导入备份', adminLang)}
+                    <input
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const mode = confirm('Click OK to REPLACE all data, Cancel to APPEND') ? 'replace' : 'append';
+                        try {
+                          const json = await file.text();
+                          const res = await fetch('/api/admin/backup/import', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ data: JSON.parse(json), mode }),
+                          });
+                          const result = await res.json();
+                          if (result.success) {
+                            alert('Import successful! Refreshing...');
+                            window.location.reload();
+                          } else {
+                            alert('Import failed: ' + result.error);
+                          }
+                        } catch (err) {
+                          alert('Import failed: ' + (err as Error).message);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {/* Export Blob Files */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h3 className="text-lg font-semibold mb-2">{t('Export Blob Files', '导出图片文件', adminLang)}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('Download all image file list from Blob storage', '下载 Blob 存储中所有图片文件列表', adminLang)}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/admin/backup/blob-export');
+                        const result = await res.json();
+                        if (result.success) {
+                          const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `vapedeal-blob-files-${new Date().toISOString().slice(0, 10)}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          alert(`Exported ${result.total} files (${(result.totalSize / 1024 / 1024).toFixed(2)} MB)`);
+                        } else {
+                          alert('Blob export failed: ' + result.error);
+                        }
+                      } catch (e) {
+                        alert('Blob export failed');
+                      }
+                    }}
+                    className="w-full rounded-lg border border-blue-800 bg-blue-900/20 px-4 py-2.5 text-sm font-medium text-blue-400 hover:bg-blue-900/40 transition-colors"
+                  >
+                    📦 {t('Export Blob Files', '导出图片文件', adminLang)}
+                  </button>
+                </div>
+
+                {/* Import Blob Files */}
+                <div className="bg-card border border-border rounded-xl p-6 md:col-span-2">
+                  <h3 className="text-lg font-semibold mb-2">{t('Import Blob Files', '导入图片文件', adminLang)}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{t('Upload image files to Blob storage (duplicates will be skipped)', '上传图片文件到 Blob 存储（重复文件将自动跳过）', adminLang)}</p>
+                  <label className="w-full rounded-lg border border-green-800 bg-green-900/20 px-4 py-2.5 text-sm font-medium text-green-400 hover:bg-green-900/40 transition-colors cursor-pointer block text-center">
+                    📥 {t('Import Blob Files', '导入图片文件', adminLang)}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={async (e) => {
+                        const files = e.target.files;
+                        if (!files || files.length === 0) return;
+                        if (!confirm(`Upload ${files.length} file(s) to Blob storage?`)) {
+                          e.target.value = '';
+                          return;
+                        }
+                        try {
+                          const formData = new FormData();
+                          for (let i = 0; i < files.length; i++) {
+                            formData.append('files', files[i]);
+                          }
+                          const res = await fetch('/api/admin/backup/blob-import', { method: 'POST', body: formData });
+                          const result = await res.json();
+                          if (result.success) {
+                            alert(`Uploaded: ${result.data.uploaded}, Skipped: ${result.data.skipped}, Failed: ${result.data.failed}`);
+                          } else {
+                            alert('Blob import failed: ' + result.error);
+                          }
+                        } catch (err) {
+                          alert('Blob import failed: ' + (err as Error).message);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           )}
