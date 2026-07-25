@@ -137,9 +137,7 @@ export async function POST(request: NextRequest) {
         description: t.description,
         cover_image_key: t.cover_image_key,
         cover_image_url: t.cover_image_url,
-        mobile_cover_image_key: t.mobile_cover_image_key,
-        mobile_cover_image_url: t.mobile_cover_image_url
-      }));
+             }));
 
       const { error: translationsError } = await client
         .from('promotion_translations')
