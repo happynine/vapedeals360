@@ -5008,8 +5008,8 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                             <ImageUpload 
                               value={tr.cover_image_url || tr.cover_image_key} 
                               onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, cover_image_key: v, cover_image_url: null } : t))} 
-                              aspectRatio={16/9} 
-                              recommendedSize="320x180px" 
+                              aspectRatio={332/187} 
+                              recommendedSize="332x187px" 
                               label={t('Cover', '封面', lang)} 
                               lang={lang} 
                             />
@@ -5019,8 +5019,8 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                             <ImageUpload 
                               value={tr.mobile_cover_image_url || tr.mobile_cover_image_key} 
                               onChange={(v) => setTranslations(prev => prev.map((t, i) => i === idx ? { ...t, mobile_cover_image_key: v, mobile_cover_image_url: null } : t))} 
-                              aspectRatio={16/9} 
-                              recommendedSize="320x180px" 
+                              aspectRatio={750/422} 
+                              recommendedSize="750x422px" 
                               label={t('Mobile Cover', '移动端封面', lang)} 
                               lang={lang} 
                             />
