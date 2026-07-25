@@ -320,6 +320,8 @@ export const promotionTranslations = pgTable("promotion_translations", {
 	name: varchar({ length: 255 }),
 	coverImageKey: varchar("cover_image_key", { length: 255 }),
 	coverImageUrl: text("cover_image_url"),
+	mobileCoverImageKey: varchar("mobile_cover_image_key", { length: 255 }),
+	mobileCoverImageUrl: text("mobile_cover_image_url"),
 }, (table) => [
 	index("idx_promotion_translations_lang").using("btree", table.language.asc().nullsLast().op("text_ops")),
 	foreignKey({

@@ -100,6 +100,8 @@ interface PromotionTranslation {
   name: string;
   cover_image_key: string | null;
   cover_image_url: string | null;
+  mobile_cover_image_key: string | null;
+  mobile_cover_image_url: string | null;
 }
 
 interface Promotion {
@@ -1002,7 +1004,7 @@ function PromotionCarousel({
 
   const validPromotions = promotions.filter((promotion) => {
     const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
-    return translation?.cover_image_url || translation?.cover_image_key;
+    return translation?.cover_image_url || translation?.cover_image_key || translation?.mobile_cover_image_url || translation?.mobile_cover_image_key;
   });
 
   const startAutoPlay = useCallback(() => {
@@ -1066,7 +1068,7 @@ function PromotionCarousel({
   if (validPromotions.length === 1) {
     const promotion = validPromotions[0];
     const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
-    const coverImage = translation?.cover_image_url || translation?.cover_image_key;
+    const coverImage = translation?.mobile_cover_image_url || translation?.mobile_cover_image_key || translation?.cover_image_url || translation?.cover_image_key;
     return (
       <Link href={`/promotion/${promotion.slug}`} className="block relative aspect-[16/9] overflow-hidden rounded-xl">
         <SafeImage
@@ -1094,7 +1096,7 @@ function PromotionCarousel({
       >
         {validPromotions.map((promotion) => {
           const translation = promotion.translations?.[0] || promotion.promotion_translations?.[0];
-          const coverImage = translation?.cover_image_url || translation?.cover_image_key;
+          const coverImage = translation?.mobile_cover_image_url || translation?.mobile_cover_image_key || translation?.cover_image_url || translation?.cover_image_key;
           return (
             <Link
               key={promotion.id}

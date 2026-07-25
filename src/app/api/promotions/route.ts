@@ -56,7 +56,9 @@ export async function GET(request: NextRequest) {
             title,
             description,
             cover_image_key,
-            cover_image_url
+            cover_image_url,
+            mobile_cover_image_key,
+            mobile_cover_image_url
           )
         `)
         .eq('slug', slug)
@@ -218,9 +220,16 @@ export async function GET(request: NextRequest) {
             coverImageUrl = t.cover_image_key;
           }
         }
+        let mobileCoverImageUrl = t.mobile_cover_image_url;
+        if (!mobileCoverImageUrl && t.mobile_cover_image_key) {
+          if (t.mobile_cover_image_key.startsWith('http')) {
+            mobileCoverImageUrl = t.mobile_cover_image_key;
+          }
+        }
         return {
           ...t,
           cover_image_url: coverImageUrl,
+          mobile_cover_image_url: mobileCoverImageUrl,
         };
       });
 
@@ -254,7 +263,9 @@ export async function GET(request: NextRequest) {
             title,
             description,
             cover_image_key,
-            cover_image_url
+            cover_image_url,
+            mobile_cover_image_key,
+            mobile_cover_image_url
           )
         `)
         .eq('promotion_translations.language', language)
@@ -299,9 +310,16 @@ export async function GET(request: NextRequest) {
               }
               // 否则保持原样（需要 getPresignedUrl 转换，但 API 层不做异步处理）
             }
+            let mobileCoverImageUrl = t.mobile_cover_image_url;
+            if (!mobileCoverImageUrl && t.mobile_cover_image_key) {
+              if (t.mobile_cover_image_key.startsWith('http')) {
+                mobileCoverImageUrl = t.mobile_cover_image_key;
+              }
+            }
             return {
               ...t,
               cover_image_url: coverImageUrl,
+              mobile_cover_image_url: mobileCoverImageUrl,
             };
           });
 

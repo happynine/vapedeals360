@@ -63,6 +63,8 @@ interface PromotionTranslation {
   description: string | null;
   cover_image_key: string | null;
   cover_image_url: string | null;
+  mobile_cover_image_key: string | null;
+  mobile_cover_image_url: string | null;
   language: string;
 }
 

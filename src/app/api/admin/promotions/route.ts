@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
           language,
           name,
           cover_image_key,
-          cover_image_url
+          cover_image_url,
+          mobile_cover_image_key,
+          mobile_cover_image_url
         )
       `)
       .order('sort_order', { ascending: true })
@@ -127,14 +129,16 @@ export async function POST(request: NextRequest) {
 
     // 创建翻译
     if (translations && translations.length > 0) {
-      const translationsData = translations.map((t: { language: string; name?: string; title?: string; description?: string; cover_image_key?: string; cover_image_url?: string }) => ({
+      const translationsData = translations.map((t: { language: string; name?: string; title?: string; description?: string; cover_image_key?: string; cover_image_url?: string; mobile_cover_image_key?: string; mobile_cover_image_url?: string }) => ({
         promotion_id: promotion.id,
         language: t.language,
         name: t.name,
         title: t.title,
         description: t.description,
         cover_image_key: t.cover_image_key,
-        cover_image_url: t.cover_image_url
+        cover_image_url: t.cover_image_url,
+        mobile_cover_image_key: t.mobile_cover_image_key,
+        mobile_cover_image_url: t.mobile_cover_image_url
       }));
 
       const { error: translationsError } = await client
@@ -228,14 +232,16 @@ export async function PUT(request: NextRequest) {
       await client.from('promotion_translations').delete().eq('promotion_id', id);
 
       // 插入新的翻译
-      const translationsData = translations.map((t: { language: string; name?: string; title?: string; description?: string; cover_image_key?: string; cover_image_url?: string }) => ({
+      const translationsData = translations.map((t: { language: string; name?: string; title?: string; description?: string; cover_image_key?: string; cover_image_url?: string; mobile_cover_image_key?: string; mobile_cover_image_url?: string }) => ({
         promotion_id: id,
         language: t.language,
         name: t.name,
         title: t.title,
         description: t.description,
         cover_image_key: t.cover_image_key,
-        cover_image_url: t.cover_image_url
+        cover_image_url: t.cover_image_url,
+        mobile_cover_image_key: t.mobile_cover_image_key,
+        mobile_cover_image_url: t.mobile_cover_image_url
       }));
 
       const { error: translationsError } = await client
