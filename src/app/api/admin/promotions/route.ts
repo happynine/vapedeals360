@@ -14,16 +14,16 @@ export async function GET(request: NextRequest) {
     // 获取活动列表
     const { data: promotions, error: promotionsError } = await client
       .from('promotions')
-      .select(`
+    .select(`
         *,
         promotion_translations (
           id,
           language,
           name,
+          title,
+          description,
           cover_image_key,
-          cover_image_url,
-          mobile_cover_image_key,
-          mobile_cover_image_url
+          cover_image_url
         )
       `)
       .order('sort_order', { ascending: true })
