@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     if (promotionProduct) {
       const enTranslation = translations?.find((t: any) => t.language === 'en');
       const productName = enTranslation?.name || slug;
-      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName);
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName, home_image_key || null);
       if (productId) {
         await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
       }
