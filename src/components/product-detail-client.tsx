@@ -264,9 +264,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
         <span className="text-gray-900 truncate">{t?.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-8">
         {/* Left: Image Gallery */}
-        <div>
+        <div className="w-[480px] max-w-full">
           <div className="relative w-[480px] h-[480px] max-w-full rounded-2xl overflow-hidden bg-gray-50 border border-gray-200">
             {selectedImage && (
               <SafeImage
