@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         promotion_product_translations (*),
-        promotion_product_prices (*)
+        promotion_product_prices (*),
+        products!inner(home_image_key)
       `)
       .order('id', { ascending: true });
 
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
     // Combine data
     const combinedData = promotionProducts?.map(pp => ({
       ...pp,
+      home_image_key: pp.products?.home_image_key || null,
       promotions: promotionsRes.data?.find(p => p.id === pp.promotion_id) || null,
       categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null,
       stores: (pp.promotion_product_prices as Array<{ store_id: number; [key: string]: unknown }>)?.map((sp: { store_id: number; [key: string]: unknown }) => ({
