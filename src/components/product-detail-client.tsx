@@ -267,14 +267,14 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left: Image Gallery */}
         <div>
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50 border border-gray-200">
+          <div className="relative w-[480px] h-[480px] max-w-full rounded-2xl overflow-hidden bg-gray-50 border border-gray-200">
             {selectedImage && (
               <SafeImage
                 src={selectedImage}
                 alt={t?.name || ""}
                 fill
                 className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
+                sizes="480px"
                 priority
               />
             )}
