@@ -242,8 +242,8 @@ export function ImageUpload({
       // 优先使用用户指定的输出尺寸比例
       const ar = userOutputSize.width / userOutputSize.height;
       
-      // 默认目标尺寸：640x640px（当 aspectRatio 为 1 时）
-      const targetSize = 640;
+      // 默认目标尺寸：480x480px（当 aspectRatio 为 1 时）
+      const targetSize = 480;
       let targetW = targetSize;
       let targetH = targetSize / ar;
       
