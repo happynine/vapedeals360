@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
+    const { slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
     // Create product
     const { data: product, error: prodError } = await client
       .from('products')
@@ -103,6 +103,76 @@ export async function POST(request: NextRequest) {
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Create prices failed: ${priceError.message}`);
     }
+    // Create promotion products and prices
+    if (promotion_prices && promotion_prices.length > 0) {
+      // Group by promotion_id
+      const promotionGroups: Record<number, typeof promotion_prices> = {};
+      for (const pp of promotion_prices) {
+        const promoId = pp.promotion_id;
+        if (!promotionGroups[promoId]) promotionGroups[promoId] = [];
+        promotionGroups[promoId].push(pp);
+      }
+      for (const [promoIdStr, promoPrices] of Object.entries(promotionGroups)) {
+        const promoId = parseInt(promoIdStr);
+        // Check if promotion_product already exists for this product and promotion
+        const { data: existingPromoProduct } = await client
+          .from('promotion_products')
+          .select('id')
+          .eq('product_id', productId)
+          .eq('promotion_id', promoId)
+          .single();
+        let promoProductId = existingPromoProduct?.id;
+        if (!promoProductId) {
+          // Create promotion_product
+          const { data: newPromoProduct, error: ppError } = await client
+            .from('promotion_products')
+            .insert({
+              product_id: productId,
+              promotion_id: promoId,
+              slug: slug,
+              category_id: category_id || null,
+              image_key: image_url || null,
+              home_image_key: home_image_key || null,
+              image_url: image_url || null,
+              is_active: is_active !== false,
+              is_featured: is_featured || false,
+            })
+            .select()
+            .single();
+          if (ppError) throw new Error(`Create promotion product failed: ${ppError.message}`);
+          promoProductId = newPromoProduct.id;
+          // Create translation
+          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
+          if (enTrans) {
+            await client.from('promotion_product_translations').insert({
+              promotion_product_id: promoProductId,
+              language: 'en',
+              name: enTrans.name,
+              description: enTrans.description || null,
+              features: enTrans.features || null,
+              specs: enTrans.specs || null,
+            });
+          }
+        }
+        // Create promotion product prices
+        const promoPriceRows = promoPrices.map((p: Record<string, unknown>) => ({
+          promotion_product_id: promoProductId,
+          store_id: p.store_id,
+          current_price: p.current_price,
+          original_price: p.original_price || null,
+          product_url: p.product_url,
+          discount_percent: p.discount_percent || null,
+          currency: p.currency || '$',
+          region: p.region || '',
+          no_quote: p.no_quote || false,
+          store_type: 'promotion',
+          time_type: 'permanent',
+          countdown_action: 'close',
+        }));
+        const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
+        if (promoPriceError) throw new Error(`Create promotion prices failed: ${promoPriceError.message}`);
+      }
+    }
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -118,7 +188,7 @@ export async function PUT(request: NextRequest) {
   try {
     const client = getSupabaseClient();
     const body = await request.json();
-    const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices } = body;
+    const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
 
     // 获取旧的产品数据，用于删除旧图片
     const { data: oldProduct } = await client
@@ -187,6 +257,104 @@ export async function PUT(request: NextRequest) {
       }));
       const { error: priceError } = await client.from('product_prices').insert(priceRows);
       if (priceError) throw new Error(`Update prices failed: ${priceError.message}`);
+    }
+    // Update promotion products and prices
+    if (promotion_prices && promotion_prices.length > 0) {
+      // Get existing promotion products for this product
+      const { data: existingPromoProducts } = await client
+        .from('promotion_products')
+        .select('id, promotion_id')
+        .eq('product_id', id);
+      const existingPromoProductMap = new Map((existingPromoProducts || []).map((pp: Record<string, unknown>) => [pp.promotion_id as number, pp.id as number]));
+      // Group by promotion_id
+      const promotionGroups: Record<number, typeof promotion_prices> = {};
+      for (const pp of promotion_prices) {
+        const promoId = pp.promotion_id;
+        if (!promotionGroups[promoId]) promotionGroups[promoId] = [];
+        promotionGroups[promoId].push(pp);
+      }
+      for (const [promoIdStr, promoPrices] of Object.entries(promotionGroups)) {
+        const promoId = parseInt(promoIdStr);
+        let promoProductId = existingPromoProductMap.get(promoId);
+        if (!promoProductId) {
+          // Create promotion_product
+          const { data: newPromoProduct, error: ppError } = await client
+            .from('promotion_products')
+            .insert({
+              product_id: id,
+              promotion_id: promoId,
+              slug: slug,
+              category_id: category_id || null,
+              image_key: image_url || null,
+              home_image_key: home_image_key || null,
+              image_url: image_url || null,
+              is_active: is_active !== false,
+              is_featured: is_featured || false,
+            })
+            .select()
+            .single();
+          if (ppError) throw new Error(`Create promotion product failed: ${ppError.message}`);
+          promoProductId = newPromoProduct.id;
+          // Create translation
+          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
+          if (enTrans) {
+            await client.from('promotion_product_translations').insert({
+              promotion_product_id: promoProductId,
+              language: 'en',
+              name: enTrans.name,
+              description: enTrans.description || null,
+              features: enTrans.features || null,
+              specs: enTrans.specs || null,
+            });
+          }
+        } else {
+          // Update existing promotion_product
+          await client
+            .from('promotion_products')
+            .update({
+              slug: slug,
+              category_id: category_id || null,
+              image_key: image_url || null,
+              home_image_key: home_image_key || null,
+              image_url: image_url || null,
+              is_active: is_active !== false,
+              is_featured: is_featured || false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', promoProductId);
+          // Update translation
+          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
+          if (enTrans) {
+            await client.from('promotion_product_translations').delete().eq('promotion_product_id', promoProductId);
+            await client.from('promotion_product_translations').insert({
+              promotion_product_id: promoProductId,
+              language: 'en',
+              name: enTrans.name,
+              description: enTrans.description || null,
+              features: enTrans.features || null,
+              specs: enTrans.specs || null,
+            });
+          }
+        }
+        // Delete existing prices and insert new ones
+        await client.from('promotion_product_prices').delete().eq('promotion_product_id', promoProductId);
+        const promoPriceRows = promoPrices.map((p: Record<string, unknown>) => ({
+          promotion_product_id: promoProductId,
+          store_id: p.store_id,
+          current_price: p.current_price,
+          original_price: p.original_price || null,
+          product_url: p.product_url,
+          discount_percent: p.discount_percent || null,
+          currency: p.currency || '$',
+          region: p.region || '',
+          no_quote: p.no_quote || false,
+          store_type: 'promotion',
+          time_type: 'permanent',
+          countdown_action: 'close',
+        }));
+        const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
+        if (promoPriceError) throw new Error(`Update promotion prices failed: ${promoPriceError.message}`);
+      }
     }
     return NextResponse.json({ success: true, data: product });
   } catch (err) {

@@ -1657,7 +1657,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 {productTypeTab === 'standard' ? (
-                  <ProductFormModal categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
+                  <ProductFormModal categories={categories} stores={stores} promotions={promotions} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
                 ) : (
                   <PromotionProductFormModal categories={categories} stores={stores} promotions={promotions} onSave={fetchPromotionProducts} lang={adminLang} activeLanguages={activeLanguages} />
                 )}
@@ -1743,7 +1743,7 @@ export default function AdminPage() {
                                 <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    <ProductFormModal product={product} categories={categories} stores={stores} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
+                                    <ProductFormModal product={product} categories={categories} stores={stores} promotions={promotions} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
                                     <button
                                       onClick={() => handleDeleteProduct(product.id)}
                                       className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
@@ -6594,7 +6594,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 }
 
 // ============== Product Form Modal ==============
-function ProductFormModal({ product, categories, stores, onSave, lang, activeLanguages }: { product?: Product; categories: Category[]; stores: Store[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
+function ProductFormModal({ product, categories, stores, promotions, onSave, lang, activeLanguages }: { product?: Product; categories: Category[]; stores: Store[]; promotions?: Promotion[]; onSave: () => void; lang: string; activeLanguages: Language[] }) {
   const [open, setOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [slug, setSlug] = useState(product?.slug || '');
@@ -6615,7 +6615,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
       specs: tr.specs || '',
     })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: 'standard' | 'promotion'; promotion_id: string }[]>(
     product?.product_prices?.map((p) => ({
       store_id: p.store_id.toString(),
       current_price: p.current_price,
@@ -6625,7 +6625,9 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
       currency: p.currency || '$',
       region: p.region || '',
       no_quote: p.no_quote || false,
-    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false }]
+      store_type: 'standard' as const,
+      promotion_id: '',
+    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard' as const, promotion_id: '' }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
@@ -6646,6 +6648,10 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Separate standard and promotion prices
+      const standardPrices = prices.filter(p => p.store_type === 'standard' && p.store_id && p.current_price && p.product_url);
+      const promotionPrices = prices.filter(p => p.store_type === 'promotion' && p.store_id && p.current_price && p.product_url && p.promotion_id);
+
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
       const body = {
@@ -6666,8 +6672,21 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
           features: tr.features || null,
           specs: tr.specs || null,
         })),
-        prices: prices.filter((p) => p.store_id && p.current_price && p.product_url).map((p) => ({
+        // Standard store prices
+        prices: standardPrices.map((p) => ({
           store_id: parseInt(p.store_id),
+          current_price: p.current_price,
+          original_price: p.original_price || null,
+          product_url: p.product_url,
+          discount_percent: p.discount_percent ? parseInt(p.discount_percent) : null,
+          currency: p.currency || '$',
+          region: p.region || '',
+          no_quote: p.no_quote || false,
+        })),
+        // Promotion store prices
+        promotion_prices: promotionPrices.map((p) => ({
+          store_id: parseInt(p.store_id),
+          promotion_id: parseInt(p.promotion_id),
           current_price: p.current_price,
           original_price: p.original_price || null,
           product_url: p.product_url,
@@ -6844,66 +6863,95 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
                     const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
-                      <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
-                        <div className="mb-2">
+                      <div key={group.storeId} className={`mb-3 p-3 rounded-lg border ${firstP.store_type === 'promotion' ? 'border-purple-500/30 bg-purple-500/5' : 'border-border bg-secondary/30'}`}>
+                        <div className="flex items-center justify-between mb-2">
                           <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城', lang)}</label>
-                          <StoreSelect
-                            stores={stores}
-                            value={firstP.store_id}
-                            lang={lang}
-                            disabledStoreIds={selectedStoreIds.filter(id => id !== Number(group.storeId))}
-                            onChange={(val) => {
-                              const newP = [...prices];
-                              const s = stores.find(st => st.id === Number(val));
-                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
-                              // Preserve existing price data for this store group by region
-                              const existingByRegion: Record<string, typeof prices[0]> = {};
-                              for (const idx of group.indices) {
-                                const p = prices[idx];
-                                const key = p.region || '__default__';
-                                existingByRegion[key] = { ...p };
-                              }
-                              // Replace entries in-place to preserve position
-                              const firstIdx = group.indices[0];
-                              const newEntries: typeof prices = [];
-                              if (sRegions.length <= 1) {
-                                const r = sRegions[0] || { region: '', currency: '$' };
-                                const existing = existingByRegion[r.region] || existingByRegion['__default__'];
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
+                            {firstP.store_type === 'promotion' ? t('Promotion Store', '特惠商城', lang) : t('Standard Store', '标准商城', lang)}
+                          </span>
+                        </div>
+                        <StoreSelect
+                          stores={stores}
+                          value={firstP.store_id}
+                          lang={lang}
+                          disabledStoreIds={selectedStoreIds.filter(id => id !== Number(group.storeId))}
+                          onChange={(val) => {
+                            const newP = [...prices];
+                            const s = stores.find(st => st.id === Number(val));
+                            const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
+                            // Preserve existing price data for this store group by region
+                            const existingByRegion: Record<string, typeof prices[0]> = {};
+                            for (const idx of group.indices) {
+                              const p = prices[idx];
+                              const key = p.region || '__default__';
+                              existingByRegion[key] = { ...p };
+                            }
+                            // Replace entries in-place to preserve position
+                            const firstIdx = group.indices[0];
+                            const newEntries: typeof prices = [];
+                            if (sRegions.length <= 1) {
+                              const r = sRegions[0] || { region: '', currency: '$' };
+                              const existing = existingByRegion[r.region] || existingByRegion['__default__'];
+                              newEntries.push({
+                                store_id: val,
+                                current_price: existing?.current_price || '',
+                                original_price: existing?.original_price || '',
+                                product_url: existing?.product_url || '',
+                                discount_percent: existing?.discount_percent || '',
+                                currency: r.currency,
+                                region: r.region,
+                                no_quote: existing?.no_quote || false,
+                                store_type: firstP.store_type,
+                                promotion_id: firstP.promotion_id,
+                              });
+                            } else {
+                              for (const sr of sRegions) {
+                                const existing = existingByRegion[sr.region] || existingByRegion['__default__'];
                                 newEntries.push({
                                   store_id: val,
                                   current_price: existing?.current_price || '',
                                   original_price: existing?.original_price || '',
                                   product_url: existing?.product_url || '',
                                   discount_percent: existing?.discount_percent || '',
-                                  currency: r.currency,
-                                  region: r.region,
+                                  currency: sr.currency || '$',
+                                  region: sr.region || '',
                                   no_quote: existing?.no_quote || false,
+                                  store_type: firstP.store_type,
+                                  promotion_id: firstP.promotion_id,
                                 });
-                              } else {
-                                for (const sr of sRegions) {
-                                  const existing = existingByRegion[sr.region] || existingByRegion['__default__'];
-                                  newEntries.push({
-                                    store_id: val,
-                                    current_price: existing?.current_price || '',
-                                    original_price: existing?.original_price || '',
-                                    product_url: existing?.product_url || '',
-                                    discount_percent: existing?.discount_percent || '',
-                                    currency: sr.currency || '$',
-                                    region: sr.region || '',
-                                    no_quote: existing?.no_quote || false,
-                                  });
+                              }
+                            }
+                            // Remove old entries, then splice new ones at the original position
+                            const sortedDesc = [...group.indices].sort((a, b) => b - a);
+                            for (const idx of sortedDesc) {
+                              newP.splice(idx, 1);
+                            }
+                            newP.splice(firstIdx, 0, ...newEntries);
+                            setPrices(newP);
+                          }}
+                        />
+                        {/* Promotion Selector for Promotion Store */}
+                        {firstP.store_type === 'promotion' && (
+                          <div className="mt-2">
+                            <label className="text-[10px] text-muted-foreground text-left block">{t('Select Promotion', '选择活动', lang)} *</label>
+                            <select
+                              value={firstP.promotion_id}
+                              onChange={(e) => {
+                                const newP = [...prices];
+                                for (const idx of group.indices) {
+                                  newP[idx].promotion_id = e.target.value;
                                 }
-                              }
-                              // Remove old entries, then splice new ones at the original position
-                              const sortedDesc = [...group.indices].sort((a, b) => b - a);
-                              for (const idx of sortedDesc) {
-                                newP.splice(idx, 1);
-                              }
-                              newP.splice(firstIdx, 0, ...newEntries);
-                              setPrices(newP);
-                            }}
-                          />
-                        </div>
+                                setPrices(newP);
+                              }}
+                              className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                            >
+                              <option value="">{t('-- Select a promotion --', '-- 选择活动 --', lang)}</option>
+                              {(promotions || []).filter(p => p.is_active).map((p) => (
+                                <option key={p.id} value={p.id}>{p.promotion_translations?.find((tr) => tr.language === lang)?.name || p.slug}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                         {hasMultipleCurrencies ? (
                           <div className="space-y-2">
                             {group.indices.map((pIdx) => {
@@ -7035,9 +7083,14 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                     );
                   });
                 })()}
-                <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false }])} className="text-xs text-primary hover:underline">
-                  + {t('Add Store Price', '添加商城价格', lang)}
-                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }])} className="text-xs text-cyan-400 hover:underline font-medium">
+                    + {t('Add Standard Store', '添加标准商城', lang)}
+                  </button>
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', promotion_id: '' }])} className="text-xs text-purple-400 hover:underline font-medium">
+                    + {t('Add Promotion Store', '添加特惠商城', lang)}
+                  </button>
+                </div>
               </div>
             </div>
 
