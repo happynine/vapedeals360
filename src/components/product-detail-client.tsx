@@ -349,22 +349,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             </div>
           )}
 
-          {/* Features */}
-          {features.length > 0 && (
-            <div className="mt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">{language === "zh" ? "产品亮点" : "Key Features"}</h2>
-              <ul className="space-y-2">
-                {features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
-                    <svg className="h-4 w-4 flex-shrink-0 mt-0.5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Features - moved to bottom section */}
         </div>
       </div>
 
@@ -582,6 +567,30 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
           })}
         </div>
       </div>
+
+      {/* Key Features - between Price Comparison and Specifications */}
+      {features.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg className="h-6 w-6 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            {language === "zh" ? "产品亮点" : "Key Features"}
+          </h2>
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {features.map((feature, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                  <svg className="h-4 w-4 flex-shrink-0 mt-0.5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Specs Table */}
       {specsEntries.length > 0 && (
