@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getPresignedUrl } from '@/lib/storage';
 
 // 自动在 products 表创建/查找对应产品，返回 product_id
 async function ensureProductInProductsTable(
@@ -94,16 +95,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Combine data
-    const combinedData = promotionProducts?.map(pp => ({
-      ...pp,
-      home_image_key: pp.products?.home_image_key || null,
-      promotions: promotionsRes.data?.find(p => p.id === pp.promotion_id) || null,
-      categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null,
-      stores: (pp.promotion_product_prices as Array<{ store_id: number; [key: string]: unknown }>)?.map((sp: { store_id: number; [key: string]: unknown }) => ({
-        ...sp,
-        store: storesRes.data?.find(s => s.id === sp.store_id) || null
-      })) || []
-    })) || [];
+    const combinedData = await Promise.all((promotionProducts || []).map(async pp => {
+      const homeImageKey = pp.products?.home_image_key || null;
+      const homeImageUrl = await getPresignedUrl(homeImageKey);
+      return {
+        ...pp,
+        home_image_key: homeImageKey,
+        home_image_url: homeImageUrl,
+        promotions: promotionsRes.data?.find(p => p.id === pp.promotion_id) || null,
+        categories: pp.category_id ? categoriesRes.data?.find(c => c.id === pp.category_id) || null : null,
+        stores: (pp.promotion_product_prices as Array<{ store_id: number; [key: string]: unknown }>)?.map((sp: { store_id: number; [key: string]: unknown }) => ({
+          ...sp,
+          store: storesRes.data?.find(s => s.id === sp.store_id) || null
+        })) || []
+      };
+    }));
 
     return NextResponse.json({ success: true, data: combinedData });
   } catch (err) {
