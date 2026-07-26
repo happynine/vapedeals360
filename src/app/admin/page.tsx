@@ -6042,6 +6042,19 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                 />
               </div>
 
+              {/* Home Page Card Image Upload */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Home Page Card Image', '首页卡片图', lang)} (260x260px)</label>
+                <ImageUpload
+                  value={homeImageKey}
+                  onUploadComplete={(key) => setHomeImageKey(key)}
+                  aspectRatio={1}
+                  suggestedSize="260x260px"
+                  folder="products"
+                  isProductImage={true}
+                />
+              </div>
+
               {/* Status */}
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
