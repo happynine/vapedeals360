@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
+import { getPresignedUrl } from '@/lib/storage';
 
 // Type definitions
 export interface Category {
@@ -39,6 +40,8 @@ export interface Product {
   category_id: number | null;
   image_url: string | null;
   image_url_small: string | null;
+  home_image_key: string | null;
+  home_image_url: string | null;
   images: string | null;
   sales_region: string | null;
   is_active: boolean;
@@ -259,36 +262,42 @@ export async function fetchProducts(options?: {
   }
 
   // Process and filter products
-  const processedProducts = (data || []).map((product: Record<string, unknown>) => ({
-    ...product,
-    translations: product.product_translations as ProductTranslation[],
-    prices: (product.product_prices as Record<string, unknown>[] || [])
-      .filter((p) => {
-        if (!activeRegion) return true;
-        const pStoreId = (p as Record<string, unknown>).store_id as number;
-        const pRegion = (p as Record<string, unknown>).region as string | null;
-        // Include prices that match the region, Global region, or have no region set (backward compat)
-        if (pRegion === activeRegion || pRegion === 'Global') return true;
-        if (!pRegion) {
-          // For prices without region, check if the store matches the region
-          const storeRegions = storeRegionMap[pStoreId];
-          // 如果store在storeRegionMap中，说明它匹配当前region
-          return storeRegions !== undefined;
-        }
-        return false;
-      })
-      .map((p) => {
-      const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
-      return {
-        ...p,
-        store: storeData
-          ? {
-              ...storeData,
-              translations: (storeData.store_translations || []) as StoreTranslation[],
-            }
-          : undefined,
-      };
-    }),
+  const processedProducts = await Promise.all((data || []).map(async (product: Record<string, unknown>) => {
+    const homeImageKey = product.home_image_key as string | null;
+    const homeImageUrl = await getPresignedUrl(homeImageKey);
+    
+    return {
+      ...product,
+      home_image_url: homeImageUrl,
+      translations: product.product_translations as ProductTranslation[],
+      prices: (product.product_prices as Record<string, unknown>[] || [])
+        .filter((p) => {
+          if (!activeRegion) return true;
+          const pStoreId = (p as Record<string, unknown>).store_id as number;
+          const pRegion = (p as Record<string, unknown>).region as string | null;
+          // Include prices that match the region, Global region, or have no region set (backward compat)
+          if (pRegion === activeRegion || pRegion === 'Global') return true;
+          if (!pRegion) {
+            // For prices without region, check if the store matches the region
+            const storeRegions = storeRegionMap[pStoreId];
+            // 如果store在storeRegionMap中，说明它匹配当前region
+            return storeRegions !== undefined;
+          }
+          return false;
+        })
+        .map((p) => {
+        const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
+        return {
+          ...p,
+          store: storeData
+            ? {
+                ...storeData,
+                translations: (storeData.store_translations || []) as StoreTranslation[],
+              }
+            : undefined,
+        };
+      }),
+    };
   }));
 
   // If currency is specified, filter products that have matching prices

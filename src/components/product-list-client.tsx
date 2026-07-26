@@ -74,6 +74,7 @@ interface Product {
   category_id: number | null;
   image_url: string | null;
   image_url_small: string | null;
+  home_image_url: string | null;
   images: string | null;
   is_active: boolean;
   is_featured: boolean;
@@ -773,9 +774,9 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     }).catch(() => {});
                   }}
                 >
-                  {product.image_url && (
+                  {(product.home_image_url || product.image_url) && (
                     <SafeImage
-                      src={product.image_url_small || product.image_url}
+                      src={product.home_image_url || product.image_url_small || product.image_url}
                       alt={t?.name || ""}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"

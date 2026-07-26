@@ -265,7 +265,7 @@ interface PromotionProductTranslation { language: string; name: string; descript
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
 interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'database_backup';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
@@ -6587,6 +6587,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
 
   const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
   const [imageKeySmall, setImageKeySmall] = useState(product?.image_url_small || '');
+  const [homeImageKey, setHomeImageKey] = useState(product?.home_image_key || product?.home_image_url || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [notes, setNotes] = useState(product?.notes || '');
@@ -6638,6 +6639,7 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
         category_id: categoryId ? parseInt(categoryId) : null,
         image_url: imageKey || null,
         image_url_small: imageKeySmall || null,
+        home_image_key: homeImageKey || null,
         is_active: isActive,
         is_featured: isFeatured,
         notes,
@@ -6724,6 +6726,18 @@ function ProductFormModal({ product, categories, stores, onSave, lang, activeLan
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
                 isProductImage={true}
+              />
+
+              {/* Home Page Card Image Upload */}
+              <ImageUpload
+                value={homeImageKey}
+                onUploadComplete={(key) => {
+                  setHomeImageKey(key);
+                }}
+                aspectRatio={1}
+                suggestedSize="260x260px"
+                label={t('Home Page Card Image', '首页卡片图片', lang)}
+                folder="products"
               />
 
               <div className="flex gap-4">
