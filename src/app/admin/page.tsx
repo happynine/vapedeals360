@@ -7106,7 +7106,7 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
                 value={defaultImageKey}
                 onUploadComplete={setDefaultImageKey}
                 aspectRatio={21 / 6}
-                suggestedSize="1200x343px"
+                suggestedSize="1376x320px"
                 label={t('Web Banner Image (fallback if no language-specific image)', 'Web 端 Banner 图片（无语言专属图时使用）', lang)}
                 folder="banners"
               />

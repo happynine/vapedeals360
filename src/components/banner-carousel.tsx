@@ -61,7 +61,7 @@ export default function BannerCarousel({ banners, language }: { banners: Banner[
 
   const content = (
     <div
-      className="relative w-full overflow-hidden bg-gray-100 sm:aspect-[1200/343]"
+      className="relative w-full overflow-hidden bg-gray-100 sm:aspect-[1376/320]"
       onMouseEnter={() => {
         if (hoverRef.current) clearTimeout(hoverRef.current);
         setHovered(true);
