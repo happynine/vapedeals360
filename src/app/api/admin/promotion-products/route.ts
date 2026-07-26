@@ -8,7 +8,8 @@ async function ensureProductInProductsTable(
   categoryId: number | null,
   imageUrl: string | null,
   isActive: boolean,
-  productName?: string
+  productName?: string,
+  homeImageKey?: string | null
 ): Promise<number | null> {
   const { data: existing } = await supabase
     .from('products')
@@ -19,7 +20,13 @@ async function ensureProductInProductsTable(
 
   const { data: created, error } = await supabase
     .from('products')
-    .insert({ slug, category_id: categoryId, image_url: imageUrl, is_active: isActive })
+    .insert({ 
+      slug, 
+      category_id: categoryId, 
+      image_url: imageUrl, 
+      home_image_key: homeImageKey || null,
+      is_active: isActive 
+    })
     .select()
     .single();
   if (error) {
@@ -113,6 +120,7 @@ export async function POST(request: NextRequest) {
       slug,
       category_id,
       image_key,
+      home_image_key,
       image_url,
       is_active,
       is_featured,
@@ -145,6 +153,7 @@ export async function POST(request: NextRequest) {
         slug,
         category_id: category_id || null,
         image_key: image_key || null,
+        home_image_key: home_image_key || null,
         image_url: image_url || null,
         is_active: is_active ?? true,
         is_featured: is_featured ?? false,
@@ -251,6 +260,7 @@ export async function PUT(request: NextRequest) {
       slug,
       category_id,
       image_key,
+      home_image_key,
       image_url,
       is_active,
       is_featured,
@@ -271,6 +281,7 @@ export async function PUT(request: NextRequest) {
         slug,
         category_id: category_id || null,
         image_key: image_key || null,
+        home_image_key: home_image_key || null,
         image_url: image_url || null,
         is_active: is_active ?? true,
         is_featured: is_featured ?? false,
@@ -312,7 +323,7 @@ export async function PUT(request: NextRequest) {
     if (promotionProduct) {
       const enTranslation = translations?.find((t: any) => t.language === 'en');
       const productName = enTranslation?.name || slug;
-      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName);
+      const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName, home_image_key || null);
       if (productId) {
         await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
       }

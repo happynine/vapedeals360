@@ -51,6 +51,8 @@ interface PromotionProduct {
   category_id: number | null;
   image_key: string | null;
   image_url: string | null;
+  home_image_key: string | null;
+  home_image_url: string | null;
   is_active: boolean | null;
   is_featured: boolean | null;
   notes: string | null;
@@ -350,7 +352,7 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                   className="block relative aspect-square bg-gray-50 overflow-hidden"
                 >
                   <SafeImage
-                    src={product.image_key || product.image_url}
+                    src={product.home_image_url || product.image_key || product.image_url}
                     alt={productTranslation?.name || product.slug || 'Product'}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"

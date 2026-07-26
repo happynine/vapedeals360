@@ -49,6 +49,8 @@ interface PromotionProduct {
   category_id: number | null;
   image_key: string | null;
   image_url: string | null;
+  home_image_key: string | null;
+  home_image_url: string | null;
   is_active: boolean | null;
   is_featured: boolean | null;
   notes: string | null;

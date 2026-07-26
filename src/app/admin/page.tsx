@@ -263,7 +263,7 @@ interface Banner { id: number; image_key: string | null; mobile_image_key: strin
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; title: string | null; description: string | null; cover_image_key: string | null; cover_image_url: string | null; mobile_cover_image_key: string | null; mobile_cover_image_url: string | null; }
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
-interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
+interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; home_image_key?: string; home_image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
 interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
@@ -5768,6 +5768,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
   const [slug, setSlug] = useState(promotionProduct?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(promotionProduct?.category_id?.toString() || '');
   const [imageKey, setImageKey] = useState<string | null>(promotionProduct?.image_key || promotionProduct?.image_url || null);
+  const [homeImageKey, setHomeImageKey] = useState<string | null>(promotionProduct?.home_image_key || null);
   const [imageKeySmall, setImageKeySmall] = useState<string | null>(promotionProduct?.image_url_small || null);
   const [isActive, setIsActive] = useState(promotionProduct?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(promotionProduct?.is_featured || false);
@@ -5892,6 +5893,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         slug: slug.trim(),
         category_id: categoryId ? parseInt(categoryId) : null,
         image_key: imageKey,
+        home_image_key: homeImageKey,
         is_active: isActive,
         is_featured: isFeatured,
         notes: notes,
