@@ -3903,6 +3903,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const processedFile = await compressImage(file);
       const formData = new FormData();
       formData.append('file', processedFile);
+      formData.append('folder', 'news');
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
@@ -4569,7 +4570,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
           <div>
             <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} lang={lang} />
+            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="news" lang={lang} />
           </div>
 
           {/* Language toggle + unified editor */}
@@ -4688,7 +4689,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
               <div>
                 <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} lang={lang} />
+                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="news" lang={lang} />
               </div>
 
               {/* Language toggle + unified editor */}
@@ -5151,6 +5152,7 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                               aspectRatio={332/187} 
                               recommendedSize="332x187px" 
                               label={t('Cover', '封面', lang)} 
+                              folder="promotions"
                               lang={lang} 
                             />
                           </div>
@@ -5162,6 +5164,7 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
                               aspectRatio={750/422} 
                               recommendedSize="750x422px" 
                               label={t('Mobile Cover', '移动端封面', lang)} 
+                              folder="promotions"
                               lang={lang} 
                             />
                           </div>
@@ -5617,7 +5620,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 aspectRatio={1}
                 suggestedSize="64x64px"
                 label={t('Store Logo', '商城 Logo', lang)}
-                folder="logos"
+                folder="stores"
               />
               <div>
                 <label className="text-xs text-muted-foreground text-left block">{t('Website URL', '网站地址', lang)}</label>
