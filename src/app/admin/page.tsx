@@ -6616,18 +6616,21 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
   const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: 'standard' | 'promotion'; promotion_id: string }[]>(
-    product?.product_prices?.map((p) => ({
-      store_id: p.store_id.toString(),
-      current_price: p.current_price,
-      original_price: p.original_price || '',
-      product_url: p.product_url,
-      discount_percent: p.discount_percent?.toString() || '',
-      currency: p.currency || '$',
-      region: p.region || '',
-      no_quote: p.no_quote || false,
-      store_type: 'standard' as const,
-      promotion_id: '',
-    })) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard' as const, promotion_id: '' }]
+    product?.product_prices?.map((p) => {
+      const store = stores.find((s) => s.id.toString() === p.store_id.toString());
+      return {
+        store_id: p.store_id.toString(),
+        current_price: p.current_price,
+        original_price: p.original_price || '',
+        product_url: p.product_url,
+        discount_percent: p.discount_percent?.toString() || '',
+        currency: p.currency || '$',
+        region: p.region || '',
+        no_quote: p.no_quote || false,
+        store_type: (store?.store_type as 'standard' | 'promotion') || 'standard',
+        promotion_id: '',
+      };
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard' as const, promotion_id: '' }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
