@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 import { del } from '@vercel/blob';
-
 // 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
 async function deleteBlobFile(fileUrl: string | null | undefined) {
   if (!fileUrl) return;
@@ -15,7 +14,6 @@ async function deleteBlobFile(fileUrl: string | null | undefined) {
     console.warn('Failed to delete blob file:', fileUrl, e);
   }
 }
-
 // GET all products (admin view, including inactive)
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +42,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-
 // POST create product
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(request, "admin");
@@ -179,7 +176,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-
 // PUT update product
 export async function PUT(request: NextRequest) {
   const rl = checkRateLimit(request, "admin");
@@ -189,14 +185,12 @@ export async function PUT(request: NextRequest) {
     const client = getSupabaseClient();
     const body = await request.json();
     const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
-
     // 获取旧的产品数据，用于删除旧图片
     const { data: oldProduct } = await client
       .from('products')
       .select('image_url, image_url_small, home_image_key')
       .eq('id', id)
       .single();
-
     const { data: product, error: prodError } = await client
       .from('products')
       .update({
@@ -216,14 +210,25 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Update product failed: ${prodError.message}`);
-
-    // 删除旧的 Vercel Blob 文件（当 home_image_key 被更新时）
+    // 删除旧的 Vercel Blob 文件（当图片被更新时）
     if (oldProduct) {
       const oldHomeImageKey = oldProduct.home_image_key as string | null;
+      const oldImageUrl = oldProduct.image_url as string | null;
+      const oldImageUrlSmall = oldProduct.image_url_small as string | null;
       
       // 如果 home_image_key 被更新且旧值与新值不同，删除旧文件
       if (home_image_key !== undefined && oldHomeImageKey && oldHomeImageKey !== (home_image_key || null)) {
         await deleteBlobFile(oldHomeImageKey);
+      }
+      
+      // 如果 image_url 被更新且旧值与新值不同，删除旧文件
+      if (image_url !== undefined && oldImageUrl && oldImageUrl !== (image_url || null)) {
+        await deleteBlobFile(oldImageUrl);
+      }
+      
+      // 如果 image_url_small 被更新且旧值与新值不同，删除旧文件
+      if (image_url_small !== undefined && oldImageUrlSmall && oldImageUrlSmall !== (image_url_small || null)) {
+        await deleteBlobFile(oldImageUrlSmall);
       }
     }
     // Update translations
@@ -362,9 +367,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-
 // DELETE product
 export async function DELETE(request: NextRequest) {
+
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
@@ -373,8 +378,20 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) throw new Error('Missing id parameter');
+    // 获取产品数据以清理关联的 Vercel Blob 图片
+    const { data: product } = await client
+      .from('products')
+      .select('image_url, image_url_small, home_image_key')
+      .eq('id', parseInt(id))
+      .single();
     const { error } = await client.from('products').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete product failed: ${error.message}`);
+    // 清理关联的 Vercel Blob 图片
+    if (product) {
+      await deleteBlobFile((product as Record<string, unknown>).image_url as string | null);
+      await deleteBlobFile((product as Record<string, unknown>).image_url_small as string | null);
+      await deleteBlobFile((product as Record<string, unknown>).home_image_key as string | null);
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
