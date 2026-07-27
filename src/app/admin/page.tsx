@@ -6392,6 +6392,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                           </div>
                         )}
                         {/* Time Settings - 仅特惠商城显示 */}
+                        {console.log('DEBUG: firstP.store_type =', firstP.store_type, 'is promotion?', firstP.store_type === 'promotion')}
                         {firstP.store_type === 'promotion' && (
                         <div className="border-t border-border/50 pt-2 mt-2">
                           <label className="text-[10px] text-muted-foreground block mb-1 text-left">{translate('Time Settings', '时间设置', lang)}</label>
