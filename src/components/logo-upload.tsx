@@ -24,7 +24,7 @@ export default function LogoUpload({
       try {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("folder", "site");
+        formData.append("folder", "settings");
 
         const res = await fetch("/api/upload", {
           method: "POST",
