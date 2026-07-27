@@ -534,7 +534,7 @@ export default function AdminPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productSortOrder, setProductSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [productTypeTab, setProductTypeTab] = useState<'standard' | 'promotion'>('standard');
+
   const [productSearch, setProductSearch] = useState('');
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productPage, setProductPage] = useState(1);
@@ -671,8 +671,8 @@ export default function AdminPage() {
   }, [adminLang]);
 
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
-  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); fetchPromotionProducts(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle, fetchPromotionProducts]);
-  useEffect(() => { if (isLoggedIn && activeTab === 'products' && productTypeTab === 'promotion') fetchPromotionProducts(); }, [isLoggedIn, activeTab, productTypeTab, fetchPromotionProducts]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'products') fetchPromotionProducts(); }, [isLoggedIn, activeTab, fetchPromotionProducts]);
 
   // Seed data
   const handleSeed = async () => {
@@ -1608,26 +1608,12 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Products Tab */}
+          {/* Products Tab - Unified List */}
           {activeTab === 'products' && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <h1 className="text-2xl font-bold">{t('Products', '产品', adminLang)}</h1>
-                  <div className="flex rounded-lg border border-border overflow-hidden">
-                    <button
-                      onClick={() => { setProductTypeTab('standard'); setProductPage(1); }}
-                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${productTypeTab === 'standard' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
-                    >
-                      {t('Standard', '标准', adminLang)}
-                    </button>
-                    <button
-                      onClick={() => { setProductTypeTab('promotion'); setProductPage(1); }}
-                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${productTypeTab === 'promotion' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}
-                    >
-                      {t('Promotion Products', '特惠活动', adminLang)}
-                    </button>
-                  </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
                       <input
@@ -1656,96 +1642,226 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-                {productTypeTab === 'standard' ? (
+                <div className="flex items-center gap-2">
                   <ProductFormModal categories={categories} stores={stores} promotions={promotions} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
-                ) : (
-                  <PromotionProductFormModal categories={categories} stores={stores} promotions={promotions} onSave={fetchPromotionProducts} lang={adminLang} activeLanguages={activeLanguages} />
-                )}
+                  <PromotionProductFormModal categories={categories} stores={stores} promotions={promotions} onSave={() => { fetchAllData(); fetchPromotionProducts(); }} lang={adminLang} activeLanguages={activeLanguages} />
+                </div>
               </div>
               
-              {/* Standard Products List */}
-              {productTypeTab === 'standard' && (
-                <>
-                  {loading ? (
-                    <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-secondary animate-pulse" />)}</div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-card overflow-hidden">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border bg-secondary/50">
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => setProductSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
-                              <span className="inline-flex items-center gap-1">
-                                {t('ID', 'ID', adminLang)}
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="inline-block">
-                                  <path d="M6 2L9.5 5.5H2.5L6 2Z" fill={productSortOrder === 'asc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
-                                  <path d="M6 10L2.5 6.5H9.5L6 10Z" fill={productSortOrder === 'desc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
-                                </svg>
-                              </span>
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginatedProducts.map((product, pIndex) => {
-                            const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
-                            const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
-                            const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
-                            const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
-                            // 获取产品缩略图
-                            const thumbnailUrl = product.image_key || product.image_url || null;
-                            const thumbnailDisplayUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
-                            // 从产品关联的商城中获取地区信息
-                            const productRegions = new Set<string>();
-                            product.product_prices?.forEach((price: ProductPrice) => {
-                              const store = stores.find((s) => s.id === price.store_id);
-                              store?.regions?.forEach((r) => {
-                                if (r.region) productRegions.add(r.region);
-                              });
+              {/* Standard Products Section */}
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-lg font-semibold">{t('Standard Products', '标准产品', adminLang)}</h2>
+                  <span className="text-sm text-muted-foreground">({filteredProducts.length})</span>
+                </div>
+                {loading ? (
+                  <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-secondary animate-pulse" />)}</div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border bg-secondary/50">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => setProductSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                            <span className="inline-flex items-center gap-1">
+                              {t('ID', 'ID', adminLang)}
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="inline-block">
+                                <path d="M6 2L9.5 5.5H2.5L6 2Z" fill={productSortOrder === 'asc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                                <path d="M6 10L2.5 6.5H9.5L6 10Z" fill={productSortOrder === 'desc' ? 'currentColor' : 'rgba(255,255,255,0.25)'} />
+                              </svg>
+                            </span>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedProducts.map((product, pIndex) => {
+                          const enName = product.product_translations?.find((tr) => tr.language === 'en')?.name || '—';
+                          const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
+                          const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
+                          const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
+                          const thumbnailUrl = product.image_key || product.image_url || null;
+                          const thumbnailDisplayUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
+                          const productRegions = new Set<string>();
+                          product.product_prices?.forEach((price: ProductPrice) => {
+                            const store = stores.find((s) => s.id === price.store_id);
+                            store?.regions?.forEach((r) => {
+                              if (r.region) productRegions.add(r.region);
                             });
-                            const regionList = Array.from(productRegions);
+                          });
+                          const regionList = Array.from(productRegions);
+                          return (
+                            <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
+                              <td className="px-4 py-3">
+                                {thumbnailDisplayUrl ? (
+                                  <img src={thumbnailDisplayUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
+                                ) : (
+                                  <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div>
+                                    <div className="text-sm font-medium">{enName}</div>
+                                    <div className="text-xs text-muted-foreground">{zhName}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{catName}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{product.product_prices?.length || 0} {t('stores', '家商城', adminLang)}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-1 flex-wrap">
+                                  {product.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
+                                  {product.is_featured && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{t('Featured', '推荐', adminLang)}</span>}
+                                  {regionList.map((region) => (
+                                    <span key={region} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{region}</span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <ProductFormModal product={product} categories={categories} stores={stores} promotions={promotions} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
+                                  <button
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                    className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    {t('Delete', '删除', adminLang)}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {products.length === 0 && (
+                      <div className="py-12 text-center text-muted-foreground">
+                        {t('No products yet. Click "Add Product" or "Seed Demo Data" to get started.', '暂无产品。点击"添加产品"或"添加演示数据"开始。', adminLang)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {productTotalPages > 1 && (
+                  <AdminPagination
+                    currentPage={productPage}
+                    totalPages={productTotalPages}
+                    total={filteredProducts.length}
+                    onPageChange={(p) => { setProductPage(p); }}
+                    lang={adminLang}
+                  />
+                )}
+              </div>
+
+              {/* Promotion Products Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-lg font-semibold">{t('Promotion Products', '特惠产品', adminLang)}</h2>
+                  <span className="rounded bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-400">PROMO</span>
+                  <span className="text-sm text-muted-foreground">({promotionProducts.length})</span>
+                </div>
+                {loadingPromotionProducts ? (
+                  <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-secondary animate-pulse" />)}</div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border bg-secondary/50">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Promotion', '活动', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Store', '商城', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Special Price', '特惠价', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Time', '时间', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {promotionProducts.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="py-8 text-center text-muted-foreground">
+                              {t('No promotion products yet. Click "Add Promotion Product" to get started.', '暂无特惠产品。点击"添加特惠产品"开始。', adminLang)}
+                            </td>
+                          </tr>
+                        ) : (
+                          promotionProducts.map((pp, ppIndex) => {
+                            const productName = pp.promotion_product_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || '—';
+                            const promotionName = pp.promotions?.promotion_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || pp.promotions?.slug || '—';
+                            const firstStorePrice = pp.stores?.[0];
+                            const storeName = firstStorePrice?.store?.store_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || firstStorePrice?.store?.slug || '—';
+                            const specialPrice = firstStorePrice?.current_price ? `${firstStorePrice.currency || '$'}${firstStorePrice.current_price}` : '—';
+                            
+                            let timeDisplay = t('Permanent', '永久', adminLang);
+                            const timeData = firstStorePrice || pp;
+                            if (timeData?.time_type === 'time_range' && timeData?.start_time && timeData?.end_time) {
+                              timeDisplay = `${new Date(timeData.start_time).toLocaleDateString()} - ${new Date(timeData.end_time).toLocaleDateString()}`;
+                            } else if (timeData?.time_type === 'countdown' && timeData?.end_time) {
+                              const now = new Date();
+                              const end = new Date(timeData.end_time);
+                              const diff = end.getTime() - now.getTime();
+                              if (diff > 0) {
+                                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                                const hoursStr = hours.toString().padStart(2, '0');
+                                const minutesStr = minutes.toString().padStart(2, '0');
+                                const secondsStr = seconds.toString().padStart(2, '0');
+                                if (days > 0) {
+                                  timeDisplay = `${days}d ${hoursStr}h ${minutesStr}m`;
+                                } else {
+                                  timeDisplay = `${hoursStr}h ${minutesStr}m ${secondsStr}s`;
+                                }
+                              } else {
+                                timeDisplay = t('Expired', '已过期', adminLang);
+                              }
+                            }
+                            
                             return (
-                              <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
-                                <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
-                                <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
+                              <tr key={pp.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
                                 <td className="px-4 py-3">
-                                  {thumbnailDisplayUrl ? (
-                                    <img src={thumbnailDisplayUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
+                                  {(pp.image_key || pp.image_url) ? (
+                                     <img src={getImageUrl(pp.image_key || pp.image_url)} alt={productName} className="w-10 h-10 rounded object-cover" />
                                   ) : (
-                                    <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                                      <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                      </svg>
-                                    </div>
+                                    <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center text-muted-foreground text-xs">—</div>
                                   )}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <div className="text-sm font-medium">{enName}</div>
-                                  <div className="text-xs text-muted-foreground">{zhName}</div>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-muted-foreground">{catName}</td>
-                                <td className="px-4 py-3 text-sm text-muted-foreground">{product.product_prices?.length || 0} {t('stores', '家商城', adminLang)}</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex gap-1 flex-wrap">
-                                    {product.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
-                                    {product.is_featured && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{t('Featured', '推荐', adminLang)}</span>}
-                                    {regionList.map((region) => (
-                                      <span key={region} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{region}</span>
-                                    ))}
+                                  <div className="flex items-center gap-2">
+                                    <div>
+                                      <div className="text-sm font-medium">{productName}</div>
+                                      <div className="text-xs text-muted-foreground">#<span className="text-purple-400">{pp.slug}</span></div>
+                                    </div>
+                                    <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400 shrink-0">PROMO</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{promotionName}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{storeName}</td>
+                                <td className="px-4 py-3 text-sm font-medium text-green-400">{specialPrice}</td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{timeDisplay}</td>
+                                <td className="px-4 py-3">
+                                  {pp.is_active !== false && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
+                                </td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    <ProductFormModal product={product} categories={categories} stores={stores} promotions={promotions} onSave={fetchAllData} lang={adminLang} activeLanguages={activeLanguages} />
+                                    <PromotionProductFormModal promotionProduct={pp} categories={categories} stores={stores} promotions={promotions} onSave={fetchPromotionProducts} lang={adminLang} activeLanguages={activeLanguages} />
                                     <button
-                                      onClick={() => handleDeleteProduct(product.id)}
+                                      onClick={() => handleDeletePromotionProduct(pp.id)}
                                       className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
                                     >
                                       {t('Delete', '删除', adminLang)}
@@ -1754,137 +1870,13 @@ export default function AdminPage() {
                                 </td>
                               </tr>
                             );
-                          })}
-                        </tbody>
-                      </table>
-                      {products.length === 0 && (
-                        <div className="py-12 text-center text-muted-foreground">
-                          {t('No products yet. Click "Add Product" or "Seed Demo Data" to get started.', '暂无产品。点击"添加产品"或"添加演示数据"开始。', adminLang)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Pagination */}
-                  {productTotalPages > 1 && (
-                    <AdminPagination
-                      currentPage={productPage}
-                      totalPages={productTotalPages}
-                      total={filteredProducts.length}
-                      onPageChange={(p) => { setProductPage(p); }}
-                      lang={adminLang}
-                    />
-                  )}
-                </>
-              )}
-              
-              {/* Promotion Products List */}
-              {productTypeTab === 'promotion' && (
-                <>
-                  {loadingPromotionProducts ? (
-                    <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 rounded-lg bg-secondary animate-pulse" />)}</div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-card overflow-hidden">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border bg-secondary/50">
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Promotion', '活动', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Store', '商城', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Special Price', '特惠价', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Time', '时间', adminLang)}</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
-                            <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {promotionProducts.length === 0 ? (
-                            <tr>
-                              <td colSpan={9} className="py-12 text-center text-muted-foreground">
-                                {t('No promotion products yet. Click "Add Promotion Product" to get started.', '暂无促销产品。点击"添加促销产品"开始。', adminLang)}
-                              </td>
-                            </tr>
-                          ) : (
-                            promotionProducts.map((pp, ppIndex) => {
-                              // Get product name from promotion_product_translations
-                              const productName = pp.promotion_product_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || '—';
-                              // Get promotion name from promotions (returned by API)
-                              const promotionName = pp.promotions?.promotion_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || pp.promotions?.slug || '—';
-                              // Get first store price info
-                              const firstStorePrice = pp.stores?.[0];
-                              const storeName = firstStorePrice?.store?.store_translations?.find((tr: { language: string; name: string }) => tr.language === 'en')?.name || firstStorePrice?.store?.slug || '—';
-                              const specialPrice = firstStorePrice?.current_price ? `${firstStorePrice.currency || '$'}${firstStorePrice.current_price}` : '—';
-                              
-                              // Get time display from first store price
-                              let timeDisplay = t('Permanent', '永久', adminLang);
-                              const timeData = firstStorePrice || pp;
-                              if (timeData?.time_type === 'time_range' && timeData?.start_time && timeData?.end_time) {
-                                timeDisplay = `${new Date(timeData.start_time).toLocaleDateString()} - ${new Date(timeData.end_time).toLocaleDateString()}`;
-                              } else if (timeData?.time_type === 'countdown' && timeData?.end_time) {
-                                const now = new Date();
-                                const end = new Date(timeData.end_time);
-                                const diff = end.getTime() - now.getTime();
-                                if (diff > 0) {
-                                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                                  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                                  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                                  const hoursStr = hours.toString().padStart(2, '0');
-                                  const minutesStr = minutes.toString().padStart(2, '0');
-                                  const secondsStr = seconds.toString().padStart(2, '0');
-                                  if (days > 0) {
-                                    timeDisplay = `${days}天${hoursStr}小时${minutesStr}分${secondsStr}秒`;
-                                  } else {
-                                    timeDisplay = `${hoursStr}小时${minutesStr}分${secondsStr}秒`;
-                                  }
-                                } else {
-                                  timeDisplay = t('Expired', '已过期', adminLang);
-                                }
-                              }
-                              
-                              return (
-                                <tr key={pp.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{ppIndex + 1}</td>
-                                  <td className="px-4 py-3">
-                                    {(pp.image_key || pp.image_url) ? (
-                                       <img src={getImageUrl(pp.image_key || pp.image_url)} alt={productName} className="w-10 h-10 rounded object-cover" />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center text-muted-foreground text-xs">—</div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="text-sm font-medium">{productName}</div>
-                                    <div className="text-xs text-muted-foreground">#<span className="text-purple-400">{pp.slug}</span></div>
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{promotionName}</td>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{storeName}</td>
-                                  <td className="px-4 py-3 text-sm font-medium text-green-400">{specialPrice}</td>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">{timeDisplay}</td>
-                                  <td className="px-4 py-3">
-                                    {pp.is_active !== false && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <PromotionProductFormModal promotionProduct={pp} categories={categories} stores={stores} promotions={promotions} onSave={fetchPromotionProducts} lang={adminLang} activeLanguages={activeLanguages} />
-                                      <button
-                                        onClick={() => handleDeletePromotionProduct(pp.id)}
-                                        className="rounded-lg border border-destructive/30 px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                                      >
-                                        {t('Delete', '删除', adminLang)}
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </>
-              )}
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -7089,9 +7081,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 <div className="flex gap-3">
                   <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }])} className="text-xs text-cyan-400 hover:underline font-medium">
                     + {t('Add Standard Store', '添加标准商城', lang)}
-                  </button>
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', promotion_id: '' }])} className="text-xs text-purple-400 hover:underline font-medium">
-                    + {t('Add Promotion Store', '添加特惠商城', lang)}
                   </button>
                 </div>
               </div>
