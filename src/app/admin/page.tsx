@@ -672,7 +672,7 @@ export default function AdminPage() {
 
   useEffect(() => { fetchAllData(); }, [fetchAllData]);
   useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
-  useEffect(() => { if (isLoggedIn && activeTab === 'products') fetchPromotionProducts(); }, [isLoggedIn, activeTab, fetchPromotionProducts]);
+  useEffect(() => { if (isLoggedIn && activeTab === 'products') { fetchPromotionProducts(); fetchPromotions(); } }, [isLoggedIn, activeTab, fetchPromotionProducts, fetchPromotions]);
 
   // Seed data
   const handleSeed = async () => {
