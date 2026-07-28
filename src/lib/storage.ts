@@ -60,9 +60,12 @@ export async function uploadFile(params: {
       url: blob.url,
     };
   } else {
-    const key = await getS3Storage().uploadFile({
+    const ext = fileName.split('.').pop() || 'jpg';
+    const hash = computeContentHash(fileContent);
+    const key = `${folder}/${hash}.${ext}`;
+    await getS3Storage().uploadFile({
       fileContent,
-      fileName: `${folder}/${Date.now()}-${fileName}`,
+      fileName: key,
       contentType,
     });
     return {
