@@ -14,6 +14,7 @@ interface ImageUploadProps {
   folder?: string;
   lang?: string;
   isProductImage?: boolean;  // If true, upload two sizes (315x315 and 640x640)
+  entityId?: string | number;  // 当提供时，用 ID 作为文件名（覆盖式上传）
 }
 
 export function ImageUpload({
@@ -29,6 +30,7 @@ export function ImageUpload({
   folder = 'uploads',
   lang = 'en',
   isProductImage = false,
+  entityId,
 }: ImageUploadProps) {
   const sizeHint = suggestedSize || recommendedSize;
   const handleComplete = onChange || onUploadComplete || (() => {});
@@ -191,7 +193,8 @@ export function ImageUpload({
       if (!blob) throw new Error('Failed to create image');
 
       // 绕过 FormData，直接发送原始 blob（避免 Vercel Edge 运行时解析 FormData 时的 SharedArrayBuffer 问题）
-      const res = await fetch(`/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}`, {
+      const entityParam = entityId ? `&entity_id=${encodeURIComponent(entityId)}` : '';
+      const res = await fetch(`/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}`, {
         method: 'POST',
         headers: { 'Content-Type': 'image/jpeg' },
         body: blob,
@@ -220,7 +223,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize]);
+  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize, entityId]);
 
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
