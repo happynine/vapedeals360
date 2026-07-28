@@ -203,6 +203,10 @@ export async function POST(request: NextRequest) {
       const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName, home_image_key || null);
       if (productId) {
         await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
+        // 如果产品已存在，单独更新 home_image_key（ensureProductInProductsTable 只在创建时设置）
+        if (home_image_key !== undefined) {
+          await supabase.from('products').update({ home_image_key: home_image_key || null }).eq('id', productId);
+        }
       }
     }
 
