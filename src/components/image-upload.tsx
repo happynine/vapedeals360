@@ -285,6 +285,13 @@ export function ImageUpload({
 
   const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
 
+  // Add timestamp to force re-render when URL doesn't change
+  const previewSrc = value 
+    ? (value.startsWith('http') 
+        ? (value.includes('?') ? `${value}&t=${Date.now()}` : `${value}?t=${Date.now()}`)
+        : `/api/image?key=${encodeURIComponent(value)}&t=${Date.now()}`)
+    : null;
+
   return (
     <div>
       <label className="text-xs text-muted-foreground block mb-1 text-left">
@@ -298,7 +305,7 @@ export function ImageUpload({
       {value && !showCrop && (
         <div className="mb-2 relative group">
           <img
-            src={value.startsWith('http') ? value : `/api/image?key=${encodeURIComponent(value)}`}
+            src={previewSrc}
             alt="Preview"
             className="rounded-lg border border-border max-h-32 object-cover"
           />
