@@ -1,4 +1,5 @@
 import { getServiceRoleClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
+import { getPresignedUrl } from '@/lib/storage';
 import { PromotionClientContent } from './promotion-client-content';
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
@@ -111,15 +112,18 @@ export async function PromotionContent({ slug }: { slug: string }) {
         promotion_products (
           id,
           promotion_id,
+          product_id,
           slug,
           category_id,
           image_key,
           image_url,
           home_image_key,
-          home_image_url,
           is_active,
           is_featured,
           notes,
+          products (
+            home_image_key
+          ),
           promotion_product_translations (
             id,
             name,
@@ -185,7 +189,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
     );
   }
 
-  // Transform data to match expected format
+  // Transform data to match expected format, generate presigned URLs for home images
   const transformedPromotion: Promotion = {
     id: promotion.id,
     slug: promotion.slug,
@@ -193,13 +197,18 @@ export async function PromotionContent({ slug }: { slug: string }) {
     sort_order: promotion.sort_order,
     is_active: promotion.is_active,
     translations: promotion.promotion_translations || [],
-    promotion_products: (promotion.promotion_products || []).map((product: any) => ({
-      ...product,
-      promotion_product_translations: product.promotion_product_translations || [],
-      store_prices: (product.promotion_product_prices || []).map((price: any) => ({
-        ...price,
-        store: null // Will be fetched separately if needed
-      }))
+    promotion_products: await Promise.all((promotion.promotion_products || []).map(async (product: any) => {
+      const homeImageKey = product.products?.home_image_key || product.home_image_key || null;
+      const homeImageUrl = homeImageKey ? await getPresignedUrl(homeImageKey) : null;
+      return {
+        ...product,
+        home_image_url: homeImageUrl,
+        promotion_product_translations: product.promotion_product_translations || [],
+        store_prices: (product.promotion_product_prices || []).map((price: any) => ({
+          ...price,
+          store: null // Will be fetched separately if needed
+        }))
+      };
     }))
   };
 
@@ -247,5 +256,5 @@ export async function PromotionContent({ slug }: { slug: string }) {
     }
   }
 
-  return <PromotionClientContent promotion={transformedPromotion} />;
+  return <PromotionClientContent promotion={transformedPromotion as any} />;
 }
