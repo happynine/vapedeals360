@@ -192,14 +192,22 @@ export function ImageUpload({
       );
       if (!blob) throw new Error('Failed to create image');
 
+      console.log('[ImageUpload] Uploading...', { folder, isProductImage, entityId, blobSize: blob.size });
+
       // 绕过 FormData，直接发送原始 blob（避免 Vercel Edge 运行时解析 FormData 时的 SharedArrayBuffer 问题）
       const entityParam = entityId ? `&entity_id=${encodeURIComponent(entityId)}` : '';
-      const res = await fetch(`/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}`, {
+      const uploadUrl = `/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}`;
+      console.log('[ImageUpload] Upload URL:', uploadUrl);
+      
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'image/jpeg' },
         body: blob,
       });
+      
+      console.log('[ImageUpload] Response status:', res.status);
       const json = await res.json();
+      console.log('[ImageUpload] Response:', json);
 
       if (json.success) {
         // For product images, store both large and small URLs
@@ -209,17 +217,21 @@ export function ImageUpload({
             large: json.data.large.url,
             small: json.data.small.url,
           });
+          console.log('[ImageUpload] Calling handleComplete with imageUrls:', imageUrls);
           handleComplete(imageUrls);
         } else {
+          console.log('[ImageUpload] Calling handleComplete with key:', json.data.key);
           handleComplete(json.data.key);
         }
         setShowCrop(false);
         setSrc(null);
       } else {
+        console.error('[ImageUpload] Upload failed:', json.error);
         alert('Upload failed: ' + json.error);
       }
-    } catch {
-      alert('Upload failed');
+    } catch (err) {
+      console.error('[ImageUpload] Upload error:', err);
+      alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUploading(false);
     }
