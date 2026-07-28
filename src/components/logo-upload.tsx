@@ -8,6 +8,7 @@ interface LogoUploadProps {
   onChange: (url: string) => void;
   recommendedSize?: string;
   label?: string;
+  entityId?: string | number;
 }
 
 export default function LogoUpload({
@@ -15,6 +16,7 @@ export default function LogoUpload({
   onChange,
   recommendedSize,
   label,
+  entityId,
 }: LogoUploadProps) {
   const [uploading, setUploading] = useState(false);
 
@@ -26,7 +28,8 @@ export default function LogoUpload({
         formData.append("file", file);
         formData.append("folder", "settings");
 
-        const res = await fetch("/api/upload", {
+        const entityParam = entityId ? `?entity_id=${encodeURIComponent(entityId)}` : '';
+        const res = await fetch(`/api/upload${entityParam}`, {
           method: "POST",
           body: formData,
         });
@@ -44,7 +47,7 @@ export default function LogoUpload({
       }
       return false; // prevent default upload behavior
     },
-    [onChange]
+    [onChange, entityId]
   );
 
   return (
