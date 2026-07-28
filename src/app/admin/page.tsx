@@ -1782,6 +1782,7 @@ export default function AdminPage() {
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">#</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Thumbnail', '缩略图', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">ID</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Promotion', '活动', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Store', '商城', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Special Price', '特惠价', adminLang)}</th>
@@ -1793,7 +1794,7 @@ export default function AdminPage() {
                       <tbody>
                         {promotionProducts.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="py-8 text-center text-muted-foreground">
+                            <td colSpan={10} className="py-8 text-center text-muted-foreground">
                               {t('No promotion products yet. Click "Add Promotion Product" to get started.', '暂无特惠产品。点击"添加特惠产品"开始。', adminLang)}
                             </td>
                           </tr>
@@ -1850,6 +1851,7 @@ export default function AdminPage() {
                                     <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400 shrink-0">PROMO</span>
                                   </div>
                                 </td>
+                                <td className="px-4 py-3 text-sm text-muted-foreground">{pp.id}</td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{promotionName}</td>
                                 <td className="px-4 py-3 text-sm text-muted-foreground">{storeName}</td>
                                 <td className="px-4 py-3 text-sm font-medium text-green-400">{specialPrice}</td>
