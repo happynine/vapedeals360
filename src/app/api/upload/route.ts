@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     const url = new URL(request.url);
     const folder = url.searchParams.get('folder') || 'uploads';
     const isProductImage = url.searchParams.get('product_image') === 'true';
+    const entityId = url.searchParams.get('entity_id') || undefined;
 
     // 直接读取原始 body（不使用 request.formData()）
     const arrayBuffer = await request.arrayBuffer();
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
         fileName: fileName,
         contentType: contentType,
         folder,
+        entityId,
       });
 
       return NextResponse.json({
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
         fileName: fileName,
         contentType: contentType,
         folder,
+        entityId,
       });
 
       return NextResponse.json({
