@@ -1,10 +1,12 @@
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
+import { createHash } from 'crypto';
 
 // Use Vercel Blob when BLOB_READ_WRITE_TOKEN is available (Vercel deployment)
 const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
 let s3StorageInstance: S3Storage | null = null;
+
 export function getS3Storage(): S3Storage {
   if (!s3StorageInstance) {
     s3StorageInstance = new S3Storage({
@@ -24,7 +26,17 @@ export interface UploadResult {
 }
 
 /**
+ * Compute MD5 hash of file content for deduplication.
+ * Returns first 12 chars of hex digest (48 bits, sufficient for collision avoidance).
+ */
+function computeContentHash(fileContent: Buffer): string {
+  return createHash('md5').update(fileContent).digest('hex').slice(0, 12);
+}
+
+/**
  * Upload a file. On Vercel uses Vercel Blob; in Coze sandbox uses S3Storage.
+ * Uses content hash as filename to enable automatic deduplication —
+ * uploading the same file twice will result in the same URL.
  */
 export async function uploadFile(params: {
   fileContent: Buffer;
@@ -33,17 +45,16 @@ export async function uploadFile(params: {
   folder?: string;
 }): Promise<UploadResult> {
   const { fileContent, fileName, contentType, folder = 'uploads' } = params;
-
   if (useVercelBlob) {
-    const timestamp = Date.now();
     const ext = fileName.split('.').pop() || 'jpg';
-    const path = `${folder}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
+    const hash = computeContentHash(fileContent);
+    const path = `${folder}/${hash}.${ext}`;
     const blob = await put(path, fileContent, {
       contentType,
       access: 'public',
+      addRandomSuffix: false,
+      allowOverwrite: true,
     });
-
     return {
       key: blob.url,
       url: blob.url,
@@ -54,7 +65,6 @@ export async function uploadFile(params: {
       fileName: `${folder}/${Date.now()}-${fileName}`,
       contentType,
     });
-
     return {
       key,
       url: `/api/image?key=${encodeURIComponent(key)}`,
@@ -78,7 +88,6 @@ export async function getPresignedUrl(key: string | null | undefined): Promise<s
   if (useVercelBlob) {
     return `/api/image?key=${encodeURIComponent(key)}`;
   }
-
   try {
     return await getS3Storage().generatePresignedUrl({ key, expireTime: 3600 });
   } catch {
@@ -90,11 +99,9 @@ export { useVercelBlob };
 
 export async function deleteFile(key: string | null | undefined): Promise<boolean> {
   if (!key) return false;
-
   if (useVercelBlob) {
     if (key.startsWith('http://') || key.startsWith('https://')) {
       try {
-        const { del } = await import('@vercel/blob');
         await del(key);
         return true;
       } catch (err) {
@@ -131,7 +138,9 @@ export function extractImageKeysFromHtml(html: string | null | undefined): strin
 }
 
 /**
- * 彻底移除 sharp，直接利用前端裁好的图片流进行上传存储
+ * Upload product image with content-hash deduplication.
+ * Uses the same hash-based filename as uploadFile, so identical images
+ * uploaded from different pages (Products / Promotion Products) will share the same Blob.
  */
 export async function uploadProductImage(params: {
   fileContent: Buffer;
@@ -144,16 +153,14 @@ export async function uploadProductImage(params: {
 }> {
   const { fileContent, fileName, contentType, folder = 'products' } = params;
   const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
-
-  // 直接上传前端已裁剪过的原生图片流
+  // Directly upload the frontend-cropped image stream
   const uploadResult = await uploadFile({
     fileContent,
     fileName: `${baseName}.jpg`,
     contentType,
     folder,
   });
-
-  // 同时作为大图和小图返回（前端已做适当的尺寸缩放控制）
+  // Both large and small point to the same URL (frontend handles sizing)
   return {
     large: uploadResult,
     small: uploadResult,
