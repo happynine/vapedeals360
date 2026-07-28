@@ -5621,6 +5621,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                 suggestedSize="64x64px"
                 label={t('Store Logo', '商城 Logo', lang)}
                 folder="stores"
+                entityId={store?.id}
               />
               <div>
                 <label className="text-xs text-muted-foreground text-left block">{t('Website URL', '网站地址', lang)}</label>
@@ -6034,6 +6035,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   suggestedSize="480x480px"
                   folder="products"
                   isProductImage={true}
+                  entityId={promotionProduct?.id ? `promo-main-${promotionProduct.id}` : undefined}
                 />
               </div>
 
@@ -6046,6 +6048,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   aspectRatio={1}
                   suggestedSize="260x260px"
                   folder="products"
+                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
                 />
               </div>
 
@@ -6757,6 +6760,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
                 isProductImage={true}
+                entityId={product?.id ? `main-${product.id}` : undefined}
               />
 
               {/* Home Page Card Image Upload */}
@@ -6769,6 +6773,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 suggestedSize="260x260px"
                 label={t('Home Page Card Image', '首页卡片图片', lang)}
                 folder="products"
+                entityId={product?.id ? `home-${product.id}` : undefined}
               />
 
               <div className="flex gap-4">
