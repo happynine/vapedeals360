@@ -43,12 +43,15 @@ export async function uploadFile(params: {
   fileName: string;
   contentType: string;
   folder?: string;
+  entityId?: string;
 }): Promise<UploadResult> {
-  const { fileContent, fileName, contentType, folder = 'uploads' } = params;
+  const { fileContent, fileName, contentType, folder = 'uploads', entityId } = params;
+  const ext = fileName.split('.').pop() || 'jpg';
+  // When entityId is provided, use it as the filename for overwrite-style uploads;
+  // otherwise fall back to content-hash-based naming for deduplication.
+  const fileBaseName = entityId ? entityId : computeContentHash(fileContent);
   if (useVercelBlob) {
-    const ext = fileName.split('.').pop() || 'jpg';
-    const hash = computeContentHash(fileContent);
-    const path = `${folder}/${hash}.${ext}`;
+    const path = `${folder}/${fileBaseName}.${ext}`;
     const blob = await put(path, fileContent, {
       contentType,
       access: 'public',
@@ -60,9 +63,7 @@ export async function uploadFile(params: {
       url: blob.url,
     };
   } else {
-    const ext = fileName.split('.').pop() || 'jpg';
-    const hash = computeContentHash(fileContent);
-    const key = `${folder}/${hash}.${ext}`;
+    const key = `${folder}/${fileBaseName}.${ext}`;
     await getS3Storage().uploadFile({
       fileContent,
       fileName: key,
@@ -150,11 +151,12 @@ export async function uploadProductImage(params: {
   fileName: string;
   contentType: string;
   folder?: string;
+  entityId?: string;
 }): Promise<{
   large: UploadResult;
   small: UploadResult;
 }> {
-  const { fileContent, fileName, contentType, folder = 'products' } = params;
+  const { fileContent, fileName, contentType, folder = 'products', entityId } = params;
   const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
   // Directly upload the frontend-cropped image stream
   const uploadResult = await uploadFile({
@@ -162,6 +164,7 @@ export async function uploadProductImage(params: {
     fileName: `${baseName}.jpg`,
     contentType,
     folder,
+    entityId,
   });
   // Both large and small point to the same URL (frontend handles sizing)
   return {
