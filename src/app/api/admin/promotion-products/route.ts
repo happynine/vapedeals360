@@ -17,6 +17,7 @@ async function ensureProductInProductsTable(
     .select('id')
     .eq('slug', slug)
     .single();
+
   if (existing) return existing.id;
 
   const { data: created, error } = await supabase
@@ -30,6 +31,7 @@ async function ensureProductInProductsTable(
     })
     .select()
     .single();
+
   if (error) {
     console.error('Auto-create product failed:', error);
     return null;
@@ -54,6 +56,7 @@ async function ensureProductInProductsTable(
 
   return created?.id || null;
 }
+
 // GET - Fetch all promotion products
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseClient();
@@ -201,6 +204,7 @@ export async function POST(request: NextRequest) {
       const enTranslation = translations?.find((t: any) => t.language === 'en');
       const productName = enTranslation?.name || slug;
       const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName, home_image_key || null);
+
       if (productId) {
         await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
         // 如果产品已存在，单独更新 home_image_key（ensureProductInProductsTable 只在创建时设置）
@@ -336,8 +340,13 @@ export async function PUT(request: NextRequest) {
       const enTranslation = translations?.find((t: any) => t.language === 'en');
       const productName = enTranslation?.name || slug;
       const productId = await ensureProductInProductsTable(supabase, slug, category_id || null, image_url || null, is_active ?? true, productName, home_image_key || null);
+
       if (productId) {
         await supabase.from('promotion_products').update({ product_id: productId }).eq('id', promotionProduct.id);
+        // 同步更新 products 表的图片（ensureProductInProductsTable 只在创建时设置，已存在的产品不会更新）
+        if (home_image_key !== undefined) {
+          await supabase.from('products').update({ home_image_key: home_image_key || null }).eq('id', productId);
+        }
       }
     }
 
