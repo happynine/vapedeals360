@@ -37,6 +37,7 @@ export function ImageUpload({
   const [showCrop, setShowCrop] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewTimestamp, setPreviewTimestamp] = useState(0);
 
   /* ── 图片缩放 & 平移 ── */
   const [scale, setScale] = useState(1);
@@ -223,6 +224,8 @@ export function ImageUpload({
           console.log('[ImageUpload] Calling handleComplete with key:', json.data.key);
           handleComplete(json.data.key);
         }
+        // Update preview timestamp to force re-render
+        setPreviewTimestamp(Date.now());
         setShowCrop(false);
         setSrc(null);
       } else {
@@ -288,8 +291,8 @@ export function ImageUpload({
   // Add timestamp to force re-render when URL doesn't change
   const previewSrc = value 
     ? (value.startsWith('http') 
-        ? (value.includes('?') ? `${value}&t=${Date.now()}` : `${value}?t=${Date.now()}`)
-        : `/api/image?key=${encodeURIComponent(value)}&t=${Date.now()}`)
+        ? (value.includes('?') ? `${value}&t=${previewTimestamp}` : `${value}?t=${previewTimestamp}`)
+        : `/api/image?key=${encodeURIComponent(value)}&t=${previewTimestamp}`)
     : null;
 
   return (
