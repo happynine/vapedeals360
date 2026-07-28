@@ -6046,7 +6046,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   aspectRatio={1}
                   suggestedSize="260x260px"
                   folder="products"
-                  isProductImage={true}
                 />
               </div>
 
