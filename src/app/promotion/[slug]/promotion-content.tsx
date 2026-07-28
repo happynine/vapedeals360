@@ -115,6 +115,8 @@ export async function PromotionContent({ slug }: { slug: string }) {
           category_id,
           image_key,
           image_url,
+          home_image_key,
+          home_image_url,
           is_active,
           is_featured,
           notes,
