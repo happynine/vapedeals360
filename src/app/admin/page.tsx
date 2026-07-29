@@ -6703,9 +6703,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     setSaving(true);
     try {
       // Separate standard and promotion prices
-      // store_type from stores table is 'store'; use promotion_id to distinguish
-      const standardPrices = prices.filter(p => (p.store_type === 'standard' || p.store_type === 'store') && p.store_id && p.current_price && p.product_url && !p.promotion_id);
-      const promotionPrices = prices.filter(p => (p.store_type === 'promotion' || p.store_type === 'store') && p.store_id && p.current_price && p.product_url && p.promotion_id);
+      // store_type from stores table can be 'store'/'official'/'standard'/'promotion';
+      // use promotion_id to distinguish: if promotion_id is set → promotion, else → standard
+      const standardPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && !p.promotion_id);
+      const promotionPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && p.promotion_id);
 
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
