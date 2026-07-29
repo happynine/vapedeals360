@@ -213,7 +213,7 @@ export function ImageUpload({
       if (json.success) {
         // For product images, store both large and small URLs
         if (isProductImage && json.data.large && json.data.small) {
-          // Store as JSON string with both URLs
+          // Store as JSON string with both URLs for consistent preview handling
           const imageUrls = JSON.stringify({
             large: json.data.large.url,
             small: json.data.small.url,
@@ -221,8 +221,8 @@ export function ImageUpload({
           console.log('[ImageUpload] Calling handleComplete with imageUrls:', imageUrls);
           handleComplete(imageUrls);
         } else {
-          console.log('[ImageUpload] Calling handleComplete with key:', json.data.key);
-          handleComplete(json.data.key);
+          console.log('[ImageUpload] Calling handleComplete with url:', json.data.url);
+          handleComplete(json.data.url);
         }
         // Update preview timestamp to force re-render
         setPreviewTimestamp(Date.now());
