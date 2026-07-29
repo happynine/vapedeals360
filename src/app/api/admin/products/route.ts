@@ -185,6 +185,7 @@ export async function PUT(request: NextRequest) {
     const client = getSupabaseClient();
     const body = await request.json();
     const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
+    console.log('[Products API PUT] Received:', { id, image_url, home_image_key });
     // 获取旧的产品数据，用于删除旧图片
     const { data: oldProduct } = await client
       .from('products')

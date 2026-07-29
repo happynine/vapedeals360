@@ -6659,6 +6659,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
 
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
+      console.log('[ProductFormModal] Saving:', { imageKey, imageKeySmall, homeImageKey, isEdit });
       const body = {
         id: product?.id,
         slug,
