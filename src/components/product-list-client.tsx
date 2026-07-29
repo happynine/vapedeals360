@@ -384,8 +384,15 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       }
     }
     setMounted(true);
-    // Use initial data on first load, skip fetch
-    setIsInitialLoad(false);
+    // If URL page > 1, need to fetch correct data (server only returns page 1)
+    if (urlPage > 1) {
+      setIsInitialLoad(false);
+      hasFetchedRef.current = true;
+      fetchData();
+    } else {
+      // Use initial data on first load, skip fetch
+      setIsInitialLoad(false);
+    }
   }, []);
 
   // Fetch when filters change (skip initial load since data is already passed as props)
