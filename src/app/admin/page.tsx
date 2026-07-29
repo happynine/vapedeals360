@@ -6666,7 +6666,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       specs: tr.specs || '',
     })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: 'standard' | 'promotion'; promotion_id: string }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string }[]>(
     product?.product_prices?.map((p) => {
       const store = stores.find((s) => s.id.toString() === p.store_id.toString());
       return {
@@ -6678,10 +6678,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         currency: p.currency || '$',
         region: p.region || '',
         no_quote: p.no_quote || false,
-        store_type: (store?.store_type as 'standard' | 'promotion') || 'standard',
+        store_type: store?.store_type || 'standard',
         promotion_id: '',
       };
-    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard' as const, promotion_id: '' }]
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
@@ -6703,8 +6703,9 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     setSaving(true);
     try {
       // Separate standard and promotion prices
-      const standardPrices = prices.filter(p => p.store_type === 'standard' && p.store_id && p.current_price && p.product_url);
-      const promotionPrices = prices.filter(p => p.store_type === 'promotion' && p.store_id && p.current_price && p.product_url && p.promotion_id);
+      // store_type from stores table is 'store'; use promotion_id to distinguish
+      const standardPrices = prices.filter(p => (p.store_type === 'standard' || p.store_type === 'store') && p.store_id && p.current_price && p.product_url && !p.promotion_id);
+      const promotionPrices = prices.filter(p => (p.store_type === 'promotion' || p.store_type === 'store') && p.store_id && p.current_price && p.product_url && p.promotion_id);
 
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
