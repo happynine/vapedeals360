@@ -6023,8 +6023,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     try {
                       const parsed = JSON.parse(uploadedData);
                       if (parsed.large && parsed.small) {
-                        setImageKey(parsed.large);
-                        setImageKeySmall(parsed.small);
+                        setImageKey(parsed.large.url);
+                        setImageKeySmall(parsed.small.url);
                       } else {
                         setImageKey(uploadedData);
                       }
@@ -6748,8 +6748,8 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   try {
                     const urls = JSON.parse(key);
                     if (urls.large && urls.small) {
-                      setImageKey(urls.large);
-                      setImageKeySmall(urls.small);
+                      setImageKey(urls.large.url);
+                      setImageKeySmall(urls.small.url);
                     } else {
                       setImageKey(key);
                     }
