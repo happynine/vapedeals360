@@ -5775,12 +5775,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     }
   });
   const [homeImageKey, setHomeImageKey] = useState<string | null>(() => {
-    if (!promotionProduct?.home_image_url) return null;
+    if (!promotionProduct?.home_image_key) return null;
     try {
-      const parsed = JSON.parse(promotionProduct.home_image_url);
-      return parsed.large || parsed.url || promotionProduct.home_image_url;
+      const parsed = JSON.parse(promotionProduct.home_image_key);
+      return parsed.large || parsed.url || promotionProduct.home_image_key;
     } catch {
-      return promotionProduct.home_image_url;
+      return promotionProduct.home_image_key;
     }
   });
   const [imageKeySmall, setImageKeySmall] = useState<string | null>(() => {
@@ -6646,12 +6646,12 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     }
   });
   const [homeImageKey, setHomeImageKey] = useState(() => {
-    if (!product?.home_image_url) return '';
+    if (!product?.home_image_key) return '';
     try {
-      const parsed = JSON.parse(product.home_image_url);
-      return parsed.large || parsed.url || product.home_image_url;
+      const parsed = JSON.parse(product.home_image_key);
+      return parsed.large || parsed.url || product.home_image_key;
     } catch {
-      return product.home_image_url;
+      return product.home_image_key;
     }
   });
   const [isActive, setIsActive] = useState(product?.is_active !== false);
