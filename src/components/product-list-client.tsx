@@ -476,11 +476,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   return (
     <div className="min-h-screen flex flex-col">
       {/* Mobile: Combined Banner + Promotion Carousel */}
-      {(banners.length > 0 || (promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery)) && (
+      {(banners.length > 0 || (promotions.length > 0 && !selectedCategory && !searchQuery)) && (
         <div className="sm:hidden -mx-4 mb-4 bg-white">
           <MobileCombinedCarousel
             banners={banners}
-            promotions={page === 1 && !selectedCategory && !searchQuery ? promotions : []}
+            promotions={!selectedCategory && !searchQuery ? promotions : []}
             language={language}
           />
         </div>
@@ -496,7 +496,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       )}
 
       {/* Desktop: Promotions Section - Cover Images Grid */}
-      {promotions.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
+      {promotions.length > 0 && !selectedCategory && !searchQuery && (
         <div className="hidden sm:block mb-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {promotions.map((promotion) => {
