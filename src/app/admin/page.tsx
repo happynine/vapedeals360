@@ -6025,6 +6025,9 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                       if (parsed.large && parsed.small) {
                         setImageKey(parsed.large.url);
                         setImageKeySmall(parsed.small.url);
+                      } else if (parsed.url) {
+                        // Single image upload (non-Vercel Blob)
+                        setImageKey(parsed.url);
                       } else {
                         setImageKey(uploadedData);
                       }
@@ -6746,10 +6749,13 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 onUploadComplete={(key) => {
                   // For product images, key is a JSON string with large and small URLs
                   try {
-                    const urls = JSON.parse(key);
-                    if (urls.large && urls.small) {
-                      setImageKey(urls.large.url);
-                      setImageKeySmall(urls.small.url);
+                    const parsed = JSON.parse(key);
+                    if (parsed.large && parsed.small) {
+                      setImageKey(parsed.large.url);
+                      setImageKeySmall(parsed.small.url);
+                    } else if (parsed.url) {
+                      // Single image upload (non-Vercel Blob)
+                      setImageKey(parsed.url);
                     } else {
                       setImageKey(key);
                     }
