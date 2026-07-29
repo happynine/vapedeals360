@@ -1686,7 +1686,7 @@ export default function AdminPage() {
                           const zhName = product.product_translations?.find((tr) => tr.language === 'zh')?.name || '—';
                           const catName = product.categories?.category_translations?.find((tr) => tr.language === adminLang)?.name || '—';
                           const rowIndex = (productPage - 1) * PRODUCTS_PER_PAGE + pIndex + 1;
-                          const thumbnailUrl = product.image_key || product.image_url || null;
+                          const thumbnailUrl = product.home_image_url || product.home_image_key || product.image_url || product.image_key || null;
                           const thumbnailDisplayUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
                           const productRegions = new Set<string>();
                           product.product_prices?.forEach((price: ProductPrice) => {
