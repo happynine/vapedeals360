@@ -5765,8 +5765,8 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
   // 基础信息（与标准产品相同）
   const [slug, setSlug] = useState(promotionProduct?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(promotionProduct?.category_id?.toString() || '');
-  const [imageKey, setImageKey] = useState<string | null>(promotionProduct?.image_key || promotionProduct?.image_url || null);
-  const [homeImageKey, setHomeImageKey] = useState<string | null>(promotionProduct?.home_image_key || null);
+  const [imageKey, setImageKey] = useState<string | null>(promotionProduct?.image_url || null);
+  const [homeImageKey, setHomeImageKey] = useState<string | null>(promotionProduct?.home_image_url || null);
   const [imageKeySmall, setImageKeySmall] = useState<string | null>(promotionProduct?.image_url_small || null);
   const [isActive, setIsActive] = useState(promotionProduct?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(promotionProduct?.is_featured || false);
@@ -6602,9 +6602,9 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
 
-  const [imageKey, setImageKey] = useState(product?.image_key || product?.image_url || '');
+  const [imageKey, setImageKey] = useState(product?.image_url || '');
   const [imageKeySmall, setImageKeySmall] = useState(product?.image_url_small || '');
-  const [homeImageKey, setHomeImageKey] = useState(product?.home_image_key || product?.home_image_url || '');
+  const [homeImageKey, setHomeImageKey] = useState(product?.home_image_url || '');
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [notes, setNotes] = useState(product?.notes || '');
@@ -6659,7 +6659,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
 
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
-      console.log('[ProductFormModal] Saving:', { imageKey, imageKeySmall, homeImageKey, isEdit });
       const body = {
         id: product?.id,
         slug,
