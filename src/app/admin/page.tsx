@@ -5765,9 +5765,33 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
   // 基础信息（与标准产品相同）
   const [slug, setSlug] = useState(promotionProduct?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(promotionProduct?.category_id?.toString() || '');
-  const [imageKey, setImageKey] = useState<string | null>(promotionProduct?.image_url || null);
-  const [homeImageKey, setHomeImageKey] = useState<string | null>(promotionProduct?.home_image_url || null);
-  const [imageKeySmall, setImageKeySmall] = useState<string | null>(promotionProduct?.image_url_small || null);
+  const [imageKey, setImageKey] = useState<string | null>(() => {
+    if (!promotionProduct?.image_url) return null;
+    try {
+      const parsed = JSON.parse(promotionProduct.image_url);
+      return parsed.large || parsed.url || promotionProduct.image_url;
+    } catch {
+      return promotionProduct.image_url;
+    }
+  });
+  const [homeImageKey, setHomeImageKey] = useState<string | null>(() => {
+    if (!promotionProduct?.home_image_url) return null;
+    try {
+      const parsed = JSON.parse(promotionProduct.home_image_url);
+      return parsed.large || parsed.url || promotionProduct.home_image_url;
+    } catch {
+      return promotionProduct.home_image_url;
+    }
+  });
+  const [imageKeySmall, setImageKeySmall] = useState<string | null>(() => {
+    if (!promotionProduct?.image_url_small) return null;
+    try {
+      const parsed = JSON.parse(promotionProduct.image_url_small);
+      return parsed.small || parsed.url || promotionProduct.image_url_small;
+    } catch {
+      return promotionProduct.image_url_small;
+    }
+  });
   const [isActive, setIsActive] = useState(promotionProduct?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(promotionProduct?.is_featured || false);
   const [notes, setNotes] = useState(promotionProduct?.notes || '');
@@ -6603,9 +6627,33 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
   const [slug, setSlug] = useState(product?.slug || '');
   const [categoryId, setCategoryId] = useState<string>(product?.category_id?.toString() || '');
 
-  const [imageKey, setImageKey] = useState(product?.image_url || '');
-  const [imageKeySmall, setImageKeySmall] = useState(product?.image_url_small || '');
-  const [homeImageKey, setHomeImageKey] = useState(product?.home_image_url || '');
+  const [imageKey, setImageKey] = useState(() => {
+    if (!product?.image_url) return '';
+    try {
+      const parsed = JSON.parse(product.image_url);
+      return parsed.large || parsed.url || product.image_url;
+    } catch {
+      return product.image_url;
+    }
+  });
+  const [imageKeySmall, setImageKeySmall] = useState(() => {
+    if (!product?.image_url_small) return '';
+    try {
+      const parsed = JSON.parse(product.image_url_small);
+      return parsed.small || parsed.url || product.image_url_small;
+    } catch {
+      return product.image_url_small;
+    }
+  });
+  const [homeImageKey, setHomeImageKey] = useState(() => {
+    if (!product?.home_image_url) return '';
+    try {
+      const parsed = JSON.parse(product.home_image_url);
+      return parsed.large || parsed.url || product.home_image_url;
+    } catch {
+      return product.home_image_url;
+    }
+  });
   const [isActive, setIsActive] = useState(product?.is_active !== false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured || false);
   const [notes, setNotes] = useState(product?.notes || '');
