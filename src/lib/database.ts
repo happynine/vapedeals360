@@ -237,6 +237,36 @@ export async function fetchProducts(options?: {
   const { data, error } = await query;
   if (error) throw new Error(`Fetch products failed: ${error.message}`);
 
+  // Fetch promotion store prices for all products
+  const productIds = (data || []).map((p: Record<string, unknown>) => p.id as number);
+  let promoPricesMap: Record<number, Record<string, unknown>[]> = {};
+  if (productIds.length > 0) {
+    const { data: promoProducts, error: promoError } = await client
+      .from('promotion_products')
+      .select('*, promotion_product_prices(*, stores(*, store_translations(*)))')
+      .in('product_id', productIds)
+      .eq('is_active', true);
+    if (!promoError && promoProducts) {
+      for (const pp of promoProducts) {
+        const pid = (pp as Record<string, unknown>).product_id as number;
+        const ppPrices = (pp as Record<string, unknown>).promotion_product_prices as Record<string, unknown>[] || [];
+        if (!promoPricesMap[pid]) promoPricesMap[pid] = [];
+        for (const ppp of ppPrices) {
+          const storeData = (ppp as Record<string, unknown>).stores as Record<string, unknown> | null;
+          promoPricesMap[pid].push({
+            ...ppp,
+            store: storeData
+              ? {
+                  ...storeData,
+                  translations: (storeData.store_translations || []) as StoreTranslation[],
+                }
+              : undefined,
+          });
+        }
+      }
+    }
+  }
+
   // Build a map of store regions for currency filtering
   // Official和Store类型都应该遵循其设置的regions
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
@@ -270,7 +300,7 @@ export async function fetchProducts(options?: {
       ...product,
       home_image_url: homeImageUrl,
       translations: product.product_translations as ProductTranslation[],
-      prices: (product.product_prices as Record<string, unknown>[] || [])
+      prices: [...(product.product_prices as Record<string, unknown>[] || []), ...(promoPricesMap[product.id as number] || [])]
         .filter((p) => {
           if (!activeRegion) return true;
           const pStoreId = (p as Record<string, unknown>).store_id as number;
@@ -338,7 +368,33 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
   if (!data) return null;
 
   const product = data as Record<string, unknown>;
+  const productId = product.id as number;
   const allPrices = product.product_prices as Record<string, unknown>[] || [];
+
+  // Also fetch promotion store prices
+  const { data: promoProducts, error: promoError } = await client
+    .from('promotion_products')
+    .select('*, promotion_product_prices(*, stores(*, store_translations(*)))')
+    .eq('product_id', productId)
+    .eq('is_active', true);
+  if (promoError) throw new Error(`Fetch promotion products failed: ${promoError.message}`);
+  if (promoProducts && promoProducts.length > 0) {
+    for (const pp of promoProducts) {
+      const ppPrices = (pp as Record<string, unknown>).promotion_product_prices as Record<string, unknown>[] || [];
+      for (const ppp of ppPrices) {
+        const storeData = (ppp as Record<string, unknown>).stores as Record<string, unknown> | null;
+        allPrices.push({
+          ...ppp,
+          store: storeData
+            ? {
+                ...storeData,
+                translations: (storeData.store_translations || []) as StoreTranslation[],
+              }
+            : undefined,
+        });
+      }
+    }
+  }
 
   // Build store region map for filtering
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
