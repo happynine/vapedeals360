@@ -6023,8 +6023,9 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     try {
                       const parsed = JSON.parse(uploadedData);
                       if (parsed.large && parsed.small) {
-                        setImageKey(parsed.large.url);
-                        setImageKeySmall(parsed.small.url);
+                        // large and small are already URLs (not objects)
+                        setImageKey(parsed.large);
+                        setImageKeySmall(parsed.small);
                       } else if (parsed.url) {
                         // Single image upload (non-Vercel Blob)
                         setImageKey(parsed.url);
@@ -6751,8 +6752,9 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   try {
                     const parsed = JSON.parse(key);
                     if (parsed.large && parsed.small) {
-                      setImageKey(parsed.large.url);
-                      setImageKeySmall(parsed.small.url);
+                      // large and small are already URLs (not objects)
+                      setImageKey(parsed.large);
+                      setImageKeySmall(parsed.small);
                     } else if (parsed.url) {
                       // Single image upload (non-Vercel Blob)
                       setImageKey(parsed.url);
