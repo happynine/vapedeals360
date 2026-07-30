@@ -3905,7 +3905,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const processedFile = await compressImage(file);
       const formData = new FormData();
       formData.append('file', processedFile);
-      formData.append('folder', 'news');
+      formData.append('folder', 'content');
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
@@ -4384,6 +4384,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             // Upload directly via /api/upload
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('folder', 'content');
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
@@ -4572,7 +4573,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
           <div>
             <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="news" lang={lang} />
+            <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="content" lang={lang} />
           </div>
 
           {/* Language toggle + unified editor */}
@@ -4691,7 +4692,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
               <div>
                 <label className="block text-sm font-medium mb-1">{t('Cover Image', '封面图', lang)}</label>
-                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="news" lang={lang} />
+                <ImageUpload value={formCoverImage} onChange={setFormCoverImage} aspectRatio={16 / 9} recommendedSize="480x270px" label={t('Cover', '封面', lang)} folder="content" lang={lang} />
               </div>
 
               {/* Language toggle + unified editor */}
@@ -4856,6 +4857,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('folder', 'content');
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
