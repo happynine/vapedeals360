@@ -3903,10 +3903,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const uploadImageFile = useCallback(async (file: File): Promise<string | null> => {
     try {
       const processedFile = await compressImage(file);
+<<<<<<< HEAD
       const formData = new FormData();
       formData.append('file', processedFile);
       formData.append('folder', 'content');
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
+=======
+      const res = await fetch(`/api/upload?folder=news`, { method: 'POST', body: processedFile, headers: { 'Content-Type': processedFile.type } });
+>>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       return data?.data?.url || data?.data?.key || data?.url || data?.key || null;
@@ -4382,10 +4386,14 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
             console.log(`[handlePublish] Uploading base64 image ${i + 1}/${matches.length}, size: ${(file.size / 1024).toFixed(0)}KB`);
             // Upload directly via /api/upload
+<<<<<<< HEAD
             const formData = new FormData();
             formData.append('file', file);
             formData.append('folder', 'content');
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+=======
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: file, headers: { 'Content-Type': file.type } });
+>>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
             const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
@@ -4855,10 +4863,14 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             const blob = new Blob([byteArray], { type: mimeType });
             const ext = mimeType.split('/')[1] || 'png';
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
+<<<<<<< HEAD
             const formData = new FormData();
             formData.append('file', file);
             formData.append('folder', 'content');
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+=======
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: file, headers: { 'Content-Type': file.type } });
+>>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
             const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
