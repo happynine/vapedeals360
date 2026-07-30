@@ -6026,7 +6026,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         countdown_seconds: 0
       }]);
     }
-  }, [open, promotionProduct, activeLanguages]);
+  }, [open, promotionProduct?.id, promotionProduct?.updated_at, activeLanguages]);
 
   // Get selected promotion info
   const selectedPromotion = promotions.find(p => p.id === selectedPromotionId);
@@ -6906,7 +6906,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setTranslations(activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' })));
       setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }]);
     }
-  }, [open, product, activeLanguages, stores]);
+  }, [open, product?.id, product?.updated_at, activeLanguages, stores]);
 
   const handleSave = async () => {
     setSaving(true);
