@@ -263,9 +263,9 @@ interface Banner { id: number; image_key: string | null; mobile_image_key: strin
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; title: string | null; description: string | null; cover_image_key: string | null; cover_image_url: string | null; mobile_cover_image_key: string | null; mobile_cover_image_url: string | null; }
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
-interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; home_image_key?: string; home_image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
+interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; home_image_key?: string; home_image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; updated_at?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; updated_at?: string; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'database_backup';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
@@ -3903,14 +3903,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const uploadImageFile = useCallback(async (file: File): Promise<string | null> => {
     try {
       const processedFile = await compressImage(file);
-<<<<<<< HEAD
-      const formData = new FormData();
-      formData.append('file', processedFile);
-      formData.append('folder', 'content');
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-=======
       const res = await fetch(`/api/upload?folder=news`, { method: 'POST', body: processedFile, headers: { 'Content-Type': processedFile.type } });
->>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       return data?.data?.url || data?.data?.key || data?.url || data?.key || null;
@@ -4386,14 +4379,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
             console.log(`[handlePublish] Uploading base64 image ${i + 1}/${matches.length}, size: ${(file.size / 1024).toFixed(0)}KB`);
             // Upload directly via /api/upload
-<<<<<<< HEAD
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'content');
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-=======
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: file, headers: { 'Content-Type': file.type } });
->>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
             const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
@@ -4863,14 +4849,7 @@ const StaticPageEditor = forwardRef<StaticPageEditorRef, { slug: string; title: 
             const blob = new Blob([byteArray], { type: mimeType });
             const ext = mimeType.split('/')[1] || 'png';
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
-<<<<<<< HEAD
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'content');
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-=======
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: file, headers: { 'Content-Type': file.type } });
->>>>>>> 0b7da1a (fix: 修复富文本编辑器图片上传格式错误（FormData 改为原始文件流）)
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
             const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;

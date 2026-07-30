@@ -24,14 +24,11 @@ export default function LogoUpload({
     async (file: File) => {
       setUploading(true);
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("folder", "settings");
-
-        const entityParam = entityId ? `?entity_id=${encodeURIComponent(entityId)}` : '';
-        const res = await fetch(`/api/upload${entityParam}`, {
+        const entityParam = entityId ? `&entity_id=${encodeURIComponent(entityId)}` : '';
+        const res = await fetch(`/api/upload?folder=settings${entityParam}`, {
           method: "POST",
-          body: formData,
+          headers: { 'Content-Type': file.type || 'image/jpeg' },
+          body: file,
         });
         const json = await res.json();
         if (json.success) {
