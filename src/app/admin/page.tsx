@@ -5889,6 +5889,145 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     }
   }, [open]);
 
+  // Sync ALL form fields when opening modal to ensure fresh data from prop
+  useEffect(() => {
+    if (open && promotionProduct) {
+      setSelectedPromotionId(promotionProduct.promotion_id || null);
+      setSlug(promotionProduct.slug || '');
+      setCategoryId(promotionProduct.category_id?.toString() || '');
+      // Sync image fields
+      if (promotionProduct.image_url) {
+        try {
+          const parsed = JSON.parse(promotionProduct.image_url);
+          setImageKey(parsed.large || parsed.url || promotionProduct.image_url);
+        } catch {
+          setImageKey(promotionProduct.image_url);
+        }
+      } else {
+        setImageKey(null);
+      }
+      if (promotionProduct.home_image_key) {
+        try {
+          const parsed = JSON.parse(promotionProduct.home_image_key);
+          setHomeImageKey(parsed.large || parsed.url || promotionProduct.home_image_key);
+        } catch {
+          setHomeImageKey(promotionProduct.home_image_key);
+        }
+      } else {
+        setHomeImageKey(null);
+      }
+      if (promotionProduct.image_url_small) {
+        try {
+          const parsed = JSON.parse(promotionProduct.image_url_small);
+          setImageKeySmall(parsed.small || parsed.url || promotionProduct.image_url_small);
+        } catch {
+          setImageKeySmall(promotionProduct.image_url_small);
+        }
+      } else {
+        setImageKeySmall(null);
+      }
+      // Sync other fields
+      setIsActive(promotionProduct.is_active !== false);
+      setIsFeatured(promotionProduct.is_featured || false);
+      setNotes(promotionProduct.notes || '');
+      // Sync translations
+      setTranslations(
+        promotionProduct.promotion_product_translations?.map((tr) => ({
+          language: tr.language,
+          name: tr.name || '',
+          description: tr.description || '',
+          features: tr.features || '',
+          specs: tr.specs || ''
+        })) || activeLanguages.map((lang) => ({ language: lang.code, name: '', description: '', features: '', specs: '' }))
+      );
+      // Sync store prices
+      setStorePrices(
+        (promotionProduct.promotion_product_prices || promotionProduct.stores)?.map((p: any) => {
+          let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
+          if (p.time_type === 'countdown' && p.end_time) {
+            const end = new Date(p.end_time);
+            const now = new Date();
+            const diff = end.getTime() - now.getTime();
+            if (diff > 0) {
+              countdown_days = Math.floor(diff / (1000 * 60 * 60 * 24));
+              countdown_hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              countdown_minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+              countdown_seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            }
+          }
+          return {
+            store_id: p.store_id?.toString() || '',
+            region: p.region || '',
+            current_price: p.current_price || '',
+            original_price: p.original_price || '',
+            discount_percent: p.discount_percent?.toString() || '',
+            currency: p.currency || '$',
+            product_url: p.product_url || '',
+            no_quote: p.no_quote || false,
+            store_type: (p.store_type as 'promotion' | 'standard') || 'promotion',
+            time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
+            start_time: p.start_time ? new Date(p.start_time).toISOString().slice(0, 16) : '',
+            end_time: p.end_time ? new Date(p.end_time).toISOString().slice(0, 16) : '',
+            countdown_action: (p.countdown_action as 'close' | 'original_price') || 'close',
+            countdown_days,
+            countdown_hours,
+            countdown_minutes,
+            countdown_seconds
+          };
+        }) || [{ 
+          store_id: '', 
+          region: '', 
+          current_price: '', 
+          original_price: '', 
+          discount_percent: '', 
+          currency: '$',
+          product_url: '', 
+          no_quote: false, 
+          store_type: 'promotion' as const,
+          time_type: 'permanent', 
+          start_time: '', 
+          end_time: '', 
+          countdown_action: 'close',
+          countdown_days: 0,
+          countdown_hours: 0,
+          countdown_minutes: 0,
+          countdown_seconds: 0
+        }]
+      );
+    } else if (open && !promotionProduct) {
+      // Reset all fields for "Add New Promotion Product" mode
+      setSelectedPromotionId(null);
+      setSlug('');
+      setCategoryId('');
+      setImageKey(null);
+      setHomeImageKey(null);
+      setImageKeySmall(null);
+      setIsActive(true);
+      setIsFeatured(false);
+      setNotes('');
+      setTranslations(activeLanguages.map((lang) => ({ language: lang.code, name: '', description: '', features: '', specs: '' })));
+      setStorePrices([{ 
+        store_id: '', 
+        region: '', 
+        current_price: '', 
+        original_price: '', 
+        discount_percent: '', 
+        currency: '$',
+        product_url: '', 
+        no_quote: false, 
+        store_type: 'promotion' as const,
+        time_type: 'permanent', 
+        start_time: '', 
+        end_time: '', 
+        countdown_action: 'close',
+        countdown_days: 0,
+        countdown_hours: 0,
+        countdown_minutes: 0,
+        countdown_seconds: 0
+      }]);
+    }
+  }, [open, promotionProduct, activeLanguages]);
+
   // Get selected promotion info
   const selectedPromotion = promotions.find(p => p.id === selectedPromotionId);
 
@@ -6686,18 +6825,88 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
 
-  // Sync translations with active languages when opening
+  // Sync ALL form fields when opening modal to ensure fresh data from prop
   useEffect(() => {
-    if (open) {
-      setTranslations(prev => {
-        const existing = new Map(prev.map(t => [t.language, t]));
-        return activeLanguages.map(l => {
-          const ex = existing.get(l.code);
-          return ex || { language: l.code, name: '', description: '', features: '', specs: '' };
-        });
-      });
+    if (open && product) {
+      setSlug(product.slug || '');
+      setCategoryId(product.category_id?.toString() || '');
+      // Sync image fields
+      if (product.image_url) {
+        try {
+          const parsed = JSON.parse(product.image_url);
+          setImageKey(parsed.large || parsed.url || product.image_url);
+        } catch {
+          setImageKey(product.image_url);
+        }
+      } else {
+        setImageKey('');
+      }
+      if (product.image_url_small) {
+        try {
+          const parsed = JSON.parse(product.image_url_small);
+          setImageKeySmall(parsed.small || parsed.url || product.image_url_small);
+        } catch {
+          setImageKeySmall(product.image_url_small);
+        }
+      } else {
+        setImageKeySmall('');
+      }
+      if (product.home_image_key) {
+        try {
+          const parsed = JSON.parse(product.home_image_key);
+          setHomeImageKey(parsed.large || parsed.url || product.home_image_key);
+        } catch {
+          setHomeImageKey(product.home_image_key);
+        }
+      } else {
+        setHomeImageKey('');
+      }
+      // Sync other fields
+      setIsActive(product.is_active !== false);
+      setIsFeatured(product.is_featured || false);
+      setNotes(product.notes || '');
+      // Sync translations
+      setTranslations(
+        product.product_translations?.map((tr) => ({
+          language: tr.language,
+          name: tr.name,
+          description: tr.description || '',
+          features: tr.features || '',
+          specs: tr.specs || '',
+        })) || activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
+      );
+      // Sync prices
+      setPrices(
+        product.product_prices?.map((p) => {
+          const store = stores.find((s) => s.id.toString() === p.store_id.toString());
+          return {
+            store_id: p.store_id.toString(),
+            current_price: p.current_price,
+            original_price: p.original_price || '',
+            product_url: p.product_url,
+            discount_percent: p.discount_percent?.toString() || '',
+            currency: p.currency || '$',
+            region: p.region || '',
+            no_quote: p.no_quote || false,
+            store_type: store?.store_type || 'standard',
+            promotion_id: '',
+          };
+        }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }]
+      );
+    } else if (open && !product) {
+      // Reset all fields for "Add New Product" mode
+      setSlug('');
+      setCategoryId('');
+      setImageKey('');
+      setImageKeySmall('');
+      setHomeImageKey('');
+      setIsActive(true);
+      setIsFeatured(false);
+      setNotes('');
+      setTranslations(activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' })));
+      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '' }]);
     }
-  }, [open, activeLanguages]);
+  }, [open, product, activeLanguages, stores]);
 
   const handleSave = async () => {
     setSaving(true);
