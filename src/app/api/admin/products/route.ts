@@ -53,6 +53,8 @@ async function processExpiredPromotions(client: any, promotionProductId: number)
 
       if (action === 'convert_to_standard') {
         // 转为标准商城价：在 product_prices 创建记录
+        // 如果设置了 standard_price 则用它作为现价，否则用促销价
+        const targetPrice = price.standard_price || price.current_price;
         const existingStandardPrice = await client
           .from('product_prices')
           .select('id')
@@ -65,7 +67,7 @@ async function processExpiredPromotions(client: any, promotionProductId: number)
           await client.from('product_prices').insert({
             product_id: pp.product_id,
             store_id: price.store_id,
-            current_price: price.current_price,
+            current_price: targetPrice,
             original_price: price.original_price || null,
             product_url: price.product_url,
             in_stock: true,
@@ -140,21 +142,32 @@ export async function GET(request: NextRequest) {
         // 重新获取促销数据（处理过期后可能已变化）
         const { data: updatedPromos } = await client
           .from('promotion_products')
-          .select('id, product_id, promotion_id, is_active, promotion_product_prices(time_type, end_time, countdown_action)')
+          .select('id, product_id, promotion_id, is_active, promotion_product_prices(*, stores(*, store_translations(*)))')
           .eq('product_id', pid);
 
-        // 统计有效的促销数量
+        // 统计有效的促销数量 & 收集完整促销价格数据
         let activePromoCount = 0;
+        const allPromotionPrices: Array<Record<string, unknown>> = [];
         (updatedPromos || []).forEach((promo: Record<string, unknown>) => {
           const prices = (promo.promotion_product_prices || []) as Array<{ time_type?: string; end_time?: string | null }>;
           const hasActivePrice = prices.some(p => !isPromotionExpired(p));
           if (hasActivePrice || prices.length === 0) {
             activePromoCount++;
           }
+          // 收集完整的促销价格数据（含 promotion_id），供前端编辑使用
+          (promo.promotion_product_prices || []).forEach((pp: Record<string, unknown>) => {
+            if (!isPromotionExpired(pp)) {
+              allPromotionPrices.push({
+                ...pp,
+                promotion_id: promo.promotion_id,
+              });
+            }
+          });
         });
 
         (product as Record<string, unknown>).has_promotion = activePromoCount > 0;
         (product as Record<string, unknown>).active_promotion_count = activePromoCount;
+        (product as Record<string, unknown>).promotion_prices = allPromotionPrices;
       }
     }
 
@@ -293,6 +306,7 @@ export async function POST(request: NextRequest) {
           start_time: p.start_time || null,
           end_time: p.end_time || null,
           countdown_action: p.countdown_action || 'close',
+          standard_price: p.standard_price || null,
         }));
         const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
         if (promoPriceError) throw new Error(`Create promotion prices failed: ${promoPriceError.message}`);
@@ -519,6 +533,7 @@ export async function PUT(request: NextRequest) {
           start_time: p.start_time || null,
           end_time: p.end_time || null,
           countdown_action: p.countdown_action || 'close',
+          standard_price: p.standard_price || null,
         }));
         const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
         if (promoPriceError) throw new Error(`Update promotion prices failed: ${promoPriceError.message}`);
