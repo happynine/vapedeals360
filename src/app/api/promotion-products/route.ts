@@ -120,8 +120,15 @@ export async function GET(request: NextRequest) {
       notes: string | null;
       promotion_product_translations: Array<{ id: number; name: string | null; description: string | null; language: string }>;
     }) => {
+      const now = new Date();
       const prices = (ppPrices || [])
         .filter((p: { promotion_product_id: number }) => p.promotion_product_id === pp.id)
+        // 过滤已过期的促销价格
+        .filter((p: { time_type: string; end_time: string | null }) => {
+          if (!p.time_type || p.time_type === 'permanent') return true;
+          if (!p.end_time) return true;
+          return now <= new Date(p.end_time);
+        })
         .map((p: {
           id: number;
           promotion_product_id: number;
@@ -153,7 +160,9 @@ export async function GET(request: NextRequest) {
           translations: promo.promotion_translations || [],
         } : null,
       };
-    });
+    })
+    // 过滤掉没有任何活跃价格的产品
+    .filter((p: { store_prices: unknown[] }) => p.store_prices.length > 0);
 
     return NextResponse.json({
       success: true,
