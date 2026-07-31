@@ -33,7 +33,7 @@ interface StorePrice {
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
-  countdown_action: 'close' | 'original_price';
+  countdown_action: 'close' | 'original_price' | 'convert_to_standard' | 'hide';
   store?: PriceStore;
 }
 
@@ -171,7 +171,12 @@ export async function GET(
       }
     }
 
-    product.store_prices = prices || [];
+    product.store_prices = (prices || []).filter((p) => {
+      // 过滤已过期的促销价格
+      if (!p.time_type || p.time_type === 'permanent') return true;
+      if (!p.end_time) return true;
+      return new Date() <= new Date(p.end_time);
+    });
 
     // Get promotion info if promotion_id exists
     let promotion: Promotion | null = null;
