@@ -311,9 +311,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
             // Show all store prices (both promotion and standard types)
             const promotionPrices = (product.store_prices || [])
               .filter(p => p.store_id && p.current_price && !p.no_quote)
-              // Filter out prices where countdown has ended with 'close' action
+              // Filter out prices where countdown has ended with 'close' or 'hide' action
               .filter(p => {
-                if (p.time_type !== 'permanent' && p.end_time && p.countdown_action === 'close') {
+                if (p.time_type !== 'permanent' && p.end_time && (p.countdown_action === 'close' || p.countdown_action === 'hide')) {
                   return new Date(p.end_time).getTime() > Date.now();
                 }
                 return true;
