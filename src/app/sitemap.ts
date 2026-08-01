@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (products) {
         for (const p of products) {
           dynamicPages.push({
-            url: `${BASE_URL}/product/${p.slug}`,
+            url: `${BASE_URL}/product/${encodeURIComponent(p.slug)}`,
             lastModified: p.updated_at || now,
             changeFrequency: 'weekly',
             priority: 0.8,
@@ -63,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (promos) {
         for (const p of promos) {
           dynamicPages.push({
-            url: `${BASE_URL}/promotion/${p.slug}`,
+            url: `${BASE_URL}/promotion/${encodeURIComponent(p.slug)}`,
             lastModified: p.updated_at || now,
             changeFrequency: 'daily',
             priority: 0.8,
@@ -84,7 +84,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (newsPages) {
         for (const p of newsPages) {
           dynamicPages.push({
-            url: `${BASE_URL}/news/${p.slug}`,
+            url: `${BASE_URL}/news/${encodeURIComponent(p.slug)}`,
             lastModified: p.updated_at || now,
             changeFrequency: 'weekly',
             priority: 0.6,
@@ -105,7 +105,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (bestVapes) {
         for (const p of bestVapes) {
           dynamicPages.push({
-            url: `${BASE_URL}/best-vapes/${p.slug}`,
+            url: `${BASE_URL}/best-vapes/${encodeURIComponent(p.slug)}`,
             lastModified: p.updated_at || now,
             changeFrequency: 'weekly',
             priority: 0.6,
