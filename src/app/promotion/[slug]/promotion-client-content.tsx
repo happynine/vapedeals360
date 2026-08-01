@@ -27,7 +27,7 @@ interface PromotionProductPrice {
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
-  countdown_action: 'close' | 'original_price';
+  countdown_action: 'close' | 'original_price' | 'convert_to_standard' | 'hide';
   store?: {
     id: number;
     slug: string;
@@ -311,9 +311,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
             // Show all store prices (both promotion and standard types)
             const promotionPrices = (product.store_prices || [])
               .filter(p => p.store_id && p.current_price && !p.no_quote)
-              // Filter out prices where countdown has ended with 'close' or 'hide' action
+              // Filter out prices where countdown has ended with 'close', 'hide', or 'convert_to_standard' action
               .filter(p => {
-                if (p.time_type !== 'permanent' && p.end_time && (p.countdown_action === 'close' || p.countdown_action === 'hide')) {
+                if (p.time_type !== 'permanent' && p.end_time && (p.countdown_action === 'close' || p.countdown_action === 'hide' || p.countdown_action === 'convert_to_standard')) {
                   return new Date(p.end_time).getTime() > Date.now();
                 }
                 return true;
