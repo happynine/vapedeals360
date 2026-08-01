@@ -230,6 +230,7 @@ export async function POST(request: NextRequest) {
         end_time: string | null;
         countdown_action: string;
         store_type: string;
+        standard_price: string;
       }) => ({
         promotion_product_id: promotionProduct.id,
         store_id: sp.store_id,
@@ -244,7 +245,8 @@ export async function POST(request: NextRequest) {
         time_type: sp.time_type || 'permanent',
         start_time: sp.start_time || null,
         end_time: sp.end_time || null,
-        countdown_action: sp.countdown_action || 'close'
+        countdown_action: sp.countdown_action || 'close',
+        standard_price: sp.standard_price || null
       }));
 
       const { error: spError } = await supabase
@@ -371,6 +373,7 @@ export async function PUT(request: NextRequest) {
           end_time: string | null;
           countdown_action: string;
           store_type: string;
+          standard_price: string;
         }) => ({
           promotion_product_id: promotionProduct.id,
           store_id: sp.store_id,
@@ -385,7 +388,8 @@ export async function PUT(request: NextRequest) {
           time_type: sp.time_type || 'permanent',
           start_time: sp.start_time || null,
           end_time: sp.end_time || null,
-          countdown_action: sp.countdown_action || 'close'
+          countdown_action: sp.countdown_action || 'close',
+          standard_price: sp.standard_price || null
         }));
 
         const { error: spError } = await supabase
