@@ -5,7 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/_next/', '/static/'],
+      disallow: ['/api/', '/_next/', '/static/', '/admin'],
     },
+    sitemap: 'https://www.vapedeals360.com/sitemap.xml',
   };
 }
