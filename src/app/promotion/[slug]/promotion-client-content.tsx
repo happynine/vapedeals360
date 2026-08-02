@@ -277,19 +277,6 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
     <>
       {/* Promotion Header - Cover Image, Title and Description */}
       <div className="mb-8">
-        {/* Cover Image */}
-        {(translation?.cover_image_url || translation?.cover_image_key) && (
-          <div className="relative w-full aspect-[1376/320] rounded-xl overflow-hidden mb-6">
-            <Image
-              src={translation?.cover_image_url || translation?.cover_image_key || ''}
-              alt={translation?.title || translation?.name || promotion.slug}
-              fill
-              className="object-cover"
-              priority
-              unoptimized
-            />
-          </div>
-        )}
         {/* Activity Title and Description - Best Vapes style */}
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
           {translation?.title || translation?.name || promotion.slug}
