@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
         .in('product_id', productIds);
 
       // 按产品ID分组
-      const promoByProduct: Record<number, typeof promoProducts> = {};
+      const promoByProduct: Record<number, Array<Record<string, unknown>>> = {};
       (promoProducts || []).forEach((pp: Record<string, unknown>) => {
         const pid = pp.product_id as number;
         if (!promoByProduct[pid]) promoByProduct[pid] = [];
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
 
         // 处理过期的促销价格
         for (const promo of promos) {
-          await processExpiredPromotions(client, promo.id);
+          await processExpiredPromotions(client, promo.id as number);
         }
 
         // 重新获取促销数据（处理过期后可能已变化）
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
             activePromoCount++;
           }
           // 收集完整的促销价格数据（含 promotion_id），供前端编辑使用
-          (promo.promotion_product_prices || []).forEach((pp: Record<string, unknown>) => {
+          ((promo.promotion_product_prices || []) as Array<Record<string, unknown>>).forEach((pp: Record<string, unknown>) => {
             if (!isPromotionExpired(pp)) {
               allPromotionPrices.push({
                 ...pp,

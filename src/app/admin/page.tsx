@@ -263,9 +263,9 @@ interface Banner { id: number; image_key: string | null; mobile_image_key: strin
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; title: string | null; description: string | null; cover_image_key: string | null; cover_image_url: string | null; mobile_cover_image_key: string | null; mobile_cover_image_url: string | null; }
 interface PromotionProductTranslation { language: string; name: string; description?: string; features?: string; specs?: string; }
 interface PromotionProductStorePrice { store_id?: number | null; region?: string; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; store?: { id: number; slug: string; store_translations?: Array<{ language: string; name: string }> } | null; }
-interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; home_image_key?: string; home_image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
+interface PromotionProduct { id: number; promotion_id: number; product_id?: number | null; slug?: string; category_id?: number | null; image_key?: string; image_url?: string; image_url_small?: string; home_image_key?: string; home_image_url?: string; store_id?: number | null; special_price?: number | null; currency?: string | null; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | null; is_active?: boolean; is_featured?: boolean; notes?: string; updated_at?: string; promotion_product_translations?: PromotionProductTranslation[]; promotion_product_prices?: PromotionProductStorePrice[]; stores?: PromotionProductStorePrice[]; promotions?: { id: number; slug: string; promotion_translations?: Array<{ language: string; name: string }> } | null; }
 interface Promotion { id: number; title?: string; slug: string; special_price: number | null; currency: string | null; sort_order: number; is_active: boolean; product_count?: number; promotion_translations: PromotionTranslation[]; promotion_products?: PromotionProduct[]; }
-interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; has_promotion?: boolean; active_promotion_count?: number; promotion_prices?: Array<Record<string, unknown>>; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
+interface Product { id: number; slug: string; category_id: number | null; image_url: string | null; image_url_small: string | null; image_key: string | null; home_image_key: string | null; home_image_url: string | null; images: string | null; sales_region: string | null; is_active: boolean; is_featured: boolean; notes: string; updated_at?: string; has_promotion?: boolean; active_promotion_count?: number; promotion_prices?: Array<Record<string, unknown>>; product_translations: ProductTranslation[]; product_prices: ProductPrice[]; categories?: { id: number; slug: string; category_translations: CategoryTranslation[] } | null; }
 
 type Tab = 'site_settings' | 'products' | 'promotions' | 'categories' | 'stores' | 'banners' | 'analytics' | 'best_vapes' | 'news' | 'database_backup';
 type StaticPageSlug = 'privacy-policy' | 'about-us' | 'disclaimer' | 'affiliate-disclosure' | 'terms-of-service';
@@ -6264,6 +6264,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   original_price: existing?.original_price || '',
                                   product_url: existing?.product_url || '',
                                   discount_percent: existing?.discount_percent || '',
+                                  standard_price: existing?.standard_price || '',
                                   currency: CURRENCY_OPTIONS.find(c => c.code === r.currency)?.symbol || r.currency || '$',
                                   region: r.region,
                                   no_quote: existing?.no_quote || false,
@@ -6286,6 +6287,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                     original_price: existing?.original_price || '',
                                     product_url: existing?.product_url || '',
                                     discount_percent: existing?.discount_percent || '',
+                                    standard_price: existing?.standard_price || '',
                                     currency: CURRENCY_OPTIONS.find(c => c.code === sr.currency)?.symbol || sr.currency || '$',
                                     region: sr.region || '',
                                     no_quote: existing?.no_quote || false,
@@ -6836,9 +6838,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         countdown_days: 0,
         countdown_hours: 0,
         countdown_minutes: 0,
+        standard_price: '',
         countdown_seconds: 0,
       };
-    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
   );
   const [saving, setSaving] = useState(false);
   const isEdit = !!product;
@@ -6919,7 +6922,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         };
       });
       // Load existing promotion prices
-      const promoPricesList = ((product as Record<string, unknown>).promotion_prices as Array<Record<string, unknown>> || []).map((p) => {
+      const promoPricesList = ((product.promotion_prices as Array<Record<string, unknown>> | undefined) || []).map((p) => {
         const store = stores.find((s) => s.id.toString() === (p.store_id as number)?.toString());
         return {
           store_id: (p.store_id as number)?.toString() || '',
@@ -7246,6 +7249,15 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 no_quote: existing?.no_quote || false,
                                 store_type: firstP.store_type,
                                 promotion_id: firstP.promotion_id,
+                                standard_price: existing?.standard_price || '',
+                                time_type: 'permanent' as const,
+                                start_time: '',
+                                end_time: '',
+                                countdown_action: 'convert_to_standard' as const,
+                                countdown_days: 0,
+                                countdown_hours: 0,
+                                countdown_minutes: 0,
+                                countdown_seconds: 0,
                               });
                             } else {
                               for (const sr of sRegions) {
@@ -7261,6 +7273,15 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                   no_quote: existing?.no_quote || false,
                                   store_type: firstP.store_type,
                                   promotion_id: firstP.promotion_id,
+                                  standard_price: existing?.standard_price || '',
+                                  time_type: 'permanent' as const,
+                                  start_time: '',
+                                  end_time: '',
+                                  countdown_action: 'convert_to_standard' as const,
+                                  countdown_days: 0,
+                                  countdown_hours: 0,
+                                  countdown_minutes: 0,
+                                  countdown_seconds: 0,
                                 });
                               }
                             }

@@ -275,8 +275,21 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
 
   return (
     <>
-      {/* Promotion Header - Title and Description */}
+      {/* Promotion Header - Cover Image, Title and Description */}
       <div className="mb-8">
+        {/* Cover Image */}
+        {translation?.cover_image_url && (
+          <div className="relative w-full aspect-[1376/320] rounded-xl overflow-hidden mb-6">
+            <Image
+              src={translation.cover_image_url}
+              alt={translation?.title || translation?.name || promotion.slug}
+              fill
+              className="object-cover"
+              priority
+              unoptimized
+            />
+          </div>
+        )}
         {/* Activity Title and Description - Best Vapes style */}
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
           {translation?.title || translation?.name || promotion.slug}
@@ -311,9 +324,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
             // Show all store prices (both promotion and standard types)
             const promotionPrices = (product.store_prices || [])
               .filter(p => p.store_id && p.current_price && !p.no_quote)
-              // Filter out prices where countdown has ended with 'close', 'hide', or 'convert_to_standard' action
+              // Filter out ended time-limited promotion prices (hide regardless of countdown_action)
               .filter(p => {
-                if (p.time_type !== 'permanent' && p.end_time && (p.countdown_action === 'close' || p.countdown_action === 'hide' || p.countdown_action === 'convert_to_standard')) {
+                if (p.store_type === 'promotion' && p.time_type !== 'permanent' && p.end_time) {
                   return new Date(p.end_time).getTime() > Date.now();
                 }
                 return true;
