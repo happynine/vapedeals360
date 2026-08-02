@@ -361,6 +361,16 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
           </svg>
           {language === "zh" ? "价格对比" : "Price Comparison"}
         </h2>
+                <p className="mb-4 text-xs text-gray-400 italic">
+          {language === "zh"
+            ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金。"
+            : "* Prices are from partner stores. We may earn a commission when you purchase through our links."}
+        </p>
+        <p className="mb-4 text-xs text-gray-400 italic">
+          {language === "zh"
+            ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金。"
+            : "* Prices are from partner stores. We may earn a commission when you purchase through our links."}
+        </p>
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
           {/* Desktop header */}
           <div className="hidden md:grid grid-cols-7 gap-4 px-5 py-3 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
