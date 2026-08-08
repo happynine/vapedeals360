@@ -564,8 +564,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   )}
                   <div className="flex gap-4">
                     <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                      {product.image_url && (
-                        <SafeImage src={product.image_url} alt={t?.name || ""} fill className="object-cover" sizes="96px" />
+                      {(product.home_image_url || product.image_url) && (
+                        <SafeImage src={product.home_image_url || product.image_url} alt={t?.name || ""} fill className="object-cover" sizes="96px" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -783,7 +783,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                 >
                   {(product.home_image_url || product.image_url) && (
                     <SafeImage
-                      src={product.home_image_url || product.image_url_small || product.image_url}
+                      src={product.home_image_url || product.image_url}
                       alt={t?.name || ""}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105"

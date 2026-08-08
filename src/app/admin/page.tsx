@@ -589,7 +589,7 @@ export default function AdminPage() {
       const [catRes, storeRes, prodRes, bannerRes] = await Promise.all([
         adminFetch('/api/admin/categories'),
         adminFetch('/api/admin/stores'),
-        adminFetch('/api/admin/products?limit=100'),
+        adminFetch('/api/admin/products?limit=500'),
         adminFetch('/api/admin/banners'),
       ]);
       const catJson = await catRes.json();
@@ -6074,6 +6074,19 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
               <div>
                 <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (480x480px)</label>
                 <ImageUpload
+                  value={homeImageKey}
+                  onUploadComplete={(key) => setHomeImageKey(key)}
+                  aspectRatio={1}
+                  suggestedSize="480x480px"
+                  folder="products"
+                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
+                />
+              </div>
+
+              {/* Home Page Card Image Upload */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Home Page Card Image', '首页卡片图', lang)} (260x260px)</label>
+                <ImageUpload
                   value={imageKey}
                   onUploadComplete={(uploadedData) => {
                     // Parse JSON string with large/small URLs
@@ -6095,23 +6108,10 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     }
                   }}
                   aspectRatio={1}
-                  suggestedSize="480x480px"
+                  suggestedSize="260x260px"
                   folder="products"
                   isProductImage={true}
                   entityId={promotionProduct?.id ? `promo-main-${promotionProduct.id}` : undefined}
-                />
-              </div>
-
-              {/* Home Page Card Image Upload */}
-              <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Home Page Card Image', '首页卡片图', lang)} (260x260px)</label>
-                <ImageUpload
-                  value={homeImageKey}
-                  onUploadComplete={(key) => setHomeImageKey(key)}
-                  aspectRatio={1}
-                  suggestedSize="260x260px"
-                  folder="products"
-                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
                 />
               </div>
 
@@ -7079,6 +7079,19 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
 
               {/* Product Image Upload */}
               <ImageUpload
+                value={homeImageKey}
+                onUploadComplete={(key) => {
+                  setHomeImageKey(key);
+                }}
+                aspectRatio={1}
+                suggestedSize="480x480px"
+                label={t('Product Image', '产品图片', lang)}
+                folder="products"
+                entityId={product?.id ? `home-${product.id}` : undefined}
+              />
+
+              {/* Home Page Card Image Upload */}
+              <ImageUpload
                 value={imageKey}
                 onUploadComplete={(key) => {
                   // For product images, key is a JSON string with large and small URLs
@@ -7099,24 +7112,11 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   }
                 }}
                 aspectRatio={1}
-                suggestedSize="480x480px"
-                label={t('Product Image', '产品图片', lang)}
-                folder="products"
-                isProductImage={true}
-                entityId={product?.id ? `main-${product.id}` : undefined}
-              />
-
-              {/* Home Page Card Image Upload */}
-              <ImageUpload
-                value={homeImageKey}
-                onUploadComplete={(key) => {
-                  setHomeImageKey(key);
-                }}
-                aspectRatio={1}
                 suggestedSize="260x260px"
                 label={t('Home Page Card Image', '首页卡片图片', lang)}
                 folder="products"
-                entityId={product?.id ? `home-${product.id}` : undefined}
+                isProductImage={true}
+                entityId={product?.id ? `main-${product.id}` : undefined}
               />
 
               <div className="flex gap-4">

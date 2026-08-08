@@ -434,8 +434,13 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
       })
     : allPrices;
 
+  // Calculate home_image_url
+  const homeImageKey = product.home_image_key as string | null;
+  const homeImageUrl = await getPresignedUrl(homeImageKey);
+
   return {
     ...product,
+    home_image_url: homeImageUrl,
     translations: product.product_translations as ProductTranslation[],
     prices: filteredPrices.map((p) => {
       const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;

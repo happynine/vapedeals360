@@ -563,7 +563,23 @@ export async function DELETE(request: NextRequest) {
       .select('image_url, image_url_small, home_image_key')
       .eq('id', parseInt(id))
       .single();
-    const { error } = await client.from('products').delete().eq('id', parseInt(id));
+    // Clean up child table records to avoid foreign key constraint errors
+    const productId = parseInt(id);
+    // Delete promotion_product_translations and promotion_product_prices for this product's promotion_products
+    const { data: promoProducts } = await client
+      .from('promotion_products')
+      .select('id')
+      .eq('product_id', productId);
+    if (promoProducts && promoProducts.length > 0) {
+      const promoProductIds = promoProducts.map((pp: Record<string, unknown>) => pp.id as number);
+      await client.from('promotion_product_translations').delete().in('promotion_product_id', promoProductIds);
+      await client.from('promotion_product_prices').delete().in('promotion_product_id', promoProductIds);
+      await client.from('promotion_products').delete().in('id', promoProductIds);
+    }
+    // Delete product_translations and product_prices
+    await client.from('product_translations').delete().eq('product_id', productId);
+    await client.from('product_prices').delete().eq('product_id', productId);
+    const { error } = await client.from('products').delete().eq('id', productId);
     if (error) throw new Error(`Delete product failed: ${error.message}`);
     // 清理关联的 Vercel Blob 图片
     if (product) {

@@ -76,6 +76,7 @@ export interface Product {
   slug: string;
   category_id: number | null;
   image_url: string | null;
+  home_image_url: string | null;
   images: string | null;
   is_active: boolean;
   is_featured: boolean;
@@ -145,7 +146,7 @@ function CountdownDisplay({
 
 export function ProductDetailClient({ product, promoBreadcrumb }: { product: Product; promoBreadcrumb?: boolean }) {
   const { language } = useLanguage();
-  const [selectedImage, setSelectedImage] = useState<string | null>(product.image_url);
+  const [selectedImage, setSelectedImage] = useState<string | null>(product.home_image_url || product.image_url);
 
   // 读取用户在首页选择的货币（与首页保持一致）
   const [selectedCurrency, setSelectedCurrency] = useState<string>('$');
@@ -237,7 +238,8 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
 
   // Parse additional images
   const allImages: string[] = [];
-  if (product.image_url) allImages.push(product.image_url);
+  if (product.home_image_url) allImages.push(product.home_image_url);
+  if (product.image_url && product.image_url !== product.home_image_url) allImages.push(product.image_url);
   if (product.images) {
     try {
       const extra = typeof product.images === "string" ? JSON.parse(product.images) : product.images;
