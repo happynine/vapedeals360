@@ -6072,20 +6072,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 
               {/* Product Image Upload */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (480x480px)</label>
-                <ImageUpload
-                  value={homeImageKey}
-                  onUploadComplete={(key) => setHomeImageKey(key)}
-                  aspectRatio={1}
-                  suggestedSize="480x480px"
-                  folder="products"
-                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
-                />
-              </div>
-
-              {/* Home Page Card Image Upload */}
-              <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Home Page Card Image', '首页卡片图', lang)} (260x260px)</label>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (260x260px)</label>
                 <ImageUpload
                   value={imageKey}
                   onUploadComplete={(uploadedData) => {
@@ -6093,17 +6080,14 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                     try {
                       const parsed = JSON.parse(uploadedData);
                       if (parsed.large && parsed.small) {
-                        // large and small are already URLs (not objects)
                         setImageKey(parsed.large);
                         setImageKeySmall(parsed.small);
                       } else if (parsed.url) {
-                        // Single image upload (non-Vercel Blob)
                         setImageKey(parsed.url);
                       } else {
                         setImageKey(uploadedData);
                       }
                     } catch {
-                      // Not JSON, use as-is
                       setImageKey(uploadedData);
                     }
                   }}
@@ -6112,6 +6096,19 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   folder="products"
                   isProductImage={true}
                   entityId={promotionProduct?.id ? `promo-main-${promotionProduct.id}` : undefined}
+                />
+              </div>
+
+              {/* Detail Page Image */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Detail Page Image', '详情页图片', lang)} (480x480px)</label>
+                <ImageUpload
+                  value={homeImageKey}
+                  onUploadComplete={(key) => setHomeImageKey(key)}
+                  aspectRatio={1}
+                  suggestedSize="480x480px"
+                  folder="products"
+                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
                 />
               </div>
 
@@ -7079,30 +7076,15 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
 
               {/* Product Image Upload */}
               <ImageUpload
-                value={homeImageKey}
-                onUploadComplete={(key) => {
-                  setHomeImageKey(key);
-                }}
-                aspectRatio={1}
-                suggestedSize="480x480px"
-                label={t('Product Image', '产品图片', lang)}
-                folder="products"
-                entityId={product?.id ? `home-${product.id}` : undefined}
-              />
-
-              {/* Home Page Card Image Upload */}
-              <ImageUpload
                 value={imageKey}
                 onUploadComplete={(key) => {
                   // For product images, key is a JSON string with large and small URLs
                   try {
                     const parsed = JSON.parse(key);
                     if (parsed.large && parsed.small) {
-                      // large and small are already URLs (not objects)
                       setImageKey(parsed.large);
                       setImageKeySmall(parsed.small);
                     } else if (parsed.url) {
-                      // Single image upload (non-Vercel Blob)
                       setImageKey(parsed.url);
                     } else {
                       setImageKey(key);
@@ -7113,10 +7095,23 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 }}
                 aspectRatio={1}
                 suggestedSize="260x260px"
-                label={t('Home Page Card Image', '首页卡片图片', lang)}
+                label={t('Product Image', '产品图片', lang)}
                 folder="products"
                 isProductImage={true}
                 entityId={product?.id ? `main-${product.id}` : undefined}
+              />
+
+              {/* Detail Page Image */}
+              <ImageUpload
+                value={homeImageKey}
+                onUploadComplete={(key) => {
+                  setHomeImageKey(key);
+                }}
+                aspectRatio={1}
+                suggestedSize="480x480px"
+                label={t('Detail Page Image', '详情页图片', lang)}
+                folder="products"
+                entityId={product?.id ? `home-${product.id}` : undefined}
               />
 
               <div className="flex gap-4">
