@@ -670,7 +670,7 @@ export default function AdminPage() {
     }
   }, [adminLang]);
 
-  useEffect(() => { fetchAllData(); }, [fetchAllData]);
+  useEffect(() => { if (isLoggedIn) fetchAllData(); }, [isLoggedIn, fetchAllData]);
   useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
   useEffect(() => { if (isLoggedIn && activeTab === 'products') { fetchPromotionProducts(); fetchPromotions(); } }, [isLoggedIn, activeTab, fetchPromotionProducts, fetchPromotions]);
 
