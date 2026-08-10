@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { deleteFile } from '@/lib/storage';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { del } from '@vercel/blob';
+// 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
+async function deleteBlobFile(fileUrl: string | null | undefined) {
+  if (!fileUrl) return;
+  try {
+    await del(fileUrl);
+    console.log('Deleted blob file:', fileUrl);
+  } catch (e) {
+    console.warn('Failed to delete blob file:', fileUrl, e);
+  }
+}
 export async function GET(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -52,7 +62,7 @@ export async function GET(request: NextRequest) {
 }
 export async function POST(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const body = await request.json();
     const { title, slug, special_price, currency, sort_order, is_active, translations, products } = body;
     if (!slug) {
@@ -98,7 +108,7 @@ export async function POST(request: NextRequest) {
 }
 export async function PUT(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const body = await request.json();
     const { id, title, slug, special_price, currency, sort_order, is_active, translations, products } = body;
     if (!id) {
@@ -139,10 +149,10 @@ export async function PUT(request: NextRequest) {
           const oldCover = oldT.cover_image_url as string | null;
           const oldMobileCover = oldT.mobile_cover_image_url as string | null;
           if (oldCover && !newImageUrls.has(oldCover)) {
-            await deleteFile(oldCover);
+            await deleteBlobFile(oldCover);
           }
           if (oldMobileCover && !newImageUrls.has(oldMobileCover)) {
-            await deleteFile(oldMobileCover);
+            await deleteBlobFile(oldMobileCover);
           }
         }
       }
@@ -166,13 +176,13 @@ export async function PUT(request: NextRequest) {
 }
 export async function DELETE(request: NextRequest) {
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
-    // 获取关联的翻译数据以清理 R2 存储 图片
+    // 获取关联的翻译数据以清理 Vercel Blob 图片
     const { data: translations } = await client
       .from('promotion_translations')
       .select('cover_image_url, mobile_cover_image_url')
@@ -181,11 +191,11 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    // 清理关联的 R2 存储 图片
+    // 清理关联的 Vercel Blob 图片
     if (translations && translations.length > 0) {
       for (const t of translations) {
-        await deleteFile((t as Record<string, unknown>).cover_image_url as string | null);
-        await deleteFile((t as Record<string, unknown>).mobile_cover_image_url as string | null);
+        await deleteBlobFile((t as Record<string, unknown>).cover_image_url as string | null);
+        await deleteBlobFile((t as Record<string, unknown>).mobile_cover_image_url as string | null);
       }
     }
     return NextResponse.json({ success: true, message: 'Promotion deleted successfully' });

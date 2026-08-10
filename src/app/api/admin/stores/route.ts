@@ -1,15 +1,25 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { deleteFile } from '@/lib/storage';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { del } from '@vercel/blob';
+// 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
+async function deleteBlobFile(fileUrl: string | null | undefined) {
+  if (!fileUrl) return;
+  try {
+    await del(fileUrl);
+    console.log('Deleted blob file:', fileUrl);
+  } catch (e) {
+    console.warn('Failed to delete blob file:', fileUrl, e);
+  }
+}
 // GET all stores
 export async function GET(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { data, error } = await client
       .from('stores')
       .select('*, store_translations(*)')
@@ -28,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const body = await request.json();
     const { slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
     // Check for duplicate slug
@@ -70,7 +80,7 @@ export async function PUT(request: NextRequest) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const body = await request.json();
     const { id, slug, logo_url, website_url, website_urls, is_active, store_type, regions, notes, translations } = body;
     
@@ -100,11 +110,11 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (storeError) throw new Error(`Update store failed: ${storeError.message}`);
-    // 删除旧的 R2 存储 图片（当 logo_url 被更新时）
+    // 删除旧的 Vercel Blob 图片（当 logo_url 被更新时）
     if (oldStore) {
       const oldLogoUrl = oldStore.logo_url as string | null;
       if (oldLogoUrl && oldLogoUrl !== (logo_url || null)) {
-        await deleteFile(oldLogoUrl);
+        await deleteBlobFile(oldLogoUrl);
       }
     }
     if (translations && translations.length > 0) {
@@ -130,11 +140,11 @@ export async function DELETE(request: NextRequest) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) throw new Error('Missing id parameter');
-    // 获取门店数据以清理关联的 R2 存储 图片
+    // 获取门店数据以清理关联的 Vercel Blob 图片
     const { data: store } = await client
       .from('stores')
       .select('logo_url')
@@ -142,9 +152,9 @@ export async function DELETE(request: NextRequest) {
       .single();
     const { error } = await client.from('stores').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete store failed: ${error.message}`);
-    // 清理关联的 R2 存储 图片
+    // 清理关联的 Vercel Blob 图片
     if (store) {
-      await deleteFile((store as Record<string, unknown>).logo_url as string | null);
+      await deleteBlobFile((store as Record<string, unknown>).logo_url as string | null);
     }
     return NextResponse.json({ success: true });
   } catch (err) {

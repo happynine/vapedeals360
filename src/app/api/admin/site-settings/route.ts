@@ -1,6 +1,6 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 
 export async function GET(request: Request) {
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getServiceRoleClient();
     const { data, error } = await supabase
       .from('site_settings')
       .select('*, site_setting_translations(*)')
@@ -40,7 +40,7 @@ export async function PUT(request: Request) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getServiceRoleClient();
     const body = await request.json();
     const { logo_url, translations, site_name } = body;
 

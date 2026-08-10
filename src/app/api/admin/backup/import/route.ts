@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // Tables that have auto-increment IDs - need to reset sequences after import
 const TABLES_WITH_SEQUENCE = [
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid backup data' }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getServiceRoleClient();
     const results: Record<string, { inserted: number; error?: string }> = {};
 
     // mode: 'append' (default) or 'replace' (clear tables first)

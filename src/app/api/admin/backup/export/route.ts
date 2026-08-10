@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // All tables to export (in dependency order for import)
 const TABLES = [
@@ -28,7 +28,7 @@ const TABLES = [
 
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getServiceRoleClient();
     const backup: Record<string, unknown[]> = {};
 
     for (const table of TABLES) {

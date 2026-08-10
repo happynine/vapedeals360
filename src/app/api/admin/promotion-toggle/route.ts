@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // GET - 获取促销活动开关状态
 export async function GET() {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   
   const { data, error } = await supabase
     .from('site_settings')
@@ -33,7 +33,7 @@ export async function GET() {
 
 // PUT - 更新促销活动开关状态
 export async function PUT(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   
   try {
     const body = await request.json();

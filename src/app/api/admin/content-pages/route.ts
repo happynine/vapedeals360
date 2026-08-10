@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { deleteFile, extractImageKeysFromHtml } from '@/lib/storage';
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   const id = searchParams.get('id');
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   if (id) {
     // Get single page with all translations
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   // Check for duplicate slug - if exists, update instead of creating new
   const { data: existing } = await supabase
@@ -244,7 +244,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { id, slug, cover_image, sort_order, is_published, translations } = body;
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   // Fetch old page data to clean up orphaned images
   const { data: oldPage } = await supabase
@@ -354,7 +354,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'id parameter required' }, { status: 400 });
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const pageId = parseInt(id);
 
   // 0. Fetch old data to clean up images

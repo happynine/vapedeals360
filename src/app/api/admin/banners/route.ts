@@ -1,13 +1,24 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { getPresignedUrl, deleteFile } from '@/lib/storage';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { getPresignedUrl } from '@/lib/storage';
+import { del } from '@vercel/blob';
 
 function getClient() {
-  return getSupabaseClient();
+  return getServiceRoleClient();
 }
 
+// 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
+async function deleteBlobFile(fileUrl: string | null | undefined) {
+  if (!fileUrl) return;
+  try {
+    await del(fileUrl);
+    console.log('Deleted blob file:', fileUrl);
+  } catch (e) {
+    console.warn('Failed to delete blob file:', fileUrl, e);
+  }
+}
 
 // GET - List all banners with translations
 export async function GET(request: Request) {
@@ -133,19 +144,19 @@ export async function PUT(request: NextRequest) {
     const { error } = await client.from('banners').update(updateData).eq('id', id);
     if (error) throw new Error(`Update banner failed: ${error.message}`);
 
-    // 删除旧的 R2 存储 文件（当 image_key 被更新时）
+    // 删除旧的 Vercel Blob 文件（当 image_key 被更新时）
     if (oldBanner) {
       const oldImageKey = oldBanner.image_key as string | null;
       const oldMobileImageKey = oldBanner.mobile_image_key as string | null;
       
       // 如果 image_key 被更新且旧值与新值不同，删除旧文件
       if (image_key !== undefined && oldImageKey && oldImageKey !== (image_key || null)) {
-        await deleteFile(oldImageKey);
+        await deleteBlobFile(oldImageKey);
       }
       
       // 如果 mobile_image_key 被更新且旧值与新值不同，删除旧文件
       if (mobile_image_key !== undefined && oldMobileImageKey && oldMobileImageKey !== (mobile_image_key || null)) {
-        await deleteFile(oldMobileImageKey);
+        await deleteBlobFile(oldMobileImageKey);
       }
     }
 
@@ -168,7 +179,7 @@ export async function PUT(request: NextRequest) {
         for (const t of oldTranslations) {
           const oldKey = t.image_key as string | null;
           if (oldKey && !newImageKeys.has(oldKey)) {
-            await deleteFile(oldKey);
+            await deleteBlobFile(oldKey);
           }
         }
       }
@@ -225,14 +236,14 @@ export async function DELETE(request: NextRequest) {
     const { error } = await client.from('banners').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete banner failed: ${error.message}`);
 
-    // 删除关联的 R2 存储 文件
+    // 删除关联的 Vercel Blob 文件
     if (bannerToDelete) {
-      await deleteFile(bannerToDelete.image_key);
-      await deleteFile(bannerToDelete.mobile_image_key);
+      await deleteBlobFile(bannerToDelete.image_key);
+      await deleteBlobFile(bannerToDelete.mobile_image_key);
     }
     if (translationsToDelete && translationsToDelete.length > 0) {
       for (const t of translationsToDelete) {
-        await deleteFile(t.image_key);
+        await deleteBlobFile(t.image_key);
       }
     }
 

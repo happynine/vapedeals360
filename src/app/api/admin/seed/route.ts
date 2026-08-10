@@ -1,14 +1,14 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 export async function POST(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
 
     // 1. Create categories
     const { data: categories, error: catError } = await client

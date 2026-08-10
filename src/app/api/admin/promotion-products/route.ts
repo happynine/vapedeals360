@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 
 // 自动在 products 表创建/查找对应产品，返回 product_id
@@ -59,7 +59,7 @@ async function ensureProductInProductsTable(
 
 // GET - Fetch all promotion products
 export async function GET(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   
   try {
     // Fetch promotion products with translations and store prices
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a new promotion product
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const body = await request.json();
 
   try {
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update a promotion product
 export async function PUT(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const body = await request.json();
 
   try {
@@ -410,7 +410,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete a promotion product
 export async function DELETE(request: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   
   // Get id from URL query parameter
   const { searchParams } = new URL(request.url);

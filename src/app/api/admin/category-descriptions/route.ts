@@ -1,7 +1,7 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // PUT /api/admin/category-descriptions
 export async function PUT(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'category_key and language required' }, { status: 400 });
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   // Upsert
   const { error } = await supabase

@@ -1,14 +1,14 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // GET /api/admin/social-links - Get all social links for admin
 export async function GET(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const { data, error } = await supabase
     .from('social_links')
     .select('*')
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const body = await request.json();
   const { platform, url, icon, sort_order } = body;
 
@@ -52,7 +52,7 @@ export async function PUT(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const body = await request.json();
   const { id, platform, url, icon, sort_order, is_active } = body;
 
@@ -86,7 +86,7 @@ export async function DELETE(request: Request) {
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 

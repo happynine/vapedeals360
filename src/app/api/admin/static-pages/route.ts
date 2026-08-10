@@ -1,7 +1,7 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // GET /api/admin/static-pages?slug=privacy-policy
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'slug parameter required' }, { status: 400 });
   }
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   const { data: page, error } = await supabase
     .from('static_pages')
@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json();
   const { slug, translations } = body;
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   // Get page id
   let { data: page } = await supabase
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { slug } = body;
 
-  const supabase = getSupabaseClient();
+  const supabase = getServiceRoleClient();
 
   // Get or create page
   let { data: page, error: pageError } = await supabase

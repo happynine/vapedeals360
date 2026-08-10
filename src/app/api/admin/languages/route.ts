@@ -1,7 +1,7 @@
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServiceRoleClient } from '@/storage/database/supabase-client';
 
 // GET all languages
 export async function GET(request: Request) {
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { data, error } = await client
       .from('languages')
       .select('*')
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (!code || !name) {
       return NextResponse.json({ success: false, error: 'Code and name are required' }, { status: 400 });
     }
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { data, error } = await client
       .from('languages')
       .insert({ code, name, is_active: is_active !== false, is_hidden: is_hidden === true, sort_order: sort_order || 0 })
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const updateData: Record<string, unknown> = {};
     if (code !== undefined) updateData.code = code;
     if (name !== undefined) updateData.name = name;
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
-    const client = getSupabaseClient();
+    const client = getServiceRoleClient();
     const { error } = await client
       .from('languages')
       .delete()
