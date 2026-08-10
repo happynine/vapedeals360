@@ -1,11 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseClient } from '@/storage/database/supabase-client'
 import { NextResponse } from 'next/server'
 
 export async function POST() {
   try {
-    const supabase = createClient()
+    const supabase = getSupabaseClient()
     
-    // Get all products with both image keys
     const { data: products, error: fetchError } = await supabase
       .from('products')
       .select('id, image_key, home_image_key')
@@ -22,7 +21,6 @@ export async function POST() {
     const errors: string[] = []
     
     for (const product of products) {
-      // Only swap if both values exist and are different
       if (product.image_key && product.home_image_key && product.image_key !== product.home_image_key) {
         const { error: updateError } = await supabase
           .from('products')
