@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const title = product.product_translations?.[0]?.name || product.slug;
   const description = product.product_translations?.[0]?.description 
-    || `Buy ${title} at VapeDeal360. Compare prices across stores.`;
+    || `Buy ${title} at VapeDeals360. Compare prices across stores.`;
   const image = product.image_url || product.home_image_url || '';
   const url = `https://www.vapedeals360.com/product/${slug}`;
 
