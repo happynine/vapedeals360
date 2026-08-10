@@ -6071,7 +6071,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
               </div>
               {/* Detail Page Image */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Detail Page Image', '详情页图片', lang)} (480x480px)</label>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (480x480px)</label>
                 <ImageUpload
                   value={homeImageKey}
                   onUploadComplete={(key) => setHomeImageKey(key)}
@@ -6085,7 +6085,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 
               {/* Product Image Upload */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (260x260px)</label>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Detail Page Image', '详情页图片', lang)} (260x260px)</label>
                 <ImageUpload
                   value={imageKey}
                   onUploadComplete={(uploadedData) => {
@@ -7081,7 +7081,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 }}
                 aspectRatio={1}
                 suggestedSize="480x480px"
-                label={t('Detail Page Image', '详情页图片', lang)}
+                label={t('Product Image', '产品图片', lang)}
                 folder="products"
                 entityId={product?.id ? `home-${product.id}` : undefined}
               />
@@ -7108,7 +7108,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 }}
                 aspectRatio={1}
                 suggestedSize="260x260px"
-                label={t('Product Image', '产品图片', lang)}
+                label={t('Detail Page Image', '详情页图片', lang)}
                 folder="products"
                 isProductImage={true}
                 entityId={product?.id ? `main-${product.id}` : undefined}
