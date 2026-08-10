@@ -37,7 +37,7 @@ export function ImageUpload({
   const [showCrop, setShowCrop] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [previewTimestamp, setPreviewTimestamp] = useState(0);
+  const [previewTimestamp, setPreviewTimestamp] = useState(Date.now());
 
   /* ── 图片缩放 & 平移 ── */
   const [scale, setScale] = useState(1);
