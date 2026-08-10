@@ -7,8 +7,8 @@ import FrontendWrapper from '@/components/frontend-wrapper';
 
 export const metadata: Metadata = {
   title: {
-    default: 'VapeDeal360 - Best Vape Deals & Price Comparison',
-    template: '%s | VapeDeal360',
+    default: 'VapeDeals360 - Best Vape Deals & Price Comparison',
+    template: '%s | VapeDeals360',
   },
   description: 'Find the best vape deals. Compare prices across multiple stores and save big on e-cigarettes, pod systems, mods, and e-liquids.',
   keywords: ['vape deals', 'vape price comparison', 'e-cigarette deals', 'pod system', 'vape mods', 'e-liquid'],
