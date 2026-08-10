@@ -6071,12 +6071,12 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
               </div>
               {/* Product Image Upload (homeImageKey - primary card image) */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (260x260px)</label>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Product Image', '产品图片', lang)} (480x480px)</label>
                 <ImageUpload
                   value={homeImageKey}
                   onUploadComplete={(key) => setHomeImageKey(key)}
                   aspectRatio={1}
-                  suggestedSize="260x260px"
+                  suggestedSize="480x480px"
                   folder="products"
                   entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
                 />
@@ -7079,7 +7079,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   setHomeImageKey(key);
                 }}
                 aspectRatio={1}
-                suggestedSize="260x260px"
+                suggestedSize="480x480px"
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
                 entityId={product?.id ? `home-${product.id}` : undefined}
