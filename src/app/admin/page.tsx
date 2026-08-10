@@ -6069,6 +6069,19 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   </select>
                 </div>
               </div>
+              {/* Detail Page Image */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{translate('Detail Page Image', '详情页图片', lang)} (480x480px)</label>
+                <ImageUpload
+                  value={homeImageKey}
+                  onUploadComplete={(key) => setHomeImageKey(key)}
+                  aspectRatio={1}
+                  suggestedSize="480x480px"
+                  folder="products"
+                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
+                />
+              </div>
+
 
               {/* Product Image Upload */}
               <div>
@@ -6096,19 +6109,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   folder="products"
                   isProductImage={true}
                   entityId={promotionProduct?.id ? `promo-main-${promotionProduct.id}` : undefined}
-                />
-              </div>
-
-              {/* Detail Page Image */}
-              <div>
-                <label className="text-xs text-muted-foreground text-left block">{translate('Detail Page Image', '详情页图片', lang)} (480x480px)</label>
-                <ImageUpload
-                  value={homeImageKey}
-                  onUploadComplete={(key) => setHomeImageKey(key)}
-                  aspectRatio={1}
-                  suggestedSize="480x480px"
-                  folder="products"
-                  entityId={promotionProduct?.id ? `promo-home-${promotionProduct.id}` : undefined}
                 />
               </div>
 
@@ -7073,6 +7073,19 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   </select>
                 </div>
               </div>
+              {/* Detail Page Image */}
+              <ImageUpload
+                value={homeImageKey}
+                onUploadComplete={(key) => {
+                  setHomeImageKey(key);
+                }}
+                aspectRatio={1}
+                suggestedSize="480x480px"
+                label={t('Detail Page Image', '详情页图片', lang)}
+                folder="products"
+                entityId={product?.id ? `home-${product.id}` : undefined}
+              />
+
 
               {/* Product Image Upload */}
               <ImageUpload
@@ -7099,19 +7112,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 folder="products"
                 isProductImage={true}
                 entityId={product?.id ? `main-${product.id}` : undefined}
-              />
-
-              {/* Detail Page Image */}
-              <ImageUpload
-                value={homeImageKey}
-                onUploadComplete={(key) => {
-                  setHomeImageKey(key);
-                }}
-                aspectRatio={1}
-                suggestedSize="480x480px"
-                label={t('Detail Page Image', '详情页图片', lang)}
-                folder="products"
-                entityId={product?.id ? `home-${product.id}` : undefined}
               />
 
               <div className="flex gap-4">
