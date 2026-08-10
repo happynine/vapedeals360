@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { del } from '@vercel/blob';
-// 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
-async function deleteBlobFile(fileUrl: string | null | undefined) {
-  if (!fileUrl) return;
-  try {
-    await del(fileUrl);
-    console.log('Deleted blob file:', fileUrl);
-  } catch (e) {
-    console.warn('Failed to delete blob file:', fileUrl, e);
-  }
-}
+import { deleteFile } from '@/lib/storage';
 export async function GET(request: NextRequest) {
   try {
     const client = getSupabaseClient();
@@ -149,10 +139,10 @@ export async function PUT(request: NextRequest) {
           const oldCover = oldT.cover_image_url as string | null;
           const oldMobileCover = oldT.mobile_cover_image_url as string | null;
           if (oldCover && !newImageUrls.has(oldCover)) {
-            await deleteBlobFile(oldCover);
+            await deleteFile(oldCover);
           }
           if (oldMobileCover && !newImageUrls.has(oldMobileCover)) {
-            await deleteBlobFile(oldMobileCover);
+            await deleteFile(oldMobileCover);
           }
         }
       }
@@ -182,7 +172,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
-    // 获取关联的翻译数据以清理 Vercel Blob 图片
+    // 获取关联的翻译数据以清理 R2 存储 图片
     const { data: translations } = await client
       .from('promotion_translations')
       .select('cover_image_url, mobile_cover_image_url')
@@ -191,11 +181,11 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    // 清理关联的 Vercel Blob 图片
+    // 清理关联的 R2 存储 图片
     if (translations && translations.length > 0) {
       for (const t of translations) {
-        await deleteBlobFile((t as Record<string, unknown>).cover_image_url as string | null);
-        await deleteBlobFile((t as Record<string, unknown>).mobile_cover_image_url as string | null);
+        await deleteFile((t as Record<string, unknown>).cover_image_url as string | null);
+        await deleteFile((t as Record<string, unknown>).mobile_cover_image_url as string | null);
       }
     }
     return NextResponse.json({ success: true, message: 'Promotion deleted successfully' });
