@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
@@ -23,6 +24,32 @@ async function getProduct(slug: string) {
     console.error("Failed to fetch product:", error);
     return null;
   }
+}
+
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+  if (!product) return { title: 'Product Not Found' };
+
+  const title = product.product_translations?.[0]?.name || product.slug;
+  const description = product.product_translations?.[0]?.description 
+    || `Buy ${title} at VapeDeal360. Compare prices across stores.`;
+  const image = product.image_url || product.home_image_url || '';
+  const url = `https://www.vapedeals360.com/product/${slug}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      images: image ? [{ url: image, width: 480, height: 480 }] : [],
+      url,
+      type: 'website',
+    },
+  };
 }
 
 // 详情页骨架屏
@@ -76,6 +103,26 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       <Suspense fallback={<ProductDetailSkeleton />}>
         <ProductDetailClient product={product as Product} />
       </Suspense>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.product_translations?.[0]?.name,
+            image: product.image_url,
+            description: product.product_translations?.[0]?.description,
+            url: `https://www.vapedeals360.com/product/${slug}`,
+            offers: {
+              '@type': 'AggregateOffer',
+              lowPrice: '0.01',
+              highPrice: '999',
+              priceCurrency: 'USD',
+              offerCount: product.product_prices?.length || 0,
+            },
+          }),
+        }}
+      />
     </div>
   );
 }
