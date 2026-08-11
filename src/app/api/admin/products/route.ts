@@ -421,9 +421,14 @@ export async function PUT(request: NextRequest) {
       const oldImageUrl = oldProduct.image_url as string | null;
       const oldImageUrlSmall = oldProduct.image_url_small as string | null;
       
-      // 如果 home_image_key 被更新且旧值与新值不同，删除旧文件
-      if (home_image_key !== undefined && oldHomeImageKey && oldHomeImageKey !== (effectiveHomeImageKey || null)) {
-        await deleteFile(oldHomeImageKey);
+      // 如果 image_url 被更新且旧值与新值不同（忽略 ?v= 缓存参数），删除旧文件
+      if (image_url !== undefined && oldImageUrl && effectiveImageUrl) {
+        const oldBase = oldImageUrl.split('?')[0];
+        const newBase = effectiveImageUrl.split('?')[0];
+        if (oldBase !== newBase) {
+          await deleteFile(oldImageUrl);
+        }
+      }
       }
       
       // 如果 image_url 被更新且旧值与新值不同，删除旧文件
