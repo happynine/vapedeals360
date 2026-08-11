@@ -71,7 +71,7 @@ export async function uploadFile(params: {
 
   // R2 (Cloudflare)
   if (hasR2) {
-    const key = `${folder}/${fileBaseName}.${ext}`;
+    const key = customFileName ? `${folder}/${fileBaseName}` : `${folder}/${fileBaseName}.${ext}`;
     await getS3Client().send(
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -97,7 +97,7 @@ export async function uploadFile(params: {
   }
 
   // Coze S3 Storage (dev/sandbox)
-  const key = `${folder}/${fileBaseName}.${ext}`;
+    const key = customFileName ? `${folder}/${fileBaseName}` : `${folder}/${fileBaseName}.${ext}`;
   await getS3Storage().uploadFile({ fileContent, fileName: key, contentType });
   return { key, url: `/api/image?key=${encodeURIComponent(key)}` };
 }
