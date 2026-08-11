@@ -393,7 +393,6 @@ export async function PUT(request: NextRequest) {
         image_url: effectiveImageUrl,
         image_url_small: effectiveImageUrlSmall,
         home_image_key: effectiveHomeImageKey || null,
-        home_image_url: effectiveHomeImageKey || null,
         images: images ? (typeof images === 'string' ? images : JSON.stringify(images)) : null,
         is_active,
         is_featured,
