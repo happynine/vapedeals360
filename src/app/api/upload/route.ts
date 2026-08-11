@@ -16,6 +16,11 @@ export async function POST(request: NextRequest) {
     const folder = url.searchParams.get('folder') || 'uploads';
     const isProductImage = url.searchParams.get('product_image') === 'true';
     const entityId = url.searchParams.get('entity_id') || undefined;
+    const slug = url.searchParams.get('slug') || undefined;
+    const imageType = url.searchParams.get('image_type') || undefined;
+
+    // SEO naming: when slug and image_type are provided, construct SEO-friendly filename
+    const customFileName = (slug && imageType) ? `${slug}-${imageType}.jpg` : undefined;
 
     // 直接读取原始 body（不使用 request.formData()）
     const arrayBuffer = await request.arrayBuffer();
@@ -36,6 +41,7 @@ export async function POST(request: NextRequest) {
         contentType: contentType,
         folder,
         entityId,
+        customFileName,
       });
 
       return NextResponse.json({
@@ -59,6 +65,7 @@ export async function POST(request: NextRequest) {
         contentType: contentType,
         folder,
         entityId,
+        customFileName,
       });
 
       return NextResponse.json({
