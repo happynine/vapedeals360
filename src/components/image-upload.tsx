@@ -15,6 +15,8 @@ interface ImageUploadProps {
   lang?: string;
   isProductImage?: boolean;  // If true, upload two sizes (315x315 and 640x640)
   entityId?: string | number;  // 当提供时，用 ID 作为文件名（覆盖式上传）
+  slug?: string;  // 产品 slug，用于 SEO 命名
+  imageType?: string;  // 图片类型：'product-image' 或 'detail-page'
 }
 
 export function ImageUpload({
@@ -31,6 +33,8 @@ export function ImageUpload({
   lang = 'en',
   isProductImage = false,
   entityId,
+  slug,
+  imageType,
 }: ImageUploadProps) {
   const sizeHint = suggestedSize || recommendedSize;
   const handleComplete = onChange || onUploadComplete || (() => {});
@@ -197,7 +201,9 @@ export function ImageUpload({
 
       // 绕过 FormData，直接发送原始 blob（避免 Vercel Edge 运行时解析 FormData 时的 SharedArrayBuffer 问题）
       const entityParam = entityId ? `&entity_id=${encodeURIComponent(entityId)}` : '';
-      const uploadUrl = `/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}`;
+      const slugParam = slug ? `&slug=${encodeURIComponent(slug)}` : '';
+      const imageTypeParam = imageType ? `&image_type=${encodeURIComponent(imageType)}` : '';
+      const uploadUrl = `/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}${slugParam}${imageTypeParam}`;
       console.log('[ImageUpload] Upload URL:', uploadUrl);
       
       const res = await fetch(uploadUrl, {
@@ -238,7 +244,7 @@ export function ImageUpload({
     } finally {
       setUploading(false);
     }
-  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize, entityId]);
+  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize, entityId, slug, imageType]);
 
   const handleCancelCrop = useCallback(() => {
     setShowCrop(false);
