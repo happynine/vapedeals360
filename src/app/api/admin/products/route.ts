@@ -385,24 +385,6 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Verify uploaded files exist in R2 before saving to DB
-    const urlsToVerify = [
-      { url: effectiveHomeImageKey, field: 'Product Image' },
-      { url: effectiveImageUrl, field: 'Detail Page Image' },
-    ].filter(v => v.url && v.url.startsWith('http'));
-    for (const { url, field } of urlsToVerify) {
-      try {
-        const cleanUrl = url.split('?')[0];
-        const check = await fetch(cleanUrl, { method: 'HEAD' });
-        if (!check.ok) {
-          throw new Error(`${field} upload failed: image file not found in storage (${cleanUrl}). Please try uploading again.`);
-        }
-      } catch (e) {
-        if (e.message?.includes('upload failed')) throw e;
-        console.error(`[verify] Failed to verify ${field}:`, e);
-      }
-    }
-
     // Add cache-busting to image URLs to prevent CDN stale cache
     const cacheParam = `v=${Date.now()}`;
     if (effectiveHomeImageKey && effectiveHomeImageKey.startsWith('http')) {
