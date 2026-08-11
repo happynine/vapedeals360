@@ -2,7 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
-import { getPresignedUrl } from '@/lib/storage';
+import { deleteFile, uploadFile, buildR2Url } from '@/lib/storage';
 
 // 检查促销价格是否已过期
 function isPromotionExpired(price: { time_type?: string; end_time?: string | null; start_time?: string | null }): boolean {
@@ -329,20 +329,71 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // 获取旧的产品数据，用于删除旧图片
+    // 获取旧的产品数据，用于删除旧图片和 slug 变更时重命名
     const { data: oldProduct } = await client
       .from('products')
-      .select('image_url, image_url_small, home_image_key')
+      .select('slug, image_url, image_url_small, home_image_key')
       .eq('id', id)
       .single();
+
+    // 检测 slug 是否变更
+    const oldSlug = oldProduct?.slug as string | undefined;
+    const slugChanged = !!(oldSlug && slug && oldSlug !== slug);
+
+    // slug 变更时：重命名 R2 图片文件 + 更新 URL
+    let effectiveHomeImageKey = home_image_key;
+    let effectiveImageUrl = image_url;
+    let effectiveImageUrlSmall = image_url_small;
+
+    if (slugChanged && oldProduct) {
+      const oldHomeUrl = oldProduct.home_image_key as string | null;
+      const oldDetailUrl = oldProduct.image_url as string | null;
+
+      if (oldHomeUrl && oldHomeUrl.includes('/products/')) {
+        try {
+          const resp = await fetch(oldHomeUrl);
+          const buf = Buffer.from(new Uint8Array(await resp.arrayBuffer()));
+          const seoName = `${slug}-product-image.jpg`;
+          const result = await uploadFile({
+            fileContent: buf, fileName: seoName, contentType: 'image/jpeg',
+            folder: 'products', customFileName: seoName,
+          });
+          effectiveHomeImageKey = result.url;
+          await deleteFile(oldHomeUrl);
+          console.log(`[SEO rename] home: ${oldHomeUrl} -> ${result.url}`);
+        } catch (e) {
+          console.error('[SEO rename] home image failed:', e);
+        }
+      }
+
+      if (oldDetailUrl && oldDetailUrl.includes('/products/')) {
+        try {
+          const resp = await fetch(oldDetailUrl);
+          const buf = Buffer.from(new Uint8Array(await resp.arrayBuffer()));
+          const seoName = `${slug}-detail-page.jpg`;
+          const result = await uploadFile({
+            fileContent: buf, fileName: seoName, contentType: 'image/jpeg',
+            folder: 'products', customFileName: seoName,
+          });
+          effectiveImageUrl = result.url;
+          effectiveImageUrlSmall = result.url;
+          await deleteFile(oldDetailUrl);
+          console.log(`[SEO rename] detail: ${oldDetailUrl} -> ${result.url}`);
+        } catch (e) {
+          console.error('[SEO rename] detail image failed:', e);
+        }
+      }
+    }
+
     const { data: product, error: prodError } = await client
       .from('products')
       .update({
         slug,
         category_id,
-        image_url,
-        image_url_small,
-        home_image_key: home_image_key || null,
+        image_url: effectiveImageUrl,
+        image_url_small: effectiveImageUrlSmall,
+        home_image_key: effectiveHomeImageKey || null,
+        home_image_url: effectiveHomeImageKey || null,
         images: images ? (typeof images === 'string' ? images : JSON.stringify(images)) : null,
         is_active,
         is_featured,
@@ -354,24 +405,24 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Update product failed: ${prodError.message}`);
-    // 删除旧图片文件（当图片被更新时）
-    if (oldProduct) {
+    // 删除旧图片文件（当图片被更新时；slug 变更时已在上方处理）
+    if (oldProduct && !slugChanged) {
       const oldHomeImageKey = oldProduct.home_image_key as string | null;
       const oldImageUrl = oldProduct.image_url as string | null;
       const oldImageUrlSmall = oldProduct.image_url_small as string | null;
       
       // 如果 home_image_key 被更新且旧值与新值不同，删除旧文件
-      if (home_image_key !== undefined && oldHomeImageKey && oldHomeImageKey !== (home_image_key || null)) {
+      if (home_image_key !== undefined && oldHomeImageKey && oldHomeImageKey !== (effectiveHomeImageKey || null)) {
         await deleteFile(oldHomeImageKey);
       }
       
       // 如果 image_url 被更新且旧值与新值不同，删除旧文件
-      if (image_url !== undefined && oldImageUrl && oldImageUrl !== (image_url || null)) {
+      if (image_url !== undefined && oldImageUrl && oldImageUrl !== (effectiveImageUrl || null)) {
         await deleteFile(oldImageUrl);
       }
       
       // 如果 image_url_small 被更新且旧值与新值不同，删除旧文件
-      if (image_url_small !== undefined && oldImageUrlSmall && oldImageUrlSmall !== (image_url_small || null)) {
+      if (image_url_small !== undefined && oldImageUrlSmall && oldImageUrlSmall !== (effectiveImageUrlSmall || null)) {
         await deleteFile(oldImageUrlSmall);
       }
     }
