@@ -420,8 +420,16 @@ export async function PUT(request: NextRequest) {
       const oldHomeImageKey = oldProduct.home_image_key as string | null;
       const oldImageUrl = oldProduct.image_url as string | null;
       const oldImageUrlSmall = oldProduct.image_url_small as string | null;
-      
-      // 如果 image_url 被更新且旧值与新值不同（忽略 ?v= 缓存参数），删除旧文件
+
+      // 比较 base URL（去掉 ?v= 缓存参数），路径不同才删除旧文件
+      if (home_image_key !== undefined && oldHomeImageKey && effectiveHomeImageKey) {
+        const oldBase = oldHomeImageKey.split('?')[0];
+        const newBase = effectiveHomeImageKey.split('?')[0];
+        if (oldBase !== newBase) {
+          await deleteFile(oldHomeImageKey);
+        }
+      }
+
       if (image_url !== undefined && oldImageUrl && effectiveImageUrl) {
         const oldBase = oldImageUrl.split('?')[0];
         const newBase = effectiveImageUrl.split('?')[0];
@@ -429,16 +437,13 @@ export async function PUT(request: NextRequest) {
           await deleteFile(oldImageUrl);
         }
       }
-      }
-      
-      // 如果 image_url 被更新且旧值与新值不同，删除旧文件
-      if (image_url !== undefined && oldImageUrl && oldImageUrl !== (effectiveImageUrl || null)) {
-        await deleteFile(oldImageUrl);
-      }
-      
-      // 如果 image_url_small 被更新且旧值与新值不同，删除旧文件
-      if (image_url_small !== undefined && oldImageUrlSmall && oldImageUrlSmall !== (effectiveImageUrlSmall || null)) {
-        await deleteFile(oldImageUrlSmall);
+
+      if (image_url_small !== undefined && oldImageUrlSmall && effectiveImageUrlSmall) {
+        const oldBase = oldImageUrlSmall.split('?')[0];
+        const newBase = effectiveImageUrlSmall.split('?')[0];
+        if (oldBase !== newBase) {
+          await deleteFile(oldImageUrlSmall);
+        }
       }
     }
     // Update translations
