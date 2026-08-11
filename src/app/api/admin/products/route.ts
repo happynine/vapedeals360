@@ -3,18 +3,6 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
-import { del } from '@vercel/blob';
-
-// 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
-async function deleteBlobFile(fileUrl: string | null | undefined) {
-  if (!fileUrl) return;
-  try {
-    await del(fileUrl);
-    console.log('Deleted blob file:', fileUrl);
-  } catch (e) {
-    console.warn('Failed to delete blob file:', fileUrl, e);
-  }
-}
 
 // 检查促销价格是否已过期
 function isPromotionExpired(price: { time_type?: string; end_time?: string | null; start_time?: string | null }): boolean {
@@ -366,7 +354,7 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Update product failed: ${prodError.message}`);
-    // 删除旧的 Vercel Blob 文件（当图片被更新时）
+    // 删除旧图片文件（当图片被更新时）
     if (oldProduct) {
       const oldHomeImageKey = oldProduct.home_image_key as string | null;
       const oldImageUrl = oldProduct.image_url as string | null;
@@ -374,17 +362,17 @@ export async function PUT(request: NextRequest) {
       
       // 如果 home_image_key 被更新且旧值与新值不同，删除旧文件
       if (home_image_key !== undefined && oldHomeImageKey && oldHomeImageKey !== (home_image_key || null)) {
-        await deleteBlobFile(oldHomeImageKey);
+        await deleteFile(oldHomeImageKey);
       }
       
       // 如果 image_url 被更新且旧值与新值不同，删除旧文件
       if (image_url !== undefined && oldImageUrl && oldImageUrl !== (image_url || null)) {
-        await deleteBlobFile(oldImageUrl);
+        await deleteFile(oldImageUrl);
       }
       
       // 如果 image_url_small 被更新且旧值与新值不同，删除旧文件
       if (image_url_small !== undefined && oldImageUrlSmall && oldImageUrlSmall !== (image_url_small || null)) {
-        await deleteBlobFile(oldImageUrlSmall);
+        await deleteFile(oldImageUrlSmall);
       }
     }
     // Update translations
@@ -558,7 +546,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) throw new Error('Missing id parameter');
     const productId = parseInt(id);
-    // 获取产品数据以清理关联的 Vercel Blob 图片
+    // 获取产品数据以清理关联的 R2 图片
     const { data: product } = await client
       .from('products')
       .select('image_url, image_url_small, home_image_key')
@@ -581,11 +569,11 @@ export async function DELETE(request: NextRequest) {
     }
     const { error } = await client.from('products').delete().eq('id', productId);
     if (error) throw new Error(`Delete product failed: ${error.message}`);
-    // 清理关联的 Vercel Blob 图片
+    // 清理关联的 R2 图片
     if (product) {
-      await deleteBlobFile((product as Record<string, unknown>).image_url as string | null);
-      await deleteBlobFile((product as Record<string, unknown>).image_url_small as string | null);
-      await deleteBlobFile((product as Record<string, unknown>).home_image_key as string | null);
+      await deleteFile((product as Record<string, unknown>).image_url as string | null);
+      await deleteFile((product as Record<string, unknown>).image_url_small as string | null);
+      await deleteFile((product as Record<string, unknown>).home_image_key as string | null);
     }
     return NextResponse.json({ success: true });
   } catch (err) {
