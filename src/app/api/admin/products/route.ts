@@ -385,6 +385,17 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Add cache-busting to image URLs to prevent CDN stale cache
+    const cacheParam = `v=${Date.now()}`;
+    if (effectiveHomeImageKey && effectiveHomeImageKey.startsWith('http')) {
+      effectiveHomeImageKey = effectiveHomeImageKey.split('?')[0] + '?' + cacheParam;
+    }
+    if (effectiveImageUrl && effectiveImageUrl.startsWith('http')) {
+      effectiveImageUrl = effectiveImageUrl.split('?')[0] + '?' + cacheParam;
+    }
+    if (effectiveImageUrlSmall && effectiveImageUrlSmall.startsWith('http')) {
+      effectiveImageUrlSmall = effectiveImageUrlSmall.split('?')[0] + '?' + cacheParam;
+    }
     const { data: product, error: prodError } = await client
       .from('products')
       .update({
