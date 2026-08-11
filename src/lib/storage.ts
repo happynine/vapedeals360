@@ -10,22 +10,19 @@ const useVercelBlob = !hasR2 && !!process.env.BLOB_READ_WRITE_TOKEN;
 // R2 public URL base (set in Vercel env vars, e.g. https://images.vapedeals360.com)
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || `https://${process.env.R2_BUCKET_NAME || 'vapedeals360-images'}.r2.dev`;
 
-let s3ClientInstance: S3Client | null = null;
 let s3StorageInstance: S3Storage | null = null;
 
 function getS3Client(): S3Client {
-  if (!s3ClientInstance) {
-    s3ClientInstance = new S3Client({
-      region: 'auto',
-      endpoint: process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-      },
-      forcePathStyle: true,
-    });
-  }
-  return s3ClientInstance;
+  // Always create a fresh client - Vercel serverless containers may reuse stale connections
+  return new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    },
+    forcePathStyle: true,
+  });
 }
 
 export function getS3Storage(): S3Storage {
