@@ -1,6 +1,6 @@
 import { put, del } from '@vercel/blob';
 import { S3Storage } from 'coze-coding-dev-sdk';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { createHash } from 'crypto';
 
 // Priority: R2 > Vercel Blob > S3Storage (Coze sandbox)
@@ -53,7 +53,7 @@ function computeContentHash(fileContent: Buffer): string {
 /**
  * Build public URL for an R2 object.
  */
-function buildR2Url(key: string): string {
+export function buildR2Url(key: string): string {
   return `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
 }
 
@@ -63,10 +63,11 @@ export async function uploadFile(params: {
   contentType: string;
   folder?: string;
   entityId?: string;
+  customFileName?: string;
 }): Promise<UploadResult> {
-  const { fileContent, fileName, contentType, folder = 'uploads', entityId } = params;
+  const { fileContent, fileName, contentType, folder = 'uploads', entityId, customFileName } = params;
   const ext = fileName.split('.').pop() || 'jpg';
-  const fileBaseName = entityId ? entityId : computeContentHash(fileContent);
+  const fileBaseName = customFileName || (entityId ? entityId : computeContentHash(fileContent));
 
   // R2 (Cloudflare)
   if (hasR2) {
@@ -201,8 +202,9 @@ export async function uploadProductImage(params: {
   contentType: string;
   folder?: string;
   entityId?: string;
+  customFileName?: string;
 }): Promise<{ large: UploadResult; small: UploadResult }> {
-  const { fileContent, fileName, contentType, folder = 'products', entityId } = params;
+  const { fileContent, fileName, contentType, folder = 'products', entityId, customFileName } = params;
   const baseName = fileName.split('.').slice(0, -1).join('.') || 'image';
   const uploadResult = await uploadFile({
     fileContent,
@@ -210,6 +212,7 @@ export async function uploadProductImage(params: {
     contentType,
     folder,
     entityId,
+    customFileName,
   });
   return { large: uploadResult, small: uploadResult };
 }
