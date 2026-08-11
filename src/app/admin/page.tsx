@@ -7031,7 +7031,8 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 suggestedSize="480x480px"
                 label={t('Product Image', '产品图片', lang)}
                 folder="products"
-                entityId={product?.id ? `home-${product.id}` : undefined}
+                slug={slug || undefined}
+                imageType="product-image"
               />
 
               {/* Detail Page Image Upload (imageKey - detail/fallback image) */}
@@ -7060,7 +7061,8 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                 label={t('Detail Page Image', '详情页图片', lang)}
                 folder="products"
                 isProductImage={true}
-                entityId={product?.id ? `main-${product.id}` : undefined}
+                slug={slug || undefined}
+                imageType="detail-page"
               />
 
               <div className="flex gap-4">
