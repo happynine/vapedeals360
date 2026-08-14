@@ -117,32 +117,38 @@ export async function GET(request: NextRequest) {
         promoByProduct[pid].push(pp);
       });
 
-      // 处理过期促销并为每个产品添加标记
+      // 批量处理所有过期促销（避免逐产品循环调用）
+      const allPromoIds = (promoProducts || []).map((p: Record<string, unknown>) => p.id as number);
+      for (const promoId of allPromoIds) {
+        await processExpiredPromotions(client, promoId);
+      }
+
+      // 一次性批量获取所有产品的促销数据（含店铺信息）
+      const { data: allUpdatedPromos } = await client
+        .from('promotion_products')
+        .select('id, product_id, promotion_id, is_active, promotion_product_prices(*, stores(*, store_translations(*)))')
+        .in('product_id', productIds);
+
+      // 按产品ID分组
+      const updatedPromoByProduct: Record<number, Array<Record<string, unknown>>> = {};
+      (allUpdatedPromos || []).forEach((promo: Record<string, unknown>) => {
+        const pid = promo.product_id as number;
+        if (!updatedPromoByProduct[pid]) updatedPromoByProduct[pid] = [];
+        updatedPromoByProduct[pid].push(promo);
+      });
+
+      // 为每个产品计算促销状态
       for (const product of data) {
-        const pid = product.id;
-        const promos = promoByProduct[pid] || [];
+        const updatedPromos = updatedPromoByProduct[product.id] || [];
 
-        // 处理过期的促销价格
-        for (const promo of promos) {
-          await processExpiredPromotions(client, promo.id as number);
-        }
-
-        // 重新获取促销数据（处理过期后可能已变化）
-        const { data: updatedPromos } = await client
-          .from('promotion_products')
-          .select('id, product_id, promotion_id, is_active, promotion_product_prices(*, stores(*, store_translations(*)))')
-          .eq('product_id', pid);
-
-        // 统计有效的促销数量 & 收集完整促销价格数据
         let activePromoCount = 0;
         const allPromotionPrices: Array<Record<string, unknown>> = [];
-        (updatedPromos || []).forEach((promo: Record<string, unknown>) => {
+        updatedPromos.forEach((promo: Record<string, unknown>) => {
           const prices = (promo.promotion_product_prices || []) as Array<{ time_type?: string; end_time?: string | null }>;
           const hasActivePrice = prices.some(p => !isPromotionExpired(p));
           if (hasActivePrice || prices.length === 0) {
             activePromoCount++;
           }
-          // 收集完整的促销价格数据（含 promotion_id），供前端编辑使用
           ((promo.promotion_product_prices || []) as Array<Record<string, unknown>>).forEach((pp: Record<string, unknown>) => {
             if (!isPromotionExpired(pp)) {
               allPromotionPrices.push({
