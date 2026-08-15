@@ -473,6 +473,15 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
     return list;
   })();
 
+  // 渲染前过滤掉没有当前货币价格的产品，避免 grid 中 map return null 留下空位。
+  const displayProducts = filteredProducts.filter((product) =>
+    product.prices.some((p) => {
+      if (p.no_quote) return false;
+      if (p.store && !p.store.is_active) return false;
+      return (p.currency || '$') === selectedCurrency;
+    })
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Mobile: Combined Banner + Promotion Carousel */}
@@ -734,7 +743,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             </div>
           ))}
         </div>
-      ) : filteredProducts.length === 0 ? (
+      ) : displayProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 0 00-.707.293l-2.414 2.414a1 0 01-.707.293h-3.172a1 0 01-.707-.293l-2.414-2.414A1 0 006.586 13H4" />
@@ -743,7 +752,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-5 gap-3 sm:gap-4">
-          {filteredProducts.map((product, idx) => {
+          {displayProducts.map((product, idx) => {
             const t = getTranslation(product.translations, language);
 
             // 直接按货币筛选价格
