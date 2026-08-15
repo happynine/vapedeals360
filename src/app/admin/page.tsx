@@ -539,13 +539,27 @@ export default function AdminPage() {
   const [productSearch, setProductSearch] = useState('');
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productPage, setProductPage] = useState(1);
+  const [productCurrencyFilter, setProductCurrencyFilter] = useState<string>('');
   const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
   }, [products, productSortOrder]);
   const filteredProducts = useMemo(() => {
-    return sortedProducts.filter(p => !productSearch || (p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase()));
-  }, [sortedProducts, productSearch]);
+    return sortedProducts.filter(p => {
+      if (productSearch && !((p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase()))) return false;
+      if (productCurrencyFilter) {
+        const productCurrencies = new Set<string>();
+        p.product_prices?.forEach((price: any) => {
+          const store = stores.find((s: any) => s.id === price.store_id);
+          store?.regions?.forEach((r: any) => {
+            if (r.currency) productCurrencies.add(r.currency);
+          });
+        });
+        if (!productCurrencies.has(productCurrencyFilter)) return false;
+      }
+      return true;
+    });
+  }, [sortedProducts, productSearch, productCurrencyFilter, stores]);
   const productTotalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
     const start = (productPage - 1) * PRODUCTS_PER_PAGE;
@@ -1586,6 +1600,16 @@ export default function AdminPage() {
                     >
                       {t('Confirm', '确认', adminLang)}
                     </button>
+                    <select
+                      value={productCurrencyFilter}
+                      onChange={(e) => { setProductCurrencyFilter(e.target.value); setProductPage(1); }}
+                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">{t('All Currencies', '全部货币', adminLang)}</option>
+                      {CURRENCY_OPTIONS.map((opt) => (
+                        <option key={opt.code} value={opt.code}>{opt.flagAlt} — {opt.code} ({opt.symbol})</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1620,7 +1644,7 @@ export default function AdminPage() {
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Product', '产品', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Category', '分类', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Prices', '价格数', adminLang)}</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Status', '状态', adminLang)}</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Currencies', '货币', adminLang)}</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
                           <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
                         </tr>
@@ -1635,16 +1659,8 @@ export default function AdminPage() {
                           const rawThumbUrl = thumbnailUrl ? getImageUrl(thumbnailUrl) : null;
                           const thumbCacheKey = product.updated_at ? product.updated_at.replace(/[^0-9]/g, '') : '';
                           const thumbnailDisplayUrl = rawThumbUrl && thumbCacheKey ? `${rawThumbUrl}${rawThumbUrl.includes('?') ? '&' : '?'}v=${thumbCacheKey}` : rawThumbUrl;
-                          const productRegions = new Set<string>();
-                          product.product_prices?.forEach((price: ProductPrice) => {
-                            const store = stores.find((s) => s.id === price.store_id);
-                            store?.regions?.forEach((r) => {
-                              if (r.region) productRegions.add(r.region);
-                            });
-                          });
-                          const regionList = Array.from(productRegions);
                           return (
-                            <tr key={product.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                            <tr key={product.id} className={`border-b border-border hover:bg-secondary/20 transition-colors ${!product.is_active ? "opacity-50" : ""}`}>
                               <td className="px-4 py-3 text-sm text-muted-foreground">{rowIndex}</td>
                               <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
                               <td className="px-4 py-3">
@@ -1670,12 +1686,26 @@ export default function AdminPage() {
                               <td className="px-4 py-3 text-sm text-muted-foreground">{product.product_prices?.length || 0} {t('stores', '家商城', adminLang)}</td>
                               <td className="px-4 py-3">
                                 <div className="flex gap-1 flex-wrap">
-                                  {product.is_active && <span className="rounded bg-green-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">{t('Active', '启用', adminLang)}</span>}
-                                  {product.is_featured && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">{t('Featured', '推荐', adminLang)}</span>}
-                                  {product.has_promotion && <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400">PROMO</span>}
-                                  {regionList.map((region) => (
-                                    <span key={region} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">{region}</span>
-                                  ))}
+                                  {(() => {
+                                    const productCurrencies = new Set<string>();
+                                    product.product_prices?.forEach((price: ProductPrice) => {
+                                      const store = stores.find((s) => s.id === price.store_id);
+                                      store?.regions?.forEach((r) => {
+                                        if (r.currency) productCurrencies.add(r.currency);
+                                      });
+                                    });
+                                    const currencyList = Array.from(productCurrencies);
+                                    if (currencyList.length === 0) return <span className="text-[10px] text-muted-foreground">—</span>;
+                                    return currencyList.map((code) => {
+                                      const opt = CURRENCY_OPTIONS.find((o) => o.code === code);
+                                      return (
+                                        <span key={code} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 inline-flex items-center gap-1">
+                                          {opt && <img src={opt.flag} alt={opt.flagAlt} className="w-3.5 h-3.5 rounded-full object-cover" />}
+                                          {code} ({opt?.symbol || code})
+                                        </span>
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate" title={product.notes || ''}>{product.notes || '—'}</td>
