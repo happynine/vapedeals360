@@ -78,6 +78,14 @@ export async function PUT(request: Request) {
     if (effectiveTranslations && Array.isArray(effectiveTranslations) && settingsId) {
       for (const tr of effectiveTranslations) {
         if (!tr.language || !tr.site_name) continue;
+        const updateFields: { site_name: string; disclaimer?: string | null; disclaimer_hidden?: boolean; ai_disclosure?: string | null; ai_disclosure_hidden?: boolean } = {
+          site_name: tr.site_name,
+        };
+        if (tr.disclaimer !== undefined) updateFields.disclaimer = tr.disclaimer || null;
+        if (tr.disclaimer_hidden !== undefined) updateFields.disclaimer_hidden = tr.disclaimer_hidden;
+        if (tr.ai_disclosure !== undefined) updateFields.ai_disclosure = tr.ai_disclosure || null;
+        if (tr.ai_disclosure_hidden !== undefined) updateFields.ai_disclosure_hidden = tr.ai_disclosure_hidden;
+
         const { data: existingTr } = await supabase
           .from('site_setting_translations')
           .select('id')
@@ -88,12 +96,20 @@ export async function PUT(request: Request) {
         if (existingTr) {
           await supabase
             .from('site_setting_translations')
-            .update({ site_name: tr.site_name })
+            .update(updateFields)
             .eq('id', existingTr.id);
         } else {
           await supabase
             .from('site_setting_translations')
-            .insert({ site_setting_id: settingsId, language: tr.language, site_name: tr.site_name });
+            .insert({
+              site_setting_id: settingsId,
+              language: tr.language,
+              site_name: tr.site_name,
+              ...(tr.disclaimer !== undefined ? { disclaimer: tr.disclaimer || null } : {}),
+              ...(tr.disclaimer_hidden !== undefined ? { disclaimer_hidden: tr.disclaimer_hidden } : {}),
+              ...(tr.ai_disclosure !== undefined ? { ai_disclosure: tr.ai_disclosure || null } : {}),
+              ...(tr.ai_disclosure_hidden !== undefined ? { ai_disclosure_hidden: tr.ai_disclosure_hidden } : {}),
+            });
         }
       }
     }
@@ -123,3 +139,4 @@ export async function PUT(request: Request) {
     return Response.json({ success: false, error: 'Failed to update site settings' }, { status: 500 });
   }
 }
+
