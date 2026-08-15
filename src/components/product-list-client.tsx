@@ -6,6 +6,7 @@ import { useLanguage } from "@/hooks/use-language";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { BorderBeam } from "antd";
 import BannerCarousel from "./banner-carousel";
 
 // Types
@@ -777,9 +778,20 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             return (
               <div
                 key={product.id}
-                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-purple-300 transition-all animate-fade-in-up"
+                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover-border-beam transition-all animate-fade-in-up relative"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
+                <BorderBeam
+                  color={[
+                    { color: "rgba(124, 58, 237, 0)", percent: 0 },
+                    { color: "rgba(167, 139, 250, 0.9)", percent: 70 },
+                    { color: "#ffffff", percent: 90 },
+                    { color: "rgba(124, 58, 237, 1)", percent: 100 },
+                  ]}
+                  size={60}
+                  duration={4}
+                  lineWidth={2}
+                />
                 <Link
                   href={`/product/${product.slug}`}
                   className="block relative aspect-square bg-gray-50 overflow-hidden"
