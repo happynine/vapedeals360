@@ -776,22 +776,24 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             const sortedPrices = [...finalPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
 
             return (
-              <div
+              <BorderBeam
                 key={product.id}
-                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md hover-border-beam transition-all animate-fade-in-up relative"
+                color={[
+                  { color: "rgba(124, 58, 237, 0)", percent: 0 },
+                  { color: "rgba(167, 139, 250, 0.9)", percent: 70 },
+                  { color: "#ffffff", percent: 90 },
+                  { color: "rgba(124, 58, 237, 1)", percent: 100 },
+                ]}
+                size={60}
+                duration={4}
+                lineWidth={2}
+                outset={0}
+                className="hover-border-beam rounded-2xl animate-fade-in-up"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <BorderBeam
-                  color={[
-                    { color: "rgba(124, 58, 237, 0)", percent: 0 },
-                    { color: "rgba(167, 139, 250, 0.9)", percent: 70 },
-                    { color: "#ffffff", percent: 90 },
-                    { color: "rgba(124, 58, 237, 1)", percent: 100 },
-                  ]}
-                  size={60}
-                  duration={4}
-                  lineWidth={2}
-                />
+              <div
+                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all relative"
+              >
                 <Link
                   href={`/product/${product.slug}`}
                   className="block relative aspect-square bg-gray-50 overflow-hidden"
@@ -917,6 +919,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   </div>
                 </div>
               </div>
+              </BorderBeam>
             );
           })}
         </div>
@@ -1354,3 +1357,4 @@ function MobileCombinedCarousel({
     </div>
   );
 }
+
