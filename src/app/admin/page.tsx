@@ -732,6 +732,20 @@ export default function AdminPage() {
     } catch { alert(t('Failed to delete banner', '删除 Banner 失败', adminLang)); }
   };
 
+  const handleReorderBanner = async (bannerId: number, newSortOrder: number) => {
+    try {
+      const res = await adminFetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bannerId, sort_order: newSortOrder }),
+      });
+      const json = await res.json();
+      if (json.success) fetchAllData();
+    } catch (err) {
+      console.error('Banner reorder error:', err);
+    }
+  };
+
   const handleDeletePromotion = async (id: number) => {
     if (!confirm(t('Are you sure you want to delete this promotion?', '确定要删除该活动吗？', adminLang))) return;
     try {
@@ -2034,7 +2048,16 @@ export default function AdminPage() {
                         <div className="p-4">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium">Banner #{banner.id}</span>
-                            <span className="text-xs text-muted-foreground">{t('Sort:', '排序：', adminLang)} {banner.sort_order}</span>
+                            <select
+                              value={banner.sort_order}
+                              onChange={(e) => handleReorderBanner(banner.id, parseInt(e.target.value))}
+                              className="rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary transition-colors"
+                              title={t('Sort Order', '排序', adminLang)}
+                            >
+                              {Array.from({ length: banners.length }, (_, i) => i + 1).map(n => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
                           </div>
                           <div className="space-y-1 text-xs text-muted-foreground mb-3">
                             {enTrans && <div>EN: {enTrans.title || t('(no title)', '(无标题)', adminLang)} {enTrans.image_key ? '✓ ' + t('Image', '图片', adminLang) : '✗ ' + t('Image', '图片', adminLang)}</div>}
@@ -7530,7 +7553,6 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
   const [open, setOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [linkUrl, setLinkUrl] = useState(banner?.link_url || '');
-  const [sortOrder, setSortOrder] = useState(banner?.sort_order || 0);
   const [isActive, setIsActive] = useState(banner?.is_active !== false);
   const [defaultImageKey, setDefaultImageKey] = useState(banner?.image_key || '');
   const [defaultMobileImageKey, setDefaultMobileImageKey] = useState(banner?.mobile_image_key || '');
@@ -7567,7 +7589,6 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
         image_key: defaultImageKey || null,
         mobile_image_key: defaultMobileImageKey || null,
         link_url: linkUrl || null,
-        sort_order: sortOrder,
         is_active: isActive,
         translations: translations.map((tr) => ({
           language: tr.language,
@@ -7620,15 +7641,9 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
                 folder="banners"
               />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Link URL (optional)', '链接地址 (可选)', lang)}</label>
-                  <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground text-left block">{t('Sort Order', '排序', lang)}</label>
-                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
-                </div>
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{t('Link URL (optional)', '链接地址 (可选)', lang)}</label>
+                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
               </div>
 
               <label className="flex items-center gap-2 text-sm">
