@@ -871,3 +871,11 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Show antd BorderBeam only on card hover */
+.hover-border-beam .ant-border-beam {
+  display: none !important;
+}
+.hover-border-beam:hover .ant-border-beam {
+  display: block !important;
+}
