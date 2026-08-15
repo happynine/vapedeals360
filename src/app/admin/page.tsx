@@ -4464,11 +4464,12 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             return (
               <div key={page.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  <span className="text-sm font-mono font-bold text-muted-foreground w-8 shrink-0">#{page.id}</span>
                   <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
                     {page.cover_image ? <img src={getImageUrl(page.cover_image)} alt="" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-primary">{enTitle.charAt(0)}</span>}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">#{page.id} {enTitle}</p>
+                    <p className="text-sm font-medium">{enTitle}</p>
                     <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Unpublished', '未发布', lang)}</p>
                   </div>
                 </div>
