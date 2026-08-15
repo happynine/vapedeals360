@@ -4470,7 +4470,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   </div>
                   <div>
                     <p className="text-sm font-medium">{enTitle}</p>
-                    <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Unpublished', '未发布', lang)}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-2">{page.slug} {page.is_published ? <span className="rounded-md px-2 py-0.5 text-[10px] font-medium bg-green-900/50 text-green-400 border border-green-700">{t('Published', '已发布', lang)}</span> : <span className="rounded-md px-2 py-0.5 text-[10px] font-medium bg-gray-800/50 text-gray-400 border border-gray-700">{t('Unpublished', '未发布', lang)}</span>}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
