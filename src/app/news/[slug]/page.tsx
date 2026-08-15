@@ -9,6 +9,10 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  disclaimer?: string;
+  disclaimer_hidden?: boolean;
+  ai_disclosure?: string;
+  ai_disclosure_hidden?: boolean;
 }
 
 async function getNewsArticle(slug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
@@ -33,6 +37,10 @@ async function getNewsArticle(slug: string, language: string = 'en'): Promise<Co
       cover_image: page.cover_image,
       title: translation?.title || '',
       content: translation?.content || '',
+      disclaimer: translation?.disclaimer || '',
+      disclaimer_hidden: translation?.disclaimer_hidden ?? false,
+      ai_disclosure: translation?.ai_disclosure || '',
+      ai_disclosure_hidden: translation?.ai_disclosure_hidden ?? false,
     };
   } catch {
     return null;
