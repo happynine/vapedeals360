@@ -157,15 +157,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (translations && translations.length > 0) {
-    const translationRows = translations.map((t: { language: string; title: string; content: string; disclaimer?: string; disclaimer_hidden?: boolean; ai_disclosure?: string; ai_disclosure_hidden?: boolean }) => ({
+    const translationRows = translations.map((t: { language: string; title: string; content: string }) => ({
       page_id: page.id,
       language: t.language,
       title: t.title,
       content: t.content,
-      disclaimer: t.disclaimer ?? null,
-      disclaimer_hidden: t.disclaimer_hidden ?? false,
-      ai_disclosure: t.ai_disclosure ?? null,
-      ai_disclosure_hidden: t.ai_disclosure_hidden ?? false,
     }));
 
     const { data: insertedTranslations, error: transError } = await supabase
@@ -291,10 +287,6 @@ export async function PUT(request: NextRequest) {
           .update({
             title: t.title,
             content: t.content,
-            disclaimer: t.disclaimer ?? null,
-            disclaimer_hidden: t.disclaimer_hidden ?? false,
-            ai_disclosure: t.ai_disclosure ?? null,
-            ai_disclosure_hidden: t.ai_disclosure_hidden ?? false,
           })
           .eq('id', t.id);
       } else {
@@ -314,10 +306,6 @@ export async function PUT(request: NextRequest) {
             .update({
               title: t.title,
               content: t.content,
-              disclaimer: t.disclaimer ?? null,
-              disclaimer_hidden: t.disclaimer_hidden ?? false,
-              ai_disclosure: t.ai_disclosure ?? null,
-              ai_disclosure_hidden: t.ai_disclosure_hidden ?? false,
             })
             .eq('id', existing[0].id);
         } else {
@@ -329,10 +317,6 @@ export async function PUT(request: NextRequest) {
               language: t.language,
               title: t.title,
               content: t.content,
-              disclaimer: t.disclaimer ?? null,
-              disclaimer_hidden: t.disclaimer_hidden ?? false,
-              ai_disclosure: t.ai_disclosure ?? null,
-              ai_disclosure_hidden: t.ai_disclosure_hidden ?? false,
             });
         }
       }
@@ -407,3 +391,4 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ success: true });
 }
+
