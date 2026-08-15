@@ -226,6 +226,10 @@ export const siteSettingTranslations = pgTable("site_setting_translations", {
 	siteSettingId: integer("site_setting_id").notNull(),
 	language: varchar({ length: 10 }).notNull(),
 	siteName: varchar("site_name", { length: 255 }).notNull(),
+	disclaimer: text(),
+	disclaimerHidden: boolean("disclaimer_hidden").default(false).notNull(),
+	aiDisclosure: text("ai_disclosure"),
+	aiDisclosureHidden: boolean("ai_disclosure_hidden").default(false).notNull(),
 }, (table) => [
 	index("sst_language_idx").using("btree", table.language.asc().nullsLast().op("text_ops")),
 	index("sst_site_setting_id_idx").using("btree", table.siteSettingId.asc().nullsLast().op("int4_ops")),
@@ -415,10 +419,6 @@ export const contentPageTranslations = pgTable("content_page_translations", {
 	language: varchar({ length: 10 }).notNull(),
 	title: varchar({ length: 500 }).notNull(),
 	content: text(),
-	disclaimer: text(),
-	disclaimerHidden: boolean("disclaimer_hidden").default(false).notNull(),
-	aiDisclosure: text("ai_disclosure"),
-	aiDisclosureHidden: boolean("ai_disclosure_hidden").default(false).notNull(),
 }, (table) => [
 	index("cpt_page_id_idx").using("btree", table.pageId.asc().nullsLast().op("int4_ops")),
 	foreignKey({
@@ -465,3 +465,4 @@ export const staticPages = pgTable("static_pages", {
 }, (table) => [
 	index("sp_slug_idx").using("btree", table.slug.asc().nullsLast().op("text_ops")),
 ]);
+
