@@ -232,6 +232,26 @@ export async function fetchProducts(options?: {
     
     if (productIds.length === 0) return [];
     query = query.in('id', productIds);
+  } else if (currency) {
+    // No region filter but currency is specified: filter products that have any active price in that currency.
+    const { data: activeStores, error: storeErr } = await client
+      .from('stores')
+      .select('id')
+      .eq('is_active', true);
+    if (storeErr) throw new Error(`Fetch active stores failed: ${storeErr.message}`);
+    const activeStoreIds = (activeStores || []).map((s: Record<string, unknown>) => s.id as number);
+    if (activeStoreIds.length === 0) return [];
+
+    const { data: priceRows, error: priceErr } = await client
+      .from('product_prices')
+      .select('product_id')
+      .eq('currency', currency)
+      .eq('no_quote', false)
+      .in('store_id', activeStoreIds);
+    if (priceErr) throw new Error(`Filter prices by currency failed: ${priceErr.message}`);
+    const currencyProductIds = [...new Set((priceRows || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    if (currencyProductIds.length === 0) return [];
+    query = query.in('id', currencyProductIds);
   }
 
   const { data, error } = await query;
@@ -560,6 +580,26 @@ export async function countProducts(category_id?: number, sales_region?: string,
     
     if (productIds.length === 0) return 0;
     query = query.in('id', productIds);
+  } else if (currency) {
+    // No region filter but currency is specified: count products that have any active price in that currency.
+    const { data: activeStores, error: storeErr } = await client
+      .from('stores')
+      .select('id')
+      .eq('is_active', true);
+    if (storeErr) throw new Error(`Fetch active stores failed: ${storeErr.message}`);
+    const activeStoreIds = (activeStores || []).map((s: Record<string, unknown>) => s.id as number);
+    if (activeStoreIds.length === 0) return 0;
+
+    const { data: priceRows, error: priceErr } = await client
+      .from('product_prices')
+      .select('product_id')
+      .eq('currency', currency)
+      .eq('no_quote', false)
+      .in('store_id', activeStoreIds);
+    if (priceErr) throw new Error(`Filter prices by currency failed: ${priceErr.message}`);
+    const currencyProductIds = [...new Set((priceRows || []).map((p: Record<string, unknown>) => p.product_id as number))];
+    if (currencyProductIds.length === 0) return 0;
+    query = query.in('id', currencyProductIds);
   }
   const { count, error } = await query;
   if (error) throw new Error(`Count products failed: ${error.message}`);
