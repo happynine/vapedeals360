@@ -872,10 +872,13 @@ body {
   display: none;
 }
 
-/* Show antd BorderBeam only on card hover */
+/* Show antd BorderBeam only on card hover.
+   Do NOT override display — antd gates the beam on @supports(offset-path: rect(...));
+   we only control opacity so its mask/offset-path rendering pipeline stays intact. */
 .hover-border-beam .ant-border-beam {
-  display: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.25s ease;
 }
 .hover-border-beam:hover .ant-border-beam {
-  display: block !important;
+  opacity: 1 !important;
 }
