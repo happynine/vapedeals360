@@ -415,6 +415,10 @@ export const contentPageTranslations = pgTable("content_page_translations", {
 	language: varchar({ length: 10 }).notNull(),
 	title: varchar({ length: 500 }).notNull(),
 	content: text(),
+	disclaimer: text(),
+	disclaimerHidden: boolean("disclaimer_hidden").default(false).notNull(),
+	aiDisclosure: text("ai_disclosure"),
+	aiDisclosureHidden: boolean("ai_disclosure_hidden").default(false).notNull(),
 }, (table) => [
 	index("cpt_page_id_idx").using("btree", table.pageId.asc().nullsLast().op("int4_ops")),
 	foreignKey({
