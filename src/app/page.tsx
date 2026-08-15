@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { ProductListClient, InitialData } from "@/components/product-list-client";
-import { fetchCategories, fetchProducts, fetchBanners } from "@/lib/database";
+import { fetchCategories, fetchProducts, fetchBanners, countProducts } from "@/lib/database";
 import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 
@@ -28,7 +28,7 @@ async function getInitialData() {
     // ISR 自身已缓存页面，无需 unstable_cache 双重缓存
     const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
       fetchCategories("en"),
-      fetchProducts({ language: "en", limit: 20, offset: 0 }),
+      fetchProducts({ language: "en", limit: 20, offset: 0, currency: "$" }),
       fetchProducts({ language: "en", limit: 5, offset: 0, featured: true }),
       fetchBanners("en"),
       // 获取 promotions
@@ -123,13 +123,8 @@ async function getInitialData() {
       };
     }));
 
-    // 计算总数
-    const countResult = await supabase
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true);
-    
-    const total = countResult.count || 0;
+    // 计算总数（与列表一致：只统计有有效美元价格的产品）
+    const total = await countProducts(undefined, undefined, undefined, "$");
 
     return {
       categories: categories || [],
