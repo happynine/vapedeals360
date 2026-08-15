@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = getServiceRoleClient();
 
-  // Check for duplicate slug - if exists, update instead of creating new
+  // Check for duplicate slug - reject if exists (ID is the unique identifier, slug is editable for SEO)
   const { data: existing } = await supabase
     .from('content_pages')
     .select('id')
@@ -135,74 +135,10 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    // Slug already exists - update the existing page instead
-    const existingId = existing[0].id;
-    
-    // Fetch old content to clean up orphaned images
-    const { data: oldPage } = await supabase
-      .from('content_pages')
-      .select('cover_image, content_page_translations(content)')
-      .eq('id', existingId)
-      .single();
-
-    // Clean up cover image if it's being replaced
-    if (cover_image !== undefined && oldPage?.cover_image && oldPage.cover_image !== cover_image) {
-      const coverKey = resolveStorageKey(oldPage.cover_image);
-      if (coverKey) {
-        try { await deleteFile(coverKey); } catch { /* ignore */ }
-      }
-    }
-
-    // Update page fields
-    const updateFields: Record<string, unknown> = { 
-      updated_at: new Date().toISOString(),
-      is_published: is_published !== false 
-    };
-    if (cover_image !== undefined) updateFields.cover_image = cover_image;
-    if (sort_order !== undefined) updateFields.sort_order = sort_order;
-    if (type !== undefined) updateFields.type = type;
-    
-    await supabase
-      .from('content_pages')
-      .update(updateFields)
-      .eq('id', existingId);
-
-    // Update or insert translations
-    if (translations && translations.length > 0) {
-      for (const t of translations) {
-        const { data: existingTrans } = await supabase
-          .from('content_page_translations')
-          .select('id, content')
-          .eq('page_id', existingId)
-          .eq('language', t.language)
-          .limit(1);
-
-        if (existingTrans && existingTrans.length > 0) {
-          // Clean up orphaned images in old content vs new content
-          await cleanupOrphanedImages(existingTrans[0].content, t.content);
-          await supabase
-            .from('content_page_translations')
-            .update({ title: t.title, content: t.content })
-            .eq('id', existingTrans[0].id);
-        } else {
-          await supabase
-            .from('content_page_translations')
-            .insert({ page_id: existingId, language: t.language, title: t.title, content: t.content });
-        }
-      }
-    }
-
-    // Return the updated page with translations
-    const { data: updatedPage } = await supabase
-      .from('content_pages')
-      .select('*, content_page_translations(*)')
-      .eq('id', existingId)
-      .single();
-
-    return NextResponse.json({ success: true, data: updatedPage });
+    return NextResponse.json({ error: 'A page with this slug already exists' }, { status: 409 });
   }
 
-  // No duplicate - create new page
+  // Create new page
   const { data: page, error: pageError } = await supabase
     .from('content_pages')
     .insert({ type, slug: trimmedSlug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
