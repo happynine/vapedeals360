@@ -779,20 +779,19 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
               <BorderBeam
                 key={product.id}
                 color={[
-                  { color: "rgba(124, 58, 237, 0)", percent: 0 },
-                  { color: "rgba(167, 139, 250, 0.9)", percent: 70 },
-                  { color: "#ffffff", percent: 90 },
-                  { color: "rgba(124, 58, 237, 1)", percent: 100 },
+                  { color: "#2f54eb", percent: 0 },
+                  { color: "#722ed1", percent: 44 },
+                  { color: "#ff85c0", percent: 100 },
                 ]}
                 size={60}
                 duration={4}
                 lineWidth={2}
                 outset={0}
-                className="hover-border-beam rounded-2xl animate-fade-in-up"
+                className="animate-fade-in-up"
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
               <div
-                className="group rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all relative"
+                className="group hover-border-beam rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-all relative"
               >
                 <Link
                   href={`/product/${product.slug}`}
@@ -1357,4 +1356,5 @@ function MobileCombinedCarousel({
     </div>
   );
 }
+
 
