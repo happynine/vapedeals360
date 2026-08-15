@@ -23,11 +23,15 @@ export async function GET(request: Request) {
     }
 
     const translations = (data.site_setting_translations || []).map(
-      (t: { id: number; site_setting_id: number; language: string; site_name: string }) => ({
+      (t: { id: number; site_setting_id: number; language: string; site_name: string; disclaimer?: string | null; disclaimer_hidden?: boolean; ai_disclosure?: string | null; ai_disclosure_hidden?: boolean }) => ({
         id: t.id,
         site_setting_id: t.site_setting_id,
         language: t.language,
         site_name: t.site_name,
+        disclaimer: t.disclaimer || '',
+        disclaimer_hidden: t.disclaimer_hidden ?? false,
+        ai_disclosure: t.ai_disclosure || '',
+        ai_disclosure_hidden: t.ai_disclosure_hidden ?? false,
       })
     );
 
@@ -43,6 +47,10 @@ export async function GET(request: Request) {
         id: data.id,
         site_name: translation?.site_name || null,
         logo_url: logoUrl,
+        disclaimer: translation?.disclaimer || '',
+        disclaimer_hidden: translation?.disclaimer_hidden ?? false,
+        ai_disclosure: translation?.ai_disclosure || '',
+        ai_disclosure_hidden: translation?.ai_disclosure_hidden ?? false,
         translations,
       },
     });
@@ -51,3 +59,4 @@ export async function GET(request: Request) {
     return Response.json({ success: true, data: { site_name: null, logo_url: null } });
   }
 }
+
