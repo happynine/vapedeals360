@@ -73,7 +73,13 @@ export async function POST(request: NextRequest) {
   try {
     const client = getClient();
     const body = await request.json();
-    const { image_key, mobile_image_key, link_url, sort_order, is_active, translations } = body;
+    const { image_key, mobile_image_key, link_url, is_active, translations } = body;
+
+    // Auto-calculate sort_order: append to end
+    const { count } = await client
+      .from('banners')
+      .select('*', { count: 'exact', head: true });
+    const newSortOrder = (count || 0) + 1;
 
     const { data, error } = await client
       .from('banners')
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
         image_key: image_key || null,
         mobile_image_key: mobile_image_key || null,
         link_url: link_url || null,
-        sort_order: sort_order || 0,
+        sort_order: newSortOrder,
         is_active: is_active !== false,
       })
       .select()
@@ -126,20 +132,54 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Banner ID is required' }, { status: 400 });
     }
 
-    // 获取旧的 banner 数据，用于删除旧图片
+    // 获取旧的 banner 数据，用于删除旧图片和重排
     const { data: oldBanner } = await client
       .from('banners')
-      .select('image_key, mobile_image_key')
+      .select('image_key, mobile_image_key, sort_order')
       .eq('id', id)
       .single();
+
+    // Handle reorder: if sort_order changed, shift sibling banners
+    if (sort_order !== undefined && oldBanner && sort_order !== oldBanner.sort_order) {
+      const oldOrder = oldBanner.sort_order;
+      const newOrder = sort_order;
+
+      // Fetch all sibling banners (excluding self)
+      const { data: siblings } = await client
+        .from('banners')
+        .select('id, sort_order')
+        .neq('id', id)
+        .order('sort_order', { ascending: true });
+
+      if (siblings) {
+        // Remove self and build ordered list
+        const ordered = siblings.filter((s: { sort_order: number }) => s.sort_order < oldOrder)
+          .concat(siblings.filter((s: { sort_order: number }) => s.sort_order > oldOrder));
+        // Insert self at target position (0-indexed = newOrder-1)
+        const insertIndex = Math.max(0, Math.min(newOrder - 1, ordered.length));
+        ordered.splice(insertIndex, 0, { id, sort_order: newOrder });
+
+        // Reassign sequential sort_order values
+        for (let idx = 0; idx < ordered.length; idx++) {
+          await client
+            .from('banners')
+            .update({ sort_order: idx + 1 })
+            .eq('id', ordered[idx].id);
+        }
+      }
+    }
 
     const updateData: Record<string, unknown> = {};
     if (image_key !== undefined) updateData.image_key = image_key || null;
     if (mobile_image_key !== undefined) updateData.mobile_image_key = mobile_image_key || null;
     if (link_url !== undefined) updateData.link_url = link_url || null;
-    if (sort_order !== undefined) updateData.sort_order = sort_order;
     if (is_active !== undefined) updateData.is_active = is_active;
     updateData.updated_at = new Date().toISOString();
+
+    // Only update sort_order here if it wasn't already handled by reorder above
+    if (sort_order !== undefined && (!oldBanner || sort_order === oldBanner.sort_order)) {
+      updateData.sort_order = sort_order;
+    }
 
     const { error } = await client.from('banners').update(updateData).eq('id', id);
     if (error) throw new Error(`Update banner failed: ${error.message}`);
@@ -235,6 +275,17 @@ export async function DELETE(request: NextRequest) {
     await client.from('banner_translations').delete().eq('banner_id', parseInt(id));
     const { error } = await client.from('banners').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete banner failed: ${error.message}`);
+
+    // Reorder remaining banners to keep sort_order contiguous
+    const { data: remaining } = await client
+      .from('banners')
+      .select('id')
+      .order('sort_order', { ascending: true });
+    if (remaining) {
+      for (let idx = 0; idx < remaining.length; idx++) {
+        await client.from('banners').update({ sort_order: idx + 1 }).eq('id', remaining[idx].id);
+      }
+    }
 
     // 删除关联的 Vercel Blob 文件
     if (bannerToDelete) {
