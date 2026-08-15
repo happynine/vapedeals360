@@ -312,7 +312,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       if (selectedCategory) params.set("category_id", selectedCategory.toString());
       if (searchQuery) params.set("search", searchQuery);
-      if (selectedCurrencyCode) params.set("currency", selectedCurrencyCode);
+      if (selectedCurrency) params.set("currency", selectedCurrency);
       if (sortBy === "newest") {
         params.set("sort_by", "id");
         params.set("sort_order", "desc");
@@ -328,12 +328,14 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         setCategories(json.data.categories || []);
         // Auto-fill: if filtered products are less than 20, fetch next page
         let allProducts = json.data.products || [];
-        const validProducts = allProducts.filter((p: Product) => 
-          p.prices.some((pr: ProductPrice) => !pr.no_quote && (!pr.store || pr.store.is_active))
+        const validProducts = allProducts.filter((p: Product) =>
+          p.prices.some((pr: ProductPrice) =>
+            !pr.no_quote && (!pr.store || pr.store.is_active) && (pr.currency || '$') === selectedCurrency
+          )
         );
         
         // If we have less than 20 valid products and there are more pages, fetch next page
-        if (validProducts.length < 20 && json.data.pagination?.hasMore) {
+        if (validProducts.length < 20 && page < (json.data.pagination?.totalPages || 1)) {
           const nextPage = page + 1;
           const nextParams = new URLSearchParams(params);
           nextParams.set("page", nextPage.toString());
