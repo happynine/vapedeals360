@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   const body = await request.json();
-  const { type, slug, cover_image, sort_order, is_published, translations } = body;
+  const { type, slug, cover_image, is_published, translations } = body;
 
   const trimmedSlug = (slug || '').trim();
   if (!trimmedSlug) {
@@ -138,10 +138,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'A page with this slug already exists' }, { status: 409 });
   }
 
+  // Auto-calculate sort_order: append to end of this type
+  const { count } = await supabase
+    .from('content_pages')
+    .select('*', { count: 'exact', head: true })
+    .eq('type', type);
+  const newSortOrder = (count || 0) + 1;
+
   // Create new page
   const { data: page, error: pageError } = await supabase
     .from('content_pages')
-    .insert({ type, slug: trimmedSlug, cover_image, sort_order: sort_order || 0, is_published: is_published !== false })
+    .insert({ type, slug: trimmedSlug, cover_image, sort_order: newSortOrder, is_published: is_published !== false })
     .select()
     .single();
 
@@ -185,9 +192,47 @@ export async function PUT(request: NextRequest) {
   // Fetch old page data to clean up orphaned images
   const { data: oldPage } = await supabase
     .from('content_pages')
-    .select('cover_image, content_page_translations(id, language, content)')
+    .select('cover_image, type, sort_order, content_page_translations(id, language, content)')
     .eq('id', id)
     .single();
+
+  // Handle reorder: if sort_order changed, shift sibling pages to keep sequence contiguous
+  if (sort_order !== undefined && oldPage && sort_order !== oldPage.sort_order) {
+    const pageType = oldPage.type;
+    const oldOrder = oldPage.sort_order;
+    const newOrder = sort_order;
+
+    // Fetch all sibling pages (same type, excluding self)
+    const { data: siblings } = await supabase
+      .from('content_pages')
+      .select('id, sort_order')
+      .eq('type', pageType)
+      .neq('id', id)
+      .order('sort_order', { ascending: true });
+
+    if (siblings) {
+      // Remove self from list, insert at new position, reassign sequential sort_order
+      const ordered = siblings.filter(s => s.sort_order < oldOrder)
+        .concat(siblings.filter(s => s.sort_order > oldOrder));
+      // Insert self at target position (0-indexed)
+      const insertIndex = Math.max(0, Math.min(newOrder - 1, ordered.length));
+      ordered.splice(insertIndex, 0, { id, sort_order: newOrder });
+
+      // Reassign sequential sort_order values
+      const updates = ordered.map((s, idx) => ({
+        id: s.id,
+        sort_order: idx + 1,
+      }));
+
+      // Batch update all pages (including self)
+      for (const u of updates) {
+        await supabase
+          .from('content_pages')
+          .update({ sort_order: u.sort_order })
+          .eq('id', u.id);
+      }
+    }
+  }
 
   // Check for duplicate slug (exclude self)
   if (slug) {
