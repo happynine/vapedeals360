@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
         created_at: page.created_at,
         title: translation?.title || '',
         content: translation?.content || '',
+        disclaimer: translation?.disclaimer || '',
+        disclaimer_hidden: translation?.disclaimer_hidden ?? false,
+        ai_disclosure: translation?.ai_disclosure || '',
+        ai_disclosure_hidden: translation?.ai_disclosure_hidden ?? false,
       },
     });
   }
