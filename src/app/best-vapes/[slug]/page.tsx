@@ -9,10 +9,42 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
-  disclaimer?: string;
-  disclaimer_hidden?: boolean;
-  ai_disclosure?: string;
-  ai_disclosure_hidden?: boolean;
+}
+
+interface GlobalDisclaimer {
+  disclaimer: string;
+  disclaimer_hidden: boolean;
+  ai_disclosure: string;
+  ai_disclosure_hidden: boolean;
+}
+
+async function getGlobalDisclaimer(language: string = 'en'): Promise<GlobalDisclaimer | null> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('*, site_setting_translations(*)')
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const translations = data.site_setting_translations || [];
+    const translation = translations.find((t: { language: string }) => t.language === language)
+      || translations.find((t: { language: string }) => t.language === 'en')
+      || translations[0];
+
+    if (!translation) return null;
+
+    return {
+      disclaimer: translation.disclaimer || '',
+      disclaimer_hidden: translation.disclaimer_hidden ?? false,
+      ai_disclosure: translation.ai_disclosure || '',
+      ai_disclosure_hidden: translation.ai_disclosure_hidden ?? false,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function getBestVapesArticle(slug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
@@ -37,10 +69,6 @@ async function getBestVapesArticle(slug: string, language: string = 'en'): Promi
       cover_image: page.cover_image,
       title: translation?.title || '',
       content: translation?.content || '',
-      disclaimer: translation?.disclaimer || '',
-      disclaimer_hidden: translation?.disclaimer_hidden ?? false,
-      ai_disclosure: translation?.ai_disclosure || '',
-      ai_disclosure_hidden: translation?.ai_disclosure_hidden ?? false,
     };
   } catch {
     return null;
@@ -73,7 +101,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BestVapesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = await getBestVapesArticle(slug);
+  const [article, disclaimer] = await Promise.all([
+    getBestVapesArticle(slug),
+    getGlobalDisclaimer(),
+  ]);
 
-  return <BestVapesDetailClient slug={slug} initialArticle={article} />;
+  return <BestVapesDetailClient slug={slug} initialArticle={article} disclaimer={disclaimer} />;
 }
+
