@@ -14,16 +14,20 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
-  disclaimer?: string;
-  disclaimer_hidden?: boolean;
-  ai_disclosure?: string;
-  ai_disclosure_hidden?: boolean;
 }
 
-export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; initialArticle: ContentPageDetail | null }) {
+interface GlobalDisclaimer {
+  disclaimer: string;
+  disclaimer_hidden: boolean;
+  ai_disclosure: string;
+  ai_disclosure_hidden: boolean;
+}
+
+export function BestVapesDetailClient({ slug, initialArticle, disclaimer: initialDisclaimer }: { slug: string; initialArticle: ContentPageDetail | null; disclaimer: GlobalDisclaimer | null }) {
   const { language } = useLanguage();
   const { siteSettings } = useSiteSettings();
   const [page, setPage] = useState<ContentPageDetail | null>(initialArticle);
+  const [disclaimer, setDisclaimer] = useState<GlobalDisclaimer | null>(initialDisclaimer);
 
   useEffect(() => {
     if (slug && !initialArticle) {
@@ -32,6 +36,24 @@ export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; 
       }).catch(() => {});
     }
   }, [slug, language, initialArticle]);
+
+  useEffect(() => {
+    // Fetch global disclaimer for current language
+    fetch(`/api/site-settings?language=${language}`).then(r => r.json()).then(data => {
+      if (data.success && data.data) {
+        const tr = data.data.translations?.find((t: { language: string }) => t.language === language)
+          || data.data.translations?.find((t: { language: string }) => t.language === 'en');
+        if (tr) {
+          setDisclaimer({
+            disclaimer: tr.disclaimer || '',
+            disclaimer_hidden: tr.disclaimer_hidden ?? false,
+            ai_disclosure: tr.ai_disclosure || '',
+            ai_disclosure_hidden: tr.ai_disclosure_hidden ?? false,
+          });
+        }
+      }
+    }).catch(() => {});
+  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -52,16 +74,16 @@ export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; 
                   className="rich-text-content"
                   dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
                 />
-                {!page.disclaimer_hidden && page.disclaimer && (
+                {disclaimer && !disclaimer.disclaimer_hidden && disclaimer.disclaimer && (
                   <div className="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
                     <div className="font-medium text-gray-500 mb-1">Disclaimer</div>
-                    <div dangerouslySetInnerHTML={{ __html: page.disclaimer }} />
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{disclaimer.disclaimer}</div>
                   </div>
                 )}
-                {!page.ai_disclosure_hidden && page.ai_disclosure && (
+                {disclaimer && !disclaimer.ai_disclosure_hidden && disclaimer.ai_disclosure && (
                   <div className="mt-4 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
                     <div className="font-medium text-gray-500 mb-1">AI-Assisted Disclosure</div>
-                    <div dangerouslySetInnerHTML={{ __html: page.ai_disclosure }} />
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{disclaimer.ai_disclosure}</div>
                   </div>
                 )}
               </article>
