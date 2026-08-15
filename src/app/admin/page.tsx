@@ -4255,7 +4255,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         type,
         slug: trimmedSlug,
         cover_image: formCoverImage,
-        sort_order: formSortOrder,
+        // sort_order managed via list dropdown, not form
         is_published: true,
         translations: publishTranslations.map(t => ({
           id: t.id,
@@ -4329,6 +4329,22 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     }
   };
 
+  const handleReorder = async (pageId: number, newSortOrder: number) => {
+    try {
+      const res = await adminFetch('/api/admin/content-pages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pageId, sort_order: newSortOrder }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchPages();
+      }
+    } catch (err) {
+      console.error('Reorder error:', err);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm(t('Delete this page?', '确定删除此页面？', lang))) return;
     try {
@@ -4379,15 +4395,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         </div>
 
         <div className="space-y-4 flex-1 pr-1 pt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Slug</label>
-              <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', lang)}</label>
-              <input type="number" value={formSortOrder} onChange={e => { markChanged(); setFormSortOrder(parseInt(e.target.value) || 0); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Slug</label>
+            <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
           </div>
 
           <div>
@@ -4474,6 +4484,16 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <select
+                    value={page.sort_order}
+                    onChange={(e) => handleReorder(page.id, parseInt(e.target.value))}
+                    className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-medium text-foreground cursor-pointer hover:bg-secondary transition-colors"
+                    title={t('Sort Order', '排序', lang)}
+                  >
+                    {Array.from({ length: pages.length }, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
                   <button
                     onClick={async () => {
                       await handleTogglePublish(page.id, page.is_published);
@@ -4499,15 +4519,9 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             <h3 className="text-lg font-bold mb-4">{editingPage ? t('Edit Page', '编辑页面', lang) : t('Add Page', '添加页面', lang)}</h3>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Slug</label>
-                  <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t('Sort Order', '排序', lang)}</label>
-                  <input type="number" value={formSortOrder} onChange={e => { markChanged(); setFormSortOrder(parseInt(e.target.value) || 0); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Slug</label>
+                <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
               </div>
 
               <div>
