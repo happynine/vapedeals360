@@ -14,6 +14,10 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  disclaimer?: string;
+  disclaimer_hidden?: boolean;
+  ai_disclosure?: string;
+  ai_disclosure_hidden?: boolean;
 }
 
 export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; initialArticle: ContentPageDetail | null }) {
@@ -48,6 +52,18 @@ export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; 
                   className="rich-text-content"
                   dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
                 />
+                {!page.disclaimer_hidden && page.disclaimer && (
+                  <div className="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
+                    <div className="font-medium text-gray-500 mb-1">Disclaimer</div>
+                    <div dangerouslySetInnerHTML={{ __html: page.disclaimer }} />
+                  </div>
+                )}
+                {!page.ai_disclosure_hidden && page.ai_disclosure && (
+                  <div className="mt-4 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
+                    <div className="font-medium text-gray-500 mb-1">AI-Assisted Disclosure</div>
+                    <div dangerouslySetInnerHTML={{ __html: page.ai_disclosure }} />
+                  </div>
+                )}
               </article>
               {/* Sidebar - Related Articles */}
               <div className="hidden lg:block w-56 shrink-0">
