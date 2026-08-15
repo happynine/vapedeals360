@@ -783,9 +783,9 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   { color: "#722ed1", percent: 44 },
                   { color: "#ff85c0", percent: 100 },
                 ]}
-                size={60}
+                size={120}
                 duration={4}
-                lineWidth={2}
+                lineWidth={1}
                 outset={0}
                 className="animate-fade-in-up"
                 style={{ animationDelay: `${idx * 50}ms` }}
