@@ -4112,7 +4112,7 @@ export interface ContentPagesManagerRef {
 const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean; activeLanguages: Language[] }>(function ContentPagesManager({ type, title, lang, isFullPage, activeLanguages }, ref) {
   const [pages, setPages] = useState<Array<{
     id: number; slug: string; cover_image: string | null; sort_order: number; is_published: boolean;
-    content_page_translations: Array<{ id: number; language: string; title: string; content: string }>;
+    content_page_translations: Array<{ id: number; language: string; title: string; content: string; disclaimer?: string; disclaimer_hidden?: boolean; ai_disclosure?: string; ai_disclosure_hidden?: boolean }>;
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [editingPage, setEditingPage] = useState<number | null>(null);
@@ -4124,7 +4124,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formPublished, setFormPublished] = useState(true);
   const [hasFormChanges, setHasFormChanges] = useState(false);
-  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([]);
+  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string; disclaimer: string; disclaimer_hidden: boolean; ai_disclosure: string; ai_disclosure_hidden: boolean }>>([]);
   const [editLang, setEditLang] = useState<string>('en');
   const [saving, setSaving] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
@@ -4168,7 +4168,13 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
 
     const translations = activeLanguages.map(l => {
       const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l.code);
-      return existing || { language: l.code, title: '', content: '' };
+      return existing ? {
+        ...existing,
+        disclaimer: existing.disclaimer || '',
+        disclaimer_hidden: existing.disclaimer_hidden ?? false,
+        ai_disclosure: existing.ai_disclosure || '',
+        ai_disclosure_hidden: existing.ai_disclosure_hidden ?? false,
+      } : { language: l.code, title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false };
     });
     setFormTranslations(translations);
     setPublishSuccess(false);
@@ -4183,8 +4189,8 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormPublished(true);
     setHasFormChanges(false);
     const initialTranslations = [
-      { language: 'en', title: '', content: '' },
-      { language: 'zh', title: '', content: '' },
+      { language: 'en', title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false },
+      { language: 'zh', title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false },
     ];
     setFormTranslations(initialTranslations);
     setPublishSuccess(false);
@@ -4484,6 +4490,44 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                     onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                   />
                 </div>
+                <div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <span>{t('Disclaimer', '声明', lang)}</span>
+                    <input
+                      type="checkbox"
+                      checked={tr.disclaimer_hidden}
+                      onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer_hidden: e.target.checked } : t)); }}
+                      className="rounded border-border"
+                    />
+                    <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                  </label>
+                  <textarea
+                    value={tr.disclaimer}
+                    onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer: e.target.value } : t)); }}
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                    placeholder={t('Disclaimer text...', '声明内容...', lang)}
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <span>{t('AI Disclosure', 'AI辅助声明', lang)}</span>
+                    <input
+                      type="checkbox"
+                      checked={tr.ai_disclosure_hidden}
+                      onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure_hidden: e.target.checked } : t)); }}
+                      className="rounded border-border"
+                    />
+                    <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                  </label>
+                  <textarea
+                    value={tr.ai_disclosure}
+                    onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure: e.target.value } : t)); }}
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                    placeholder={t('AI disclosure text...', 'AI辅助声明内容...', lang)}
+                  />
+                </div>
               </div>
             ) : null)}
           </div>
@@ -4606,6 +4650,44 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                         ref={editorRef}
                         value={tr.content}
                         onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        <span>{t('Disclaimer', '声明', lang)}</span>
+                        <input
+                          type="checkbox"
+                          checked={tr.disclaimer_hidden}
+                          onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer_hidden: e.target.checked } : t)); }}
+                          className="rounded border-border"
+                        />
+                        <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                      </label>
+                      <textarea
+                        value={tr.disclaimer}
+                        onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer: e.target.value } : t)); }}
+                        rows={3}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                        placeholder={t('Disclaimer text...', '声明内容...', lang)}
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        <span>{t('AI Disclosure', 'AI辅助声明', lang)}</span>
+                        <input
+                          type="checkbox"
+                          checked={tr.ai_disclosure_hidden}
+                          onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure_hidden: e.target.checked } : t)); }}
+                          className="rounded border-border"
+                        />
+                        <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                      </label>
+                      <textarea
+                        value={tr.ai_disclosure}
+                        onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure: e.target.value } : t)); }}
+                        rows={3}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                        placeholder={t('AI disclosure text...', 'AI辅助声明内容...', lang)}
                       />
                     </div>
                   </div>
