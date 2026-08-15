@@ -7,9 +7,32 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
 
-  const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+  // Try various env var names for direct Postgres connection
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.SUPABASE_DB_URL ||
+    process.env.DIRECT_URL ||
+    process.env.PG_URL;
+
   if (!connectionString) {
-    return NextResponse.json({ success: false, error: 'No DATABASE_URL configured' }, { status: 500 });
+    // Try to construct from Supabase URL and service role key
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl) {
+      // Extract host from Supabase URL (e.g. https://xxx.supabase.co)
+      const host = supabaseUrl.replace('https://', '').replace('http://', '');
+      return NextResponse.json({
+        success: false,
+        error: 'No DATABASE_URL found',
+        debug: {
+          env_keys: Object.keys(process.env).filter(k =>
+            k.includes('DATABASE') || k.includes('POSTGRES') || k.includes('PG') || k.includes('SUPABASE_DB') || k.includes('DIRECT')
+          ),
+          supabase_host: host,
+        }
+      }, { status: 500 });
+    }
+    return NextResponse.json({ success: false, error: 'No database connection configured' }, { status: 500 });
   }
 
   const pool = new Pool({ connectionString });
