@@ -548,14 +548,12 @@ export default function AdminPage() {
     return sortedProducts.filter(p => {
       if (productSearch && !((p.product_translations?.find((tr: any) => tr.language === 'en')?.name || '').toLowerCase().includes(productSearch.toLowerCase()))) return false;
       if (productCurrencyFilter) {
-        const productCurrencies = new Set<string>();
+        const productCurrencySymbols = new Set<string>();
         p.product_prices?.forEach((price: any) => {
-          const store = stores.find((s: any) => s.id === price.store_id);
-          store?.regions?.forEach((r: any) => {
-            if (r.currency) productCurrencies.add(r.currency);
-          });
+          if (price.currency && !price.no_quote) productCurrencySymbols.add(price.currency);
         });
-        if (!productCurrencies.has(productCurrencyFilter)) return false;
+        const targetSymbol = CURRENCY_OPTIONS.find((o) => o.code === productCurrencyFilter)?.symbol;
+        if (!targetSymbol || !productCurrencySymbols.has(targetSymbol)) return false;
       }
       return true;
     });
@@ -1687,21 +1685,19 @@ export default function AdminPage() {
                               <td className="px-4 py-3">
                                 <div className="flex gap-1 flex-wrap">
                                   {(() => {
-                                    const productCurrencies = new Set<string>();
+                                    const productCurrencySymbols = new Set<string>();
                                     product.product_prices?.forEach((price: ProductPrice) => {
-                                      const store = stores.find((s) => s.id === price.store_id);
-                                      store?.regions?.forEach((r) => {
-                                        if (r.currency) productCurrencies.add(r.currency);
-                                      });
+                                      if (price.currency && !price.no_quote) productCurrencySymbols.add(price.currency);
                                     });
-                                    const currencyList = Array.from(productCurrencies);
-                                    if (currencyList.length === 0) return <span className="text-[10px] text-muted-foreground">—</span>;
-                                    return currencyList.map((code) => {
-                                      const opt = CURRENCY_OPTIONS.find((o) => o.code === code);
+                                    const symbolList = Array.from(productCurrencySymbols);
+                                    if (symbolList.length === 0) return <span className="text-[10px] text-muted-foreground">—</span>;
+                                    return symbolList.map((sym) => {
+                                      const opt = CURRENCY_OPTIONS.find((o) => o.symbol === sym);
+                                      const code = opt?.code || sym;
                                       return (
-                                        <span key={code} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 inline-flex items-center gap-1">
+                                        <span key={sym} className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 inline-flex items-center gap-1">
                                           {opt && <img src={opt.flag} alt={opt.flagAlt} className="w-3.5 h-3.5 rounded-full object-cover" />}
-                                          {code} ({opt?.symbol || code})
+                                          {code} ({sym})
                                         </span>
                                       );
                                     });
