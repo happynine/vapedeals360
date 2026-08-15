@@ -4112,7 +4112,7 @@ export interface ContentPagesManagerRef {
 const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; title: string; lang: string; isFullPage?: boolean; activeLanguages: Language[] }>(function ContentPagesManager({ type, title, lang, isFullPage, activeLanguages }, ref) {
   const [pages, setPages] = useState<Array<{
     id: number; slug: string; cover_image: string | null; sort_order: number; is_published: boolean;
-    content_page_translations: Array<{ id: number; language: string; title: string; content: string; disclaimer?: string; disclaimer_hidden?: boolean; ai_disclosure?: string; ai_disclosure_hidden?: boolean }>;
+    content_page_translations: Array<{ id: number; language: string; title: string; content: string }>;
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [editingPage, setEditingPage] = useState<number | null>(null);
@@ -4124,12 +4124,20 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
   const [formSortOrder, setFormSortOrder] = useState(0);
   const [formPublished, setFormPublished] = useState(true);
   const [hasFormChanges, setHasFormChanges] = useState(false);
-  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string; disclaimer: string; disclaimer_hidden: boolean; ai_disclosure: string; ai_disclosure_hidden: boolean }>>([]);
+  const [formTranslations, setFormTranslations] = useState<Array<{ id?: number; language: string; title: string; content: string }>>([]);
   const [editLang, setEditLang] = useState<string>('en');
   const [saving, setSaving] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const [listPublishMsg, setListPublishMsg] = useState<string | null>(null);
   const editorRef = useRef<RichTextEditorRef>(null);
+
+  // Global disclaimer settings modal state
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [disclaimerLang, setDisclaimerLang] = useState('en');
+  const [disclaimerTranslations, setDisclaimerTranslations] = useState<Array<{ language: string; disclaimer: string; disclaimer_hidden: boolean; ai_disclosure: string; ai_disclosure_hidden: boolean }>>([]);
+  const [disclaimerLoading, setDisclaimerLoading] = useState(false);
+  const [disclaimerSaving, setDisclaimerSaving] = useState(false);
+  const [disclaimerSavedMsg, setDisclaimerSavedMsg] = useState<string | null>(null);
 
 
   const fetchPages = useCallback(async () => {
@@ -4170,11 +4178,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
       const existing = page.content_page_translations?.find((t: { language: string }) => t.language === l.code);
       return existing ? {
         ...existing,
-        disclaimer: existing.disclaimer || '',
-        disclaimer_hidden: existing.disclaimer_hidden ?? false,
-        ai_disclosure: existing.ai_disclosure || '',
-        ai_disclosure_hidden: existing.ai_disclosure_hidden ?? false,
-      } : { language: l.code, title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false };
+      } : { language: l.code, title: '', content: '' };
     });
     setFormTranslations(translations);
     setPublishSuccess(false);
@@ -4189,12 +4193,66 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
     setFormPublished(true);
     setHasFormChanges(false);
     const initialTranslations = [
-      { language: 'en', title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false },
-      { language: 'zh', title: '', content: '', disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false },
+      { language: 'en', title: '', content: '' },
+      { language: 'zh', title: '', content: '' },
     ];
     setFormTranslations(initialTranslations);
     setPublishSuccess(false);
     setShowForm(true);
+  };
+
+  // Open global disclaimer settings modal
+  const openDisclaimerModal = async () => {
+    setShowDisclaimerModal(true);
+    setDisclaimerLoading(true);
+    setDisclaimerSavedMsg(null);
+    setDisclaimerLang(activeLanguages[0]?.code || 'en');
+    try {
+      const res = await adminFetch('/api/admin/site-settings');
+      const json = await res.json();
+      if (json.success && json.data?.translations) {
+        const trs = activeLanguages.map(l => {
+          const existing = json.data.translations.find((t: { language: string }) => t.language === l.code);
+          return {
+            language: l.code,
+            disclaimer: existing?.disclaimer || '',
+            disclaimer_hidden: existing?.disclaimer_hidden ?? false,
+            ai_disclosure: existing?.ai_disclosure || '',
+            ai_disclosure_hidden: existing?.ai_disclosure_hidden ?? false,
+          };
+        });
+        setDisclaimerTranslations(trs);
+      } else {
+        setDisclaimerTranslations(activeLanguages.map(l => ({
+          language: l.code, disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false,
+        })));
+      }
+    } catch {
+      setDisclaimerTranslations(activeLanguages.map(l => ({
+        language: l.code, disclaimer: '', disclaimer_hidden: false, ai_disclosure: '', ai_disclosure_hidden: false,
+      })));
+    } finally {
+      setDisclaimerLoading(false);
+    }
+  };
+
+  const saveDisclaimer = async () => {
+    setDisclaimerSaving(true);
+    try {
+      const res = await adminFetch('/api/admin/site-settings', {
+        method: 'PUT',
+        body: JSON.stringify({ translations: disclaimerTranslations }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setDisclaimerSavedMsg(t('Saved successfully!', '保存成功!', lang));
+        setTimeout(() => setDisclaimerSavedMsg(null), 3000);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDisclaimerSaving(false);
+    }
   };
 
   // Mark form as changed
@@ -4490,44 +4548,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                     onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                   />
                 </div>
-                <div>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                    <span>{t('Disclaimer', '声明', lang)}</span>
-                    <input
-                      type="checkbox"
-                      checked={tr.disclaimer_hidden}
-                      onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer_hidden: e.target.checked } : t)); }}
-                      className="rounded border-border"
-                    />
-                    <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
-                  </label>
-                  <textarea
-                    value={tr.disclaimer}
-                    onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer: e.target.value } : t)); }}
-                    rows={3}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
-                    placeholder={t('Disclaimer text...', '声明内容...', lang)}
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                    <span>{t('AI Disclosure', 'AI辅助声明', lang)}</span>
-                    <input
-                      type="checkbox"
-                      checked={tr.ai_disclosure_hidden}
-                      onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure_hidden: e.target.checked } : t)); }}
-                      className="rounded border-border"
-                    />
-                    <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
-                  </label>
-                  <textarea
-                    value={tr.ai_disclosure}
-                    onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure: e.target.value } : t)); }}
-                    rows={3}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
-                    placeholder={t('AI disclosure text...', 'AI辅助声明内容...', lang)}
-                  />
-                </div>
               </div>
             ) : null)}
           </div>
@@ -4546,12 +4566,21 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             <span className="text-xs text-purple-400 font-medium">{listPublishMsg}</span>
           )}
         </div>
-        <button
-          onClick={openNewForm}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          + {t('Add Page', '添加页面', lang)}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openDisclaimerModal}
+            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title={t('Disclaimer Settings', '声明设置', lang)}
+          >
+            {t('Disclaimer', '声明', lang)}
+          </button>
+          <button
+            onClick={openNewForm}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            + {t('Add Page', '添加页面', lang)}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -4652,44 +4681,6 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                         onChange={(v: string) => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, content: v } : t)); }}
                       />
                     </div>
-                    <div>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                        <span>{t('Disclaimer', '声明', lang)}</span>
-                        <input
-                          type="checkbox"
-                          checked={tr.disclaimer_hidden}
-                          onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer_hidden: e.target.checked } : t)); }}
-                          className="rounded border-border"
-                        />
-                        <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
-                      </label>
-                      <textarea
-                        value={tr.disclaimer}
-                        onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer: e.target.value } : t)); }}
-                        rows={3}
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
-                        placeholder={t('Disclaimer text...', '声明内容...', lang)}
-                      />
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                        <span>{t('AI Disclosure', 'AI辅助声明', lang)}</span>
-                        <input
-                          type="checkbox"
-                          checked={tr.ai_disclosure_hidden}
-                          onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure_hidden: e.target.checked } : t)); }}
-                          className="rounded border-border"
-                        />
-                        <span className="text-[10px] text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
-                      </label>
-                      <textarea
-                        value={tr.ai_disclosure}
-                        onChange={e => { markChanged(); setFormTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure: e.target.value } : t)); }}
-                        rows={3}
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
-                        placeholder={t('AI disclosure text...', 'AI辅助声明内容...', lang)}
-                      />
-                    </div>
                   </div>
                 ) : null)}
               </div>
@@ -4714,6 +4705,106 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                 {saving ? t('Publishing...', '发布中...', lang) : t('Publish', '发布', lang)}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Disclaimer Settings Modal */}
+      {showDisclaimerModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-2xl shadow-2xl relative">
+            <button onClick={() => setShowDisclaimerModal(false)} className="absolute top-3 right-3 p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            <h3 className="text-lg font-bold mb-4">{t('Disclaimer Settings', '声明设置', lang)}</h3>
+
+            {disclaimerLoading ? (
+              <div className="py-8 text-center text-muted-foreground">{t('Loading...', '加载中...', lang)}</div>
+            ) : (
+              <div className="space-y-4">
+                {/* Language toggle */}
+                <div className="flex items-center gap-2">
+                  {activeLanguages.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setDisclaimerLang(l.code)}
+                      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${disclaimerLang === l.code ? 'bg-purple-700 text-white' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                    >{l.name}</button>
+                  ))}
+                </div>
+
+                {disclaimerTranslations.map((tr, idx) => tr.language === disclaimerLang ? (
+                  <div key={tr.language} className="space-y-4">
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-medium mb-1">
+                        <span>{t('Disclaimer', '声明', lang)}</span>
+                        <input
+                          type="checkbox"
+                          checked={tr.disclaimer_hidden}
+                          onChange={e => setDisclaimerTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer_hidden: e.target.checked } : t))}
+                          className="rounded border-border"
+                        />
+                        <span className="text-xs text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                      </label>
+                      <textarea
+                        value={tr.disclaimer}
+                        onChange={e => setDisclaimerTranslations(prev => prev.map((t, i) => i === idx ? { ...t, disclaimer: e.target.value } : t))}
+                        rows={4}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                        placeholder={t('Disclaimer text...', '声明内容...', lang)}
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-medium mb-1">
+                        <span>{t('AI Disclosure', 'AI辅助声明', lang)}</span>
+                        <input
+                          type="checkbox"
+                          checked={tr.ai_disclosure_hidden}
+                          onChange={e => setDisclaimerTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure_hidden: e.target.checked } : t))}
+                          className="rounded border-border"
+                        />
+                        <span className="text-xs text-muted-foreground/70">{t('Hide on frontend', '前端隐藏', lang)}</span>
+                      </label>
+                      <textarea
+                        value={tr.ai_disclosure}
+                        onChange={e => setDisclaimerTranslations(prev => prev.map((t, i) => i === idx ? { ...t, ai_disclosure: e.target.value } : t))}
+                        rows={4}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-y"
+                        placeholder={t('AI disclosure text...', 'AI辅助声明内容...', lang)}
+                      />
+                    </div>
+                  </div>
+                ) : null)}
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-3">
+                    {disclaimerSavedMsg && (
+                      <span className="text-xs text-purple-400 font-medium">{disclaimerSavedMsg}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDisclaimerModal(false)}
+                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
+                    >
+                      {t('Close', '关闭', lang)}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveDisclaimer}
+                      disabled={disclaimerSaving}
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                        disclaimerSaving
+                          ? 'bg-purple-600/50 text-white cursor-default'
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                    >
+                      {disclaimerSaving ? t('Saving...', '保存中...', lang) : t('Save', '保存', lang)}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -7802,3 +7893,4 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
     </>
   );
 }
+
