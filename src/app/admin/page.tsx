@@ -4468,7 +4468,7 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
                     {page.cover_image ? <img src={getImageUrl(page.cover_image)} alt="" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-primary">{enTitle.charAt(0)}</span>}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{enTitle}</p>
+                    <p className="text-sm font-medium">#{page.id} {enTitle}</p>
                     <p className="text-xs text-muted-foreground">{page.slug} &middot; {page.is_published ? t('Published', '已发布', lang) : t('Unpublished', '未发布', lang)}</p>
                   </div>
                 </div>
