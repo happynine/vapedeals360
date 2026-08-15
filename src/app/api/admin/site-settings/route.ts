@@ -77,10 +77,9 @@ export async function PUT(request: Request) {
     // Upsert translations
     if (effectiveTranslations && Array.isArray(effectiveTranslations) && settingsId) {
       for (const tr of effectiveTranslations) {
-        if (!tr.language || !tr.site_name) continue;
-        const updateFields: { site_name: string; disclaimer?: string | null; disclaimer_hidden?: boolean; ai_disclosure?: string | null; ai_disclosure_hidden?: boolean } = {
-          site_name: tr.site_name,
-        };
+        if (!tr.language) continue;
+        const updateFields: { site_name?: string; disclaimer?: string | null; disclaimer_hidden?: boolean; ai_disclosure?: string | null; ai_disclosure_hidden?: boolean } = {};
+        if (tr.site_name !== undefined) updateFields.site_name = tr.site_name;
         if (tr.disclaimer !== undefined) updateFields.disclaimer = tr.disclaimer || null;
         if (tr.disclaimer_hidden !== undefined) updateFields.disclaimer_hidden = tr.disclaimer_hidden;
         if (tr.ai_disclosure !== undefined) updateFields.ai_disclosure = tr.ai_disclosure || null;
@@ -104,7 +103,7 @@ export async function PUT(request: Request) {
             .insert({
               site_setting_id: settingsId,
               language: tr.language,
-              site_name: tr.site_name,
+              ...(tr.site_name !== undefined ? { site_name: tr.site_name } : {}),
               ...(tr.disclaimer !== undefined ? { disclaimer: tr.disclaimer || null } : {}),
               ...(tr.disclaimer_hidden !== undefined ? { disclaimer_hidden: tr.disclaimer_hidden } : {}),
               ...(tr.ai_disclosure !== undefined ? { ai_disclosure: tr.ai_disclosure || null } : {}),
