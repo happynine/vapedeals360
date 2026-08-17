@@ -425,6 +425,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginLogo, setLoginLogo] = useState<string | null>(null);
 
 
   const [activeTab, setActiveTab] = useState<Tab>('site_settings');
@@ -481,6 +482,10 @@ export default function AdminPage() {
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
     if (token) setIsLoggedIn(true);
+    // Fetch site logo for login page (public API, no auth needed)
+    fetch('/api/site-settings').then(r => r.json()).then(d => {
+      if (d.success && d.data?.logo_url) setLoginLogo(d.data.logo_url);
+    }).catch(() => {});
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -798,11 +803,17 @@ export default function AdminPage() {
         <div className="w-full max-w-sm">
           <div className="bg-card rounded-2xl border border-border p-8 shadow-xl">
             <div className="flex flex-col items-center mb-8">
-              <img
-                src="https://coze-coding-project.tos.coze.site/gen_project_icon/2026-05-22/7642619146919952424_1779436857.png?sign=490260516-fdfb97f369-0-ab44db23aa14bde024c0964b882eb270c4c5ef8fcc30760f2ab0cf3ece075cfe"
-                alt="VapeDeal"
-                className="h-14 w-14 rounded-2xl object-cover mb-4"
-              />
+              {loginLogo ? (
+                <img
+                  src={loginLogo}
+                  alt="VapeDeals360"
+                  className="h-14 w-14 rounded-2xl object-contain mb-4"
+                />
+              ) : (
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                  <span className="text-2xl font-bold text-primary">V</span>
+                </div>
+              )}
               <h1 className="text-2xl font-bold">{t('Admin Login', '后台登录', adminLang)}</h1>
               <p className="text-sm text-muted-foreground mt-1">{t('Enter credentials to continue', '请输入登录凭据', adminLang)}</p>
             </div>
