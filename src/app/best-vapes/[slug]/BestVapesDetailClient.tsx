@@ -14,20 +14,16 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  disclaimer?: string;
+  disclaimer_hidden?: boolean;
+  ai_disclosure?: string;
+  ai_disclosure_hidden?: boolean;
 }
 
-interface GlobalDisclaimer {
-  disclaimer: string;
-  disclaimer_hidden: boolean;
-  ai_disclosure: string;
-  ai_disclosure_hidden: boolean;
-}
-
-export function BestVapesDetailClient({ slug, initialArticle, disclaimer: initialDisclaimer }: { slug: string; initialArticle: ContentPageDetail | null; disclaimer: GlobalDisclaimer | null }) {
+export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; initialArticle: ContentPageDetail | null }) {
   const { language } = useLanguage();
   const { siteSettings } = useSiteSettings();
   const [page, setPage] = useState<ContentPageDetail | null>(initialArticle);
-  const [disclaimer, setDisclaimer] = useState<GlobalDisclaimer | null>(initialDisclaimer);
 
   useEffect(() => {
     if (slug && !initialArticle) {
@@ -36,24 +32,6 @@ export function BestVapesDetailClient({ slug, initialArticle, disclaimer: initia
       }).catch(() => {});
     }
   }, [slug, language, initialArticle]);
-
-  useEffect(() => {
-    // Fetch global disclaimer for current language
-    fetch(`/api/site-settings?language=${language}`).then(r => r.json()).then(data => {
-      if (data.success && data.data) {
-        const tr = data.data.translations?.find((t: { language: string }) => t.language === language)
-          || data.data.translations?.find((t: { language: string }) => t.language === 'en');
-        if (tr) {
-          setDisclaimer({
-            disclaimer: tr.disclaimer || '',
-            disclaimer_hidden: tr.disclaimer_hidden ?? false,
-            ai_disclosure: tr.ai_disclosure || '',
-            ai_disclosure_hidden: tr.ai_disclosure_hidden ?? false,
-          });
-        }
-      }
-    }).catch(() => {});
-  }, [language]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -74,16 +52,16 @@ export function BestVapesDetailClient({ slug, initialArticle, disclaimer: initia
                   className="rich-text-content"
                   dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
                 />
-                {disclaimer && !disclaimer.disclaimer_hidden && disclaimer.disclaimer && (
+                {!page.disclaimer_hidden && page.disclaimer && (
                   <div className="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
                     <div className="font-medium text-gray-500 mb-1">Disclaimer</div>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{disclaimer.disclaimer}</div>
+                    <div dangerouslySetInnerHTML={{ __html: page.disclaimer }} />
                   </div>
                 )}
-                {disclaimer && !disclaimer.ai_disclosure_hidden && disclaimer.ai_disclosure && (
+                {!page.ai_disclosure_hidden && page.ai_disclosure && (
                   <div className="mt-4 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>
                     <div className="font-medium text-gray-500 mb-1">AI-Assisted Disclosure</div>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{disclaimer.ai_disclosure}</div>
+                    <div dangerouslySetInnerHTML={{ __html: page.ai_disclosure }} />
                   </div>
                 )}
               </article>
@@ -95,11 +73,10 @@ export function BestVapesDetailClient({ slug, initialArticle, disclaimer: initia
           ) : (
             <div className="flex flex-col items-center justify-center py-32">
               {siteSettings?.logo_url ? (
-                <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-16 w-16 rounded-xl object-contain mb-4 animate-pulse" />
+                <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-9 w-9 rounded-lg object-contain mb-3 animate-pulse" />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-purple-700 text-white font-bold text-2xl mb-4 animate-pulse">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-700 text-white font-bold text-base mb-3 animate-pulse">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>
               )}
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">{siteSettings?.site_name || '\u00A0'}</h2>
               <div className="flex items-center gap-2 text-gray-400">
                 <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                 <span>Loading...</span>
