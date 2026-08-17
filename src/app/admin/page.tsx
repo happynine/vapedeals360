@@ -4510,7 +4510,10 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
         <div className="space-y-4 flex-1 pr-1 pt-4">
           <div>
             <label className="block text-sm font-medium mb-1">Slug</label>
-            <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+            <div className="flex gap-2">
+              <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+              <button type="button" onClick={() => { markChanged(); setFormSlug(prev => prev.replace(/\s+/g, '-')); }} className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium hover:bg-accent whitespace-nowrap">Replace spaces</button>
+            </div>
           </div>
 
           <div>
@@ -4643,7 +4646,10 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Slug</label>
-                <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+                <div className="flex gap-2">
+                  <input value={formSlug} onChange={e => { markChanged(); setFormSlug(e.target.value); }} className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. best-pod-system-2025" />
+                  <button type="button" onClick={() => { markChanged(); setFormSlug(prev => prev.replace(/\s+/g, '-')); }} className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-medium hover:bg-accent whitespace-nowrap">Replace spaces</button>
+                </div>
               </div>
 
               <div>
