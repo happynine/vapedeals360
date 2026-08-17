@@ -1,9 +1,20 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
-import { Modal, Button, Slider } from '@arco-design/web-react';
-import { IconMinus, IconPlus } from '@arco-design/web-react/icon';
+import { Modal, Button, Slider } from 'antd';
+
+const MinusIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+const PlusIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
 
 interface ImageCropModalProps {
   visible: boolean;
@@ -84,11 +95,7 @@ export default function ImageCropModal({
     setCroppedAreaPixels(areaPixels);
   }, []);
 
-  // Compute projected output size based on the live crop area (in displayed px)
-  // and natural image size. react-easy-crop gives pixel values that map to the
-  // source image when the image fills the media area, but when zoomed < 1 the
-  // source mapping still works because the library scales with natural size.
-  const outputSize = React.useMemo(() => {
+  const outputSize = useMemo(() => {
     if (!croppedAreaPixels) return { width: 0, height: 0 };
     return {
       width: Math.round(croppedAreaPixels.width),
@@ -96,7 +103,7 @@ export default function ImageCropModal({
     };
   }, [croppedAreaPixels]);
 
-  const isSizeValid = React.useMemo(() => {
+  const isSizeValid = useMemo(() => {
     if (!minWidth && !minHeight) return true;
     const wValid = !minWidth || outputSize.width >= minWidth;
     const hValid = !minHeight || outputSize.height >= minHeight;
@@ -115,36 +122,44 @@ export default function ImageCropModal({
     }
   }, [croppedAreaPixels, imageSrc, onConfirm]);
 
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(1, +(z - 0.05).toFixed(2))), []);
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(3, +(z + 0.05).toFixed(2))), []);
+  const zoomOut = useCallback(
+    () => setZoom((z) => Math.max(1, +(z - 0.05).toFixed(2))),
+    [],
+  );
+  const zoomIn = useCallback(
+    () => setZoom((z) => Math.min(3, +(z + 0.05).toFixed(2))),
+    [],
+  );
 
   return (
     <Modal
-      visible={visible}
-      title={
-        minWidth && minHeight ? `${title} (${minWidth}×${minHeight}px)` : title
-      }
+      open={visible}
+      title={minWidth && minHeight ? `${title} (${minWidth}×${minHeight}px)` : title}
       onCancel={onCancel}
-      style={{ width: 600 }}
+      width={600}
       maskClosable={false}
-      escToExit={!submitting}
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button onClick={onCancel} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button type="primary" loading={submitting} onClick={handleOk} disabled={!isSizeValid}>
-            OK
-          </Button>
-        </div>
-      }
+      keyboard={!submitting}
+      footer={[
+        <Button key="cancel" onClick={onCancel} disabled={submitting}>
+          Cancel
+        </Button>,
+        <Button
+          key="ok"
+          type="primary"
+          loading={submitting}
+          onClick={handleOk}
+          disabled={!isSizeValid}
+        >
+          OK
+        </Button>,
+      ]}
     >
       {/* Cropper viewport */}
       <div
         style={{
           position: 'relative',
           width: '100%',
-          height: 360,
+          height: 380,
           background: '#1a1a1a',
           borderRadius: 8,
           overflow: 'hidden',
@@ -163,24 +178,43 @@ export default function ImageCropModal({
       </div>
 
       {/* Zoom slider */}
-      <div style={{ display: 'flex', alignItems: 'center', marginTop: 16, padding: '0 8px' }}>
-        <IconMinus
-          style={{ cursor: 'pointer', color: '#7c3aed', fontSize: 18, marginRight: 10 }}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginTop: 16,
+          padding: '0 4px',
+        }}
+      >
+        <Button
+          type="text"
+          icon={<MinusIcon />}
           onClick={zoomOut}
+          style={{ color: '#7c3aed' }}
         />
         <Slider
-          style={{ flex: 1 }}
+          style={{ flex: 1, margin: '0 12px' }}
           step={0.01}
           value={zoom}
           min={1}
           max={3}
           onChange={(v) => setZoom(v as number)}
         />
-        <IconPlus
-          style={{ cursor: 'pointer', color: '#7c3aed', fontSize: 18, marginLeft: 10 }}
+        <Button
+          type="text"
+          icon={<PlusIcon />}
           onClick={zoomIn}
+          style={{ color: '#7c3aed' }}
         />
-        <span style={{ marginLeft: 12, fontSize: 13, color: '#888', minWidth: 44, textAlign: 'center' }}>
+        <span
+          style={{
+            marginLeft: 8,
+            fontSize: 13,
+            color: '#888',
+            minWidth: 44,
+            textAlign: 'center',
+          }}
+        >
           {Math.round(zoom * 100)}%
         </span>
       </div>
@@ -188,7 +222,7 @@ export default function ImageCropModal({
       {/* Output size indicator */}
       <div
         style={{
-          marginTop: 12,
+          marginTop: 8,
           padding: '6px 12px',
           background: isSizeValid ? '#f0fdf4' : '#fef2f2',
           borderRadius: 6,
