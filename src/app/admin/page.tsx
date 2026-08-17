@@ -7253,7 +7253,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground text-left block">{t('Slug', '标识', lang)}</label>
-                  <input value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                  <div className="mt-1 flex gap-2">
+                    <input value={slug} onChange={(e) => setSlug(e.target.value)} className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                    <button type="button" onClick={() => setSlug(prev => prev.replace(/\s+/g, '-'))} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-accent whitespace-nowrap">Replace spaces</button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground text-left block">{t('Category', '分类', lang)}</label>
