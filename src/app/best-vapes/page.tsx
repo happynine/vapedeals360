@@ -39,17 +39,16 @@ export default function BestVapesPage() {
 
       <main className="flex-1 bg-white">
         {loading ? (
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center min-h-[40vh]">
+          <div className="flex flex-col items-center justify-center py-32">
             {siteSettings?.logo_url ? (
-              <img src={siteSettings.logo_url} alt="Logo" className="h-12 mb-4 animate-pulse" />
+              <img src={siteSettings.logo_url.startsWith("http") ? siteSettings.logo_url : `/api/image?key=${encodeURIComponent(siteSettings.logo_url)}`} alt={siteSettings.site_name} className="h-9 w-9 rounded-xl object-contain mb-4 animate-pulse" />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-purple-100 animate-pulse mb-4" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-700 text-white font-bold text-lg mb-4 animate-pulse">{siteSettings?.site_name ? siteSettings.site_name.charAt(0) : '\u00A0'}</div>
             )}
-            <p className="text-gray-400 text-sm animate-pulse">{siteSettings?.site_name || 'Loading...'}</p>
-            <div className="mt-8 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-48 rounded-xl bg-gray-100 animate-pulse" />
-              ))}
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">{siteSettings?.site_name || '\u00A0'}</h2>
+            <div className="flex items-center gap-2 text-gray-400">
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <span>Loading...</span>
             </div>
           </div>
         ) : (
