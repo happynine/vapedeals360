@@ -2889,18 +2889,30 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         const style = img.getAttribute('style') || '';
         const w = img.getAttribute('width') || '';
         const h = img.getAttribute('height') || '';
-        // Use quill.formatText to store extra attrs in the Delta
+        // Save scroll positions of all scrollable ancestors before formatText.
+        // formatText modifies DOM attrs which triggers reflow; large base64 images
+        // from Word imports can cause the browser to reset scroll during this reflow.
+        const scrollPositions: Array<[HTMLElement, number]> = [];
+        let node: HTMLElement | null = qlContainer;
+        while (node) {
+          const oy = getComputedStyle(node).overflowY;
+          if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) {
+            scrollPositions.push([node, node.scrollTop]);
+          }
+          node = node.parentElement;
+        }
+        const savedWindowScroll = window.scrollY;
         const formats: Record<string, string> = {};
         if (cls) formats['class'] = cls;
         if (style) formats['style'] = style;
         if (w) formats['width'] = w;
         if (h) formats['height'] = h;
         quill.formatText(offset, 1, formats, 'silent');
-        // NOTE: Do NOT call onChange here. The 'silent' source suppresses Quill events,
-        // and manually triggering onChange would cause React state update ->
-        // shouldComponentUpdate -> editor.setContents() -> scroll position reset.
-        // formatText already persists the class/style into Quill's Delta model;
-        // getHTML() reads quill.root.innerHTML on save, so content is correct.
+        // Restore scroll positions synchronously after formatText (before browser paints)
+        for (const [el, top] of scrollPositions) {
+          el.scrollTop = top;
+        }
+        window.scrollTo(0, savedWindowScroll);
       } catch { /* ignore */ }
     };
 
