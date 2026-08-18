@@ -3797,10 +3797,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   const uploadImageFile = useCallback(async (file: File): Promise<string | null> => {
     try {
       const processedFile = await compressImage(file);
-      const formData = new FormData();
-      formData.append('file', processedFile);
-      formData.append('folder', 'content');
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      // Send raw binary body — /api/upload reads arrayBuffer() directly (FormData would store the whole multipart envelope)
+      const res = await fetch('/api/upload?folder=content', {
+        method: 'POST',
+        headers: { 'Content-Type': processedFile.type || 'image/jpeg' },
+        body: processedFile,
+      });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       return data?.data?.url || data?.data?.key || data?.url || data?.key || null;
@@ -4339,11 +4341,12 @@ const ContentPagesManager = forwardRef<ContentPagesManagerRef, { type: string; t
             const ext = mimeType.split('/')[1] || 'png';
             const file = new File([blob], `publish-image-${Date.now()}-${i}.${ext}`, { type: mimeType });
             console.log(`[handlePublish] Uploading base64 image ${i + 1}/${matches.length}, size: ${(file.size / 1024).toFixed(0)}KB`);
-            // Upload directly via /api/upload
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'content');
-            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            // Upload directly via /api/upload — send raw binary, not FormData
+            const uploadRes = await fetch('/api/upload?folder=content', {
+              method: 'POST',
+              headers: { 'Content-Type': mimeType },
+              body: file,
+            });
             if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
             const uploadData = await uploadRes.json();
             const url = uploadData?.data?.url || uploadData?.data?.key || uploadData?.url || uploadData?.key;
