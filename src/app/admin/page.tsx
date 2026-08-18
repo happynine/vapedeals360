@@ -3708,302 +3708,311 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
   // ===== Table editing: floating toolbar (add/delete rows & columns), Backspace fix, content sync =====
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !QuillClass) return;
+    if (!container) return;
 
-    const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
-    if (!qlEditor) return;
+    let cleanup: (() => void) | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-    let activeTable: HTMLDivElement | null = null;
-    let toolbar: HTMLDivElement | null = null;
-    let hideTimer: ReturnType<typeof setTimeout> | null = null;
-    let syncTimer: ReturnType<typeof setTimeout> | null = null;
-    const observers: MutationObserver[] = [];
+    const setupEditor = (qlEditor: HTMLElement) => {
+      let activeTable: HTMLDivElement | null = null;
+      let toolbar: HTMLDivElement | null = null;
+      let hideTimer: ReturnType<typeof setTimeout> | null = null;
+      let syncTimer: ReturnType<typeof setTimeout> | null = null;
+      const observers: MutationObserver[] = [];
 
-    // ---- Sync table HTML back to Quill's internal state (silent, no re-render) ----
-    const scheduleSync = () => {
-      if (syncTimer) clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => {
-        const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
-        if (!qlContainer || !QuillClass) return;
-        const quill = QuillClass.find(qlContainer);
-        if (!quill) return;
-        try {
-          quill.update('silent');
-          const html = quill.root.innerHTML;
-          onChangeRef.current(html);
-        } catch (_) { /* non-critical */ }
-      }, 300);
-    };
+      // ---- Sync table HTML back to Quill's internal state ----
+      const scheduleSync = () => {
+        if (syncTimer) clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => {
+          const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+          if (!qlContainer || !QuillClass) return;
+          const quill = QuillClass.find(qlContainer);
+          if (!quill) return;
+          try {
+            quill.update('silent');
+            onChangeRef.current(quill.root.innerHTML);
+          } catch (_) { /* non-critical */ }
+        }, 300);
+      };
 
-    // ---- Build the floating toolbar ----
-    const ensureToolbar = () => {
-      if (toolbar) return toolbar;
-      toolbar = document.createElement('div');
-      toolbar.className = 'table-edit-toolbar';
-      toolbar.innerHTML = `
-        <button type="button" data-action="add-row-above" title="Add row above">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
-        <button type="button" data-action="add-row-below" title="Add row below">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 19h14"/></svg>
-        </button>
-        <span class="table-toolbar-sep"></span>
-        <button type="button" data-action="add-col-left" title="Add column left">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>
-        </button>
-        <button type="button" data-action="add-col-right" title="Add column right">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M19 5v14"/></svg>
-        </button>
-        <span class="table-toolbar-sep"></span>
-        <button type="button" data-action="del-row" title="Delete row">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-        </button>
-        <button type="button" data-action="del-col" title="Delete column">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4l16 16M4 20L20 4"/></svg>
-        </button>
-      `;
-      // Stop Quill from stealing focus / selection when clicking buttons
-      toolbar.addEventListener('mousedown', (e) => e.preventDefault());
-      toolbar.addEventListener('click', (e) => {
-        const btn = (e.target as HTMLElement).closest('button[data-action]') as HTMLButtonElement | null;
-        if (!btn || !activeTable) return;
-        e.stopPropagation();
-        handleAction(btn.dataset.action as string);
-      });
-      container.appendChild(toolbar);
-      return toolbar;
-    };
-
-    // ---- Position toolbar above the active table ----
-    const positionToolbar = () => {
-      if (!toolbar || !activeTable) return;
-      const containerRect = container.getBoundingClientRect();
-      const tableRect = activeTable.getBoundingClientRect();
-      const top = tableRect.top - containerRect.top - 38;
-      const left = tableRect.left - containerRect.left;
-      toolbar.style.top = (top < 4 ? tableRect.bottom - containerRect.top + 6 : top) + 'px';
-      toolbar.style.left = left + 'px';
-      toolbar.style.display = 'flex';
-    };
-
-    // ---- Show / hide toolbar for a given table wrapper ----
-    const showToolbar = (wrapper: HTMLDivElement) => {
-      activeTable = wrapper;
-      ensureToolbar();
-      positionToolbar();
-    };
-    const hideToolbarSoon = () => {
-      if (hideTimer) clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (toolbar) toolbar.style.display = 'none';
-        activeTable = null;
-      }, 250);
-    };
-    const cancelHide = () => {
-      if (hideTimer) clearTimeout(hideTimer);
-    };
-
-    // ---- Get the current target cell's row/column indices ----
-    const getCellPosition = (cell: HTMLTableCellElement): { row: number; col: number } | null => {
-      const row = cell.parentElement as HTMLTableRowElement | null;
-      if (!row) return null;
-      const table = row.closest('table');
-      if (!table) return null;
-      const rows = Array.from(table.rows);
-      const rowIdx = rows.indexOf(row);
-      const cells = Array.from(row.cells);
-      const colIdx = cells.indexOf(cell);
-      if (rowIdx < 0 || colIdx < 0) return null;
-      return { row: rowIdx, col: colIdx };
-    };
-
-    const newCell = (tag: 'td' | 'th', text: string): HTMLTableCellElement => {
-      const cell = document.createElement(tag);
-      cell.setAttribute('contenteditable', 'true');
-      cell.innerHTML = text;
-      return cell;
-    };
-
-    // ---- Row / column operations ----
-    const handleAction = (action: string) => {
-      const sel = window.getSelection();
-      let targetCell: HTMLTableCellElement | null = null;
-      if (sel && sel.rangeCount > 0) {
-        let node: Node | null = sel.getRangeAt(0).startContainer;
-        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-        targetCell = (node as HTMLElement | null)?.closest('td, th') as HTMLTableCellElement | null;
-      }
-      if (!targetCell && activeTable) {
-        targetCell = activeTable.querySelector('td, th') as HTMLTableCellElement | null;
-      }
-      if (!targetCell) return;
-
-      const pos = getCellPosition(targetCell);
-      if (!pos) return;
-      const table = targetCell.closest('table') as HTMLTableElement;
-      const rows = Array.from(table.rows);
-      const isHeader = (cell: Element) => cell.tagName.toLowerCase() === 'th';
-      const isLastRow = rows.length <= 1;
-      const isLastCol = rows[0] && rows[0].cells.length <= 1;
-
-      switch (action) {
-        case 'add-row-above': {
-          const newRow = table.insertRow(pos.row);
-          const colCount = rows[0].cells.length;
-          const useHeader = pos.row === 0;
-          for (let c = 0; c < colCount; c++) {
-            newRow.appendChild(newCell(useHeader ? 'th' : 'td', '&nbsp;'));
+      // ---- Ensure all existing table cells are editable ----
+      const ensureCellsEditable = (root: HTMLElement) => {
+        root.querySelectorAll('.table-wrapper td, .table-wrapper th').forEach((cell) => {
+          if (!cell.hasAttribute('contenteditable')) {
+            cell.setAttribute('contenteditable', 'true');
           }
-          break;
-        }
-        case 'add-row-below': {
-          const newRow = table.insertRow(pos.row + 1);
-          const colCount = rows[0].cells.length;
-          for (let c = 0; c < colCount; c++) {
-            newRow.appendChild(newCell('td', '&nbsp;'));
-          }
-          break;
-        }
-        case 'add-col-left':
-        case 'add-col-right': {
-          const insertAt = action === 'add-col-left' ? pos.col : pos.col + 1;
-          rows.forEach((tr, rIdx) => {
-            const tag = isHeader(tr.cells[0]) ? 'th' : 'td';
-            const refCell = tr.cells[Math.min(insertAt, tr.cells.length)] || null;
-            const cell = newCell(tag, '&nbsp;');
-            if (refCell) tr.insertBefore(cell, refCell);
-            else tr.appendChild(cell);
-          });
-          break;
-        }
-        case 'del-row': {
-          if (isLastRow) return;
-          table.deleteRow(pos.row);
-          break;
-        }
-        case 'del-col': {
-          if (isLastCol) return;
-          rows.forEach((tr) => {
-            if (tr.cells[pos.col]) tr.removeChild(tr.cells[pos.col]);
-          });
-          break;
-        }
-      }
-      // Re-position and sync
-      requestAnimationFrame(() => {
+        });
+      };
+      ensureCellsEditable(qlEditor);
+
+      // ---- Build floating toolbar ----
+      const ensureToolbar = () => {
+        if (toolbar) return toolbar;
+        toolbar = document.createElement('div');
+        toolbar.className = 'table-edit-toolbar';
+        toolbar.innerHTML = `
+          <button type="button" data-action="add-row-above" title="Add row above">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" data-action="add-row-below" title="Add row below">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 19h14"/></svg>
+          </button>
+          <span class="table-toolbar-sep"></span>
+          <button type="button" data-action="add-col-left" title="Add column left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>
+          </button>
+          <button type="button" data-action="add-col-right" title="Add column right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M19 5v14"/></svg>
+          </button>
+          <span class="table-toolbar-sep"></span>
+          <button type="button" data-action="del-row" title="Delete row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+          </button>
+          <button type="button" data-action="del-col" title="Delete column">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4l16 16M4 20L20 4"/></svg>
+          </button>
+        `;
+        toolbar.addEventListener('mousedown', (e) => e.preventDefault());
+        toolbar.addEventListener('click', (e) => {
+          const btn = (e.target as HTMLElement).closest('button[data-action]') as HTMLButtonElement | null;
+          if (!btn || !activeTable) return;
+          e.stopPropagation();
+          handleAction(btn.dataset.action as string);
+        });
+        toolbar.addEventListener('mouseenter', cancelHide);
+        toolbar.addEventListener('mouseleave', hideToolbarSoon);
+        container.appendChild(toolbar);
+        return toolbar;
+      };
+
+      const positionToolbar = () => {
+        if (!toolbar || !activeTable) return;
+        const containerRect = container.getBoundingClientRect();
+        const tableRect = activeTable.getBoundingClientRect();
+        const top = tableRect.top - containerRect.top - 38;
+        const left = tableRect.left - containerRect.left;
+        toolbar.style.top = (top < 4 ? tableRect.bottom - containerRect.top + 6 : top) + 'px';
+        toolbar.style.left = Math.max(0, left) + 'px';
+        toolbar.style.display = 'flex';
+      };
+
+      const showToolbar = (wrapper: HTMLDivElement) => {
+        activeTable = wrapper;
+        ensureToolbar();
         positionToolbar();
-        scheduleSync();
-      });
-    };
+      };
+      const hideToolbarSoon = () => {
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          if (toolbar) toolbar.style.display = 'none';
+          activeTable = null;
+        }, 250);
+      };
+      const cancelHide = () => {
+        if (hideTimer) clearTimeout(hideTimer);
+      };
 
-    // ---- Observe a table wrapper for content changes (cell edits) ----
-    const observeTable = (wrapper: HTMLDivElement) => {
-      // Disconnect old observers to avoid duplicates
-      observers.forEach(o => o.disconnect());
-      observers.length = 0;
-      const obs = new MutationObserver(() => scheduleSync());
-      obs.observe(wrapper, { childList: true, subtree: true, characterData: true });
-      observers.push(obs);
-    };
+      const getCellPosition = (cell: HTMLTableCellElement): { row: number; col: number } | null => {
+        const row = cell.parentElement as HTMLTableRowElement | null;
+        if (!row) return null;
+        const table = row.closest('table');
+        if (!table) return null;
+        const rows = Array.from(table.rows);
+        const rowIdx = rows.indexOf(row);
+        const cells = Array.from(row.cells);
+        const colIdx = cells.indexOf(cell);
+        if (rowIdx < 0 || colIdx < 0) return null;
+        return { row: rowIdx, col: colIdx };
+      };
 
-    // ---- Determine if a node is inside a table cell ----
-    const isInsideTableCell = (node: Node | null): boolean => {
-      if (!node) return false;
-      const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
-      return !!el && !!el.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th');
-    };
+      const newCell = (tag: 'td' | 'th'): HTMLTableCellElement => {
+        const cell = document.createElement(tag);
+        cell.setAttribute('contenteditable', 'true');
+        cell.innerHTML = '&nbsp;';
+        return cell;
+      };
 
-    // ---- Event: mouseenter / click on table -> show toolbar ----
-    const onMouseEnter = (e: Event) => {
-      const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
-      if (wrapper && wrapper.closest('.ql-editor')) {
-        cancelHide();
-        showToolbar(wrapper);
-        observeTable(wrapper);
-      }
-    };
-    const onMouseLeave = (e: MouseEvent) => {
-      const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
-      const related = e.relatedTarget as HTMLElement | null;
-      if (wrapper && (!related || !wrapper.contains(related) || related.closest('.table-edit-toolbar'))) {
-        hideToolbarSoon();
-      }
-    };
-    const onCellClick = (e: MouseEvent) => {
-      const cell = (e.target as HTMLElement).closest('td, th') as HTMLTableCellElement | null;
-      if (cell) {
-        const wrapper = cell.closest('.table-wrapper') as HTMLDivElement;
+      const handleAction = (action: string) => {
+        const sel = window.getSelection();
+        let targetCell: HTMLTableCellElement | null = null;
+        if (sel && sel.rangeCount > 0) {
+          let node: Node | null = sel.getRangeAt(0).startContainer;
+          if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+          targetCell = (node as HTMLElement | null)?.closest('td, th') as HTMLTableCellElement | null;
+        }
+        if (!targetCell && activeTable) {
+          targetCell = activeTable.querySelector('td, th') as HTMLTableCellElement | null;
+        }
+        if (!targetCell) return;
+
+        const pos = getCellPosition(targetCell);
+        if (!pos) return;
+        const table = targetCell.closest('table') as HTMLTableElement;
+        const rows = Array.from(table.rows);
+        const isHeader = (cell: Element) => cell.tagName.toLowerCase() === 'th';
+        const isLastRow = rows.length <= 1;
+        const isLastCol = rows[0] && rows[0].cells.length <= 1;
+
+        switch (action) {
+          case 'add-row-above': {
+            const newRow = table.insertRow(pos.row);
+            const colCount = rows[0].cells.length;
+            const useHeader = pos.row === 0;
+            for (let c = 0; c < colCount; c++) {
+              newRow.appendChild(newCell(useHeader ? 'th' : 'td'));
+            }
+            break;
+          }
+          case 'add-row-below': {
+            const newRow = table.insertRow(pos.row + 1);
+            const colCount = rows[0].cells.length;
+            for (let c = 0; c < colCount; c++) {
+              newRow.appendChild(newCell('td'));
+            }
+            break;
+          }
+          case 'add-col-left':
+          case 'add-col-right': {
+            const insertAt = action === 'add-col-left' ? pos.col : pos.col + 1;
+            rows.forEach((tr) => {
+              const tag = isHeader(tr.cells[0]) ? 'th' : 'td';
+              const refCell = tr.cells[Math.min(insertAt, tr.cells.length)] || null;
+              const cell = newCell(tag);
+              if (refCell) tr.insertBefore(cell, refCell);
+              else tr.appendChild(cell);
+            });
+            break;
+          }
+          case 'del-row': {
+            if (isLastRow) return;
+            table.deleteRow(pos.row);
+            break;
+          }
+          case 'del-col': {
+            if (isLastCol) return;
+            rows.forEach((tr) => {
+              if (tr.cells[pos.col]) tr.removeChild(tr.cells[pos.col]);
+            });
+            break;
+          }
+        }
+        requestAnimationFrame(() => {
+          positionToolbar();
+          scheduleSync();
+        });
+      };
+
+      // ---- Observe table content changes ----
+      const observeTable = (wrapper: HTMLDivElement) => {
+        observers.forEach(o => o.disconnect());
+        observers.length = 0;
+        const obs = new MutationObserver(() => scheduleSync());
+        obs.observe(wrapper, { childList: true, subtree: true, characterData: true });
+        observers.push(obs);
+      };
+
+      // ---- Mouse events to show/hide toolbar ----
+      const onMouseOver = (e: Event) => {
+        const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
         if (wrapper && wrapper.closest('.ql-editor')) {
           cancelHide();
           showToolbar(wrapper);
           observeTable(wrapper);
+          ensureCellsEditable(wrapper);
         }
-      }
-    };
+      };
+      const onMouseOut = (e: MouseEvent) => {
+        const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
+        const related = e.relatedTarget as HTMLElement | null;
+        if (wrapper && (!related || (!wrapper.contains(related) && !related.closest('.table-edit-toolbar')))) {
+          hideToolbarSoon();
+        }
+      };
+      const onCellClick = (e: MouseEvent) => {
+        const cell = (e.target as HTMLElement).closest('td, th') as HTMLTableCellElement | null;
+        if (cell) {
+          const wrapper = cell.closest('.table-wrapper') as HTMLDivElement;
+          if (wrapper && wrapper.closest('.ql-editor')) {
+            cancelHide();
+            showToolbar(wrapper);
+            observeTable(wrapper);
+          }
+        }
+      };
 
-    qlEditor.addEventListener('mouseover', onMouseEnter);
-    qlEditor.addEventListener('mouseout', onMouseLeave);
-    qlEditor.addEventListener('click', onCellClick);
-    // Attach toolbar hover listeners immediately (toolbar is created lazily on first show)
-    const attachToolbarHover = () => {
-      const tb = ensureToolbar();
-      tb.addEventListener('mouseenter', cancelHide);
-      tb.addEventListener('mouseleave', hideToolbarSoon);
-    };
-    attachToolbarHover();
+      qlEditor.addEventListener('mouseover', onMouseOver);
+      qlEditor.addEventListener('mouseout', onMouseOut);
+      qlEditor.addEventListener('click', onCellClick);
 
-    // ---- Event: keydown on ql-editor to intercept Backspace/Delete in cells ----
-    const onKeyDown = (e: KeyboardEvent) => {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      let node: Node | null = sel.getRangeAt(0).startContainer;
-      if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-      const cell = (node as HTMLElement | null)?.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
-      if (!cell) return;
+      // ---- Keydown: intercept Backspace/Delete inside cells (capture phase on container) ----
+      const onKeyDown = (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
+        const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
+        if (!cell) return;
 
-      // We are inside a contenteditable table cell — let the browser handle
-      // text editing natively. Stop Quill from seeing these keys so it doesn't
-      // try to delete the entire table-embed block.
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        // If the cell has no text content, prevent deletion of the cell/table
-        const isCellEmpty = cell.textContent?.trim() === '';
-        if (isCellEmpty) {
-          e.preventDefault();
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          // Let browser handle text deletion natively inside the contenteditable cell.
+          // Stop propagation so Quill's keyboard handler never sees it.
           e.stopPropagation();
           return;
         }
-        // Let browser handle Backspace/Delete inside the cell normally
-        e.stopPropagation();
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.stopPropagation();
+        }
+      };
+      // Use capture phase on container so we run before Quill's bubble-phase handlers
+      container.addEventListener('keydown', onKeyDown, true);
+
+      // ---- Focus out: sync ----
+      const onFocusOut = (e: FocusEvent) => {
+        const wrapper = (e.target as HTMLElement).closest?.('.table-wrapper');
+        const related = e.relatedTarget as HTMLElement | null;
+        if (wrapper && (!related || !wrapper.contains(related))) {
+          scheduleSync();
+        }
+      };
+      qlEditor.addEventListener('focusout', onFocusOut);
+
+      // ---- Observe the ql-editor itself for newly added tables ----
+      const editorObserver = new MutationObserver(() => {
+        ensureCellsEditable(qlEditor);
+      });
+      editorObserver.observe(qlEditor, { childList: true, subtree: true });
+
+      cleanup = () => {
+        qlEditor.removeEventListener('mouseover', onMouseOver);
+        qlEditor.removeEventListener('mouseout', onMouseOut);
+        qlEditor.removeEventListener('click', onCellClick);
+        container.removeEventListener('keydown', onKeyDown, true);
+        qlEditor.removeEventListener('focusout', onFocusOut);
+        observers.forEach(o => o.disconnect());
+        editorObserver.disconnect();
+        if (syncTimer) clearTimeout(syncTimer);
+        if (hideTimer) clearTimeout(hideTimer);
+        if (toolbar) toolbar.remove();
+      };
+    };
+
+    // ReactQuill is dynamically imported (ssr:false), so .ql-editor may not exist yet.
+    // Poll until it appears (up to ~30 seconds).
+    let elapsed = 0;
+    const tryInit = () => {
+      const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
+      if (qlEditor) {
+        setupEditor(qlEditor);
         return;
       }
-      // Also stop Enter from bubbling (browser default: insert <br> or new <p>)
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.stopPropagation();
-        // Allow default — contenteditable inserts a line break
+      if (elapsed < 30000) {
+        elapsed += 200;
+        pollTimer = setTimeout(tryInit, 200);
       }
     };
-    qlEditor.addEventListener('keydown', onKeyDown, true);
-
-    // ---- Event: when focus leaves the table, sync content ----
-    const onTableBlur = (e: FocusEvent) => {
-      const wrapper = (e.target as HTMLElement).closest?.('.table-wrapper');
-      const related = e.relatedTarget as HTMLElement | null;
-      if (wrapper && (!related || !wrapper.contains(related))) {
-        scheduleSync();
-      }
-    };
-    qlEditor.addEventListener('focusout', onTableBlur);
+    pollTimer = setTimeout(tryInit, 50);
 
     return () => {
-      qlEditor.removeEventListener('mouseover', onMouseEnter);
-      qlEditor.removeEventListener('mouseout', onMouseLeave);
-      qlEditor.removeEventListener('click', onCellClick);
-      qlEditor.removeEventListener('keydown', onKeyDown, true);
-      qlEditor.removeEventListener('focusout', onTableBlur);
-      observers.forEach(o => o.disconnect());
-      if (syncTimer) clearTimeout(syncTimer);
-      if (hideTimer) clearTimeout(hideTimer);
-      if (toolbar) toolbar.remove();
+      if (pollTimer) clearTimeout(pollTimer);
+      if (cleanup) cleanup();
     };
   }, []);
 

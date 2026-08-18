@@ -133,6 +133,9 @@ html {
 }
 
 /* Quill toolbar sticky - floats at top when scrolling */
+.quill-sticky-toolbar {
+  position: relative;
+}
 .quill-sticky-toolbar .ql-toolbar.ql-snow {
   position: sticky;
   top: 0;
