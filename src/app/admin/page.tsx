@@ -2733,6 +2733,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyAlignment = (alignClass: string) => {
         if (!activeImg) return;
+        // Preserve scroll positions across the controlled re-render triggered by onChange
+        const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+        const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
+        const savedWindowScroll = window.scrollY;
         // Remove old alignment classes
         activeImg.classList.remove('img-align-left', 'img-align-center', 'img-align-right');
         activeImg.classList.add(alignClass);
@@ -2748,7 +2752,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         }
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
-        requestAnimationFrame(() => positionSelectionBox());
+        requestAnimationFrame(() => {
+          // Restore scroll after React/Quill re-render (causes controlled-component reset)
+          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+          window.scrollTo(0, savedWindowScroll);
+          positionSelectionBox();
+        });
       };
 
       alignLeftBtn.addEventListener('click', () => applyAlignment('img-align-left'));
@@ -2785,6 +2794,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyBorder = (borderClass: string) => {
         if (!activeImg) return;
+        const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+        const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
+        const savedWindowScroll = window.scrollY;
         activeImg.classList.remove('img-border-none', 'img-border-thin', 'img-border-rounded', 'img-border-shadow');
         activeImg.classList.add(borderClass);
         [borderNoneBtn, borderThinBtn, borderRoundedBtn, borderShadowBtn].forEach(b => b.classList.remove('active'));
@@ -2794,6 +2806,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
+        requestAnimationFrame(() => {
+          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+          window.scrollTo(0, savedWindowScroll);
+        });
       };
 
       borderNoneBtn.addEventListener('click', () => applyBorder('img-border-none'));
@@ -2834,9 +2850,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       imgToolbar.appendChild(cropGroup);
 
       // Set initial active states based on current classes
-      if (img.classList.contains('img-align-left')) alignLeftBtn.classList.add('active');
+      if (img.classList.contains('img-align-center')) alignCenterBtn.classList.add('active');
       else if (img.classList.contains('img-align-right')) alignRightBtn.classList.add('active');
-      else alignCenterBtn.classList.add('active'); // default center
+      else alignLeftBtn.classList.add('active'); // default left
 
       if (img.classList.contains('img-border-thin')) borderThinBtn.classList.add('active');
       else if (img.classList.contains('img-border-rounded')) borderRoundedBtn.classList.add('active');
