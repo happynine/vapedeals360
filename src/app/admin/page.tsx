@@ -2733,10 +2733,28 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyAlignment = (alignClass: string) => {
         if (!activeImg) return;
-        // Preserve scroll positions across the controlled re-render triggered by onChange
+        // Preserve scroll positions across the controlled re-render triggered by onChange.
+        // The scrollable ancestor may be a modal container (overflow-y-auto), not window,
+        // so walk up the DOM to find it.
         const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+        const findScrollParent = (el: HTMLElement | null): HTMLElement | null => {
+          let node = el?.parentElement ?? null;
+          while (node) {
+            const oy = getComputedStyle(node).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+            node = node.parentElement;
+          }
+          return null;
+        };
+        const scrollParent = findScrollParent(qlEditorEl);
         const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
+        const savedParentScroll = scrollParent ? scrollParent.scrollTop : 0;
         const savedWindowScroll = window.scrollY;
+        const restoreScroll = () => {
+          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+          if (scrollParent) scrollParent.scrollTop = savedParentScroll;
+          window.scrollTo(0, savedWindowScroll);
+        };
         // Remove old alignment classes
         activeImg.classList.remove('img-align-left', 'img-align-center', 'img-align-right');
         activeImg.classList.add(alignClass);
@@ -2752,12 +2770,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         }
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
-        // Use double rAF: first rAF fires before React commit, second fires after
-        // Quill has rebuilt the DOM from the new value prop, so scroll restoration sticks.
+        // Use double rAF: first fires before React commit, second after Quill rebuilds DOM
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-            window.scrollTo(0, savedWindowScroll);
+            restoreScroll();
             positionSelectionBox();
           });
         });
@@ -2798,8 +2814,24 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       const applyBorder = (borderClass: string) => {
         if (!activeImg) return;
         const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
+        const findScrollParent = (el: HTMLElement | null): HTMLElement | null => {
+          let node = el?.parentElement ?? null;
+          while (node) {
+            const oy = getComputedStyle(node).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+            node = node.parentElement;
+          }
+          return null;
+        };
+        const scrollParent = findScrollParent(qlEditorEl);
         const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
+        const savedParentScroll = scrollParent ? scrollParent.scrollTop : 0;
         const savedWindowScroll = window.scrollY;
+        const restoreScroll = () => {
+          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+          if (scrollParent) scrollParent.scrollTop = savedParentScroll;
+          window.scrollTo(0, savedWindowScroll);
+        };
         activeImg.classList.remove('img-border-none', 'img-border-thin', 'img-border-rounded', 'img-border-shadow');
         activeImg.classList.add(borderClass);
         [borderNoneBtn, borderThinBtn, borderRoundedBtn, borderShadowBtn].forEach(b => b.classList.remove('active'));
@@ -2809,11 +2841,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
-        // Double rAF to ensure restoration happens after Quill rebuilds DOM from new value
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-            window.scrollTo(0, savedWindowScroll);
+            restoreScroll();
           });
         });
       };
