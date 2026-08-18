@@ -3718,21 +3718,24 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       let toolbar: HTMLDivElement | null = null;
       let hideTimer: ReturnType<typeof setTimeout> | null = null;
       let syncTimer: ReturnType<typeof setTimeout> | null = null;
-      const observers: MutationObserver[] = [];
 
-      // ---- Sync table HTML back to Quill's internal state ----
+      // ---- Sync table HTML back to Quill / React state ----
+      // Called ONLY on structural changes (add/delete row/col) and on focusout.
+      // We deliberately do NOT call this on every keystroke because it causes
+      // React to re-render and reset the caret position.
+      const syncNow = () => {
+        const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
+        if (!qlContainer || !QuillClass) return;
+        const quill = QuillClass.find(qlContainer);
+        if (!quill) return;
+        try {
+          quill.update('silent');
+          onChangeRef.current(quill.root.innerHTML);
+        } catch (_) { /* non-critical */ }
+      };
       const scheduleSync = () => {
         if (syncTimer) clearTimeout(syncTimer);
-        syncTimer = setTimeout(() => {
-          const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
-          if (!qlContainer || !QuillClass) return;
-          const quill = QuillClass.find(qlContainer);
-          if (!quill) return;
-          try {
-            quill.update('silent');
-            onChangeRef.current(quill.root.innerHTML);
-          } catch (_) { /* non-critical */ }
-        }, 300);
+        syncTimer = setTimeout(syncNow, 50);
       };
 
       // ---- Ensure all existing table cells are editable ----
@@ -3744,6 +3747,32 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         });
       };
       ensureCellsEditable(qlEditor);
+
+      // ---- Helper: is caret at the start of the cell (no preceding text/elements)? ----
+      const isCaretAtStart = (cell: HTMLElement): boolean => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) return false;
+        // Check there is nothing before the caret inside the cell
+        const pre = range.cloneRange();
+        pre.selectNodeContents(cell);
+        pre.setEnd(range.startContainer, range.startOffset);
+        const preText = pre.toString();
+        return preText.length === 0;
+      };
+
+      // ---- Helper: is caret at the end of the cell? ----
+      const isCaretAtEnd = (cell: HTMLElement): boolean => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) return false;
+        const post = range.cloneRange();
+        post.selectNodeContents(cell);
+        post.setStart(range.endContainer, range.endOffset);
+        return post.toString().length === 0;
+      };
 
       // ---- Build floating toolbar ----
       const ensureToolbar = () => {
@@ -3902,22 +3931,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         });
       };
 
-      // ---- Observe table content changes ----
-      const observeTable = (wrapper: HTMLDivElement) => {
-        observers.forEach(o => o.disconnect());
-        observers.length = 0;
-        const obs = new MutationObserver(() => scheduleSync());
-        obs.observe(wrapper, { childList: true, subtree: true, characterData: true });
-        observers.push(obs);
-      };
-
       // ---- Mouse events to show/hide toolbar ----
       const onMouseOver = (e: Event) => {
         const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
         if (wrapper && wrapper.closest('.ql-editor')) {
           cancelHide();
           showToolbar(wrapper);
-          observeTable(wrapper);
           ensureCellsEditable(wrapper);
         }
       };
@@ -3935,7 +3954,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           if (wrapper && wrapper.closest('.ql-editor')) {
             cancelHide();
             showToolbar(wrapper);
-            observeTable(wrapper);
           }
         }
       };
@@ -3944,27 +3962,72 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       qlEditor.addEventListener('mouseout', onMouseOut);
       qlEditor.addEventListener('click', onCellClick);
 
-      // ---- Keydown: intercept Backspace/Delete inside cells (capture phase on container) ----
+      // ---- Keydown: handle editing keys inside table cells ----
+      // Use capture phase on ql-editor so we run BEFORE Quill's bubble-phase
+      // keyboard bindings (which would otherwise delete the whole embed).
       const onKeyDown = (e: KeyboardEvent) => {
         const target = e.target as HTMLElement;
         if (!target) return;
         const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
         if (!cell) return;
 
-        if (e.key === 'Backspace' || e.key === 'Delete') {
-          // Let browser handle text deletion natively inside the contenteditable cell.
-          // Stop propagation so Quill's keyboard handler never sees it.
-          e.stopPropagation();
+        // We are inside a contenteditable table cell. Stop ALL key events
+        // from bubbling to Quill so its keyboard module never sees them.
+        e.stopPropagation();
+
+        if (e.key === 'Backspace') {
+          // If caret is at the start of the cell or there is no text to delete,
+          // prevent default so the browser doesn't merge/remove the cell or
+          // jump the caret out of the table.
+          const sel = window.getSelection();
+          const isEmpty = cell.textContent?.replace(/\u00a0/g, '').trim() === '';
+          if (isEmpty || (sel && sel.isCollapsed && isCaretAtStart(cell))) {
+            e.preventDefault();
+          }
+          // Otherwise let browser delete text natively (stopPropagation already
+          // prevents Quill from interfering).
           return;
         }
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.stopPropagation();
+
+        if (e.key === 'Delete') {
+          const sel = window.getSelection();
+          const isEmpty = cell.textContent?.replace(/\u00a0/g, '').trim() === '';
+          if (isEmpty || (sel && sel.isCollapsed && isCaretAtEnd(cell))) {
+            e.preventDefault();
+          }
+          return;
+        }
+
+        if (e.key === 'Enter') {
+          // Insert a <br> instead of creating a new block (which would exit
+          // the cell / break the table).
+          e.preventDefault();
+          document.execCommand('insertLineBreak');
+          return;
+        }
+
+        if (e.key === 'Tab') {
+          // Prevent Tab from moving focus out of the table. Let the browser
+          // move between cells natively (default Tab behavior in tables).
+          return;
         }
       };
-      // Use capture phase on container so we run before Quill's bubble-phase handlers
-      container.addEventListener('keydown', onKeyDown, true);
+      qlEditor.addEventListener('keydown', onKeyDown, true);
 
-      // ---- Focus out: sync ----
+      // ---- Handle paste in cells: strip formatting, insert plain text ----
+      const onPaste = (e: ClipboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
+        const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
+        if (!cell) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const text = e.clipboardData?.getData('text/plain') || '';
+        document.execCommand('insertText', false, text);
+      };
+      qlEditor.addEventListener('paste', onPaste, true);
+
+      // ---- Focus out: sync cell content to Quill ----
       const onFocusOut = (e: FocusEvent) => {
         const wrapper = (e.target as HTMLElement).closest?.('.table-wrapper');
         const related = e.relatedTarget as HTMLElement | null;
@@ -3974,9 +4037,23 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       };
       qlEditor.addEventListener('focusout', onFocusOut);
 
-      // ---- Observe the ql-editor itself for newly added tables ----
-      const editorObserver = new MutationObserver(() => {
-        ensureCellsEditable(qlEditor);
+      // ---- Observe ql-editor only for structural DOM changes (new tables added) ----
+      // We do NOT observe characterData because that fires on every keystroke and
+      // causes re-render / caret jumps. We only need to set contenteditable on
+      // newly inserted table cells.
+      const editorObserver = new MutationObserver((mutations) => {
+        let needsUpdate = false;
+        for (const m of mutations) {
+          m.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) {
+              const el = node as HTMLElement;
+              if (el.classList?.contains('table-wrapper') || el.querySelector?.('.table-wrapper')) {
+                needsUpdate = true;
+              }
+            }
+          });
+        }
+        if (needsUpdate) ensureCellsEditable(qlEditor);
       });
       editorObserver.observe(qlEditor, { childList: true, subtree: true });
 
@@ -3984,9 +4061,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         qlEditor.removeEventListener('mouseover', onMouseOver);
         qlEditor.removeEventListener('mouseout', onMouseOut);
         qlEditor.removeEventListener('click', onCellClick);
-        container.removeEventListener('keydown', onKeyDown, true);
+        qlEditor.removeEventListener('keydown', onKeyDown, true);
+        qlEditor.removeEventListener('paste', onPaste, true);
         qlEditor.removeEventListener('focusout', onFocusOut);
-        observers.forEach(o => o.disconnect());
         editorObserver.disconnect();
         if (syncTimer) clearTimeout(syncTimer);
         if (hideTimer) clearTimeout(hideTimer);
