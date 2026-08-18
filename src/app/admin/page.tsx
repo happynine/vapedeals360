@@ -468,7 +468,9 @@ export default function AdminPage() {
   // Listen for image crop requests from RichTextEditor
   useEffect(() => {
     const handleCropRequest = (e: CustomEvent<{ imageSrc: string; imageElement: HTMLImageElement; minWidth?: number; minHeight?: number }>) => {
-      setCropImageSrc(e.detail.imageSrc || '');
+      const src = e.detail.imageSrc || '';
+      // Proxy external URLs through /api/image to avoid CORS taint on canvas
+      setCropImageSrc(src.startsWith('http') ? `/api/image?key=${encodeURIComponent(src)}` : src);
       setCropTargetImg(e.detail.imageElement);
       setCropMinWidth(e.detail.minWidth);
       setCropMinHeight(e.detail.minHeight);
@@ -2956,10 +2958,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       container.style.position = 'relative';
       container.appendChild(editorWrapper);
 
-      // Load the original image for cropping
+      // Load the original image for cropping (proxy through same-origin to avoid CORS canvas taint)
       const originalImg = new window.Image();
       originalImg.crossOrigin = 'anonymous';
-      originalImg.src = src;
+      originalImg.src = src.startsWith('http') ? `/api/image?key=${encodeURIComponent(src)}` : src;
 
       // Get container dimensions for positioning
       const containerRect = container.getBoundingClientRect();
@@ -3793,6 +3795,15 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
     return new File([bestBlob], fileName, { type: outputType });
   }, []);
 
+  // Convert a public image URL to a same-origin proxy URL for CORS-safe canvas operations
+  const toCorsSafeUrl = useCallback((url: string): string => {
+    if (!url || url.startsWith('data:') || url.startsWith('/api/image')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return `/api/image?key=${encodeURIComponent(url)}`;
+    }
+    return url;
+  }, []);
+
   // Upload a single image file to object storage, return URL or null
   const uploadImageFile = useCallback(async (file: File): Promise<string | null> => {
     try {
@@ -3865,10 +3876,11 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       // Load the image into a canvas at the target dimensions
       const img = new window.Image();
       img.crossOrigin = 'anonymous';
+      const corsSafeSrc = src.startsWith('http') ? `/api/image?key=${encodeURIComponent(src)}` : src;
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = reject;
-        img.src = src;
+        img.src = corsSafeSrc;
       });
 
       const canvas = document.createElement('canvas');
