@@ -2752,11 +2752,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         }
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
+        // Use double rAF: first rAF fires before React commit, second fires after
+        // Quill has rebuilt the DOM from the new value prop, so scroll restoration sticks.
         requestAnimationFrame(() => {
-          // Restore scroll after React/Quill re-render (causes controlled-component reset)
-          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-          window.scrollTo(0, savedWindowScroll);
-          positionSelectionBox();
+          requestAnimationFrame(() => {
+            if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+            window.scrollTo(0, savedWindowScroll);
+            positionSelectionBox();
+          });
         });
       };
 
@@ -2806,9 +2809,12 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
         // Persist the class via Quill's format API so it survives re-renders
         persistImageFormats(activeImg);
+        // Double rAF to ensure restoration happens after Quill rebuilds DOM from new value
         requestAnimationFrame(() => {
-          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-          window.scrollTo(0, savedWindowScroll);
+          requestAnimationFrame(() => {
+            if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
+            window.scrollTo(0, savedWindowScroll);
+          });
         });
       };
 
