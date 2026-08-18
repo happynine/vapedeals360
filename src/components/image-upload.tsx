@@ -1,1 +1,505 @@
-J3VzZSBjbGllbnQnOwppbXBvcnQgeyB1c2VTdGF0ZSwgdXNlUmVmLCB1c2VDYWxsYmFjaywgdXNlRWZmZWN0IH0gZnJvbSAncmVhY3QnOwoKaW50ZXJmYWNlIEltYWdlVXBsb2FkUHJvcHMgewogIHZhbHVlOiBzdHJpbmcgfCBudWxsOwogIG9uVXBsb2FkQ29tcGxldGU/OiAoa2V5OiBzdHJpbmcpID0+IHZvaWQ7CiAgb25DaGFuZ2U/OiAoa2V5OiBzdHJpbmcgfCBudWxsKSA9PiB2b2lkOwogIGFzcGVjdFJhdGlvPzogbnVtYmVyOwogIHN1Z2dlc3RlZFNpemU/OiBzdHJpbmc7CiAgcmVjb21tZW5kZWRTaXplPzogc3RyaW5nOwogIG1pbldpZHRoPzogbnVtYmVyOwogIG1pbkhlaWdodD86IG51bWJlcjsKICBsYWJlbD86IHN0cmluZzsKICBmb2xkZXI/OiBzdHJpbmc7CiAgbGFuZz86IHN0cmluZzsKICBpc1Byb2R1Y3RJbWFnZT86IGJvb2xlYW47ICAvLyBJZiB0cnVlLCB1cGxvYWQgdHdvIHNpemVzICgzMTV4MzE1IGFuZCA2NDB4NjQwKQogIGVudGl0eUlkPzogc3RyaW5nIHwgbnVtYmVyOyAgLy8g5b2T5o+Q5L6b5pe277yM55SoIElEIOS9nOS4uuaWh+S7tuWQje+8iOimhuebluW8j+S4iuS8oO+8iQogIHNsdWc/OiBzdHJpbmc7ICAvLyDkuqflk4Egc2x1Z++8jOeUqOS6jiBTRU8g5ZG95ZCNCiAgaW1hZ2VUeXBlPzogc3RyaW5nOyAgLy8g5Zu+54mH57G75Z6L77yaJ3Byb2R1Y3QtaW1hZ2UnIOaIliAnZGV0YWlsLXBhZ2UnCiAgY3VzdG9tRmlsZU5hbWU/OiBzdHJpbmc7ICAvLyDlrozmlbTnmoToh6rlrprkuYnlr7nosaEga2V5IOWQjue8gO+8iOWmgiAiNDIvY292ZXIuanBnIu+8ie+8jOWQr+eUqOehruWumuaAp+i3r+W+hOimhueblgp9CgpleHBvcnQgZnVuY3Rpb24gSW1hZ2VVcGxvYWQoewogIHZhbHVlLAogIG9uVXBsb2FkQ29tcGxldGUsCiAgb25DaGFuZ2UsCiAgYXNwZWN0UmF0aW8sCiAgc3VnZ2VzdGVkU2l6ZSwKICByZWNvbW1lbmRlZFNpemUsCiAgbWluV2lkdGgsCiAgbWluSGVpZ2h0LAogIGxhYmVsID0gJ0ltYWdlJywKICBmb2xkZXIgPSAndXBsb2FkcycsCiAgbGFuZyA9ICdlbicsCiAgaXNQcm9kdWN0SW1hZ2UgPSBmYWxzZSwKICBlbnRpdHlJZCwKICBzbHVnLAogIGltYWdlVHlwZSwKICBjdXN0b21GaWxlTmFtZSwKfTogSW1hZ2VVcGxvYWRQcm9wcykgewogIGNvbnN0IHNpemVIaW50ID0gc3VnZ2VzdGVkU2l6ZSB8fCByZWNvbW1lbmRlZFNpemU7CiAgY29uc3QgaGFuZGxlQ29tcGxldGUgPSBvbkNoYW5nZSB8fCBvblVwbG9hZENvbXBsZXRlIHx8ICgoKSA9PiB7fSk7CiAgY29uc3QgW3Nob3dDcm9wLCBzZXRTaG93Q3JvcF0gPSB1c2VTdGF0ZShmYWxzZSk7CiAgY29uc3QgW3NyYywgc2V0U3JjXSA9IHVzZVN0YXRlPHN0cmluZyB8IG51bGw+KG51bGwpOwogIGNvbnN0IFt1cGxvYWRpbmcsIHNldFVwbG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSk7CiAgY29uc3QgW3ByZXZpZXdUaW1lc3RhbXAsIHNldFByZXZpZXdUaW1lc3RhbXBdID0gdXNlU3RhdGUoRGF0ZS5ub3coKSk7CgogIC8qIOKUgOKUgCDlm77niYfnvKnmlL4gJiDlubPnp7sg4pSA4pSAICovCiAgY29uc3QgW3NjYWxlLCBzZXRTY2FsZV0gPSB1c2VTdGF0ZSgxKTsKICBjb25zdCBbcGFuWCwgc2V0UGFuWF0gPSB1c2VTdGF0ZSgwKTsKICBjb25zdCBbcGFuWSwgc2V0UGFuWV0gPSB1c2VTdGF0ZSgwKTsKICBjb25zdCBbaXNQYW5uaW5nLCBzZXRJc1Bhbm5pbmddID0gdXNlU3RhdGUoZmFsc2UpOwogIGNvbnN0IHBhblN0YXJ0UmVmID0gdXNlUmVmKHsgeDogMCwgeTogMCwgcGFuWDogMCwgcGFuWTogMCB9KTsKCiAgY29uc3QgaW1nUmVmID0gdXNlUmVmPEhUTUxJbWFnZUVsZW1lbnQ+KG51bGwpOwogIGNvbnN0IGlucHV0UmVmID0gdXNlUmVmPEhUTUxJbnB1dEVsZW1lbnQ+KG51bGwpOwogIGNvbnN0IGNvbnRhaW5lclJlZiA9IHVzZVJlZjxIVE1MRGl2RWxlbWVudD4obnVsbCk7CiAgY29uc3QgW2Nyb3BGcmFtZSwgc2V0Q3JvcEZyYW1lXSA9IHVzZVN0YXRlKHsgd2lkdGg6IDMwMCwgaGVpZ2h0OiAzMDAgfSk7CiAgY29uc3QgW2ltYWdlTmF0dXJhbFNpemUsIHNldEltYWdlTmF0dXJhbFNpemVdID0gdXNlU3RhdGUoeyB3aWR0aDogMCwgaGVpZ2h0OiAwIH0pOwogIGNvbnN0IFtpbWFnZURpc3BsYXllZFNpemUsIHNldEltYWdlRGlzcGxheWVkU2l6ZV0gPSB1c2VTdGF0ZSh7IHdpZHRoOiAwLCBoZWlnaHQ6IDAgfSk7CgogIC8qIOKUgOKUgCDnlKjmiLflj6/nvJbovpHnmoTovpPlh7rlsLrlr7gg4pSA4pSAICovCiAgY29uc3QgW3VzZXJPdXRwdXRTaXplLCBzZXRVc2VyT3V0cHV0U2l6ZV0gPSB1c2VTdGF0ZSgoKSA9PiB7CiAgICBjb25zdCBoaW50ID0gc3VnZ2VzdGVkU2l6ZSB8fCByZWNvbW1lbmRlZFNpemU7CiAgICBpZiAoaGludCkgewogICAgICBjb25zdCB3TWF0Y2ggPSBoaW50Lm1hdGNoKC8oXGQrKVxzKnhccyooXGQrKS9pKTsKICAgICAgaWYgKHdNYXRjaCkgewogICAgICAgIHJldHVybiB7IHdpZHRoOiBwYXJzZUludCh3TWF0Y2hbMV0pLCBoZWlnaHQ6IHBhcnNlSW50KHdNYXRjaFsyXSkgfTsKICAgICAgfQogICAgICBjb25zdCBzaW5nbGVNYXRjaCA9IGhpbnQubWF0Y2goLyhcZCspLyk7CiAgICAgIGlmIChzaW5nbGVNYXRjaCkgewogICAgICAgIGNvbnN0IG4gPSBwYXJzZUludChzaW5nbGVNYXRjaFsxXSk7CiAgICAgICAgaWYgKG4gPiAwKSByZXR1cm4geyB3aWR0aDogbiwgaGVpZ2h0OiBuIH07CiAgICAgIH0KICAgIH0KICAgIHJldHVybiB7IHdpZHRoOiA0MDAsIGhlaWdodDogNDAwIH07CiAgfSk7CgogIGNvbnN0IGhhbmRsZU91dHB1dFNpemVDaGFuZ2UgPSAoZGltOiAnd2lkdGgnIHwgJ2hlaWdodCcsIHZhbHVlOiBzdHJpbmcpID0+IHsKICAgIGNvbnN0IG51bSA9IHBhcnNlSW50KHZhbHVlKTsKICAgIGlmICghbnVtIHx8IG51bSA8PSAwKSByZXR1cm47CiAgICBzZXRVc2VyT3V0cHV0U2l6ZShwcmV2ID0+IHsKICAgICAgY29uc3QgbmV4dCA9IHsgLi4ucHJldiwgW2RpbV06IG51bSB9OwogICAgICAvLyDlj6rmm7TmlrDoo4Hlm77moYbnmoTmr5TkvovvvIzkuI3mlLnlj5jlm77niYfnvKnmlL7lkozkvY3nva4KICAgICAgY29uc3QgcmF0aW8gPSBuZXh0LndpZHRoIC8gbmV4dC5oZWlnaHQ7CiAgICAgIGNvbnN0IG1heFcgPSBjb250YWluZXJSZWYuY3VycmVudD8uY2xpZW50V2lkdGggPz8gNDAwOwogICAgICBjb25zdCBtYXhIID0gY29udGFpbmVyUmVmLmN1cnJlbnQ/LmNsaWVudEhlaWdodCA/PyA0MDA7CiAgICAgIGNvbnN0IGltZ1cgPSBpbWFnZU5hdHVyYWxTaXplLndpZHRoIHx8IG1heFc7CiAgICAgIGNvbnN0IGltZ0ggPSBpbWFnZU5hdHVyYWxTaXplLmhlaWdodCB8fCBtYXhIOwogICAgICBsZXQgY3c6IG51bWJlciwgY2g6IG51bWJlcjsKICAgICAgaWYgKHJhdGlvID49IDEpIHsKICAgICAgICBjdyA9IE1hdGgubWluKG1heFcgKiAwLjksIGltZ1cpOwogICAgICAgIGNoID0gY3cgLyByYXRpbzsKICAgICAgICBpZiAoY2ggPiBtYXhIICogMC45IHx8IGNoID4gaW1nSCkgewogICAgICAgICAgY2ggPSBNYXRoLm1pbihtYXhIICogMC45LCBpbWdIKTsKICAgICAgICAgIGN3ID0gY2ggKiByYXRpbzsKICAgICAgICB9CiAgICAgIH0gZWxzZSB7CiAgICAgICAgY2ggPSBNYXRoLm1pbihtYXhIICogMC45LCBpbWdIKTsKICAgICAgICBjdyA9IGNoICogcmF0aW87CiAgICAgICAgaWYgKGN3ID4gbWF4VyAqIDAuOSB8fCBjdyA+IGltZ1cpIHsKICAgICAgICAgIGN3ID0gTWF0aC5taW4obWF4VyAqIDAuOSwgaW1nVyk7CiAgICAgICAgICBjaCA9IGN3IC8gcmF0aW87CiAgICAgICAgfQogICAgICB9CiAgICAgIHNldENyb3BGcmFtZSh7IHdpZHRoOiBNYXRoLnJvdW5kKGN3KSwgaGVpZ2h0OiBNYXRoLnJvdW5kKGNoKSB9KTsKICAgICAgcmV0dXJuIG5leHQ7CiAgICB9KTsKICB9OwoKICAvKiDilIDilIAg6YCJ5oup5paH5Lu2IOKUgOKUgCAqLwogIGNvbnN0IG9uU2VsZWN0RmlsZSA9IHVzZUNhbGxiYWNrKChlOiBSZWFjdC5DaGFuZ2VFdmVudDxIVE1MSW5wdXRFbGVtZW50PikgPT4gewogICAgY29uc3QgZmlsZSA9IGUudGFyZ2V0LmZpbGVzPy5bMF07CiAgICBpZiAoIWZpbGUpIHJldHVybjsKICAgIGNvbnN0IHJlYWRlciA9IG5ldyBGaWxlUmVhZGVyKCk7CiAgICByZWFkZXIub25sb2FkID0gKCkgPT4gewogICAgICBzZXRTcmMocmVhZGVyLnJlc3VsdCBhcyBzdHJpbmcpOwogICAgICBzZXRTaG93Q3JvcCh0cnVlKTsKICAgICAgc2V0U2NhbGUoMSk7CiAgICAgIHNldFBhblgoMCk7CiAgICAgIHNldFBhblkoMCk7CiAgICB9OwogICAgcmVhZGVyLnJlYWRBc0RhdGFVUkwoZmlsZSk7CiAgICBlLnRhcmdldC52YWx1ZSA9ICcnOwogIH0sIFtdKTsKCiAgLyog4pSA4pSAIOaLluaLveW5s+enuyDilIDilIAgKi8KICBjb25zdCBoYW5kbGVNb3VzZURvd24gPSB1c2VDYWxsYmFjaygKICAgIChlOiBSZWFjdC5Nb3VzZUV2ZW50KSA9PiB7CiAgICAgIHNldElzUGFubmluZyh0cnVlKTsKICAgICAgcGFuU3RhcnRSZWYuY3VycmVudCA9IHsgeDogZS5jbGllbnRYLCB5OiBlLmNsaWVudFksIHBhblgsIHBhblkgfTsKICAgIH0sCiAgICBbcGFuWCwgcGFuWV0sCiAgKTsKCiAgY29uc3QgaGFuZGxlTW91c2VNb3ZlID0gdXNlQ2FsbGJhY2soCiAgICAoZTogUmVhY3QuTW91c2VFdmVudCkgPT4gewogICAgICBpZiAoIWlzUGFubmluZykgcmV0dXJuOwogICAgICBjb25zdCBkeCA9IGUuY2xpZW50WCAtIHBhblN0YXJ0UmVmLmN1cnJlbnQueDsKICAgICAgY29uc3QgZHkgPSBlLmNsaWVudFkgLSBwYW5TdGFydFJlZi5jdXJyZW50Lnk7CiAgICAgIHNldFBhblgocGFuU3RhcnRSZWYuY3VycmVudC5wYW5YICsgZHgpOwogICAgICBzZXRQYW5ZKHBhblN0YXJ0UmVmLmN1cnJlbnQucGFuWSArIGR5KTsKICAgIH0sCiAgICBbaXNQYW5uaW5nXSwKICApOwoKICBjb25zdCBoYW5kbGVNb3VzZVVwID0gdXNlQ2FsbGJhY2soKCkgPT4gc2V0SXNQYW5uaW5nKGZhbHNlKSwgW10pOwoKICAvKiDilIDilIAg57yp5pS+IOKUgOKUgCAqLwogIGNvbnN0IHpvb21PdXQgPSB1c2VDYWxsYmFjaygoKSA9PiBzZXRTY2FsZSgocykgPT4gTWF0aC5tYXgoMC41LCArKHMgLSAwLjAyKS50b0ZpeGVkKDIpKSksIFtdKTsKICBjb25zdCB6b29tSW4gPSB1c2VDYWxsYmFjaygoKSA9PiBzZXRTY2FsZSgocykgPT4gTWF0aC5taW4oMywgKyhzICsgMC4wMikudG9GaXhlZCgyKSkpLCBbXSk7CgogIGNvbnN0IGhhbmRsZVpvb21TbGlkZXIgPSB1c2VDYWxsYmFjaygoZTogUmVhY3QuQ2hhbmdlRXZlbnQ8SFRNTElucHV0RWxlbWVudD4pID0+IHsKICAgIGNvbnN0IHZhbCA9IHBhcnNlRmxvYXQoZS50YXJnZXQudmFsdWUpOwogICAgc2V0U2NhbGUoTWF0aC5tYXgoMC41LCB2YWwpKTsKICB9LCBbXSk7CgogIC8vIOe8qeaUvuaXtuabtOaWsOaYvuekuuWwuuWvuAogIHVzZUVmZmVjdCgoKSA9PiB7CiAgICBpZiAoaW1nUmVmLmN1cnJlbnQgJiYgaW1hZ2VOYXR1cmFsU2l6ZS53aWR0aCA+IDApIHsKICAgICAgc2V0SW1hZ2VEaXNwbGF5ZWRTaXplKHsKICAgICAgICB3aWR0aDogaW1nUmVmLmN1cnJlbnQuY2xpZW50V2lkdGgsCiAgICAgICAgaGVpZ2h0OiBpbWdSZWYuY3VycmVudC5jbGllbnRIZWlnaHQsCiAgICAgIH0pOwogICAgfQogIH0sIFtzY2FsZSwgaW1hZ2VOYXR1cmFsU2l6ZS53aWR0aF0pOwoKICAvKiDilIDilIAg6KOB5Ymq5bm25LiK5LygIOKUgOKUgCAqLwogIGNvbnN0IGhhbmRsZUNyb3BBbmRVcGxvYWQgPSB1c2VDYWxsYmFjayhhc3luYyAoKSA9PiB7CiAgICBpZiAoIWltZ1JlZi5jdXJyZW50KSByZXR1cm47CiAgICBjb25zdCBpbWFnZSA9IGltZ1JlZi5jdXJyZW50OwogICAgY29uc3QgZGlzcFcgPSBpbWFnZS5jbGllbnRXaWR0aDsKICAgIGNvbnN0IGRpc3BIID0gaW1hZ2UuY2xpZW50SGVpZ2h0OwogICAgY29uc3QgcmF0aW8gPSBpbWFnZS5uYXR1cmFsV2lkdGggLyBkaXNwVzsKCiAgICBjb25zdCBjcm9wQ2VudGVyWCA9IGRpc3BXIC8gMiAtIHBhblggLyBzY2FsZTsKICAgIGNvbnN0IGNyb3BDZW50ZXJZID0gZGlzcEggLyAyIC0gcGFuWSAvIHNjYWxlOwogICAgY29uc3QgY3JvcERpc3BXID0gY3JvcEZyYW1lLndpZHRoIC8gc2NhbGU7CiAgICBjb25zdCBjcm9wRGlzcEggPSBjcm9wRnJhbWUuaGVpZ2h0IC8gc2NhbGU7CgogICAgY29uc3Qgc3ggPSAoY3JvcENlbnRlclggLSBjcm9wRGlzcFcgLyAyKSAqIHJhdGlvOwogICAgY29uc3Qgc3kgPSAoY3JvcENlbnRlclkgLSBjcm9wRGlzcEggLyAyKSAqIHJhdGlvOwogICAgY29uc3Qgc3cgPSBjcm9wRGlzcFcgKiByYXRpbzsKICAgIGNvbnN0IHNoID0gY3JvcERpc3BIICogcmF0aW87CgogICAgLy8g5L2/55So55So5oi35oyH5a6a55qE6L6T5Ye65bC65a+4CiAgICBjb25zdCBjYW52YXMgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdjYW52YXMnKTsKICAgIGNhbnZhcy53aWR0aCA9IHVzZXJPdXRwdXRTaXplLndpZHRoOwogICAgY2FudmFzLmhlaWdodCA9IHVzZXJPdXRwdXRTaXplLmhlaWdodDsKCiAgICBjb25zdCBjdHggPSBjYW52YXMuZ2V0Q29udGV4dCgnMmQnKTsKICAgIGlmICghY3R4KSByZXR1cm47CiAgICBjdHguZHJhd0ltYWdlKGltYWdlLCBzeCwgc3ksIHN3LCBzaCwgMCwgMCwgY2FudmFzLndpZHRoLCBjYW52YXMuaGVpZ2h0KTsKCiAgICBzZXRVcGxvYWRpbmcodHJ1ZSk7CiAgICB0cnkgewogICAgICBjb25zdCBibG9iID0gYXdhaXQgbmV3IFByb21pc2U8QmxvYiB8IG51bGw+KChyZXNvbHZlKSA9PgogICAgICAgIGNhbnZhcy50b0Jsb2IocmVzb2x2ZSwgJ2ltYWdlL2pwZWcnLCAwLjk1KSwKICAgICAgKTsKICAgICAgaWYgKCFibG9iKSB0aHJvdyBuZXcgRXJyb3IoJ0ZhaWxlZCB0byBjcmVhdGUgaW1hZ2UnKTsKCiAgICAgIGNvbnNvbGUubG9nKCdbSW1hZ2VVcGxvYWRdIFVwbG9hZGluZy4uLicsIHsgZm9sZGVyLCBpc1Byb2R1Y3RJbWFnZSwgZW50aXR5SWQsIGJsb2JTaXplOiBibG9iLnNpemUgfSk7CgogICAgICAvLyDnu5Xov4cgRm9ybURhdGHvvIznm7TmjqXlj5HpgIHljp/lp4sgYmxvYu+8iOmBv+WFjSBWZXJjZWwgRWRnZSDov5DooYzml7bop6PmnpAgRm9ybURhdGEg5pe255qEIFNoYXJlZEFycmF5QnVmZmVyIOmXrumimO+8iQogICAgICBjb25zdCBlbnRpdHlQYXJhbSA9IGVudGl0eUlkID8gYCZlbnRpdHlfaWQ9JHtlbmNvZGVVUklDb21wb25lbnQoZW50aXR5SWQpfWAgOiAnJzsKICAgICAgY29uc3Qgc2x1Z1BhcmFtID0gc2x1ZyA/IGAmc2x1Zz0ke2VuY29kZVVSSUNvbXBvbmVudChzbHVnKX1gIDogJyc7CiAgICAgIGNvbnN0IGltYWdlVHlwZVBhcmFtID0gaW1hZ2VUeXBlID8gYCZpbWFnZV90eXBlPSR7ZW5jb2RlVVJJQ29tcG9uZW50KGltYWdlVHlwZSl9YCA6ICcnOwogICAgICBjb25zdCBjdXN0b21GaWxlUGFyYW0gPSBjdXN0b21GaWxlTmFtZSA/IGAmY3VzdG9tX2ZpbGVfbmFtZT0ke2VuY29kZVVSSUNvbXBvbmVudChjdXN0b21GaWxlTmFtZSl9YCA6ICcnOwogICAgICBjb25zdCB1cGxvYWRVcmwgPSBgL2FwaS91cGxvYWQ/Zm9sZGVyPSR7ZW5jb2RlVVJJQ29tcG9uZW50KGZvbGRlcil9JHtpc1Byb2R1Y3RJbWFnZSA/ICcmcHJvZHVjdF9pbWFnZT10cnVlJyA6ICcnfSR7ZW50aXR5UGFyYW19JHtzbHVnUGFyYW19JHtpbWFnZVR5cGVQYXJhbX0ke2N1c3RvbUZpbGVQYXJhbX1gOwogICAgICBjb25zb2xlLmxvZygnW0ltYWdlVXBsb2FkXSBVcGxvYWQgVVJMOicsIHVwbG9hZFVybCk7CiAgICAgIAogICAgICBjb25zdCByZXMgPSBhd2FpdCBmZXRjaCh1cGxvYWRVcmwsIHsKICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICBoZWFkZXJzOiB7ICdDb250ZW50LVR5cGUnOiAnaW1hZ2UvanBlZycgfSwKICAgICAgICBib2R5OiBibG9iLAogICAgICB9KTsKICAgICAgCiAgICAgIGNvbnNvbGUubG9nKCdbSW1hZ2VVcGxvYWRdIFJlc3BvbnNlIHN0YXR1czonLCByZXMuc3RhdHVzKTsKICAgICAgY29uc3QganNvbiA9IGF3YWl0IHJlcy5qc29uKCk7CiAgICAgIGNvbnNvbGUubG9nKCdbSW1hZ2VVcGxvYWRdIFJlc3BvbnNlOicsIGpzb24pOwoKICAgICAgaWYgKGpzb24uc3VjY2VzcykgewogICAgICAgIC8vIEZvciBwcm9kdWN0IGltYWdlcywgc3RvcmUgYm90aCBsYXJnZSBhbmQgc21hbGwgVVJMcwogICAgICAgIGlmIChpc1Byb2R1Y3RJbWFnZSAmJiBqc29uLmRhdGEubGFyZ2UgJiYganNvbi5kYXRhLnNtYWxsKSB7CiAgICAgICAgICAvLyBTdG9yZSBhcyBKU09OIHN0cmluZyB3aXRoIGJvdGggVVJMcyBmb3IgY29uc2lzdGVudCBwcmV2aWV3IGhhbmRsaW5nCiAgICAgICAgICBjb25zdCBpbWFnZVVybHMgPSBKU09OLnN0cmluZ2lmeSh7CiAgICAgICAgICAgIGxhcmdlOiBqc29uLmRhdGEubGFyZ2UudXJsLAogICAgICAgICAgICBzbWFsbDoganNvbi5kYXRhLnNtYWxsLnVybCwKICAgICAgICAgIH0pOwogICAgICAgICAgY29uc29sZS5sb2coJ1tJbWFnZVVwbG9hZF0gQ2FsbGluZyBoYW5kbGVDb21wbGV0ZSB3aXRoIGltYWdlVXJsczonLCBpbWFnZVVybHMpOwogICAgICAgICAgaGFuZGxlQ29tcGxldGUoaW1hZ2VVcmxzKTsKICAgICAgICB9IGVsc2UgewogICAgICAgICAgY29uc29sZS5sb2coJ1tJbWFnZVVwbG9hZF0gQ2FsbGluZyBoYW5kbGVDb21wbGV0ZSB3aXRoIHVybDonLCBqc29uLmRhdGEudXJsKTsKICAgICAgICAgIGhhbmRsZUNvbXBsZXRlKGpzb24uZGF0YS51cmwpOwogICAgICAgIH0KICAgICAgICAvLyBVcGRhdGUgcHJldmlldyB0aW1lc3RhbXAgdG8gZm9yY2UgcmUtcmVuZGVyCiAgICAgICAgc2V0UHJldmlld1RpbWVzdGFtcChEYXRlLm5vdygpKTsKICAgICAgICBzZXRTaG93Q3JvcChmYWxzZSk7CiAgICAgICAgc2V0U3JjKG51bGwpOwogICAgICB9IGVsc2UgewogICAgICAgIGNvbnNvbGUuZXJyb3IoJ1tJbWFnZVVwbG9hZF0gVXBsb2FkIGZhaWxlZDonLCBqc29uLmVycm9yKTsKICAgICAgICBhbGVydCgnVXBsb2FkIGZhaWxlZDogJyArIGpzb24uZXJyb3IpOwogICAgICB9CiAgICB9IGNhdGNoIChlcnIpIHsKICAgICAgY29uc29sZS5lcnJvcignW0ltYWdlVXBsb2FkXSBVcGxvYWQgZXJyb3I6JywgZXJyKTsKICAgICAgYWxlcnQoJ1VwbG9hZCBmYWlsZWQ6ICcgKyAoZXJyIGluc3RhbmNlb2YgRXJyb3IgPyBlcnIubWVzc2FnZSA6ICdVbmtub3duIGVycm9yJykpOwogICAgfSBmaW5hbGx5IHsKICAgICAgc2V0VXBsb2FkaW5nKGZhbHNlKTsKICAgIH0KICB9LCBbc2NhbGUsIHBhblgsIHBhblksIGNyb3BGcmFtZSwgZm9sZGVyLCBoYW5kbGVDb21wbGV0ZSwgdXNlck91dHB1dFNpemUsIGVudGl0eUlkLCBzbHVnLCBpbWFnZVR5cGVdKTsKCiAgY29uc3QgaGFuZGxlQ2FuY2VsQ3JvcCA9IHVzZUNhbGxiYWNrKCgpID0+IHsKICAgIHNldFNob3dDcm9wKGZhbHNlKTsKICAgIHNldFNyYyhudWxsKTsKICAgIHNldFNjYWxlKDEpOwogICAgc2V0UGFuWCgwKTsKICAgIHNldFBhblkoMCk7CiAgfSwgW10pOwoKICAvKiDilIDilIAg6K6h566X6KOB5Ymq5qGG5bC65a+4IOKUgOKUgCAqLwogIHVzZUVmZmVjdCgoKSA9PiB7CiAgICBpZiAoIXNob3dDcm9wIHx8ICFjb250YWluZXJSZWYuY3VycmVudCkgcmV0dXJuOwogICAgY29uc3QgZWwgPSBjb250YWluZXJSZWYuY3VycmVudDsKICAgIGNvbnN0IHVwZGF0ZUZyYW1lID0gKCkgPT4gewogICAgICBjb25zdCB7IGNsaWVudFdpZHRoOiBjdywgY2xpZW50SGVpZ2h0OiBjaCB9ID0gZWw7CiAgICAgIGNvbnN0IHBhZCA9IDMyOwogICAgICBjb25zdCBtYXhXID0gY3cgLSBwYWQ7CiAgICAgIGNvbnN0IG1heEggPSBjaCAtIHBhZDsKICAgICAgLy8g5LyY5YWI5L2/55So55So5oi35oyH5a6a55qE6L6T5Ye65bC65a+45q+U5L6LCiAgICAgIGNvbnN0IGFyID0gdXNlck91dHB1dFNpemUud2lkdGggLyB1c2VyT3V0cHV0U2l6ZS5oZWlnaHQ7CiAgICAgIAogICAgICAvLyDpu5jorqTnm67moIflsLrlr7jvvJo0ODB4NDgwcHjvvIjlvZMgYXNwZWN0UmF0aW8g5Li6IDEg5pe277yJCiAgICAgIGNvbnN0IHRhcmdldFNpemUgPSA0ODA7CiAgICAgIGxldCB0YXJnZXRXID0gdGFyZ2V0U2l6ZTsKICAgICAgbGV0IHRhcmdldEggPSB0YXJnZXRTaXplIC8gYXI7CiAgICAgIAogICAgICAvLyDlpoLmnpznm67moIflsLrlr7jotoXov4flrrnlmajlpKflsI/vvIzliJnnvKnlsI/liLDlrrnlmajlpKflsI8KICAgICAgbGV0IHc6IG51bWJlciwgaDogbnVtYmVyOwogICAgICBpZiAodGFyZ2V0VyA+IG1heFcgfHwgdGFyZ2V0SCA+IG1heEgpIHsKICAgICAgICBpZiAobWF4VyAvIG1heEggPiBhcikgewogICAgICAgICAgaCA9IG1heEg7CiAgICAgICAgICB3ID0gaCAqIGFyOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICB3ID0gbWF4VzsKICAgICAgICAgIGggPSB3IC8gYXI7CiAgICAgICAgfQogICAgICB9IGVsc2UgewogICAgICAgIHcgPSB0YXJnZXRXOwogICAgICAgIGggPSB0YXJnZXRIOwogICAgICB9CiAgICAgIHNldENyb3BGcmFtZSh7IHdpZHRoOiBNYXRoLnJvdW5kKHcpLCBoZWlnaHQ6IE1hdGgucm91bmQoaCkgfSk7CiAgICB9OwogICAgdXBkYXRlRnJhbWUoKTsKICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdyZXNpemUnLCB1cGRhdGVGcmFtZSk7CiAgICByZXR1cm4gKCkgPT4gd2luZG93LnJlbW92ZUV2ZW50TGlzdGVuZXIoJ3Jlc2l6ZScsIHVwZGF0ZUZyYW1lKTsKICB9LCBbc2hvd0Nyb3AsIHVzZXJPdXRwdXRTaXplLndpZHRoLCB1c2VyT3V0cHV0U2l6ZS5oZWlnaHRdKTsKCiAgY29uc3QgdCA9ICh6aDogc3RyaW5nLCBlbjogc3RyaW5nKSA9PiAobGFuZyA9PT0gJ3poJyA/IHpoIDogZW4pOwoKICAvLyBBZGQgdGltZXN0YW1wIHRvIGZvcmNlIHJlLXJlbmRlciB3aGVuIFVSTCBkb2Vzbid0IGNoYW5nZQogIGNvbnN0IHByZXZpZXdTcmMgPSB2YWx1ZSAKICAgID8gKHZhbHVlLnN0YXJ0c1dpdGgoJ2h0dHAnKSAKICAgICAgICA/ICh2YWx1ZS5pbmNsdWRlcygnPycpID8gYCR7dmFsdWV9JnQ9JHtwcmV2aWV3VGltZXN0YW1wfWAgOiBgJHt2YWx1ZX0/dD0ke3ByZXZpZXdUaW1lc3RhbXB9YCkKICAgICAgICA6IGAvYXBpL2ltYWdlP2tleT0ke2VuY29kZVVSSUNvbXBvbmVudCh2YWx1ZSl9JnQ9JHtwcmV2aWV3VGltZXN0YW1wfWApCiAgICA6IG51bGw7CgogIHJldHVybiAoCiAgICA8ZGl2PgogICAgICA8bGFiZWwgY2xhc3NOYW1lPSJ0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBibG9jayBtYi0xIHRleHQtbGVmdCI+CiAgICAgICAge2xhYmVsfQogICAgICAgIHtzaXplSGludCAmJiAoCiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9InRleHQtWzEwcHhdIHRleHQtbXV0ZWQtZm9yZWdyb3VuZC82MCBtbC0xIj4oe3NpemVIaW50fSk8L3NwYW4+CiAgICAgICAgKX0KICAgICAgPC9sYWJlbD4KCiAgICAgIHsvKiDpooTop4ggKi99CiAgICAgIHt2YWx1ZSAmJiAhc2hvd0Nyb3AgJiYgKAogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJtYi0yIHJlbGF0aXZlIGdyb3VwIj4KICAgICAgICAgIDxpbWcKICAgICAgICAgICAgc3JjPXtwcmV2aWV3U3JjfQogICAgICAgICAgICBhbHQ9IlByZXZpZXciCiAgICAgICAgICAgIGNsYXNzTmFtZT0icm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLWJvcmRlciBtYXgtaC0zMiBvYmplY3QtY292ZXIiCiAgICAgICAgICAvPgogICAgICAgIDwvZGl2PgogICAgICApfQoKICAgICAgey8qIOS4iuS8oOaMiemSriAqL30KICAgICAgeyFzaG93Q3JvcCAmJiAoCiAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggaXRlbXMtY2VudGVyIGdhcC0yIj4KICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBpbnB1dFJlZi5jdXJyZW50Py5jbGljaygpfQogICAgICAgICAgICBkaXNhYmxlZD17dXBsb2FkaW5nfQogICAgICAgICAgICBjbGFzc05hbWU9InJvdW5kZWQtbGcgYm9yZGVyIGJvcmRlci1kYXNoZWQgYm9yZGVyLWJvcmRlciBiZy1zZWNvbmRhcnkvNTAgcHgtNCBweS0yIHRleHQteHMgZm9udC1tZWRpdW0gdGV4dC1mb3JlZ3JvdW5kIGhvdmVyOmJnLXNlY29uZGFyeSB0cmFuc2l0aW9uLWNvbG9ycyBkaXNhYmxlZDpvcGFjaXR5LTUwIgogICAgICAgICAgPgogICAgICAgICAgICB7dXBsb2FkaW5nCiAgICAgICAgICAgICAgPyB0KCfkuIrkvKDkuK0uLi4nLCAnVXBsb2FkaW5nLi4uJykKICAgICAgICAgICAgICA6IHZhbHVlCiAgICAgICAgICAgICAgICA/IHQoJ+abv+aNouWbvueJhycsICdSZXBsYWNlIEltYWdlJykKICAgICAgICAgICAgICAgIDogdCgn6YCJ5oup5Zu+54mHJywgJ1NlbGVjdCBJbWFnZScpfQogICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICB7dmFsdWUgJiYgKAogICAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IGhhbmRsZUNvbXBsZXRlKCcnKX0KICAgICAgICAgICAgICBjbGFzc05hbWU9InRleHQteHMgdGV4dC1kZXN0cnVjdGl2ZSBob3Zlcjp1bmRlcmxpbmUiCiAgICAgICAgICAgID4KICAgICAgICAgICAgICB7dCgn56e76ZmkJywgJ1JlbW92ZScpfQogICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICl9CiAgICAgICAgICA8aW5wdXQgcmVmPXtpbnB1dFJlZn0gdHlwZT0iZmlsZSIgYWNjZXB0PSJpbWFnZS8qIiBvbkNoYW5nZT17b25TZWxlY3RGaWxlfSBjbGFzc05hbWU9ImhpZGRlbiIgLz4KICAgICAgICA8L2Rpdj4KICAgICAgKX0KCiAgICAgIHsvKiDoo4HliarlvLnnqpcgKi99CiAgICAgIHtzaG93Q3JvcCAmJiBzcmMgJiYgKAogICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmaXhlZCBpbnNldC0wIHotWzYwXSBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBiZy1ibGFjay83MCBiYWNrZHJvcC1ibHVyLXNtIj4KICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJ3LWZ1bGwgbWF4LXctM3hsIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWNhcmQgcC00IG1heC1oLVs5MHZoXSBvdmVyZmxvdy1hdXRvIj4KICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT0idGV4dC1zbSBmb250LXNlbWlib2xkIG1iLTMiPgogICAgICAgICAgICAgIHt0KCfoo4Hliarlm77niYcnLCAnQ3JvcCBJbWFnZScpfQogICAgICAgICAgICAgIHtzaXplSGludCAmJiAoCiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9Im1sLTIgdGV4dC14cyBmb250LW5vcm1hbCB0ZXh0LXB1cnBsZS02MDAgYmctcHVycGxlLTUwIHB4LTIgcHktMC41IHJvdW5kZWQiPgogICAgICAgICAgICAgICAgICB7dCgn6KaB5rGC5bC65a+4JywgJ1JlcXVpcmVkJyl9OiB7c2l6ZUhpbnQucmVwbGFjZSgncHgnLCAnJyl9cHgKICAgICAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgICApfQogICAgICAgICAgICA8L2gzPgoKICAgICAgICAgICAgey8qIOWPr+e8lui+keeahOi+k+WHuuWwuuWvuCAqL30KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0yIG1iLTMgcHgtNCBweS0yIGJnLWdyYXktNTAgcm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLWdyYXktMjAwIj4KICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9InRleHQtc20gdGV4dC1ncmF5LTYwMCI+CiAgICAgICAgICAgICAgICB7dCgn6L6T5Ye65bC65a+4JywgJ091dHB1dCBzaXplJyl9OgogICAgICAgICAgICAgIDwvc3Bhbj4KICAgICAgICAgICAgICA8aW5wdXQKICAgICAgICAgICAgICAgIHR5cGU9Im51bWJlciIKICAgICAgICAgICAgICAgIHZhbHVlPXt1c2VyT3V0cHV0U2l6ZS53aWR0aH0KICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gaGFuZGxlT3V0cHV0U2l6ZUNoYW5nZSgnd2lkdGgnLCBlLnRhcmdldC52YWx1ZSl9CiAgICAgICAgICAgICAgICBjbGFzc05hbWU9InctMTYgcHgtMSBweS0wLjUgdGV4dC1jZW50ZXIgZm9udC1tb25vIGZvbnQtc2VtaWJvbGQgdGV4dC1wdXJwbGUtNjAwIGJvcmRlciBib3JkZXItZ3JheS0zMDAgcm91bmRlZCBiZy13aGl0ZSIKICAgICAgICAgICAgICAgIG1pbj17MX0KICAgICAgICAgICAgICAvPgogICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1ncmF5LTQwMCI+w5c8L3NwYW4+CiAgICAgICAgICAgICAgPGlucHV0CiAgICAgICAgICAgICAgICB0eXBlPSJudW1iZXIiCiAgICAgICAgICAgICAgICB2YWx1ZT17dXNlck91dHB1dFNpemUuaGVpZ2h0fQogICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBoYW5kbGVPdXRwdXRTaXplQ2hhbmdlKCdoZWlnaHQnLCBlLnRhcmdldC52YWx1ZSl9CiAgICAgICAgICAgICAgICBjbGFzc05hbWU9InctMTYgcHgtMSBweS0wLjUgdGV4dC1jZW50ZXIgZm9udC1tb25vIGZvbnQtc2VtaWJvbGQgdGV4dC1wdXJwbGUtNjAwIGJvcmRlciBib3JkZXItZ3JheS0zMDAgcm91bmRlZCBiZy13aGl0ZSIKICAgICAgICAgICAgICAgIG1pbj17MX0KICAgICAgICAgICAgICAvPgogICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1zbSB0ZXh0LWdyYXktNTAwIj5weDwvc3Bhbj4KICAgICAgICAgICAgICB7KG1pbldpZHRoIHx8IG1pbkhlaWdodCkgJiYgKAogICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPSJ0ZXh0LXhzIHRleHQtZ3JheS00MDAgbWwtMiI+CiAgICAgICAgICAgICAgICAgICh7dCgn5pyA5bCPJywgJ01pbicpfToge21pbldpZHRoIHx8ICfigJQnfSDDlyB7bWluSGVpZ2h0IHx8ICfigJQnfXB4KQogICAgICAgICAgICAgICAgPC9zcGFuPgogICAgICAgICAgICAgICl9CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgey8qIOijgeWJquWMuuWfnyAqL30KICAgICAgICAgICAgPGRpdgogICAgICAgICAgICAgIHJlZj17Y29udGFpbmVyUmVmfQogICAgICAgICAgICAgIGNsYXNzTmFtZT0icmVsYXRpdmUgYmctWyMxYTFhMWFdIHJvdW5kZWQtbGcgbWItNCBvdmVyZmxvdy1oaWRkZW4iCiAgICAgICAgICAgICAgc3R5bGU9e3sKICAgICAgICAgICAgICAgIGhlaWdodDogMzUwLAogICAgICAgICAgICAgICAgY3Vyc29yOiBpc1Bhbm5pbmcgPyAnZ3JhYmJpbmcnIDogJ2dyYWInLAogICAgICAgICAgICAgICAgdXNlclNlbGVjdDogJ25vbmUnLAogICAgICAgICAgICAgIH19CiAgICAgICAgICAgICAgb25Nb3VzZURvd249e2hhbmRsZU1vdXNlRG93bn0KICAgICAgICAgICAgICBvbk1vdXNlTW92ZT17aGFuZGxlTW91c2VNb3ZlfQogICAgICAgICAgICAgIG9uTW91c2VVcD17aGFuZGxlTW91c2VVcH0KICAgICAgICAgICAgICBvbk1vdXNlTGVhdmU9e2hhbmRsZU1vdXNlVXB9CiAgICAgICAgICAgID4KICAgICAgICAgICAgICB7Lyog5Zu65a6a6KOB5Ymq5qGGICovfQogICAgICAgICAgICAgIDxkaXYKICAgICAgICAgICAgICAgIHN0eWxlPXt7CiAgICAgICAgICAgICAgICAgIHBvc2l0aW9uOiAnYWJzb2x1dGUnLAogICAgICAgICAgICAgICAgICBsZWZ0OiAnNTAlJywKICAgICAgICAgICAgICAgICAgdG9wOiAnNTAlJywKICAgICAgICAgICAgICAgICAgd2lkdGg6IGNyb3BGcmFtZS53aWR0aCwKICAgICAgICAgICAgICAgICAgaGVpZ2h0OiBjcm9wRnJhbWUuaGVpZ2h0LAogICAgICAgICAgICAgICAgICB0cmFuc2Zvcm06ICd0cmFuc2xhdGUoLTUwJSwgLTUwJSknLAogICAgICAgICAgICAgICAgICBib3JkZXI6ICcycHggc29saWQgI2ZmZicsCiAgICAgICAgICAgICAgICAgIGJveFNoYWRvdzogJzAgMCAwIDk5OTlweCByZ2JhKDAsMCwwLDAuNSknLAogICAgICAgICAgICAgICAgICB6SW5kZXg6IDIsCiAgICAgICAgICAgICAgICAgIHBvaW50ZXJFdmVudHM6ICdub25lJywKICAgICAgICAgICAgICAgIH19CiAgICAgICAgICAgICAgLz4KICAgICAgICAgICAgICB7Lyog5Y+v57yp5pS+L+aLluaLveeahOWbvueJhyAqL30KICAgICAgICAgICAgICA8aW1nCiAgICAgICAgICAgICAgICByZWY9e2ltZ1JlZn0KICAgICAgICAgICAgICAgIHNyYz17c3JjfQogICAgICAgICAgICAgICAgYWx0PSJDcm9wIgogICAgICAgICAgICAgICAgZHJhZ2dhYmxlPXtmYWxzZX0KICAgICAgICAgICAgICAgIG9uTG9hZD17KGUpID0+IHsKICAgICAgICAgICAgICAgICAgY29uc3QgaW1nID0gZS5jdXJyZW50VGFyZ2V0OwogICAgICAgICAgICAgICAgICBzZXRJbWFnZU5hdHVyYWxTaXplKHsgd2lkdGg6IGltZy5uYXR1cmFsV2lkdGgsIGhlaWdodDogaW1nLm5hdHVyYWxIZWlnaHQgfSk7CiAgICAgICAgICAgICAgICAgIHNldEltYWdlRGlzcGxheWVkU2l6ZSh7IHdpZHRoOiBpbWcuY2xpZW50V2lkdGgsIGhlaWdodDogaW1nLmNsaWVudEhlaWdodCB9KTsKICAgICAgICAgICAgICAgIH19CiAgICAgICAgICAgICAgICBzdHlsZT17ewogICAgICAgICAgICAgICAgICBwb3NpdGlvbjogJ2Fic29sdXRlJywKICAgICAgICAgICAgICAgICAgbGVmdDogJzUwJScsCiAgICAgICAgICAgICAgICAgIHRvcDogJzUwJScsCiAgICAgICAgICAgICAgICAgIG1heEhlaWdodDogJzEwMCUnLAogICAgICAgICAgICAgICAgICBtYXhXaWR0aDogJzEwMCUnLAogICAgICAgICAgICAgICAgICBvYmplY3RGaXQ6ICdjb250YWluJywKICAgICAgICAgICAgICAgICAgdHJhbnNmb3JtOiBgdHJhbnNsYXRlKC01MCUsIC01MCUpIHNjYWxlKCR7c2NhbGV9KSB0cmFuc2xhdGUoJHtwYW5YIC8gc2NhbGV9cHgsICR7cGFuWSAvIHNjYWxlfXB4KWAsCiAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybU9yaWdpbjogJ2NlbnRlciBjZW50ZXInLAogICAgICAgICAgICAgICAgICB0cmFuc2l0aW9uOiBpc1Bhbm5pbmcgPyAnbm9uZScgOiAndHJhbnNmb3JtIDAuMTVzIGVhc2Utb3V0JywKICAgICAgICAgICAgICAgICAgcG9pbnRlckV2ZW50czogJ25vbmUnLAogICAgICAgICAgICAgICAgfX0KICAgICAgICAgICAgICAvPgogICAgICAgICAgICA8L2Rpdj4KCiAgICAgICAgICAgIHsvKiDnvKnmlL7mjqfliLYgKi99CiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPSJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBnYXAtMyBtYi00IGJnLXdoaXRlIHJvdW5kZWQtbGcgcHktMiBweC00IHNoYWRvdy1zbSI+CiAgICAgICAgICAgICAgPGJ1dHRvbgogICAgICAgICAgICAgICAgdHlwZT0iYnV0dG9uIgogICAgICAgICAgICAgICAgb25DbGljaz17em9vbU91dH0KICAgICAgICAgICAgICAgIGNsYXNzTmFtZT0idy04IGgtOCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciByb3VuZGVkIGJnLWdyYXktMTAwIGhvdmVyOmJnLWdyYXktMjAwIHRleHQtbGcgZm9udC1ib2xkIHRleHQtZ3JheS03MDAgdHJhbnNpdGlvbi1jb2xvcnMiCiAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAg4oiSCiAgICAgICAgICAgICAgPC9idXR0b24+CiAgICAgICAgICAgICAgPGlucHV0CiAgICAgICAgICAgICAgICB0eXBlPSJyYW5nZSIKICAgICAgICAgICAgICAgIG1pbj0iMC41IgogICAgICAgICAgICAgICAgbWF4PSIzIgogICAgICAgICAgICAgICAgc3RlcD0iMC4wMiIKICAgICAgICAgICAgICAgIHZhbHVlPXtzY2FsZX0KICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVab29tU2xpZGVyfQogICAgICAgICAgICAgICAgY2xhc3NOYW1lPSJ3LTI0IGgtMiBjdXJzb3ItcG9pbnRlciBhY2NlbnQtcHVycGxlLTYwMCIKICAgICAgICAgICAgICAvPgogICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgIHR5cGU9ImJ1dHRvbiIKICAgICAgICAgICAgICAgIG9uQ2xpY2s9e3pvb21Jbn0KICAgICAgICAgICAgICAgIGNsYXNzTmFtZT0idy04IGgtOCBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciByb3VuZGVkIGJnLWdyYXktMTAwIGhvdmVyOmJnLWdyYXktMjAwIHRleHQtbGcgZm9udC1ib2xkIHRleHQtZ3JheS03MDAgdHJhbnNpdGlvbi1jb2xvcnMiCiAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAgKwogICAgICAgICAgICAgIDwvYnV0dG9uPgogICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT0idGV4dC1zbSB0ZXh0LWdyYXktNTAwIG1pbi13LVs1MHB4XSB0ZXh0LWNlbnRlciI+CiAgICAgICAgICAgICAgICB7KE1hdGgucm91bmQoc2NhbGUgKiAxMDAwKSAvIDEwKS50b0ZpeGVkKDApfSUKICAgICAgICAgICAgICA8L3NwYW4+CiAgICAgICAgICAgIDwvZGl2PgoKICAgICAgICAgICAgey8qIOaMiemSriAqL30KICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9ImZsZXgganVzdGlmeS1lbmQgZ2FwLTIiPgogICAgICAgICAgICAgIDxidXR0b24KICAgICAgICAgICAgICAgIHR5cGU9ImJ1dHRvbiIKICAgICAgICAgICAgICAgIG9uQ2xpY2s9e2hhbmRsZUNhbmNlbENyb3B9CiAgICAgICAgICAgICAgICBjbGFzc05hbWU9InJvdW5kZWQtbGcgYm9yZGVyIGJvcmRlci1ib3JkZXIgcHgtNCBweS0yIHRleHQtc20iCiAgICAgICAgICAgICAgPgogICAgICAgICAgICAgICAge3QoJ+WPlua2iCcsICdDYW5jZWwnKX0KICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgICA8YnV0dG9uCiAgICAgICAgICAgICAgICB0eXBlPSJidXR0b24iCiAgICAgICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVDcm9wQW5kVXBsb2FkfQogICAgICAgICAgICAgICAgZGlzYWJsZWQ9e3VwbG9hZGluZ30KICAgICAgICAgICAgICAgIGNsYXNzTmFtZT0icm91bmRlZC1sZyBiZy1wcmltYXJ5IHB4LTQgcHktMiB0ZXh0LXNtIGZvbnQtc2VtaWJvbGQgdGV4dC1wcmltYXJ5LWZvcmVncm91bmQgZGlzYWJsZWQ6b3BhY2l0eS01MCIKICAgICAgICAgICAgICA+CiAgICAgICAgICAgICAgICB7dXBsb2FkaW5nID8gdCgn5LiK5Lyg5LitLi4uJywgJ1VwbG9hZGluZy4uLicpIDogdCgn6KOB5Ymq5bm25LiK5LygJywgJ0Nyb3AgJiBVcGxvYWQnKX0KICAgICAgICAgICAgICA8L2J1dHRvbj4KICAgICAgICAgICAgPC9kaXY+CiAgICAgICAgICA8L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgKX0KICAgIDwvZGl2PgogICk7Cn0KCg==
+'use client';
+import { useState, useRef, useCallback, useEffect } from 'react';
+
+interface ImageUploadProps {
+  value: string | null;
+  onUploadComplete?: (key: string) => void;
+  onChange?: (key: string | null) => void;
+  aspectRatio?: number;
+  suggestedSize?: string;
+  recommendedSize?: string;
+  minWidth?: number;
+  minHeight?: number;
+  label?: string;
+  folder?: string;
+  lang?: string;
+  isProductImage?: boolean;  // If true, upload two sizes (315x315 and 640x640)
+  entityId?: string | number;  // 当提供时，用 ID 作为文件名（覆盖式上传）
+  slug?: string;  // 产品 slug，用于 SEO 命名
+  imageType?: string;  // 图片类型：'product-image' 或 'detail-page'
+  customFileName?: string;  // 完整的自定义对象 key 后缀（如 "42/cover.jpg"），启用确定性路径覆盖
+}
+
+export function ImageUpload({
+  value,
+  onUploadComplete,
+  onChange,
+  aspectRatio,
+  suggestedSize,
+  recommendedSize,
+  minWidth,
+  minHeight,
+  label = 'Image',
+  folder = 'uploads',
+  lang = 'en',
+  isProductImage = false,
+  entityId,
+  slug,
+  imageType,
+  customFileName,
+}: ImageUploadProps) {
+  const sizeHint = suggestedSize || recommendedSize;
+  const handleComplete = onChange || onUploadComplete || (() => {});
+  const [showCrop, setShowCrop] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewTimestamp, setPreviewTimestamp] = useState(Date.now());
+
+  /* ── 图片缩放 & 平移 ── */
+  const [scale, setScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const imgRef = useRef<HTMLImageElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cropFrame, setCropFrame] = useState({ width: 300, height: 300 });
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
+  const [imageDisplayedSize, setImageDisplayedSize] = useState({ width: 0, height: 0 });
+
+  /* ── 用户可编辑的输出尺寸 ── */
+  const [userOutputSize, setUserOutputSize] = useState(() => {
+    const hint = suggestedSize || recommendedSize;
+    if (hint) {
+      const wMatch = hint.match(/(\d+)\s*x\s*(\d+)/i);
+      if (wMatch) {
+        return { width: parseInt(wMatch[1]), height: parseInt(wMatch[2]) };
+      }
+      const singleMatch = hint.match(/(\d+)/);
+      if (singleMatch) {
+        const n = parseInt(singleMatch[1]);
+        if (n > 0) return { width: n, height: n };
+      }
+    }
+    return { width: 400, height: 400 };
+  });
+
+  const handleOutputSizeChange = (dim: 'width' | 'height', value: string) => {
+    const num = parseInt(value);
+    if (!num || num <= 0) return;
+    setUserOutputSize(prev => {
+      const next = { ...prev, [dim]: num };
+      // 只更新裁图框的比例，不改变图片缩放和位置
+      const ratio = next.width / next.height;
+      const maxW = containerRef.current?.clientWidth ?? 400;
+      const maxH = containerRef.current?.clientHeight ?? 400;
+      const imgW = imageNaturalSize.width || maxW;
+      const imgH = imageNaturalSize.height || maxH;
+      let cw: number, ch: number;
+      if (ratio >= 1) {
+        cw = Math.min(maxW * 0.9, imgW);
+        ch = cw / ratio;
+        if (ch > maxH * 0.9 || ch > imgH) {
+          ch = Math.min(maxH * 0.9, imgH);
+          cw = ch * ratio;
+        }
+      } else {
+        ch = Math.min(maxH * 0.9, imgH);
+        cw = ch * ratio;
+        if (cw > maxW * 0.9 || cw > imgW) {
+          cw = Math.min(maxW * 0.9, imgW);
+          ch = cw / ratio;
+        }
+      }
+      setCropFrame({ width: Math.round(cw), height: Math.round(ch) });
+      return next;
+    });
+  };
+
+  /* ── 选择文件 ── */
+  const onSelectFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSrc(reader.result as string);
+      setShowCrop(true);
+      setScale(1);
+      setPanX(0);
+      setPanY(0);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, []);
+
+  /* ── 拖拽平移 ── */
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX, panY };
+    },
+    [panX, panY],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setPanX(panStartRef.current.panX + dx);
+      setPanY(panStartRef.current.panY + dy);
+    },
+    [isPanning],
+  );
+
+  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+
+  /* ── 缩放 ── */
+  const zoomOut = useCallback(() => setScale((s) => Math.max(0.5, +(s - 0.02).toFixed(2))), []);
+  const zoomIn = useCallback(() => setScale((s) => Math.min(3, +(s + 0.02).toFixed(2))), []);
+
+  const handleZoomSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setScale(Math.max(0.5, val));
+  }, []);
+
+  // 缩放时更新显示尺寸
+  useEffect(() => {
+    if (imgRef.current && imageNaturalSize.width > 0) {
+      setImageDisplayedSize({
+        width: imgRef.current.clientWidth,
+        height: imgRef.current.clientHeight,
+      });
+    }
+  }, [scale, imageNaturalSize.width]);
+
+  /* ── 裁剪并上传 ── */
+  const handleCropAndUpload = useCallback(async () => {
+    if (!imgRef.current) return;
+    const image = imgRef.current;
+    const dispW = image.clientWidth;
+    const dispH = image.clientHeight;
+    const ratio = image.naturalWidth / dispW;
+
+    const cropCenterX = dispW / 2 - panX / scale;
+    const cropCenterY = dispH / 2 - panY / scale;
+    const cropDispW = cropFrame.width / scale;
+    const cropDispH = cropFrame.height / scale;
+
+    const sx = (cropCenterX - cropDispW / 2) * ratio;
+    const sy = (cropCenterY - cropDispH / 2) * ratio;
+    const sw = cropDispW * ratio;
+    const sh = cropDispH * ratio;
+
+    // 使用用户指定的输出尺寸
+    const canvas = document.createElement('canvas');
+    canvas.width = userOutputSize.width;
+    canvas.height = userOutputSize.height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+    setUploading(true);
+    try {
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/jpeg', 0.95),
+      );
+      if (!blob) throw new Error('Failed to create image');
+
+      console.log('[ImageUpload] Uploading...', { folder, isProductImage, entityId, blobSize: blob.size });
+
+      // 绕过 FormData，直接发送原始 blob（避免 Vercel Edge 运行时解析 FormData 时的 SharedArrayBuffer 问题）
+      const entityParam = entityId ? `&entity_id=${encodeURIComponent(entityId)}` : '';
+      const slugParam = slug ? `&slug=${encodeURIComponent(slug)}` : '';
+      const imageTypeParam = imageType ? `&image_type=${encodeURIComponent(imageType)}` : '';
+      const customFileParam = customFileName ? `&custom_file_name=${encodeURIComponent(customFileName)}` : '';
+      const uploadUrl = `/api/upload?folder=${encodeURIComponent(folder)}${isProductImage ? '&product_image=true' : ''}${entityParam}${slugParam}${imageTypeParam}${customFileParam}`;
+      console.log('[ImageUpload] Upload URL:', uploadUrl);
+      
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
+      
+      console.log('[ImageUpload] Response status:', res.status);
+      const json = await res.json();
+      console.log('[ImageUpload] Response:', json);
+
+      if (json.success) {
+        // For product images, store both large and small URLs
+        if (isProductImage && json.data.large && json.data.small) {
+          // Store as JSON string with both URLs for consistent preview handling
+          const imageUrls = JSON.stringify({
+            large: json.data.large.url,
+            small: json.data.small.url,
+          });
+          console.log('[ImageUpload] Calling handleComplete with imageUrls:', imageUrls);
+          handleComplete(imageUrls);
+        } else {
+          console.log('[ImageUpload] Calling handleComplete with url:', json.data.url);
+          handleComplete(json.data.url);
+        }
+        // Update preview timestamp to force re-render
+        setPreviewTimestamp(Date.now());
+        setShowCrop(false);
+        setSrc(null);
+      } else {
+        console.error('[ImageUpload] Upload failed:', json.error);
+        alert('Upload failed: ' + json.error);
+      }
+    } catch (err) {
+      console.error('[ImageUpload] Upload error:', err);
+      alert('Upload failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setUploading(false);
+    }
+  }, [scale, panX, panY, cropFrame, folder, handleComplete, userOutputSize, entityId, slug, imageType]);
+
+  const handleCancelCrop = useCallback(() => {
+    setShowCrop(false);
+    setSrc(null);
+    setScale(1);
+    setPanX(0);
+    setPanY(0);
+  }, []);
+
+  /* ── 计算裁剪框尺寸 ── */
+  useEffect(() => {
+    if (!showCrop || !containerRef.current) return;
+    const el = containerRef.current;
+    const updateFrame = () => {
+      const { clientWidth: cw, clientHeight: ch } = el;
+      const pad = 32;
+      const maxW = cw - pad;
+      const maxH = ch - pad;
+      // 优先使用用户指定的输出尺寸比例
+      const ar = userOutputSize.width / userOutputSize.height;
+      
+      // 默认目标尺寸：480x480px（当 aspectRatio 为 1 时）
+      const targetSize = 480;
+      let targetW = targetSize;
+      let targetH = targetSize / ar;
+      
+      // 如果目标尺寸超过容器大小，则缩小到容器大小
+      let w: number, h: number;
+      if (targetW > maxW || targetH > maxH) {
+        if (maxW / maxH > ar) {
+          h = maxH;
+          w = h * ar;
+        } else {
+          w = maxW;
+          h = w / ar;
+        }
+      } else {
+        w = targetW;
+        h = targetH;
+      }
+      setCropFrame({ width: Math.round(w), height: Math.round(h) });
+    };
+    updateFrame();
+    window.addEventListener('resize', updateFrame);
+    return () => window.removeEventListener('resize', updateFrame);
+  }, [showCrop, userOutputSize.width, userOutputSize.height]);
+
+  const t = (zh: string, en: string) => (lang === 'zh' ? zh : en);
+
+  // Add timestamp to force re-render when URL doesn't change
+  const previewSrc = value 
+    ? (value.startsWith('http') 
+        ? (value.includes('?') ? `${value}&t=${previewTimestamp}` : `${value}?t=${previewTimestamp}`)
+        : `/api/image?key=${encodeURIComponent(value)}&t=${previewTimestamp}`)
+    : null;
+
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground block mb-1 text-left">
+        {label}
+        {sizeHint && (
+          <span className="text-[10px] text-muted-foreground/60 ml-1">({sizeHint})</span>
+        )}
+      </label>
+
+      {/* 预览 */}
+      {value && !showCrop && (
+        <div className="mb-2 relative group">
+          <img
+            src={previewSrc}
+            alt="Preview"
+            className="rounded-lg border border-border max-h-32 object-cover"
+          />
+        </div>
+      )}
+
+      {/* 上传按钮 */}
+      {!showCrop && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg border border-dashed border-border bg-secondary/50 px-4 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+          >
+            {uploading
+              ? t('上传中...', 'Uploading...')
+              : value
+                ? t('替换图片', 'Replace Image')
+                : t('选择图片', 'Select Image')}
+          </button>
+          {value && (
+            <button
+              type="button"
+              onClick={() => handleComplete('')}
+              className="text-xs text-destructive hover:underline"
+            >
+              {t('移除', 'Remove')}
+            </button>
+          )}
+          <input ref={inputRef} type="file" accept="image/*" onChange={onSelectFile} className="hidden" />
+        </div>
+      )}
+
+      {/* 裁剪弹窗 */}
+      {showCrop && src && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 max-h-[90vh] overflow-auto">
+            <h3 className="text-sm font-semibold mb-3">
+              {t('裁剪图片', 'Crop Image')}
+              {sizeHint && (
+                <span className="ml-2 text-xs font-normal text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                  {t('要求尺寸', 'Required')}: {sizeHint.replace('px', '')}px
+                </span>
+              )}
+            </h3>
+
+            {/* 可编辑的输出尺寸 */}
+            <div className="flex items-center justify-center gap-2 mb-3 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="text-sm text-gray-600">
+                {t('输出尺寸', 'Output size')}:
+              </span>
+              <input
+                type="number"
+                value={userOutputSize.width}
+                onChange={(e) => handleOutputSizeChange('width', e.target.value)}
+                className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 border border-gray-300 rounded bg-white"
+                min={1}
+              />
+              <span className="text-gray-400">×</span>
+              <input
+                type="number"
+                value={userOutputSize.height}
+                onChange={(e) => handleOutputSizeChange('height', e.target.value)}
+                className="w-16 px-1 py-0.5 text-center font-mono font-semibold text-purple-600 border border-gray-300 rounded bg-white"
+                min={1}
+              />
+              <span className="text-sm text-gray-500">px</span>
+              {(minWidth || minHeight) && (
+                <span className="text-xs text-gray-400 ml-2">
+                  ({t('最小', 'Min')}: {minWidth || '—'} × {minHeight || '—'}px)
+                </span>
+              )}
+            </div>
+
+            {/* 裁剪区域 */}
+            <div
+              ref={containerRef}
+              className="relative bg-[#1a1a1a] rounded-lg mb-4 overflow-hidden"
+              style={{
+                height: 350,
+                cursor: isPanning ? 'grabbing' : 'grab',
+                userSelect: 'none',
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              {/* 固定裁剪框 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  width: cropFrame.width,
+                  height: cropFrame.height,
+                  transform: 'translate(-50%, -50%)',
+                  border: '2px solid #fff',
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+                  zIndex: 2,
+                  pointerEvents: 'none',
+                }}
+              />
+              {/* 可缩放/拖拽的图片 */}
+              <img
+                ref={imgRef}
+                src={src}
+                alt="Crop"
+                draggable={false}
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+                  setImageDisplayedSize({ width: img.clientWidth, height: img.clientHeight });
+                }}
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                  objectFit: 'contain',
+                  transform: `translate(-50%, -50%) scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+                  transformOrigin: 'center center',
+                  transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+
+            {/* 缩放控制 */}
+            <div className="flex items-center justify-center gap-3 mb-4 bg-white rounded-lg py-2 px-4 shadow-sm">
+              <button
+                type="button"
+                onClick={zoomOut}
+                className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.02"
+                value={scale}
+                onChange={handleZoomSlider}
+                className="w-24 h-2 cursor-pointer accent-purple-600"
+              />
+              <button
+                type="button"
+                onClick={zoomIn}
+                className="w-8 h-8 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-lg font-bold text-gray-700 transition-colors"
+              >
+                +
+              </button>
+              <span className="text-sm text-gray-500 min-w-[50px] text-center">
+                {(Math.round(scale * 1000) / 10).toFixed(0)}%
+              </span>
+            </div>
+
+            {/* 按钮 */}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelCrop}
+                className="rounded-lg border border-border px-4 py-2 text-sm"
+              >
+                {t('取消', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleCropAndUpload}
+                disabled={uploading}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {uploading ? t('上传中...', 'Uploading...') : t('裁剪并上传', 'Crop & Upload')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
