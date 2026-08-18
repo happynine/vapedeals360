@@ -882,3 +882,54 @@ body {
 .hover-border-beam:hover .ant-border-beam {
   opacity: 1 !important;
 }
+
+
+/* ===== Table editing floating toolbar ===== */
+.content-pages-editor .table-edit-toolbar {
+  position: absolute;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  pointer-events: auto;
+}
+.content-pages-editor .table-edit-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.content-pages-editor .table-edit-toolbar button:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+.content-pages-editor .table-edit-toolbar .table-toolbar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #e5e7eb;
+  margin: 0 3px;
+}
+/* Make table cells visually editable in the editor */
+.content-pages-editor .ql-editor .table-wrapper td[contenteditable="true"],
+.content-pages-editor .ql-editor .table-wrapper th[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+}
+.content-pages-editor .ql-editor .table-wrapper td[contenteditable="true"]:focus,
+.content-pages-editor .ql-editor .table-wrapper th[contenteditable="true"]:focus {
+  box-shadow: inset 0 0 0 2px rgba(124, 58, 237, 0.35);
+}
