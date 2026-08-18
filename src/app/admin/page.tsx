@@ -2733,28 +2733,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyAlignment = (alignClass: string) => {
         if (!activeImg) return;
-        // Preserve scroll positions across the controlled re-render triggered by onChange.
-        // The scrollable ancestor may be a modal container (overflow-y-auto), not window,
-        // so walk up the DOM to find it.
-        const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
-        const findScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-          let node = el?.parentElement ?? null;
-          while (node) {
-            const oy = getComputedStyle(node).overflowY;
-            if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return node;
-            node = node.parentElement;
-          }
-          return null;
-        };
-        const scrollParent = findScrollParent(qlEditorEl);
-        const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
-        const savedParentScroll = scrollParent ? scrollParent.scrollTop : 0;
-        const savedWindowScroll = window.scrollY;
-        const restoreScroll = () => {
-          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-          if (scrollParent) scrollParent.scrollTop = savedParentScroll;
-          window.scrollTo(0, savedWindowScroll);
-        };
         // Remove old alignment classes
         activeImg.classList.remove('img-align-left', 'img-align-center', 'img-align-right');
         activeImg.classList.add(alignClass);
@@ -2768,15 +2746,9 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (nextSibling && nextSibling.tagName === 'BR' && (nextSibling as HTMLElement).style.clear) {
           nextSibling.remove();
         }
-        // Persist the class via Quill's format API so it survives re-renders
+        // Persist the class via Quill's format API (silent = no React re-render, no scroll jump)
         persistImageFormats(activeImg);
-        // Use double rAF: first fires before React commit, second after Quill rebuilds DOM
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            restoreScroll();
-            positionSelectionBox();
-          });
-        });
+        positionSelectionBox();
       };
 
       alignLeftBtn.addEventListener('click', () => applyAlignment('img-align-left'));
@@ -2813,25 +2785,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       const applyBorder = (borderClass: string) => {
         if (!activeImg) return;
-        const qlEditorEl = container.querySelector('.ql-editor') as HTMLElement | null;
-        const findScrollParent = (el: HTMLElement | null): HTMLElement | null => {
-          let node = el?.parentElement ?? null;
-          while (node) {
-            const oy = getComputedStyle(node).overflowY;
-            if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return node;
-            node = node.parentElement;
-          }
-          return null;
-        };
-        const scrollParent = findScrollParent(qlEditorEl);
-        const savedEditorScroll = qlEditorEl ? qlEditorEl.scrollTop : 0;
-        const savedParentScroll = scrollParent ? scrollParent.scrollTop : 0;
-        const savedWindowScroll = window.scrollY;
-        const restoreScroll = () => {
-          if (qlEditorEl) qlEditorEl.scrollTop = savedEditorScroll;
-          if (scrollParent) scrollParent.scrollTop = savedParentScroll;
-          window.scrollTo(0, savedWindowScroll);
-        };
         activeImg.classList.remove('img-border-none', 'img-border-thin', 'img-border-rounded', 'img-border-shadow');
         activeImg.classList.add(borderClass);
         [borderNoneBtn, borderThinBtn, borderRoundedBtn, borderShadowBtn].forEach(b => b.classList.remove('active'));
@@ -2839,13 +2792,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         else if (borderClass === 'img-border-thin') borderThinBtn.classList.add('active');
         else if (borderClass === 'img-border-rounded') borderRoundedBtn.classList.add('active');
         else if (borderClass === 'img-border-shadow') borderShadowBtn.classList.add('active');
-        // Persist the class via Quill's format API so it survives re-renders
+        // Persist via Quill's format API (silent = no React re-render, no scroll jump)
         persistImageFormats(activeImg);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            restoreScroll();
-          });
-        });
       };
 
       borderNoneBtn.addEventListener('click', () => applyBorder('img-border-none'));
@@ -2948,8 +2896,11 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         if (w) formats['width'] = w;
         if (h) formats['height'] = h;
         quill.formatText(offset, 1, formats, 'silent');
-        // Also sync the HTML to React state
-        setTimeout(() => { onChangeRef.current(quill.root.innerHTML); }, 0);
+        // NOTE: Do NOT call onChange here. The 'silent' source suppresses Quill events,
+        // and manually triggering onChange would cause React state update ->
+        // shouldComponentUpdate -> editor.setContents() -> scroll position reset.
+        // formatText already persists the class/style into Quill's Delta model;
+        // getHTML() reads quill.root.innerHTML on save, so content is correct.
       } catch { /* ignore */ }
     };
 
