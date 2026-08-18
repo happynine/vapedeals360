@@ -3766,10 +3766,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           </button>
           <span class="table-toolbar-sep"></span>
           <button type="button" data-action="del-row" title="Delete row">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="1" fill="#f3f4f6" stroke="#6b7280" stroke-width="1.6"/><line x1="16" y1="4" x2="21" y2="9" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/><line x1="21" y1="4" x2="16" y2="9" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/></svg>
           </button>
           <button type="button" data-action="del-col" title="Delete column">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4l16 16M4 20L20 4"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="18" rx="1" fill="#f3f4f6" stroke="#6b7280" stroke-width="1.6"/><line x1="4" y1="16" x2="9" y2="21" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/><line x1="9" y1="16" x2="4" y2="21" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round"/></svg>
           </button>
         `;
         toolbar.addEventListener('mousedown', (e) => e.preventDefault());
