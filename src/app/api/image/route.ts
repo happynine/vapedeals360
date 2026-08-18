@@ -14,15 +14,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing key parameter' }, { status: 400 });
     }
 
-    // If it's already a full URL, redirect to it
+    // If it's already a full URL, proxy it through to avoid CORS issues with canvas
     if (key.startsWith('http://') || key.startsWith('https://')) {
-      return NextResponse.redirect(key, { status: 302 });
+      const imageResponse = await fetch(key);
+      if (!imageResponse.ok) {
+        return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 });
+      }
+      const buffer = await imageResponse.arrayBuffer();
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
-    // R2: generate presigned URL or redirect to public URL
+    // R2: proxy the image through this route to avoid CORS issues with canvas (crop/resize)
     if (hasR2) {
       const publicUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
-      return NextResponse.redirect(publicUrl, { status: 302 });
+      const imageResponse = await fetch(publicUrl);
+      if (!imageResponse.ok) {
+        return NextResponse.json({ error: 'Failed to fetch image from R2' }, { status: 502 });
+      }
+      const buffer = await imageResponse.arrayBuffer();
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
     // Vercel Blob: not available via key
