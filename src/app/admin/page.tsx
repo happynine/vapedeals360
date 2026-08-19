@@ -3717,10 +3717,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       let activeTable: HTMLDivElement | null = null;
       let toolbar: HTMLDivElement | null = null;
       let hideTimer: ReturnType<typeof setTimeout> | null = null;
-      let quillObserver: MutationObserver | null = null;
-      let observerSuspended = false;
 
-      // ---- Get Quill instance ----
+      // Tracks all disconnected observers so we can reconnect later
+      const disconnected: Array<{ obs: MutationObserver; target: Node; options: MutationObserverInit }> = [];
+      const blockedObservers = new WeakSet<MutationObserver>();
+      let originalObserve: any = null;
+      let updateLocked = false;
+
       const getQuill = () => {
         if (!QuillClass) return null;
         const qlContainer = container.querySelector('.ql-container') as HTMLElement | null;
@@ -3728,44 +3731,115 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         return QuillClass.find(qlContainer);
       };
 
-      // ---- Suspend / resume Quill's internal MutationObserver ----
-      // While the user edits inside a table cell, Quill must NOT see the DOM
-      // mutations — otherwise it reinterprets them and moves/deletes the
-      // entire embed block.
-      const suspendQuillObserver = () => {
-        if (observerSuspended) return;
+      // ---------- Aggressively suspend ALL Quill MutationObservers ----------
+      // Quill (v2) keeps its observer on quill.editor.observer. To be safe we
+      // also walk every own/inherited property of the quill instance and its
+      // major modules and disconnect any MutationObserver we find. Then we
+      // monkey-patch MutationObserver.prototype.observe to block any attempt
+      // to re-observe while the lock is held. Also lock quill.update() to a
+      // no-op so nothing can trigger a re-render from inside a table cell.
+      const suspendQuill = () => {
+        if (updateLocked) return;
+        updateLocked = true;
+
         const quill = getQuill();
-        if (quill) {
-          // Quill stores its MutationObserver on the editor module.
-          const obs = quill.editor?.observer || quill.scroll?.observer || quill.observer;
-          if (obs && typeof obs.disconnect === 'function') {
-            obs.disconnect();
-            quillObserver = obs;
-            observerSuspended = true;
+        if (!quill) return;
+
+        // Lock quill.update()
+        const origUpdate = quill.update.bind(quill);
+        (quill as any).__tableEditingOrigUpdate = origUpdate;
+        quill.update = ((...args: any[]) => {
+          // Swallow all update calls while user is editing a table cell
+          return;
+        }) as any;
+
+        // Collect candidate objects to scan for MutationObservers
+        const candidates: any[] = [
+          quill,
+          quill.editor,
+          quill.scroll,
+          quill.keyboard,
+          quill.clipboard,
+          quill.history,
+          quill.selection,
+          quill.uploader,
+        ];
+        // Also include any modules registered on quill
+        if (quill.options?.modules) {
+          Object.values(quill.options.modules).forEach((m: any) => {
+            if (m && typeof m === 'object') candidates.push(m);
+          });
+        }
+
+        const seen: any[] = [];
+        const findObservers = (obj: any, depth: number) => {
+          if (!obj || depth > 3 || seen.includes(obj)) return;
+          seen.push(obj);
+          for (const key of Object.keys(obj)) {
+            try {
+              const val = obj[key];
+              if (val instanceof MutationObserver) {
+                if (blockedObservers.has(val)) continue;
+                blockedObservers.add(val);
+                // We can't read the observed node from the observer directly,
+                // but we know Quill's editor observer watches quill.root.
+                const target = quill.root || qlEditor;
+                disconnected.push({
+                  obs: val,
+                  target,
+                  options: { characterData: true, childList: true, subtree: true, attributes: true },
+                });
+              } else if (val && typeof val === 'object' && depth < 3) {
+                findObservers(val, depth + 1);
+              }
+            } catch (_) { /* ignore access errors */ }
           }
+        };
+        candidates.forEach((c) => findObservers(c, 0));
+
+        // Disconnect all collected observers
+        disconnected.forEach(({ obs }) => {
+          try { obs.disconnect(); } catch (_) { /* */ }
+        });
+
+        // Block any further MutationObserver.observe calls during editing
+        if (!originalObserve) {
+          originalObserve = MutationObserver.prototype.observe;
+          MutationObserver.prototype.observe = function (this: MutationObserver, ...args: any[]) {
+            if (blockedObservers.has(this)) return; // swallow
+            return originalObserve.apply(this, args as any);
+          };
         }
       };
 
-      const resumeQuillObserver = () => {
-        if (!observerSuspended) return;
+      const resumeQuill = () => {
+        if (!updateLocked) return;
+        updateLocked = false;
+
         const quill = getQuill();
-        if (quill && quillObserver) {
-          // Re-observe with Quill's standard options
-          const target = quill.root || quill.scroll?.domNode;
-          if (target) {
-            quillObserver.observe(target, {
-              characterData: true,
-              childList: true,
-              subtree: true,
-              attributes: true,
-            });
+
+        // Restore MutationObserver.prototype.observe
+        if (originalObserve) {
+          MutationObserver.prototype.observe = originalObserve;
+          originalObserve = null;
+        }
+
+        // Reconnect all disconnected observers
+        disconnected.forEach(({ obs, target, options }) => {
+          blockedObservers.delete(obs);
+          try { obs.observe(target, options); } catch (_) { /* */ }
+        });
+        disconnected.length = 0;
+
+        // Restore quill.update and trigger a single silent reconciliation
+        if (quill) {
+          if ((quill as any).__tableEditingOrigUpdate) {
+            quill.update = (quill as any).__tableEditingOrigUpdate;
+            delete (quill as any).__tableEditingOrigUpdate;
           }
-          // Tell Quill to reconcile current DOM state silently
           try { quill.update('silent'); } catch (_) { /* */ }
           onChangeRef.current(quill.root.innerHTML);
         }
-        quillObserver = null;
-        observerSuspended = false;
       };
 
       // ---- Ensure all existing table cells are editable ----
@@ -3778,7 +3852,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       };
       ensureCellsEditable(qlEditor);
 
-      // ---- Helper: caret at start / end of cell ----
+      // ---- Caret position helpers ----
       const isCaretAtStart = (cell: HTMLElement): boolean => {
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) return false;
@@ -3800,7 +3874,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         return post.toString().length === 0;
       };
 
-      // ---- Build floating toolbar ----
+      // ---- Floating toolbar ----
       const ensureToolbar = () => {
         if (toolbar) return toolbar;
         toolbar = document.createElement('div');
@@ -3832,13 +3906,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           const btn = (e.target as HTMLElement).closest('button[data-action]') as HTMLButtonElement | null;
           if (!btn || !activeTable) return;
           e.stopPropagation();
-          // Suspend observer during structural mutation, resume after
-          suspendQuillObserver();
           handleAction(btn.dataset.action as string);
-          setTimeout(resumeQuillObserver, 0);
         });
         toolbar.addEventListener('mouseenter', () => { if (hideTimer) clearTimeout(hideTimer); });
-        toolbar.addEventListener('mouseleave', () => hideToolbarSoon());
+        toolbar.addEventListener('mouseleave', hideToolbarSoon);
         container.appendChild(toolbar);
         return toolbar;
       };
@@ -3945,14 +4016,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         requestAnimationFrame(() => positionToolbar());
       };
 
-      // ---- Find the table-wrapper ancestor of a node ----
       const getTableWrapper = (node: Node | null): HTMLDivElement | null => {
         if (!node) return null;
         const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement);
         return el?.closest('.ql-editor .table-wrapper') as HTMLDivElement | null;
       };
 
-      // ---- Mouse events to show/hide toolbar ----
+      // ---- Mouse events for toolbar ----
       const onMouseOver = (e: Event) => {
         const wrapper = (e.target as HTMLElement).closest('.table-wrapper') as HTMLDivElement | null;
         if (wrapper && wrapper.closest('.ql-editor')) {
@@ -3983,22 +4053,20 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       qlEditor.addEventListener('mouseout', onMouseOut);
       qlEditor.addEventListener('click', onClick);
 
-      // ---- Focus entering/leaving a table cell: suspend/resume Quill observer ----
+      // ---- Focus in/out: suspend/resume Quill ----
       const onFocusIn = (e: FocusEvent) => {
-        const wrapper = getTableWrapper(e.target as Node);
-        if (wrapper) {
-          suspendQuillObserver();
+        if (getTableWrapper(e.target as Node)) {
+          suspendQuill();
         }
       };
       const onFocusOut = (e: FocusEvent) => {
         const wrapper = getTableWrapper(e.target as Node);
         const related = e.relatedTarget as HTMLElement | null;
         if (wrapper && (!related || !wrapper.contains(related))) {
-          // Delay resume slightly to allow focus to settle if moving between cells
           setTimeout(() => {
-            const currentWrapper = getTableWrapper(document.activeElement);
-            if (!currentWrapper) {
-              resumeQuillObserver();
+            // Only resume if focus is no longer in any table cell
+            if (!getTableWrapper(document.activeElement)) {
+              resumeQuill();
             }
           }, 0);
         }
@@ -4006,14 +4074,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       qlEditor.addEventListener('focusin', onFocusIn);
       qlEditor.addEventListener('focusout', onFocusOut);
 
-      // ---- Keydown inside table cells ----
+      // ---- Keydown: stop Quill from seeing keys; prevent Backspace at boundary ----
       const onKeyDown = (e: KeyboardEvent) => {
         const target = e.target as HTMLElement;
         if (!target) return;
         const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
         if (!cell) return;
 
-        // Stop Quill from seeing ANY key events while in a cell
         e.stopPropagation();
 
         if (e.key === 'Backspace') {
@@ -4037,12 +4104,10 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
           document.execCommand('insertLineBreak');
           return;
         }
-        // All other keys (including Ctrl+C, Ctrl+V, Ctrl+X, typing, arrows):
-        // let browser handle natively, just don't let Quill see them.
       };
       qlEditor.addEventListener('keydown', onKeyDown, true);
 
-      // ---- Copy / Cut: let browser handle natively, just stop Quill from seeing them ----
+      // ---- Copy/Cut: stop Quill only ----
       const stopQuill = (e: Event) => {
         const target = e.target as HTMLElement;
         if (target?.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th')) {
@@ -4052,9 +4117,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       qlEditor.addEventListener('copy', stopQuill, true);
       qlEditor.addEventListener('cut', stopQuill, true);
 
-      // ---- Paste inside a table cell: insert PLAIN TEXT only ----
-      // Copying from another cell puts full <table><tr><td> HTML in the clipboard,
-      // which would nest an entire table inside the cell ("套娃").
+      // ---- Paste: insert plain text to prevent nested tables ----
       const onCellPaste = (e: ClipboardEvent) => {
         const target = e.target as HTMLElement;
         if (!target) return;
@@ -4063,27 +4126,23 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         e.preventDefault();
         e.stopPropagation();
         const text = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n');
-        // Insert line by line: use <br> for internal line breaks so the cell
-        // structure is preserved.
-        const lines = text.split('\n');
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) return;
         const range = sel.getRangeAt(0);
         range.deleteContents();
         const frag = document.createDocumentFragment();
-        lines.forEach((line, i) => {
+        text.split('\n').forEach((line, i) => {
           if (i > 0) frag.appendChild(document.createElement('br'));
           frag.appendChild(document.createTextNode(line));
         });
         range.insertNode(frag);
-        // Move caret to end of inserted content
         range.collapse(false);
         sel.removeAllRanges();
         sel.addRange(range);
       };
       qlEditor.addEventListener('paste', onCellPaste, true);
 
-      // ---- Observe for newly inserted tables (structural only) ----
+      // ---- Observe structural DOM for newly added tables ----
       const editorObserver = new MutationObserver((mutations) => {
         let needsUpdate = false;
         for (const m of mutations) {
@@ -4111,13 +4170,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         qlEditor.removeEventListener('cut', stopQuill, true);
         qlEditor.removeEventListener('paste', onCellPaste, true);
         editorObserver.disconnect();
-        if (observerSuspended) resumeQuillObserver();
+        if (updateLocked) resumeQuill();
         if (hideTimer) clearTimeout(hideTimer);
         if (toolbar) toolbar.remove();
       };
     };
 
-    // ReactQuill is dynamically imported (ssr:false) — poll for .ql-editor
+    // Poll for .ql-editor (ReactQuill is dynamically loaded)
     let elapsed = 0;
     const tryInit = () => {
       const qlEditor = container.querySelector('.ql-editor') as HTMLElement | null;
