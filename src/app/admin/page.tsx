@@ -154,13 +154,17 @@ import('quill').then((mod) => {
       static create(value: any) {
         const node = (BlockEmbed as any).create.call(this) as HTMLDivElement;
         node.classList.add('table-wrapper');
+        // CRITICAL: wrapper must be contenteditable=false so the browser treats
+        // the table as an atomic non-editable block. Cells inside are set to
+        // contenteditable=true to form editable islands. Without this, the
+        // browser treats the whole table as part of the editable document and
+        // Backspace causes it to merge/move across paragraph boundaries.
+        node.setAttribute('contenteditable', 'false');
         if (typeof value === 'string') {
           node.innerHTML = value;
         } else if (typeof value === 'object' && value !== null && value.html) {
           node.innerHTML = value.html;
         }
-        // Make table cells independently editable so Backspace/typing
-        // doesn't bubble up to Quill and delete the entire embed block.
         node.querySelectorAll('td, th').forEach((cell: Element) => {
           cell.setAttribute('contenteditable', 'true');
         });
@@ -3844,8 +3848,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
 
       // ---- Ensure all existing table cells are editable ----
       const ensureCellsEditable = (root: HTMLElement) => {
+        root.querySelectorAll('.table-wrapper').forEach((wrapper) => {
+          if (wrapper.getAttribute('contenteditable') !== 'false') {
+            wrapper.setAttribute('contenteditable', 'false');
+          }
+        });
         root.querySelectorAll('.table-wrapper td, .table-wrapper th').forEach((cell) => {
-          if (!cell.hasAttribute('contenteditable')) {
+          if (cell.getAttribute('contenteditable') !== 'true') {
             cell.setAttribute('contenteditable', 'true');
           }
         });
@@ -4107,6 +4116,54 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       };
       qlEditor.addEventListener('keydown', onKeyDown, true);
 
+      // ---- beforeinput: intercept ALL browser editing actions inside cells ----
+      // This fires before any DOM mutation and is more reliable than keydown
+      // for catching deletions (including IME, autocorrect, etc.)
+      const onBeforeInput = (e: InputEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
+        const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
+        if (!cell) return;
+
+        e.stopPropagation();
+
+        const deleteTypes = [
+          'deleteContentBackward',
+          'deleteContentForward',
+          'deleteWordBackward',
+          'deleteWordForward',
+          'deleteHardLineBackward',
+          'deleteHardLineForward',
+        ];
+        if (deleteTypes.includes(e.inputType)) {
+          // Check if there is anything to delete
+          const sel = window.getSelection();
+          if (!sel || sel.rangeCount === 0) {
+            e.preventDefault();
+            return;
+          }
+          const range = sel.getRangeAt(0);
+          if (!range.collapsed) {
+            // There is a selection — let browser delete it natively.
+            // With contenteditable=false on wrapper, it stays inside the cell.
+            return;
+          }
+          // Collapsed selection — check boundaries
+          if (e.inputType.includes('Backward') && isCaretAtStart(cell)) {
+            e.preventDefault();
+          } else if (e.inputType.includes('Forward') && isCaretAtEnd(cell)) {
+            e.preventDefault();
+          }
+          // Otherwise let browser delete natively — contenteditable=false on
+          // wrapper prevents crossing out of the cell boundary.
+        }
+        if (e.inputType === 'insertParagraph') {
+          e.preventDefault();
+          document.execCommand('insertLineBreak');
+        }
+      };
+      qlEditor.addEventListener('beforeinput', onBeforeInput, true);
+
       // ---- Copy/Cut: stop Quill only ----
       const stopQuill = (e: Event) => {
         const target = e.target as HTMLElement;
@@ -4166,6 +4223,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         qlEditor.removeEventListener('focusin', onFocusIn);
         qlEditor.removeEventListener('focusout', onFocusOut);
         qlEditor.removeEventListener('keydown', onKeyDown, true);
+        qlEditor.removeEventListener('beforeinput', onBeforeInput, true);
         qlEditor.removeEventListener('copy', stopQuill, true);
         qlEditor.removeEventListener('cut', stopQuill, true);
         qlEditor.removeEventListener('paste', onCellPaste, true);
