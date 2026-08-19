@@ -4042,8 +4042,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       };
       qlEditor.addEventListener('keydown', onKeyDown, true);
 
-      // ---- Copy / Cut / Paste: stop propagation so Quill doesn't intercept,
-      // but let the browser handle them natively in the contenteditable cell ----
+      // ---- Copy / Cut: let browser handle natively, just stop Quill from seeing them ----
       const stopQuill = (e: Event) => {
         const target = e.target as HTMLElement;
         if (target?.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th')) {
@@ -4052,7 +4051,37 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
       };
       qlEditor.addEventListener('copy', stopQuill, true);
       qlEditor.addEventListener('cut', stopQuill, true);
-      qlEditor.addEventListener('paste', stopQuill, true);
+
+      // ---- Paste inside a table cell: insert PLAIN TEXT only ----
+      // Copying from another cell puts full <table><tr><td> HTML in the clipboard,
+      // which would nest an entire table inside the cell ("套娃").
+      const onCellPaste = (e: ClipboardEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
+        const cell = target.closest('.ql-editor .table-wrapper td, .ql-editor .table-wrapper th') as HTMLElement | null;
+        if (!cell) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const text = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+        // Insert line by line: use <br> for internal line breaks so the cell
+        // structure is preserved.
+        const lines = text.split('\n');
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const frag = document.createDocumentFragment();
+        lines.forEach((line, i) => {
+          if (i > 0) frag.appendChild(document.createElement('br'));
+          frag.appendChild(document.createTextNode(line));
+        });
+        range.insertNode(frag);
+        // Move caret to end of inserted content
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      };
+      qlEditor.addEventListener('paste', onCellPaste, true);
 
       // ---- Observe for newly inserted tables (structural only) ----
       const editorObserver = new MutationObserver((mutations) => {
@@ -4080,7 +4109,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, { value: string; onChange: 
         qlEditor.removeEventListener('keydown', onKeyDown, true);
         qlEditor.removeEventListener('copy', stopQuill, true);
         qlEditor.removeEventListener('cut', stopQuill, true);
-        qlEditor.removeEventListener('paste', stopQuill, true);
+        qlEditor.removeEventListener('paste', onCellPaste, true);
         editorObserver.disconnect();
         if (observerSuspended) resumeQuillObserver();
         if (hideTimer) clearTimeout(hideTimer);
