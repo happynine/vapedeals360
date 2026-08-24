@@ -7768,7 +7768,38 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
   );
   const [saving, setSaving] = useState(false);
+  const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([]);
   const isEdit = !!product;
+
+  // Fetch promotions linked to this product that may be inactive or outside current page
+  useEffect(() => {
+    if (!open || !product) return;
+    const linkedIds = new Set<number>();
+    ((product.promotion_prices as Array<Record<string, unknown>>) || []).forEach((p) => {
+      const pid = p.promotion_id as number;
+      if (pid) linkedIds.add(pid);
+    });
+    if (linkedIds.size === 0) { setExtraPromotions([]); return; }
+    const knownIds = new Set((promotions || []).map(p => p.id));
+    const missingIds = Array.from(linkedIds).filter(id => !knownIds.has(id));
+    if (missingIds.length === 0) { setExtraPromotions([]); return; }
+    let cancelled = false;
+    adminFetch(`/api/admin/promotions?ids=${missingIds.join(',')}`)
+      .then(r => r.json())
+      .then(json => {
+        if (!cancelled && json.success) setExtraPromotions(json.data?.promotions || []);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [open, product?.id, promotions]);
+
+  // Build merged promotion list for dropdown (current page + linked promotions)
+  const allPromotions = useMemo(() => {
+    const map = new Map<number, Promotion>();
+    (promotions || []).forEach(p => map.set(p.id, p));
+    extraPromotions.forEach(p => { if (!map.has(p.id)) map.set(p.id, p); });
+    return Array.from(map.values());
+  }, [promotions, extraPromotions]);
 
   // Sync ALL form fields when opening modal to ensure fresh data from prop
   useEffect(() => {
@@ -8241,9 +8272,14 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                               className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
                             >
                               <option value="">{t('-- Select a promotion --', '-- 选择活动 --', lang)}</option>
-                              {(promotions || []).filter(p => p.is_active).map((p) => (
-                                <option key={p.id} value={p.id}>{p.promotion_translations?.find((tr) => tr.language === lang)?.name || p.slug}</option>
-                              ))}
+                              {allPromotions.map((p) => {
+                                const promoName = p.promotion_translations?.find((tr) => tr.language === lang)?.name || p.slug;
+                                return (
+                                  <option key={p.id} value={p.id}>
+                                    {promoName}{!p.is_active ? ` (${t('Inactive', '已停用', lang)})` : ''}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
                         )}
