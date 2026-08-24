@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
-    const { data: promotions, error: promotionsError } = await client
+    const idsParam = searchParams.get('ids');
+    let query = client
       .from('promotions')
       .select(`
         *,
@@ -27,11 +28,24 @@ export async function GET(request: NextRequest) {
           cover_image_key, cover_image_url,
           mobile_cover_image_key, mobile_cover_image_url
         )
-      `)
-      .order('sort_order', { ascending: true })
-      .range(offset, offset + limit - 1);
+      `);
+    if (idsParam) {
+      const idList = idsParam.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n));
+      if (idList.length > 0) query = query.in('id', idList);
+    }
+    query = query.order('sort_order', { ascending: true });
+    if (!idsParam) query = query.range(offset, offset + limit - 1);
+    const { data: promotions, error: promotionsError } = await query;
     if (promotionsError) {
       return NextResponse.json({ error: promotionsError.message }, { status: 500 });
+    }
+    let promotionsWithProductCount;
+    if (idsParam) {
+      promotionsWithProductCount = (promotions || []).map(p => ({ ...p, product_count: 0 }));
+      return NextResponse.json({
+        success: true,
+        data: { promotions: promotionsWithProductCount, pagination: { page: 1, limit: promotionsWithProductCount.length, total: promotionsWithProductCount.length, totalPages: 1 } }
+      });
     }
     const { count, error: countError } = await client
       .from('promotions')
@@ -39,7 +53,7 @@ export async function GET(request: NextRequest) {
     if (countError) {
       return NextResponse.json({ error: countError.message }, { status: 500 });
     }
-    const promotionsWithProductCount = await Promise.all(
+    promotionsWithProductCount = await Promise.all(
       (promotions || []).map(async (promotion) => {
         const { count: productCount } = await client
           .from('promotion_products')
