@@ -15,7 +15,6 @@ interface PriceStore {
   website_url: string | null;
   store_type: string;
   is_active: boolean;
-  store_translations?: StoreTranslation[];
   translations?: StoreTranslation[];
 }
 
@@ -33,50 +32,9 @@ interface StorePrice {
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
-  countdown_action: 'close' | 'original_price' | 'convert_to_standard' | 'hide';
+  countdown_action: 'convert_to_standard' | 'hide';
+  standard_price?: number | null;
   store?: PriceStore;
-}
-
-interface ProductTranslation {
-  id: number;
-  promotion_product_id: number;
-  name: string | null;
-  description: string | null;
-  features: string | null;
-  specs: string | null;
-  language: string;
-}
-
-interface PromotionProduct {
-  id: number;
-  promotion_id: number | null;
-  slug: string | null;
-  category_id: number | null;
-  image_key: string | null;
-  image_url: string | null;
-  is_active: boolean | null;
-  is_featured: boolean | null;
-  notes: string | null;
-  promotion_product_translations: ProductTranslation[];
-  store_prices: StorePrice[];
-}
-
-interface PromotionTranslation {
-  id: number;
-  promotion_id: number;
-  name: string | null;
-  cover_image_key: string | null;
-  cover_image_url: string | null;
-  language: string;
-}
-
-interface Promotion {
-  id: number;
-  slug: string;
-  title: string | null;
-  time_type: string | null;
-  promotion_translations?: PromotionTranslation[];
-  translations?: PromotionTranslation[];
 }
 
 export async function GET(
@@ -92,22 +50,24 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 });
     }
 
-    // Get promotion product with translations
+    const { searchParams } = new URL(request.url);
+    const promotionSlug = searchParams.get('promotion');
+
+    // 从 products + product_translations 获取产品信息
     const { data: product, error: productError } = await supabase
-      .from('promotion_products')
+      .from('products')
       .select(`
         id,
-        promotion_id,
         slug,
         category_id,
-        image_key,
         image_url,
+        image_url_small,
+        home_image_key,
         is_active,
         is_featured,
-        notes,
-        promotion_product_translations (
+        product_translations (
           id,
-          promotion_product_id,
+          product_id,
           name,
           description,
           features,
@@ -116,18 +76,19 @@ export async function GET(
         )
       `)
       .eq('id', productId)
-      .single() as { data: PromotionProduct | null; error: any };
+      .eq('is_active', true)
+      .single();
 
     if (productError || !product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // Get store prices for this product
-    const { data: prices, error: pricesError } = await supabase
-      .from('promotion_product_prices')
+    // 查询该产品的促销价格（如果指定了 promotion slug，先找到 promotion_id）
+    let promoPriceQuery = supabase
+      .from('product_prices')
       .select(`
         id,
-        promotion_product_id,
+        product_id,
         store_id,
         region,
         current_price,
@@ -136,52 +97,134 @@ export async function GET(
         currency,
         product_url,
         no_quote,
-        store_type,
         time_type,
         start_time,
         end_time,
-        countdown_action
+        countdown_action,
+        standard_price,
+        is_promotion_hidden,
+        in_stock,
+        promotion_id
       `)
-      .eq('promotion_product_id', productId) as { data: StorePrice[] | null; error: any };
+      .eq('product_id', productId)
+      .not('promotion_id', 'is', null)
+      .eq('is_promotion_hidden', false);
+
+    // 如果指定了 promotion slug，查找对应的 promotion_id
+    let targetPromotionId: number | null = null;
+    if (promotionSlug) {
+      const { data: promo } = await supabase
+        .from('promotions')
+        .select('id')
+        .eq('slug', promotionSlug)
+        .eq('is_active', true)
+        .single();
+      if (promo) {
+        targetPromotionId = promo.id;
+        promoPriceQuery = promoPriceQuery.eq('promotion_id', promo.id);
+      }
+    }
+
+    const { data: promoPrices, error: pricesError } = await promoPriceQuery;
 
     if (pricesError) {
       console.error('Error fetching prices:', pricesError);
     }
 
-    // Get store info for each price
-    if (prices && prices.length > 0) {
-      const storeIds = prices.filter(p => p.store_id).map(p => p.store_id);
-      if (storeIds.length > 0) {
+    // 过滤已过期的价格
+    const now = new Date();
+    const activePrices = (promoPrices || []).filter((p: any) => {
+      if (!p.time_type || p.time_type === 'permanent') return true;
+      if (!p.end_time) return true;
+      return now <= new Date(p.end_time);
+    });
+
+    // 获取店铺信息
+    let storePrices: StorePrice[] = [];
+    if (activePrices.length > 0) {
+      const storeIds = activePrices.map((p: any) => p.store_id).filter(Boolean);
+      const uniqueStoreIds = [...new Set(storeIds)] as number[];
+
+      if (uniqueStoreIds.length > 0) {
         const { data: stores } = await supabase
           .from('stores')
           .select('id, slug, logo_url, website_url, store_type, is_active, store_translations(id, store_id, name, language)')
-          .in('id', storeIds) as { data: (PriceStore & { store_translations?: StoreTranslation[] })[] | null; error: any };
+          .in('id', uniqueStoreIds);
 
-        if (stores) {
-          prices.forEach(price => {
-            const store = stores.find(s => s.id === price.store_id);
-            if (store) {
-              price.store = {
-                ...store,
-                translations: store.store_translations || [],
-              };
-            }
-          });
-        }
+        const storesMap = new Map<number, any>();
+        (stores || []).forEach((s: any) => storesMap.set(s.id, s));
+
+        storePrices = activePrices.map((p: any) => {
+          const store = p.store_id ? storesMap.get(p.store_id) : null;
+          return {
+            id: p.id,
+            store_id: p.store_id,
+            region: p.region,
+            current_price: p.current_price,
+            original_price: p.original_price,
+            discount_percent: p.discount_percent,
+            currency: p.currency,
+            product_url: p.product_url,
+            no_quote: p.no_quote,
+            store_type: 'promotion' as const,
+            time_type: p.time_type,
+            start_time: p.start_time,
+            end_time: p.end_time,
+            countdown_action: p.countdown_action,
+            standard_price: p.standard_price,
+            store: store ? {
+              id: store.id,
+              slug: store.slug,
+              logo_url: store.logo_url,
+              website_url: store.website_url,
+              store_type: store.store_type,
+              is_active: store.is_active,
+              translations: (store.store_translations || []).map((t: any) => ({
+                id: t.id,
+                store_id: t.store_id,
+                name: t.name,
+                language: t.language,
+              })),
+            } : undefined,
+          };
+        });
+      } else {
+        storePrices = activePrices.map((p: any) => ({
+          ...p,
+          store_type: 'promotion' as const,
+          store: undefined,
+        }));
       }
     }
 
-    product.store_prices = (prices || []).filter((p) => {
-      // 过滤已过期的促销价格
-      if (!p.time_type || p.time_type === 'permanent') return true;
-      if (!p.end_time) return true;
-      return new Date() <= new Date(p.end_time);
-    });
+    // 组装为前端期望的格式
+    const productData = {
+      id: product.id,
+      promotion_id: targetPromotionId || (activePrices[0] as any)?.promotion_id || null,
+      slug: product.slug,
+      category_id: product.category_id,
+      image_key: product.home_image_key,
+      image_url: product.image_url,
+      is_active: product.is_active,
+      is_featured: product.is_featured,
+      notes: null,
+      promotion_product_translations: (product.product_translations || []).map((t: any) => ({
+        id: t.id,
+        promotion_product_id: product.id,
+        name: t.name,
+        description: t.description,
+        features: t.features,
+        specs: t.specs,
+        language: t.language,
+      })),
+      store_prices: storePrices,
+    };
 
-    // Get promotion info if promotion_id exists
-    let promotion: Promotion | null = null;
-    if (product.promotion_id) {
-      const { data: promo, error: promoError } = await supabase
+    // 获取活动信息
+    let promotion: any = null;
+    const promoId = productData.promotion_id;
+    if (promoId) {
+      const { data: promo } = await supabase
         .from('promotions')
         .select(`
           id,
@@ -197,19 +240,20 @@ export async function GET(
             language
           )
         `)
-        .eq('id', product.promotion_id)
-        .single() as { data: Promotion | null; error: any };
+        .eq('id', promoId)
+        .single();
 
-      if (!promoError && promo) {
-        // Rename promotion_translations to translations for frontend compatibility
-        promo.translations = promo.promotion_translations || [];
-        promotion = promo;
+      if (promo) {
+        promotion = {
+          ...promo,
+          translations: promo.promotion_translations || [],
+        };
       }
     }
 
     return NextResponse.json({
-      product,
-      promotion
+      product: productData,
+      promotion,
     });
   } catch (error) {
     console.error('Error fetching promotion product:', error);

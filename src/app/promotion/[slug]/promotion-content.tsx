@@ -26,7 +26,8 @@ interface PromotionProductPrice {
   time_type: 'permanent' | 'time_range' | 'countdown';
   start_time: string | null;
   end_time: string | null;
-  countdown_action: 'close' | 'original_price';
+  countdown_action: 'convert_to_standard' | 'hide';
+  standard_price?: number | null;
   store?: {
     id: number;
     slug: string;
@@ -88,8 +89,8 @@ export async function PromotionContent({ slug }: { slug: string }) {
   // Decode URL-encoded slug
   const decodedSlug = decodeURIComponent(slug);
   
-  // Fetch promotion with products and store info (with retry)
-  let promotions: any[] = [];
+  // Fetch promotion with translations (with retry)
+  let promotion: any = null;
   let error: any = null;
   
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -108,69 +109,29 @@ export async function PromotionContent({ slug }: { slug: string }) {
           cover_image_key,
           cover_image_url,
           language
-        ),
-        promotion_products (
-          id,
-          promotion_id,
-          product_id,
-          slug,
-          category_id,
-          image_key,
-          image_url,
-          home_image_key,
-          is_active,
-          is_featured,
-          notes,
-          products (
-            home_image_key
-          ),
-          promotion_product_translations (
-            id,
-            name,
-            description,
-            language
-          ),
-          promotion_product_prices (
-            id,
-            store_id,
-            region,
-            current_price,
-            original_price,
-            discount_percent,
-            currency,
-            product_url,
-            no_quote,
-            store_type,
-            time_type,
-            start_time,
-            end_time,
-            countdown_action
-          )
         )
       `)
       .eq('slug', decodedSlug)
       .eq('is_active', true)
-      .limit(1);
+      .limit(1)
+      .single();
     
     if (!result.error) {
-      promotions = result.data || [];
+      promotion = result.data;
       error = null;
       break;
     }
     
     error = result.error;
-    promotions = [];
+    promotion = null;
     
-    // Wait before retrying (exponential backoff)
     if (attempt < 2) {
       await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
     }
   }
 
-  const promotion = promotions?.[0] || null;
-
   if (!promotion) {
-    console.error('Promotion not found:', decodedSlug, 'Error:', error, 'Promotions:', promotions);
+    console.error('Promotion not found:', decodedSlug, 'Error:', error);
     return (
       <div className="text-center py-16">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -189,36 +150,68 @@ export async function PromotionContent({ slug }: { slug: string }) {
     );
   }
 
-  // Transform data to match expected format, generate presigned URLs for home images
-  const transformedPromotion: Promotion = {
-    id: promotion.id,
-    slug: promotion.slug,
-    title: promotion.promotion_translations?.[0]?.title || null,
-    sort_order: promotion.sort_order,
-    is_active: promotion.is_active,
-    translations: promotion.promotion_translations || [],
-    promotion_products: await Promise.all((promotion.promotion_products || []).map(async (product: any) => {
-      const homeImageKey = product.products?.home_image_key || product.home_image_key || null;
-      const homeImageUrl = homeImageKey ? await getPresignedUrl(homeImageKey) : null;
-      return {
-        ...product,
-        home_image_url: homeImageUrl,
-        promotion_product_translations: product.promotion_product_translations || [],
-        store_prices: (product.promotion_product_prices || []).map((price: any) => ({
-          ...price,
-          store: null // Will be fetched separately if needed
-        }))
-      };
-    }))
-  };
+  // 从 product_prices 查询该活动下的价格行（统一架构）
+  const now = new Date();
+  const { data: promoPrices, error: pricesError } = await supabase
+    .from('product_prices')
+    .select(`
+      id,
+      product_id,
+      store_id,
+      region,
+      current_price,
+      original_price,
+      discount_percent,
+      currency,
+      product_url,
+      no_quote,
+      time_type,
+      start_time,
+      end_time,
+      countdown_action,
+      standard_price,
+      is_promotion_hidden,
+      is_featured_in_promotion,
+      in_stock,
+      products (
+        id,
+        slug,
+        category_id,
+        image_url,
+        image_url_small,
+        home_image_key,
+        is_active,
+        is_featured,
+        product_translations (
+          id,
+          name,
+          description,
+          language
+        )
+      )
+    `)
+    .eq('promotion_id', promotion.id)
+    .eq('is_promotion_hidden', false);
 
-  // Fetch store info for all prices with store_id
-  const allStoreIds = transformedPromotion.promotion_products
-    .flatMap(p => p.store_prices)
-    .filter(price => price.store_id)
-    .map(price => price.store_id as number);
+  if (pricesError) {
+    console.error('Error fetching promotion prices:', pricesError);
+  }
 
-  if (allStoreIds.length > 0) {
+  // 过滤已过期的价格
+  const activePrices = (promoPrices || []).filter((p: any) => {
+    if (!p.time_type || p.time_type === 'permanent') return true;
+    if (!p.end_time) return true;
+    return now <= new Date(p.end_time);
+  });
+
+  // 获取店铺信息
+  const allStoreIds = activePrices
+    .map((p: any) => p.store_id)
+    .filter(Boolean) as number[];
+  const uniqueStoreIds = [...new Set(allStoreIds)];
+
+  let storesMap: Record<number, any> = {};
+  if (uniqueStoreIds.length > 0) {
     const { data: stores } = await supabase
       .from('stores')
       .select(`
@@ -233,28 +226,92 @@ export async function PromotionContent({ slug }: { slug: string }) {
           language
         )
       `)
-      .in('id', allStoreIds);
+      .in('id', uniqueStoreIds);
 
-    // Attach store info to prices
     if (stores) {
-      transformedPromotion.promotion_products.forEach(product => {
-        product.store_prices.forEach(price => {
-          if (price.store_id) {
-            const store = stores.find(s => s.id === price.store_id);
-            if (store) {
-              price.store = {
-                id: store.id,
-                slug: store.slug,
-                logo_url: store.logo_url,
-                is_active: store.is_active,
-                store_translations: store.store_translations || []
-              };
-            }
-          }
-        });
-      });
+      for (const s of stores) {
+        storesMap[s.id] = s;
+      }
     }
   }
+
+  // 按 product_id 分组
+  const grouped = new Map<number, any>();
+  for (const price of activePrices) {
+    const product = price.products;
+    if (!product || product.is_active === false) continue;
+
+    if (!grouped.has(product.id)) {
+      grouped.set(product.id, {
+        id: product.id,
+        promotion_id: promotion.id,
+        product_id: product.id,
+        slug: product.slug,
+        category_id: product.category_id || null,
+        image_key: product.home_image_key,
+        image_url: product.image_url,
+        home_image_key: product.home_image_key,
+        is_active: true,
+        is_featured: !!price.is_featured_in_promotion,
+        notes: null,
+        promotion_product_translations: (product.product_translations || []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          language: t.language,
+        })),
+        store_prices: [],
+      });
+    }
+
+    const entry = grouped.get(product.id);
+    entry.store_prices.push({
+      id: price.id,
+      store_id: price.store_id,
+      region: price.region,
+      current_price: price.current_price,
+      original_price: price.original_price,
+      discount_percent: price.discount_percent,
+      currency: price.currency,
+      product_url: price.product_url,
+      no_quote: price.no_quote,
+      store_type: 'promotion' as const,
+      time_type: price.time_type,
+      start_time: price.start_time,
+      end_time: price.end_time,
+      countdown_action: price.countdown_action,
+      standard_price: price.standard_price,
+      store: price.store_id ? {
+        id: storesMap[price.store_id]?.id || price.store_id,
+        slug: storesMap[price.store_id]?.slug || String(price.store_id),
+        logo_url: storesMap[price.store_id]?.logo_url || null,
+        is_active: storesMap[price.store_id]?.is_active ?? true,
+        store_translations: storesMap[price.store_id]?.store_translations || [],
+      } : null,
+    });
+  }
+
+  // 生成 presigned URLs
+  const promotionProducts = await Promise.all(
+    Array.from(grouped.values()).map(async (product) => {
+      const homeImageKey = product.home_image_key;
+      const homeImageUrl = homeImageKey ? await getPresignedUrl(homeImageKey) : null;
+      return {
+        ...product,
+        home_image_url: homeImageUrl,
+      };
+    })
+  );
+
+  const transformedPromotion: Promotion = {
+    id: promotion.id,
+    slug: promotion.slug,
+    title: promotion.promotion_translations?.[0]?.title || null,
+    sort_order: promotion.sort_order,
+    is_active: promotion.is_active,
+    translations: promotion.promotion_translations || [],
+    promotion_products: promotionProducts,
+  };
 
   return <PromotionClientContent promotion={transformedPromotion as any} />;
 }
