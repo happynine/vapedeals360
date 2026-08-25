@@ -42,90 +42,130 @@ export async function GET(
       return NextResponse.json({ error: 'Promotion not found - no data returned' }, { status: 404 });
     }
 
-    // Get promotion products with their data
-    const { data: promotionProducts, error: productsError } = await supabase
-      .from('promotion_products')
+    // 从 product_prices 查询该活动下的价格行
+    const { data: promoPrices, error: pricesError } = await supabase
+      .from('product_prices')
       .select(`
         id,
-        promotion_id,
-        slug,
-        category_id,
-        image_key,
-        image_url,
-        home_image_key,
-        home_image_url,
-        is_active,
-        is_featured,
-        notes,
-        translations:promotion_product_translations (
+        product_id,
+        store_id,
+        region,
+        current_price,
+        original_price,
+        discount_percent,
+        currency,
+        product_url,
+        no_quote,
+        time_type,
+        start_time,
+        end_time,
+        countdown_action,
+        standard_price,
+        is_promotion_hidden,
+        is_featured_in_promotion,
+        in_stock,
+        products (
           id,
-          name,
-          description,
-          language
+          slug,
+          category_id,
+          image_url,
+          image_url_small,
+          home_image_key,
+          is_active,
+          is_featured,
+          product_translations (
+            id,
+            name,
+            description,
+            language
+          )
         )
       `)
-      .eq('promotion_id', promotion.id);
+      .eq('promotion_id', promotion.id)
+      .eq('is_promotion_hidden', false);
 
-    if (productsError) {
-      console.error('Error fetching promotion products:', productsError);
+    if (pricesError) {
+      console.error('Error fetching promotion prices:', pricesError);
     }
 
-    // Get store prices for each promotion product
-    const productsWithPrices = await Promise.all(
-      (promotionProducts || []).map(async (product) => {
-        const { data: storePrices, error: pricesError } = await supabase
-          .from('promotion_product_prices')
-          .select(`
-            id,
-            store_id,
-            region,
-            current_price,
-            original_price,
-            discount_percent,
-            currency,
-            product_url,
-            no_quote,
-            store_type,
-            time_type,
-            start_time,
-            end_time,
-            countdown_action
-          `)
-          .eq('promotion_product_id', product.id);
+    // 过滤已过期的价格行
+    const now = new Date();
+    const activePrices = (promoPrices || []).filter((p: { time_type?: string; end_time?: string | null }) => {
+      if (!p.time_type || p.time_type === 'permanent') return true;
+      if (!p.end_time) return true;
+      return now <= new Date(p.end_time);
+    });
 
-        if (pricesError) {
-          console.error('Error fetching store prices:', pricesError);
-        }
+    // 获取店铺信息
+    const storeIds = [...new Set(activePrices.map((p: { store_id: number | null }) => p.store_id).filter(Boolean))] as number[];
+    let storesMap: Record<number, Record<string, unknown>> = {};
+    if (storeIds.length > 0) {
+      const { data: storesData } = await supabase
+        .from('stores')
+        .select('id, slug, logo_url, is_active, store_translations(id, store_id, language, name)')
+        .in('id', storeIds);
+      (storesData || []).forEach((s: { id: number }) => { storesMap[s.id] = s; });
+    }
 
-        // Get store info for each price
-        const pricesWithStores = await Promise.all(
-          (storePrices || []).map(async (price) => {
-            if (!price.store_id) return price;
-            
-            const { data: store, error: storeError } = await supabase
-              .from('stores')
-              .select('id, slug, logo_url, is_active, store_translations(id, store_id, language, name)')
-              .eq('id', price.store_id)
-              .single();
-            
-            if (!storeError && store) {
-              return { ...price, store };
-            }
-            return price;
-          })
-        );
+    // 按 product_id 分组
+    const grouped = new Map<number, { product: Record<string, unknown>; prices: Array<Record<string, unknown>>; is_featured: boolean }>();
 
-        return {
-          ...product,
-          store_prices: pricesWithStores
-        };
-      })
-    );
+    for (const price of activePrices) {
+      const product = price.products as Record<string, unknown> | null;
+      if (!product || product.is_active === false) continue;
+
+      const pid = product.id as number;
+      if (!grouped.has(pid)) {
+        grouped.set(pid, { product, prices: [], is_featured: !!price.is_featured_in_promotion });
+      }
+      const entry = grouped.get(pid)!;
+      entry.prices.push({
+        id: price.id,
+        store_id: price.store_id,
+        region: price.region,
+        current_price: price.current_price,
+        original_price: price.original_price,
+        discount_percent: price.discount_percent,
+        currency: price.currency,
+        product_url: price.product_url,
+        no_quote: price.no_quote,
+        store_type: 'promotion',
+        time_type: price.time_type,
+        start_time: price.start_time,
+        end_time: price.end_time,
+        countdown_action: price.countdown_action,
+        standard_price: price.standard_price,
+        store: price.store_id ? storesMap[price.store_id] || null : null,
+      });
+    }
+
+    // 组装为前端期望的格式
+    const promotionProducts = Array.from(grouped.values()).map(({ product, prices, is_featured }) => ({
+      id: product.id,
+      promotion_id: promotion.id,
+      product_id: product.id,
+      slug: product.slug,
+      category_id: product.category_id || null,
+      image_key: product.home_image_key,
+      image_url: product.image_url,
+      home_image_key: product.home_image_key,
+      home_image_url: null,
+      is_active: true,
+      is_featured,
+      notes: null,
+      translations: (product.product_translations || []).map((t: Record<string, unknown>) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        language: t.language,
+      })),
+      store_prices: prices,
+    }));
 
     // Combine all data
     const result = {
       ...promotion,
-      promotion_products: productsWithPrices
+      promotion_products: promotionProducts,
     };
 
     return NextResponse.json(result);

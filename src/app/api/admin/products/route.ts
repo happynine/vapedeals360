@@ -2,78 +2,91 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
-import { deleteFile, uploadFile, buildR2Url } from '@/lib/storage';
+import { deleteFile, uploadFile } from '@/lib/storage';
 
 // 检查促销价格是否已过期
 function isPromotionExpired(price: { time_type?: string; end_time?: string | null; start_time?: string | null }): boolean {
   if (!price.time_type || price.time_type === 'permanent') return false;
-  const now = new Date();
   if (price.time_type === 'time_range' && price.end_time) {
-    return now > new Date(price.end_time);
+    return new Date() > new Date(price.end_time);
   }
   if (price.time_type === 'countdown' && price.end_time) {
-    return now > new Date(price.end_time);
+    return new Date() > new Date(price.end_time);
   }
   return false;
 }
 
-// 处理过期的促销价格：自动转为标准价或隐藏
-async function processExpiredPromotions(client: any, promotionProductId: number) {
+// 处理产品的过期促销价格（直接在 product_prices 上原地更新）
+async function processExpiredPromotions(client: any, productId: number) {
   const { data: prices } = await client
-    .from('promotion_product_prices')
+    .from('product_prices')
     .select('*')
-    .eq('promotion_product_id', promotionProductId);
+    .eq('product_id', productId)
+    .not('promotion_id', 'is', null);
 
   if (!prices || prices.length === 0) return;
 
   for (const price of prices) {
     if (isPromotionExpired(price)) {
-      const action = price.countdown_action || 'close';
-
-      // 获取 promotion_product 信息
-      const { data: pp } = await client
-        .from('promotion_products')
-        .select('product_id, slug, category_id')
-        .eq('id', promotionProductId)
-        .single();
-
-      if (!pp?.product_id) continue;
-
+      const action = price.countdown_action || 'hide';
       if (action === 'convert_to_standard') {
-        // 转为标准商城价：在 product_prices 创建记录
-        // 如果设置了 standard_price 则用它作为现价，否则用促销价
-        const targetPrice = price.standard_price || price.current_price;
-        const existingStandardPrice = await client
+        // 转为标准价：清除促销字段，价格改为 standard_price（没设则保持当前价）
+        await client
           .from('product_prices')
-          .select('id')
-          .eq('product_id', pp.product_id)
-          .eq('store_id', price.store_id)
-          .eq('region', price.region || '')
-          .single();
-
-        if (!existingStandardPrice.data) {
-          await client.from('product_prices').insert({
-            product_id: pp.product_id,
-            store_id: price.store_id,
-            current_price: targetPrice,
-            original_price: price.original_price || null,
-            product_url: price.product_url,
-            in_stock: true,
-            discount_percent: price.discount_percent || null,
-            currency: price.currency || '$',
-            region: price.region || '',
-            no_quote: price.no_quote || false,
-          });
-        }
+          .update({
+            promotion_id: null,
+            time_type: 'permanent',
+            start_time: null,
+            end_time: null,
+            countdown_action: 'hide',
+            standard_price: null,
+            is_featured_in_promotion: false,
+            current_price: price.standard_price || price.current_price,
+          })
+          .eq('id', price.id);
+        // 更新内存中的数据
+        price.promotion_id = null;
+        price.time_type = 'permanent';
+        price.start_time = null;
+        price.end_time = null;
+        price.countdown_action = 'hide';
+        price.standard_price = null;
+        price.is_featured_in_promotion = false;
+        price.current_price = price.standard_price || price.current_price;
+      } else {
+        // hide: 标记为已下架，数据保留
+        await client
+          .from('product_prices')
+          .update({ is_promotion_hidden: true })
+          .eq('id', price.id);
+        price.is_promotion_hidden = true;
       }
-
-      // 删除过期的促销价格记录
-      await client
-        .from('promotion_product_prices')
-        .delete()
-        .eq('id', price.id);
     }
   }
+}
+
+// 将价格行映射为数据库写入格式
+function mapPriceRow(p: Record<string, unknown>, productId: number) {
+  return {
+    product_id: productId,
+    store_id: p.store_id,
+    current_price: p.current_price,
+    original_price: p.original_price || null,
+    product_url: p.product_url,
+    in_stock: p.in_stock !== false,
+    discount_percent: p.discount_percent || null,
+    currency: p.currency || '$',
+    region: p.region || '',
+    no_quote: p.no_quote || false,
+    promotion_id: p.promotion_id || null,
+    time_type: p.time_type || 'permanent',
+    start_time: p.start_time || null,
+    end_time: p.end_time || null,
+    countdown_action: p.countdown_action || 'hide',
+    standard_price: p.standard_price || null,
+    is_promotion_hidden: p.is_promotion_hidden || false,
+    is_featured_in_promotion: p.is_featured_in_promotion || false,
+  };
 }
 
 // GET all products (admin view, including inactive)
@@ -99,69 +112,24 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
     if (countError) throw new Error(`Count failed: ${countError.message}`);
 
-    // 为每个产品添加促销状态信息
     if (data && data.length > 0) {
-      const productIds = data.map((p: Record<string, unknown>) => p.id as number);
-
-      // 批量获取所有相关促销产品
-      const { data: promoProducts } = await client
-        .from('promotion_products')
-        .select('id, product_id, promotion_id, is_active, promotion_product_prices(*)')
-        .in('product_id', productIds);
-
-      // 按产品ID分组
-      const promoByProduct: Record<number, Array<Record<string, unknown>>> = {};
-      (promoProducts || []).forEach((pp: Record<string, unknown>) => {
-        const pid = pp.product_id as number;
-        if (!promoByProduct[pid]) promoByProduct[pid] = [];
-        promoByProduct[pid].push(pp);
-      });
-
-      // 批量处理所有过期促销（避免逐产品循环调用）
-      const allPromoIds = (promoProducts || []).map((p: Record<string, unknown>) => p.id as number);
-      for (const promoId of allPromoIds) {
-        await processExpiredPromotions(client, promoId);
-      }
-
-      // 一次性批量获取所有产品的促销数据（含店铺信息）
-      const { data: allUpdatedPromos } = await client
-        .from('promotion_products')
-        .select('id, product_id, promotion_id, is_active, promotion_product_prices(*, stores(*, store_translations(*)))')
-        .in('product_id', productIds);
-
-      // 按产品ID分组
-      const updatedPromoByProduct: Record<number, Array<Record<string, unknown>>> = {};
-      (allUpdatedPromos || []).forEach((promo: Record<string, unknown>) => {
-        const pid = promo.product_id as number;
-        if (!updatedPromoByProduct[pid]) updatedPromoByProduct[pid] = [];
-        updatedPromoByProduct[pid].push(promo);
-      });
-
-      // 为每个产品计算促销状态
       for (const product of data) {
-        const updatedPromos = updatedPromoByProduct[product.id] || [];
+        // 处理过期促销
+        await processExpiredPromotions(client, product.id);
 
-        let activePromoCount = 0;
-        const allPromotionPrices: Array<Record<string, unknown>> = [];
-        updatedPromos.forEach((promo: Record<string, unknown>) => {
-          const prices = (promo.promotion_product_prices || []) as Array<{ time_type?: string; end_time?: string | null }>;
-          const hasActivePrice = prices.some(p => !isPromotionExpired(p));
-          if (hasActivePrice || prices.length === 0) {
-            activePromoCount++;
-          }
-          ((promo.promotion_product_prices || []) as Array<Record<string, unknown>>).forEach((pp: Record<string, unknown>) => {
-            if (!isPromotionExpired(pp)) {
-              allPromotionPrices.push({
-                ...pp,
-                promotion_id: promo.promotion_id,
-              });
-            }
-          });
-        });
+        const allPrices = product.product_prices as Record<string, unknown>[] || [];
 
+        // 拆分标准价和促销价（促销价: promotion_id 非空）
+        const standardPrices = allPrices.filter(p => !p.promotion_id);
+        const promoPrices = allPrices.filter(p => p.promotion_id);
+
+        // 计算活跃促销数量（未下架的）
+        const activePromoCount = promoPrices.filter(p => !p.is_promotion_hidden).length;
+
+        product.product_prices = standardPrices;
         (product as Record<string, unknown>).has_promotion = activePromoCount > 0;
         (product as Record<string, unknown>).active_promotion_count = activePromoCount;
-        (product as Record<string, unknown>).promotion_prices = allPromotionPrices;
+        (product as Record<string, unknown>).promotion_prices = promoPrices;
       }
     }
 
@@ -184,6 +152,7 @@ export async function POST(request: NextRequest) {
     const client = getServiceRoleClient();
     const body = await request.json();
     const { slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
+
     // Create product
     const { data: product, error: prodError } = await client
       .from('products')
@@ -203,6 +172,7 @@ export async function POST(request: NextRequest) {
       .single();
     if (prodError) throw new Error(`Create product failed: ${prodError.message}`);
     const productId = (product as Record<string, unknown>).id as number;
+
     // Create translations
     if (translations && translations.length > 0) {
       const transRows = translations.map((t: Record<string, unknown>) => ({
@@ -216,96 +186,18 @@ export async function POST(request: NextRequest) {
       const { error: transError } = await client.from('product_translations').insert(transRows);
       if (transError) throw new Error(`Create translations failed: ${transError.message}`);
     }
-    // Create prices
-    if (prices && prices.length > 0) {
-      const priceRows = prices.map((p: Record<string, unknown>) => ({
-        product_id: productId,
-        store_id: p.store_id,
-        current_price: p.current_price,
-        original_price: p.original_price || null,
-        product_url: p.product_url,
-        in_stock: p.in_stock !== false,
-        discount_percent: p.discount_percent || null,
-        currency: p.currency || '$',
-        region: p.region || '',
-        no_quote: p.no_quote || false,
-      }));
-      const { error: priceError } = await client.from('product_prices').insert(priceRows);
+
+    // 合并标准价和促销价，统一写入 product_prices
+    const allPriceRows = [
+      ...(prices || []).map((p: Record<string, unknown>) => mapPriceRow({ ...p, promotion_id: null, time_type: 'permanent' }, productId)),
+      ...(promotion_prices || []).map((p: Record<string, unknown>) => mapPriceRow(p, productId)),
+    ];
+
+    if (allPriceRows.length > 0) {
+      const { error: priceError } = await client.from('product_prices').insert(allPriceRows);
       if (priceError) throw new Error(`Create prices failed: ${priceError.message}`);
     }
-    // Create promotion products and prices
-    if (promotion_prices && promotion_prices.length > 0) {
-      // Group by promotion_id
-      const promotionGroups: Record<number, typeof promotion_prices> = {};
-      for (const pp of promotion_prices) {
-        const promoId = pp.promotion_id;
-        if (!promotionGroups[promoId]) promotionGroups[promoId] = [];
-        promotionGroups[promoId].push(pp);
-      }
-      for (const [promoIdStr, promoPrices] of Object.entries(promotionGroups)) {
-        const promoId = parseInt(promoIdStr);
-        // Check if promotion_product already exists for this product and promotion
-        const { data: existingPromoProduct } = await client
-          .from('promotion_products')
-          .select('id')
-          .eq('product_id', productId)
-          .eq('promotion_id', promoId)
-          .single();
-        let promoProductId = existingPromoProduct?.id;
-        if (!promoProductId) {
-          // Create promotion_product
-          const { data: newPromoProduct, error: ppError } = await client
-            .from('promotion_products')
-            .insert({
-              product_id: productId,
-              promotion_id: promoId,
-              slug: slug,
-              category_id: category_id || null,
-              image_key: image_url || null,
-              home_image_key: home_image_key || null,
-              image_url: image_url || null,
-              is_active: is_active !== false,
-              is_featured: is_featured || false,
-            })
-            .select()
-            .single();
-          if (ppError) throw new Error(`Create promotion product failed: ${ppError.message}`);
-          promoProductId = newPromoProduct.id;
-          // Create translation
-          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
-          if (enTrans) {
-            await client.from('promotion_product_translations').insert({
-              promotion_product_id: promoProductId,
-              language: 'en',
-              name: enTrans.name,
-              description: enTrans.description || null,
-              features: enTrans.features || null,
-              specs: enTrans.specs || null,
-            });
-          }
-        }
-        // Create promotion product prices
-        const promoPriceRows = promoPrices.map((p: Record<string, unknown>) => ({
-          promotion_product_id: promoProductId,
-          store_id: p.store_id,
-          current_price: p.current_price,
-          original_price: p.original_price || null,
-          product_url: p.product_url,
-          discount_percent: p.discount_percent || null,
-          currency: p.currency || '$',
-          region: p.region || '',
-          no_quote: p.no_quote || false,
-          store_type: 'promotion',
-          time_type: p.time_type || 'permanent',
-          start_time: p.start_time || null,
-          end_time: p.end_time || null,
-          countdown_action: p.countdown_action || 'close',
-          standard_price: p.standard_price || null,
-        }));
-        const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
-        if (promoPriceError) throw new Error(`Create promotion prices failed: ${promoPriceError.message}`);
-      }
-    }
+
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -323,17 +215,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
 
-    // 先处理过期促销：根据 countdown_action 自动转换或隐藏
-    const { data: existingPromos } = await client
-      .from('promotion_products')
-      .select('id')
-      .eq('product_id', id);
-
-    if (existingPromos && existingPromos.length > 0) {
-      for (const promo of existingPromos) {
-        await processExpiredPromotions(client, promo.id);
-      }
-    }
+    // 先处理过期促销
+    await processExpiredPromotions(client, id);
 
     // 获取旧的产品数据，用于删除旧图片和 slug 变更时重命名
     const { data: oldProduct } = await client
@@ -402,6 +285,7 @@ export async function PUT(request: NextRequest) {
     if (effectiveImageUrlSmall && effectiveImageUrlSmall.startsWith('http')) {
       effectiveImageUrlSmall = effectiveImageUrlSmall.split('?')[0] + '?' + cacheParam;
     }
+
     const { data: product, error: prodError } = await client
       .from('products')
       .update({
@@ -421,13 +305,13 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (prodError) throw new Error(`Update product failed: ${prodError.message}`);
+
     // 删除旧图片文件（当图片被更新时；slug 变更时已在上方处理）
     if (oldProduct && !slugChanged) {
       const oldHomeImageKey = oldProduct.home_image_key as string | null;
       const oldImageUrl = oldProduct.image_url as string | null;
       const oldImageUrlSmall = oldProduct.image_url_small as string | null;
 
-      // 比较 base URL（去掉 ?v= 缓存参数），路径不同才删除旧文件
       if (home_image_key !== undefined && oldHomeImageKey && effectiveHomeImageKey) {
         const oldBase = oldHomeImageKey.split('?')[0];
         const newBase = effectiveHomeImageKey.split('?')[0];
@@ -452,6 +336,7 @@ export async function PUT(request: NextRequest) {
         }
       }
     }
+
     // Update translations
     if (translations && translations.length > 0) {
       await client.from('product_translations').delete().eq('product_id', id);
@@ -466,144 +351,22 @@ export async function PUT(request: NextRequest) {
       const { error: transError } = await client.from('product_translations').insert(transRows);
       if (transError) throw new Error(`Update translations failed: ${transError.message}`);
     }
-    // Update prices
-    if (prices && prices.length > 0) {
+
+    // 统一删除旧价格并重新写入（标准价 + 促销价合并到 product_prices）
+    if (prices || promotion_prices) {
       await client.from('product_prices').delete().eq('product_id', id);
-      const priceRows = prices.map((p: Record<string, unknown>) => ({
-        product_id: id,
-        store_id: p.store_id,
-        current_price: p.current_price,
-        original_price: p.original_price || null,
-        product_url: p.product_url,
-        in_stock: p.in_stock !== false,
-        discount_percent: p.discount_percent || null,
-        currency: p.currency || '$',
-        region: p.region || '',
-        no_quote: p.no_quote || false,
-      }));
-      const { error: priceError } = await client.from('product_prices').insert(priceRows);
-      if (priceError) throw new Error(`Update prices failed: ${priceError.message}`);
-    }
 
-    // 清理已无促销价格的促销产品记录
-    const { data: remainingPromos } = await client
-      .from('promotion_products')
-      .select('id')
-      .eq('product_id', id);
-    if (remainingPromos) {
-      for (const promo of remainingPromos) {
-        const { count: priceCount } = await client
-          .from('promotion_product_prices')
-          .select('*', { count: 'exact', head: true })
-          .eq('promotion_product_id', promo.id);
-        if (priceCount === 0) {
-          await client.from('promotion_product_translations').delete().eq('promotion_product_id', promo.id);
-          await client.from('promotion_products').delete().eq('id', promo.id);
-        }
+      const allPriceRows = [
+        ...(prices || []).map((p: Record<string, unknown>) => mapPriceRow({ ...p, promotion_id: null, time_type: 'permanent' }, id)),
+        ...(promotion_prices || []).map((p: Record<string, unknown>) => mapPriceRow(p, id)),
+      ];
+
+      if (allPriceRows.length > 0) {
+        const { error: priceError } = await client.from('product_prices').insert(allPriceRows);
+        if (priceError) throw new Error(`Update prices failed: ${priceError.message}`);
       }
     }
 
-    // Update promotion products and prices
-    if (promotion_prices && promotion_prices.length > 0) {
-      // Get existing promotion products for this product
-      const { data: existingPromoProducts } = await client
-        .from('promotion_products')
-        .select('id, promotion_id')
-        .eq('product_id', id);
-      const existingPromoProductMap = new Map((existingPromoProducts || []).map((pp: Record<string, unknown>) => [pp.promotion_id as number, pp.id as number]));
-      // Group by promotion_id
-      const promotionGroups: Record<number, typeof promotion_prices> = {};
-      for (const pp of promotion_prices) {
-        const promoId = pp.promotion_id;
-        if (!promotionGroups[promoId]) promotionGroups[promoId] = [];
-        promotionGroups[promoId].push(pp);
-      }
-      for (const [promoIdStr, promoPrices] of Object.entries(promotionGroups)) {
-        const promoId = parseInt(promoIdStr);
-        let promoProductId = existingPromoProductMap.get(promoId);
-        if (!promoProductId) {
-          // Create promotion_product
-          const { data: newPromoProduct, error: ppError } = await client
-            .from('promotion_products')
-            .insert({
-              product_id: id,
-              promotion_id: promoId,
-              slug: slug,
-              category_id: category_id || null,
-              image_key: image_url || null,
-              home_image_key: home_image_key || null,
-              image_url: image_url || null,
-              is_active: is_active !== false,
-              is_featured: is_featured || false,
-            })
-            .select()
-            .single();
-          if (ppError) throw new Error(`Create promotion product failed: ${ppError.message}`);
-          promoProductId = newPromoProduct.id;
-          // Create translation
-          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
-          if (enTrans) {
-            await client.from('promotion_product_translations').insert({
-              promotion_product_id: promoProductId,
-              language: 'en',
-              name: enTrans.name,
-              description: enTrans.description || null,
-              features: enTrans.features || null,
-              specs: enTrans.specs || null,
-            });
-          }
-        } else {
-          // Update existing promotion_product
-          await client
-            .from('promotion_products')
-            .update({
-              slug: slug,
-              category_id: category_id || null,
-              image_key: image_url || null,
-              home_image_key: home_image_key || null,
-              image_url: image_url || null,
-              is_active: is_active !== false,
-              is_featured: is_featured || false,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', promoProductId);
-          // Update translation
-          const enTrans = translations?.find((t: Record<string, unknown>) => t.language === 'en');
-          if (enTrans) {
-            await client.from('promotion_product_translations').delete().eq('promotion_product_id', promoProductId);
-            await client.from('promotion_product_translations').insert({
-              promotion_product_id: promoProductId,
-              language: 'en',
-              name: enTrans.name,
-              description: enTrans.description || null,
-              features: enTrans.features || null,
-              specs: enTrans.specs || null,
-            });
-          }
-        }
-        // Delete existing prices and insert new ones
-        await client.from('promotion_product_prices').delete().eq('promotion_product_id', promoProductId);
-        const promoPriceRows = promoPrices.map((p: Record<string, unknown>) => ({
-          promotion_product_id: promoProductId,
-          store_id: p.store_id,
-          current_price: p.current_price,
-          original_price: p.original_price || null,
-          product_url: p.product_url,
-          discount_percent: p.discount_percent || null,
-          currency: p.currency || '$',
-          region: p.region || '',
-          no_quote: p.no_quote || false,
-          store_type: 'promotion',
-          time_type: p.time_type || 'permanent',
-          start_time: p.start_time || null,
-          end_time: p.end_time || null,
-          countdown_action: p.countdown_action || 'close',
-          standard_price: p.standard_price || null,
-        }));
-        const { error: promoPriceError } = await client.from('promotion_product_prices').insert(promoPriceRows);
-        if (promoPriceError) throw new Error(`Update promotion prices failed: ${promoPriceError.message}`);
-      }
-    }
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -613,7 +376,6 @@ export async function PUT(request: NextRequest) {
 
 // DELETE product
 export async function DELETE(request: NextRequest) {
-
   const rl = checkRateLimit(request, "admin");
   if (!rl.allowed) return rateLimitResponse(rl.resetTime);
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
@@ -623,35 +385,27 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) throw new Error('Missing id parameter');
     const productId = parseInt(id);
+
     // 获取产品数据以清理关联的 R2 图片
     const { data: product } = await client
       .from('products')
       .select('image_url, image_url_small, home_image_key')
       .eq('id', productId)
       .single();
-    // 先删除子表数据，避免外键约束冲突
+
+    // 删除子表数据（product_prices 现在包含标准价和促销价）
     await client.from('product_translations').delete().eq('product_id', productId);
     await client.from('product_prices').delete().eq('product_id', productId);
-    // 清理促销产品关联
-    const { data: promoProducts } = await client
-      .from('promotion_products')
-      .select('id')
-      .eq('product_id', productId);
-    if (promoProducts) {
-      for (const pp of promoProducts) {
-        await client.from('promotion_product_prices').delete().eq('promotion_product_id', pp.id);
-        await client.from('promotion_product_translations').delete().eq('promotion_product_id', pp.id);
-        await client.from('promotion_products').delete().eq('id', pp.id);
-      }
-    }
     const { error } = await client.from('products').delete().eq('id', productId);
     if (error) throw new Error(`Delete product failed: ${error.message}`);
+
     // 清理关联的 R2 图片
     if (product) {
       await deleteFile((product as Record<string, unknown>).image_url as string | null);
       await deleteFile((product as Record<string, unknown>).image_url_small as string | null);
       await deleteFile((product as Record<string, unknown>).home_image_key as string | null);
     }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

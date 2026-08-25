@@ -87,6 +87,51 @@ function getClient() {
   }
 }
 
+// 检查促销价格是否已过期
+function isPromotionPriceExpired(price: Record<string, unknown>): boolean {
+  const timeType = price.time_type as string | undefined;
+  const endTime = price.end_time as string | null | undefined;
+  if (!timeType || timeType === 'permanent') return false;
+  if (!endTime) return false;
+  return new Date() > new Date(endTime);
+}
+
+// 处理公开展示的价格行：过滤隐藏的，处理过期的
+function processPublicPrice(price: Record<string, unknown>): Record<string, unknown> | null {
+  const isPromo = !!price.promotion_id;
+  const isHidden = price.is_promotion_hidden === true;
+
+  if (isPromo && isHidden) return null;
+
+  if (isPromo && isPromotionPriceExpired(price)) {
+    const action = (price.countdown_action as string) || 'hide';
+    if (action === 'convert_to_standard') {
+      // 转为标准价展示
+      return {
+        ...price,
+        promotion_id: null,
+        time_type: 'permanent',
+        start_time: null,
+        end_time: null,
+        countdown_action: null,
+        standard_price: null,
+        is_featured_in_promotion: false,
+        current_price: price.standard_price || price.current_price,
+        store_type: undefined,
+      };
+    }
+    // hide: 不展示
+    return null;
+  }
+
+  // 活跃的促销价格，标记 store_type 供前端识别
+  if (isPromo) {
+    return { ...price, store_type: 'promotion' };
+  }
+
+  return price;
+}
+
 // Fetch all active categories with translations
 export async function fetchCategories(language: string = 'en') {
   const client = getClient();
@@ -172,7 +217,7 @@ export async function fetchProducts(options?: {
   // Fetch stores for region filtering if needed (reused later for storeRegionMap)
   let allStores: Record<string, unknown>[] | null = null;
   if (activeRegion) {
-    // Note: Also filter by is_active to exclude disabled stores
+    // Note: Also filter by is_active to exclude inactive stores
     const { data: storeData, error: storeError } = await client
       .from('stores')
       .select('id, regions, store_type, is_active');
@@ -257,55 +302,19 @@ export async function fetchProducts(options?: {
   const { data, error } = await query;
   if (error) throw new Error(`Fetch products failed: ${error.message}`);
 
-  // Fetch promotion store prices for all products
-  const productIds = (data || []).map((p: Record<string, unknown>) => p.id as number);
-  let promoPricesMap: Record<number, Record<string, unknown>[]> = {};
-  if (productIds.length > 0) {
-    const { data: promoProducts, error: promoError } = await client
-      .from('promotion_products')
-      .select('*, promotion_product_prices(*, stores(*, store_translations(*)))')
-      .in('product_id', productIds)
-      .eq('is_active', true);
-    if (!promoError && promoProducts) {
-      for (const pp of promoProducts) {
-        const pid = (pp as Record<string, unknown>).product_id as number;
-        const ppPrices = (pp as Record<string, unknown>).promotion_product_prices as Record<string, unknown>[] || [];
-        if (!promoPricesMap[pid]) promoPricesMap[pid] = [];
-        for (const ppp of ppPrices) {
-          const storeData = (ppp as Record<string, unknown>).stores as Record<string, unknown> | null;
-          promoPricesMap[pid].push({
-            ...ppp,
-            store: storeData
-              ? {
-                  ...storeData,
-                  translations: (storeData.store_translations || []) as StoreTranslation[],
-                }
-              : undefined,
-          });
-        }
-      }
-    }
-  }
-
   // Build a map of store regions for currency filtering
-  // Official和Store类型都应该遵循其设置的regions
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
   if (activeRegion && allStores) {
     for (const s of allStores) {
       const regions = s.regions as { region: string; currency: string }[] | null;
       const storeId = s.id as number;
-      // 检查store是否匹配当前region
       if (Array.isArray(regions) && regions.length > 0) {
-        // 如果store设置了regions，只有匹配时才包含
         if (regions.some(r => r.region === activeRegion)) {
           storeRegionMap[storeId] = regions;
         } else if (regions.some(r => r.region === 'Global')) {
-          // 如果store设置了Global region，在所有region下都显示
           storeRegionMap[storeId] = regions;
         }
-        // 否则不包含该store（不添加到storeRegionMap）
       } else {
-        // 没有设置regions的store在所有region下都显示（向后兼容）
         storeRegionMap[storeId] = [];
       }
     }
@@ -316,55 +325,53 @@ export async function fetchProducts(options?: {
     const homeImageKey = product.home_image_key as string | null;
     const homeImageUrl = await getPresignedUrl(homeImageKey);
     
+    // product_prices 现在同时包含标准价和促销价
+    const allPrices = product.product_prices as Record<string, unknown>[] || [];
+
     return {
       ...product,
       home_image_url: homeImageUrl,
       translations: product.product_translations as ProductTranslation[],
-      prices: [...(product.product_prices as Record<string, unknown>[] || []), ...(promoPricesMap[product.id as number] || [])]
+      prices: allPrices
+        // 处理公开价格：过滤隐藏、过期转换
+        .map(p => processPublicPrice(p))
+        .filter((p): p is Record<string, unknown> => p !== null)
+        // Region filtering
         .filter((p) => {
           if (!activeRegion) return true;
-          const pStoreId = (p as Record<string, unknown>).store_id as number;
-          const pRegion = (p as Record<string, unknown>).region as string | null;
-          // Include prices that match the region, Global region, or have no region set (backward compat)
+          const pStoreId = p.store_id as number;
+          const pRegion = p.region as string | null;
           if (pRegion === activeRegion || pRegion === 'Global') return true;
           if (!pRegion) {
-            // For prices without region, check if the store matches the region
             const storeRegions = storeRegionMap[pStoreId];
-            // 如果store在storeRegionMap中，说明它匹配当前region
             return storeRegions !== undefined;
           }
           return false;
         })
         .map((p) => {
-        const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
-        return {
-          ...p,
-          store: storeData
-            ? {
-                ...storeData,
-                translations: (storeData.store_translations || []) as StoreTranslation[],
-              }
-            : undefined,
-        };
-      }),
+          const storeData = p.stores as Record<string, unknown> | null;
+          return {
+            ...p,
+            store: storeData
+              ? {
+                  ...storeData,
+                  translations: (storeData.store_translations || []) as StoreTranslation[],
+                }
+              : undefined,
+          };
+        }),
     };
   }));
 
   // If currency is specified, filter products that have matching prices
-  // Logic: 
-  // - For Global region: filter all prices by currency
-  // - For specific region: show region prices filtered by currency + Global prices (not filtered by currency)
   if (currency && activeRegion) {
     return processedProducts.filter((product: Record<string, unknown>) => {
       const prices = product.prices as Record<string, unknown>[] || [];
       const hasMatchingPrice = prices.some((p) => {
-        const pRegion = (p as Record<string, unknown>).region as string | null;
-        const pCurrency = (p as Record<string, unknown>).currency as string | null;
+        const pRegion = p.region as string | null;
+        const pCurrency = p.currency as string | null;
         
-        // Global prices are always included when specific region is selected
         if (pRegion === 'Global' && activeRegion !== 'Global') return true;
-        
-        // Region prices must match both region AND currency
         return pRegion === activeRegion && pCurrency === currency;
       });
       return hasMatchingPrice;
@@ -388,33 +395,11 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
   if (!data) return null;
 
   const product = data as Record<string, unknown>;
-  const productId = product.id as number;
-  const allPrices = product.product_prices as Record<string, unknown>[] || [];
 
-  // Also fetch promotion store prices
-  const { data: promoProducts, error: promoError } = await client
-    .from('promotion_products')
-    .select('*, promotion_product_prices(*, stores(*, store_translations(*)))')
-    .eq('product_id', productId)
-    .eq('is_active', true);
-  if (promoError) throw new Error(`Fetch promotion products failed: ${promoError.message}`);
-  if (promoProducts && promoProducts.length > 0) {
-    for (const pp of promoProducts) {
-      const ppPrices = (pp as Record<string, unknown>).promotion_product_prices as Record<string, unknown>[] || [];
-      for (const ppp of ppPrices) {
-        const storeData = (ppp as Record<string, unknown>).stores as Record<string, unknown> | null;
-        allPrices.push({
-          ...ppp,
-          store: storeData
-            ? {
-                ...storeData,
-                translations: (storeData.store_translations || []) as StoreTranslation[],
-              }
-            : undefined,
-        });
-      }
-    }
-  }
+  // product_prices 现在同时包含标准价和促销价，不再需要跨表查询
+  const allPrices = (product.product_prices as Record<string, unknown>[] || [])
+    .map(p => processPublicPrice(p))
+    .filter((p): p is Record<string, unknown> => p !== null);
 
   // Build store region map for filtering
   let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
@@ -425,14 +410,12 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
         const storeId = storeData.id as number;
         const regions = storeData.regions as { region: string; currency: string }[] | null;
         if (Array.isArray(regions) && regions.length > 0) {
-          // 如果store设置了regions，只有匹配时才包含
           if (regions.some(r => r.region === activeRegion)) {
             storeRegionMap[storeId] = regions;
           } else if (regions.some(r => r.region === 'Global')) {
             storeRegionMap[storeId] = regions;
           }
         } else {
-          // 没有设置regions的store在所有region下都显示
           storeRegionMap[storeId] = [];
         }
       }
@@ -442,9 +425,8 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
   // Filter prices by region
   const filteredPrices = activeRegion
     ? allPrices.filter((p) => {
-        const pStoreId = (p as Record<string, unknown>).store_id as number;
-        const pRegion = (p as Record<string, unknown>).region as string | null;
-        // Include prices that match the region, Global region, or have no region set
+        const pStoreId = p.store_id as number;
+        const pRegion = p.region as string | null;
         if (pRegion === activeRegion || pRegion === 'Global') return true;
         if (!pRegion) {
           const storeRegions = storeRegionMap[pStoreId];
@@ -463,9 +445,9 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
     home_image_url: homeImageUrl,
     translations: product.product_translations as ProductTranslation[],
     prices: filteredPrices.map((p) => {
-      const storeData = (p as Record<string, unknown>).stores as Record<string, unknown> | null;
+      const storeData = p.stores as Record<string, unknown> | null;
       return {
-        ...(p as Record<string, unknown>),
+        ...p,
         store: storeData
           ? {
               ...storeData,
@@ -518,70 +500,51 @@ export async function countProducts(category_id?: number, sales_region?: string,
   const activeRegion = (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') ? sales_region : null;
   
   if (activeRegion) {
-    // Cannot use .contains() or .like() on jsonb column, fetch and filter in JS
-    // Note: Also filter by is_active to exclude disabled stores
     const { data: storeData, error: storeError } = await client
       .from('stores')
       .select('id, regions, store_type, is_active');
     if (storeError) throw new Error(`Filter stores by region failed: ${storeError.message}`);
     
-    // Filter stores that match the region or are Global, and are active
     const storeIds = (storeData || [])
       .filter((s: Record<string, unknown>) => {
-        // Exclude inactive stores
         if (s.is_active === false) return false;
-        
         const regions = s.regions as { region: string; currency: string }[] | null;
         const storeType = s.store_type as string | null;
-        // Official类型的商城视为Global，包含在所有region中
         if (storeType === 'official') return true;
-        // regions为空或包含"Global"的store也包含在所有region中
         if (!regions || regions.length === 0) return true;
         if (regions.some(r => r.region === 'Global')) return true;
-        // 否则检查是否包含当前region
         return regions.some(r => r.region === activeRegion);
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return 0;
     
-    // Get prices from these stores with region filter
     const { data: priceData, error: priceError } = await client
       .from('product_prices')
       .select('product_id, region, currency')
       .in('store_id', storeIds);
     if (priceError) throw new Error(`Filter prices by store failed: ${priceError.message}`);
     
-    // Filter product IDs that have matching prices
     let productIds: number[];
     if (currency && activeRegion !== 'Global') {
-      // When currency is specified and not Global region:
-      // Product must have either:
-      // 1. Prices matching the region with matching currency, OR
-      // 2. Global region prices (currency not filtered for Global)
       const matchingProductIdsSet = new Set<number>();
       for (const p of (priceData || [])) {
         const pRegion = (p as Record<string, unknown>).region as string | null;
         const pCurrency = (p as Record<string, unknown>).currency as string | null;
         const pProductId = (p as Record<string, unknown>).product_id as number;
-        
-        // Global prices always count when specific region is selected
         if (pRegion === 'Global') {
           matchingProductIdsSet.add(pProductId);
         } else if (pRegion === activeRegion && pCurrency === currency) {
-          // Region prices must match currency
           matchingProductIdsSet.add(pProductId);
         }
       }
       productIds = [...matchingProductIdsSet];
     } else {
-      // No currency filter, just get unique product IDs
       productIds = [...new Set(((priceData || []) as Array<Record<string, unknown>>).map((p) => p.product_id as number))];
     }
     
     if (productIds.length === 0) return 0;
     query = query.in('id', productIds);
   } else if (currency) {
-    // No region filter but currency is specified: count products that have any active price in that currency.
     const { data: activeStores, error: storeErr } = await client
       .from('stores')
       .select('id')
@@ -659,7 +622,7 @@ export async function fetchBanners(language: string = 'en') {
   if (error) throw new Error(`Fetch banners failed: ${error.message}`);
   return (data || []).map((banner: Record<string, unknown>) => ({
     ...banner,
-    translations: (banner.banner_translations || []) as BannerTranslation[],
+    translations: banner.banner_translations as BannerTranslation[],
   }));
 }
 
