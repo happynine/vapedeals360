@@ -378,10 +378,15 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   // Mount effect - read from sessionStorage
   useEffect(() => {
     const savedCurrencyCode = sessionStorage.getItem('selectedCurrencyCode');
-    
+    let needsCurrencyFetch = false;
+
     if (savedCurrencyCode) {
       const currency = CURRENCIES.find(c => c.code === savedCurrencyCode);
       if (currency) {
+        // If stored currency differs from server-rendered default (USD/$), need to refetch
+        if (currency.symbol !== "$") {
+          needsCurrencyFetch = true;
+        }
         setSelectedCurrencyCode(currency.code);
         setSelectedCurrency(currency.symbol);
       }
@@ -392,9 +397,14 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       setIsInitialLoad(false);
       hasFetchedRef.current = true;
       fetchData();
+    } else if (needsCurrencyFetch) {
+      // Currency was changed from default, need to fetch products for that currency
+      setIsInitialLoad(false);
+      // hasFetchedRef stays false so the second effect triggers fetchData
     } else {
       // Use initial data on first load, skip fetch
       setIsInitialLoad(false);
+      hasFetchedRef.current = true;
     }
   }, []);
 
@@ -1356,5 +1366,6 @@ function MobileCombinedCarousel({
     </div>
   );
 }
+
 
 
