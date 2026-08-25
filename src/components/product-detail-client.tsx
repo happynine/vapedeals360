@@ -192,7 +192,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
     }
   } catch { specsEntries = []; }
 
-  // Filter prices - 按选中货币筛选（顶部摘要用）
+  // Filter prices - 按选中货币筛选（与首页逻辑一致）
   const allActivePrices = product.prices.filter((p) => {
     if (p.no_quote) return false;
     if (p.store && !p.store.is_active) return false;
@@ -203,35 +203,6 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
 
   const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
   const lowestPrice = sortedPrices[0];
-
-  // Price Comparison 表格：展示所有有效价格，按货币分组，选中货币排最前，同货币内按价格升序
-  const tablePrices = [...allActivePrices].sort((a, b) => {
-    const aCur = a.currency || '$';
-    const bCur = b.currency || '$';
-    if (aCur === selectedCurrency && bCur !== selectedCurrency) return -1;
-    if (bCur === selectedCurrency && aCur !== selectedCurrency) return 1;
-    if (aCur !== bCur) return aCur.localeCompare(bCur);
-    return parseFloat(a.current_price) - parseFloat(b.current_price);
-  });
-  // 每种货币的最低价 id 集合，用于标记 LOWEST
-  const lowestPriceIds = new Set<number>();
-  {
-    const minByCurrency = new Map<string, number>();
-    for (const p of allActivePrices) {
-      const cur = p.currency || '$';
-      const price = parseFloat(p.current_price);
-      const curMin = minByCurrency.get(cur);
-      if (curMin === undefined || price < curMin) {
-        minByCurrency.set(cur, price);
-      }
-    }
-    for (const p of allActivePrices) {
-      const cur = p.currency || '$';
-      if (parseFloat(p.current_price) === minByCurrency.get(cur)) {
-        lowestPriceIds.add(p.id);
-      }
-    }
-  }
 
   // Calculate discount
   let discount: number | null = null;
@@ -409,14 +380,13 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             <div className="text-center">{language === "zh" ? "操作" : "Action"}</div>
           </div>
           {/* Rows */}
-          {tablePrices.map((price) => {
+          {sortedPrices.map((price, idx) => {
             const st = price.store ? getTranslation(price.store.translations, language) : null;
-            const isLowest = lowestPriceIds.has(price.id);
-            const isOtherCurrency = (price.currency || '$') !== selectedCurrency;
+            const isLowest = idx === 0;
             const priceDiscount = price.discount_percent || (price.original_price ? Math.round((parseFloat(price.original_price) - parseFloat(price.current_price)) / parseFloat(price.original_price) * 100) : null);
 
             return (
-              <div key={price.id} className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? "bg-emerald-50/50" : isOtherCurrency ? "bg-gray-50/40" : ""}`}>
+              <div key={price.id} className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? "bg-emerald-50/50" : ""}`}>
                 {/* Desktop row */}
                 <div className="hidden md:grid grid-cols-7 gap-4 px-5 py-4 items-center">
                   <div className="flex items-center gap-3">
@@ -437,11 +407,6 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       {isLowest && (
                         <span className="ml-2 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
                           {language === "zh" ? "最低价" : "LOWEST"}
-                        </span>
-                      )}
-                      {isOtherCurrency && (
-                        <span className="ml-2 inline-block rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
-                          {price.currency}{price.region ? ` · ${price.region}` : ''}
                         </span>
                       )}
                     </div>
@@ -515,7 +480,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                   </div>
                 </div>
                 {/* Mobile card */}
-                <div className={`md:hidden px-4 py-3 ${isOtherCurrency ? 'bg-gray-50/40' : ''}`}>
+                <div className="md:hidden px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 overflow-hidden">
@@ -536,11 +501,6 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                           {isLowest && (
                             <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 flex-shrink-0">
                               {language === "zh" ? "最低价" : "LOWEST"}
-                            </span>
-                          )}
-                          {isOtherCurrency && (
-                            <span className="inline-block rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 flex-shrink-0">
-                              {price.currency}{price.region ? ` · ${price.region}` : ''}
                             </span>
                           )}
                         </div>
