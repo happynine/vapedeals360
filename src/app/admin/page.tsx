@@ -559,6 +559,7 @@ export default function AdminPage() {
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productPage, setProductPage] = useState(1);
   const [productCurrencyFilter, setProductCurrencyFilter] = useState<string>('');
+  const [productTypeFilter, setProductTypeFilter] = useState<string>('');
   const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
@@ -571,12 +572,22 @@ export default function AdminPage() {
         p.product_prices?.forEach((price: any) => {
           if (price.currency && !price.no_quote) productCurrencySymbols.add(price.currency);
         });
+        (p.promotion_prices as Array<Record<string, unknown>> | undefined)?.forEach((price) => {
+          const cur = price.currency as string;
+          const noQuote = price.no_quote as boolean;
+          if (cur && !noQuote) productCurrencySymbols.add(cur);
+        });
         const targetSymbol = CURRENCY_OPTIONS.find((o) => o.code === productCurrencyFilter)?.symbol;
         if (!targetSymbol || !productCurrencySymbols.has(targetSymbol)) return false;
       }
+      if (productTypeFilter === 'promotion') {
+        if (!p.has_promotion) return false;
+      } else if (productTypeFilter === 'standard') {
+        if (p.has_promotion) return false;
+      }
       return true;
     });
-  }, [sortedProducts, productSearch, productCurrencyFilter, stores]);
+  }, [sortedProducts, productSearch, productCurrencyFilter, productTypeFilter, stores]);
   const productTotalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
     const start = (productPage - 1) * PRODUCTS_PER_PAGE;
@@ -1633,6 +1644,15 @@ export default function AdminPage() {
                         <option key={opt.code} value={opt.code}>{opt.flagAlt} — {opt.code} ({opt.symbol})</option>
                       ))}
                     </select>
+                    <select
+                      value={productTypeFilter}
+                      onChange={(e) => { setProductTypeFilter(e.target.value); setProductPage(1); }}
+                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">{t('All Products', '全部', adminLang)}</option>
+                      <option value="standard">{t('Standard Products', '标准产品', adminLang)}</option>
+                      <option value="promotion">{t('Promotion Products', '活动产品', adminLang)}</option>
+                    </select>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1700,19 +1720,54 @@ export default function AdminPage() {
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                   <div>
-                                    <div className="text-sm font-medium">{enName}</div>
+                                    <div className="text-sm font-medium flex items-center gap-1.5">
+                                      {enName}
+                                      {product.has_promotion && (
+                                        <span className="inline-flex items-center rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400" title={
+                                          (() => {
+                                            const promoIds = new Set<number>();
+                                            (product.promotion_prices as Array<Record<string, unknown>> | undefined)?.forEach(p => {
+                                              const pid = p.promotion_id as number;
+                                              if (pid) promoIds.add(pid);
+                                            });
+                                            return Array.from(promoIds).map(id => {
+                                              const p = promotions.find(pr => pr.id === id);
+                                              return p?.promotion_translations?.find(t => t.language === adminLang)?.name || p?.slug || '';
+                                            }).filter(Boolean).join(', ');
+                                          })()
+                                        }>
+                                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" /></svg>
+                                          {adminLang === 'zh' ? '活动中' : 'PROMO'}
+                                        </span>
+                                      )}
+                                    </div>
                                     <div className="text-xs text-muted-foreground">{zhName}</div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-sm text-muted-foreground">{catName}</td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">{product.product_prices?.length || 0} {t('stores', '家商城', adminLang)}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {(() => {
+                                  const storeIds = new Set<number>();
+                                  product.product_prices?.forEach((p: ProductPrice) => { if (p.store_id) storeIds.add(p.store_id); });
+                                  (product.promotion_prices as Array<Record<string, unknown>> | undefined)?.forEach((p) => {
+                                    const sid = p.store_id as number;
+                                    if (sid) storeIds.add(sid);
+                                  });
+                                  return `${storeIds.size} ${t('stores', '家商城', adminLang)}`;
+                                })()}
+                              </td>
                               <td className="px-4 py-3">
                                 <div className="flex gap-1 flex-wrap">
                                   {(() => {
                                     const productCurrencySymbols = new Set<string>();
                                     product.product_prices?.forEach((price: ProductPrice) => {
                                       if (price.currency && !price.no_quote) productCurrencySymbols.add(price.currency);
+                                    });
+                                    (product.promotion_prices as Array<Record<string, unknown>> | undefined)?.forEach((price) => {
+                                      const cur = price.currency as string;
+                                      const noQuote = price.no_quote as boolean;
+                                      if (cur && !noQuote) productCurrencySymbols.add(cur);
                                     });
                                     const symbolList = Array.from(productCurrencySymbols);
                                     if (symbolList.length === 0) return <span className="text-[10px] text-muted-foreground">—</span>;
@@ -7881,6 +7936,18 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       // Load existing promotion prices
       const promoPricesList = ((product.promotion_prices as Array<Record<string, unknown>> | undefined) || []).map((p) => {
         const store = stores.find((s) => s.id.toString() === (p.store_id as number)?.toString());
+        // Calculate remaining countdown duration from end_time
+        let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
+        if ((p.time_type as string) === 'countdown' && p.end_time) {
+          const end = new Date(p.end_time as string);
+          const diff = end.getTime() - Date.now();
+          if (diff > 0) {
+            countdown_days = Math.floor(diff / 86400000);
+            countdown_hours = Math.floor((diff % 86400000) / 3600000);
+            countdown_minutes = Math.floor((diff % 3600000) / 60000);
+            countdown_seconds = Math.floor((diff % 60000) / 1000);
+          }
+        }
         return {
           store_id: (p.store_id as number)?.toString() || '',
           current_price: (p.current_price as string) || '',
@@ -7897,10 +7964,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           end_time: (p.end_time as string) || '',
           countdown_action: ((p.countdown_action as 'convert_to_standard' | 'hide') || 'convert_to_standard'),
           standard_price: (p.standard_price as string) || '',
-          countdown_days: 0,
-          countdown_hours: 0,
-          countdown_minutes: 0,
-          countdown_seconds: 0,
+          countdown_days,
+          countdown_hours,
+          countdown_minutes,
+          countdown_seconds,
         };
       });
       setPrices(
@@ -8675,6 +8742,7 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
     </>
   );
 }
+
 
 
 
