@@ -16,51 +16,54 @@ function isPromotionExpired(price: { time_type?: string; end_time?: string | nul
   return false;
 }
 
-// 处理产品的过期促销价格（直接在 product_prices 上原地更新）
-async function processExpiredPromotions(client: any, productId: number) {
+// 批量处理所有过期促销价格（一次查询 + 按类型批量更新，避免 N+1）
+async function processExpiredPromotionsBatch(client: any): Promise<{
+  convertedIds: Set<number>;
+  hiddenIds: Set<number>;
+}> {
   const { data: prices } = await client
     .from('product_prices')
-    .select('*')
-    .eq('product_id', productId)
+    .select('id, countdown_action, time_type, end_time')
     .not('promotion_id', 'is', null);
 
-  if (!prices || prices.length === 0) return;
+  const result = { convertedIds: new Set<number>(), hiddenIds: new Set<number>() };
+  if (!prices || prices.length === 0) return result;
 
-  for (const price of prices) {
-    if (isPromotionExpired(price)) {
-      const action = price.countdown_action || 'hide';
-      if (action === 'convert_to_standard') {
-        // 转为标准价：清除促销字段，价格保持 current_price（现价）不变
-        await client
-          .from('product_prices')
-          .update({
-            promotion_id: null,
-            time_type: 'permanent',
-            start_time: null,
-            end_time: null,
-            countdown_action: 'hide',
-            promo_price: null,
-            is_featured_in_promotion: false,
-          })
-          .eq('id', price.id);
-        // 更新内存中的数据
-        price.promotion_id = null;
-        price.time_type = 'permanent';
-        price.start_time = null;
-        price.end_time = null;
-        price.countdown_action = 'hide';
-        price.promo_price = null;
-        price.is_featured_in_promotion = false;
+  for (const p of prices) {
+    if (isPromotionExpired(p)) {
+      if ((p.countdown_action || 'hide') === 'convert_to_standard') {
+        result.convertedIds.add(p.id);
       } else {
-        // hide: 标记为已下架，数据保留
-        await client
-          .from('product_prices')
-          .update({ is_promotion_hidden: true })
-          .eq('id', price.id);
-        price.is_promotion_hidden = true;
+        result.hiddenIds.add(p.id);
       }
     }
   }
+
+  // 批量转为标准价
+  if (result.convertedIds.size > 0) {
+    await client
+      .from('product_prices')
+      .update({
+        promotion_id: null,
+        time_type: 'permanent',
+        start_time: null,
+        end_time: null,
+        countdown_action: 'hide',
+        promo_price: null,
+        is_featured_in_promotion: false,
+      })
+      .in('id', Array.from(result.convertedIds));
+  }
+
+  // 批量标记隐藏
+  if (result.hiddenIds.size > 0) {
+    await client
+      .from('product_prices')
+      .update({ is_promotion_hidden: true })
+      .in('id', Array.from(result.hiddenIds));
+  }
+
+  return result;
 }
 
 // 将价格行映射为数据库写入格式
@@ -110,12 +113,21 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true });
     if (countError) throw new Error(`Count failed: ${countError.message}`);
 
+    // 批量处理过期促销（一次查询，按类型批量更新）
+    const expired = await processExpiredPromotionsBatch(client);
+
     if (data && data.length > 0) {
       for (const product of data) {
-        // 处理过期促销
-        await processExpiredPromotions(client, product.id);
-
-        const allPrices = product.product_prices as Record<string, unknown>[] || [];
+        const allPrices = (product.product_prices as Record<string, unknown>[] || []).map(p => {
+          // 同步内存中已过期的价格数据
+          if (expired.convertedIds.has(p.id as number)) {
+            return { ...p, promotion_id: null, time_type: 'permanent', start_time: null, end_time: null, countdown_action: 'hide', promo_price: null, is_featured_in_promotion: false };
+          }
+          if (expired.hiddenIds.has(p.id as number)) {
+            return { ...p, is_promotion_hidden: true };
+          }
+          return p;
+        });
 
         // 拆分标准价和促销价（促销价: promotion_id 非空）
         const standardPrices = allPrices.filter(p => !p.promotion_id);
@@ -213,8 +225,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { id, slug, category_id, image_url, image_url_small, home_image_key, images, is_active, is_featured, sales_region, notes, translations, prices, promotion_prices } = body;
 
-    // 先处理过期促销
-    await processExpiredPromotions(client, id);
+    // 批量处理过期促销
+    await processExpiredPromotionsBatch(client);
 
     // 获取旧的产品数据，用于删除旧图片和 slug 变更时重命名
     const { data: oldProduct } = await client
