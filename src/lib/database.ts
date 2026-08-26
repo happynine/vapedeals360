@@ -114,9 +114,8 @@ function processPublicPrice(price: Record<string, unknown>): Record<string, unkn
         start_time: null,
         end_time: null,
         countdown_action: null,
-        standard_price: null,
+        promo_price: null,
         is_featured_in_promotion: false,
-        current_price: price.standard_price || price.current_price,
         store_type: undefined,
       };
     }

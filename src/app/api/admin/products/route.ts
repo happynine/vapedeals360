@@ -30,7 +30,7 @@ async function processExpiredPromotions(client: any, productId: number) {
     if (isPromotionExpired(price)) {
       const action = price.countdown_action || 'hide';
       if (action === 'convert_to_standard') {
-        // 转为标准价：清除促销字段，价格改为 standard_price（没设则保持当前价）
+        // 转为标准价：清除促销字段，价格保持 current_price（现价）不变
         await client
           .from('product_prices')
           .update({
@@ -39,9 +39,8 @@ async function processExpiredPromotions(client: any, productId: number) {
             start_time: null,
             end_time: null,
             countdown_action: 'hide',
-            standard_price: null,
+            promo_price: null,
             is_featured_in_promotion: false,
-            current_price: price.standard_price || price.current_price,
           })
           .eq('id', price.id);
         // 更新内存中的数据
@@ -50,9 +49,8 @@ async function processExpiredPromotions(client: any, productId: number) {
         price.start_time = null;
         price.end_time = null;
         price.countdown_action = 'hide';
-        price.standard_price = null;
+        price.promo_price = null;
         price.is_featured_in_promotion = false;
-        price.current_price = price.standard_price || price.current_price;
       } else {
         // hide: 标记为已下架，数据保留
         await client
@@ -83,7 +81,7 @@ function mapPriceRow(p: Record<string, unknown>, productId: number) {
     start_time: p.start_time || null,
     end_time: p.end_time || null,
     countdown_action: p.countdown_action || 'hide',
-    standard_price: p.standard_price || null,
+    promo_price: p.promo_price || null,
     is_promotion_hidden: p.is_promotion_hidden || false,
     is_featured_in_promotion: p.is_featured_in_promotion || false,
   };

@@ -7797,7 +7797,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         }))
       : activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; standard_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number }[]>(
     product?.product_prices?.map((p) => {
       const store = stores.find((s) => s.id.toString() === p.store_id.toString());
       return {
@@ -7818,10 +7818,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         countdown_days: 0,
         countdown_hours: 0,
         countdown_minutes: 0,
-        standard_price: '',
+        promo_price: '',
         countdown_seconds: 0,
       };
-    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
   );
   const [saving, setSaving] = useState(false);
   const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([]);
@@ -7927,7 +7927,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           start_time: '',
           end_time: '',
           countdown_action: 'convert_to_standard' as const,
-          standard_price: '',
+          promo_price: '',
           countdown_days: 0,
           countdown_hours: 0,
           countdown_minutes: 0,
@@ -7937,11 +7937,12 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       // Load existing promotion prices
       const promoPricesList = ((product.promotion_prices as Array<Record<string, unknown>> | undefined) || []).map((p) => {
         const store = stores.find((s) => s.id.toString() === (p.store_id as number)?.toString());
-        // Calculate remaining countdown duration from end_time
+        // Calculate original countdown duration from start_time to end_time
         let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
         if ((p.time_type as string) === 'countdown' && p.end_time) {
+          const start = p.start_time ? new Date(p.start_time as string) : new Date();
           const end = new Date(p.end_time as string);
-          const diff = end.getTime() - Date.now();
+          const diff = end.getTime() - start.getTime();
           if (diff > 0) {
             countdown_days = Math.floor(diff / 86400000);
             countdown_hours = Math.floor((diff % 86400000) / 3600000);
@@ -7964,7 +7965,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           start_time: (p.start_time as string) || '',
           end_time: (p.end_time as string) || '',
           countdown_action: ((p.countdown_action as 'convert_to_standard' | 'hide') || 'convert_to_standard'),
-          standard_price: (p.standard_price as string) || '',
+          promo_price: (p.promo_price as string) || '',
           countdown_days,
           countdown_hours,
           countdown_minutes,
@@ -7974,7 +7975,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setPrices(
         [...standardPricesList, ...promoPricesList].length > 0
           ? [...standardPricesList, ...promoPricesList]
-          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
       );
     } else if (open && !product) {
       // Reset all fields for "Add New Product" mode
@@ -7987,18 +7988,27 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setIsFeatured(false);
       setNotes('');
       setTranslations(activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' })));
-      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
+      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
     }
   }, [open, product?.id, product?.updated_at, activeLanguages, stores]);
 
   const handleSave = async () => {
+    // Validate countdown: at least one value > 0
+    for (const p of prices) {
+      if (p.store_type === 'promotion' && p.time_type === 'countdown') {
+        const total = (p.countdown_days || 0) + (p.countdown_hours || 0) + (p.countdown_minutes || 0) + (p.countdown_seconds || 0);
+        if (total <= 0) {
+          alert(t('Countdown duration must be greater than 0', '倒计时时长必须大于0', lang));
+          setSaving(false);
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
-      // Separate standard and promotion prices
-      // store_type from stores table can be 'store'/'official'/'standard'/'promotion';
-      // use promotion_id to distinguish: if promotion_id is set → promotion, else → standard
-      const standardPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && !p.promotion_id);
-      const promotionPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && p.promotion_id);
+      // Separate standard and promotion prices by store_type
+      const standardPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && p.store_type !== 'promotion');
+      const promotionPrices = prices.filter(p => p.store_id && p.current_price && p.product_url && p.store_type === 'promotion');
 
       const url = '/api/admin/products';
       const method = isEdit ? 'PUT' : 'POST';
@@ -8056,7 +8066,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
             start_time: startTime,
             end_time: endTime,
             countdown_action: p.countdown_action,
-            standard_price: p.standard_price || null,
+            promo_price: p.promo_price || null,
           };
         }),
       };
@@ -8279,7 +8289,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 no_quote: existing?.no_quote || false,
                                 store_type: firstP.store_type,
                                 promotion_id: firstP.promotion_id,
-                                standard_price: existing?.standard_price || '',
+                                promo_price: existing?.promo_price || '',
                                 time_type: 'permanent' as const,
                                 start_time: '',
                                 end_time: '',
@@ -8303,7 +8313,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                   no_quote: existing?.no_quote || false,
                                   store_type: firstP.store_type,
                                   promotion_id: firstP.promotion_id,
-                                  standard_price: existing?.standard_price || '',
+                                  promo_price: existing?.promo_price || '',
                                   time_type: 'permanent' as const,
                                   start_time: '',
                                   end_time: '',
@@ -8351,13 +8361,25 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             </select>
                           </div>
                         )}
+                        {/* Promo Price - always shown for promotion stores, above time settings */}
+                        {firstP.store_type === 'promotion' && (
+                          <div className="mt-2">
+                            <label className="text-[10px] text-muted-foreground text-left block mb-0.5">{t('Promo Price', '特惠价', lang)} ({firstP.currency || '$'})</label>
+                            <input
+                              value={firstP.promo_price || ''}
+                              onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].promo_price = e.target.value; } setPrices(newP); }}
+                              className="w-full rounded-lg border border-purple-500/30 bg-purple-500/5 px-3 py-2 text-sm"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        )}
                         {/* Time Settings for Promotion Store */}
                         {firstP.store_type === 'promotion' && (
                           <div className="mt-2 p-2 rounded-lg border border-purple-500/20 bg-purple-500/5">
                             <label className="text-[10px] text-muted-foreground text-left block mb-1">{t('Time Settings', '时间设置', lang)}</label>
                             <div className="flex gap-1 mb-2">
                               {(['permanent', 'time_range', 'countdown'] as const).map((tt) => (
-                                <button key={tt} onClick={() => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].time_type = tt; } setPrices(newP); }}
+                                <button key={tt} onClick={() => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].time_type = tt; if (tt === 'time_range') { newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; } if (tt === 'countdown') { newP[idx].start_time = ''; newP[idx].end_time = ''; } if (tt === 'permanent') { newP[idx].start_time = ''; newP[idx].end_time = ''; newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; } } setPrices(newP); }}
                                   className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${firstP.time_type === tt ? 'bg-purple-600 text-white' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
                                   {tt === 'permanent' ? t('Permanent', '永久', lang) : tt === 'time_range' ? t('Time Range', '时间段', lang) : t('Countdown', '倒计时', lang)}
                                 </button>
@@ -8404,17 +8426,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                   <option value="convert_to_standard">{t('Auto convert to Standard Store', '自动转为标准商城', lang)}</option>
                                   <option value="hide">{t('Auto hide from Promotion', '自动下架特惠信息', lang)}</option>
                                 </select>
-                                {firstP.countdown_action === 'convert_to_standard' && (
-                                  <div className="mt-2">
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Promotional Price', '促销价', lang)}</label>
-                                    <input
-                                      value={firstP.standard_price}
-                                      onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].standard_price = e.target.value; } setPrices(newP); }}
-                                      className="w-full rounded-lg border border-purple-500/30 bg-purple-500/5 px-2 py-1 text-xs"
-                                      placeholder={t('Leave empty to show current price', '留空则显示现价', lang)}
-                                    />
-                                  </div>
-                                )}
+
                               </div>
                             )}
                             {firstP.time_type === 'time_range' && (
@@ -8426,17 +8438,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                   <option value="convert_to_standard">{t('Auto convert to Standard Store', '自动转为标准商城', lang)}</option>
                                   <option value="hide">{t('Auto hide from Promotion', '自动下架特惠信息', lang)}</option>
                                 </select>
-                                {firstP.countdown_action === 'convert_to_standard' && (
-                                  <div className="mt-2">
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Promotional Price', '促销价', lang)}</label>
-                                    <input
-                                      value={firstP.standard_price}
-                                      onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].standard_price = e.target.value; } setPrices(newP); }}
-                                      className="w-full rounded-lg border border-purple-500/30 bg-purple-500/5 px-2 py-1 text-xs"
-                                      placeholder={t('Leave empty to show current price', '留空则显示现价', lang)}
-                                    />
-                                  </div>
-                                )}
+
                               </div>
                             )}
                           </div>
@@ -8573,10 +8575,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   });
                 })()}
                 <div className="flex gap-3">
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
                     + {t('Add Standard Store', '添加标准商城', lang)}
                   </button>
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', standard_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
                     + {t('Add Promotion Store', '添加特惠商城', lang)}
                   </button>
                 </div>

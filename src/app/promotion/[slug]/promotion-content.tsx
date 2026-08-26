@@ -27,7 +27,7 @@ interface PromotionProductPrice {
   start_time: string | null;
   end_time: string | null;
   countdown_action: 'convert_to_standard' | 'hide';
-  standard_price?: number | null;
+  promo_price?: number | null;
   store?: {
     id: number;
     slug: string;
@@ -169,7 +169,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
       start_time,
       end_time,
       countdown_action,
-      standard_price,
+      promo_price,
       is_promotion_hidden,
       is_featured_in_promotion,
       in_stock,
@@ -280,7 +280,7 @@ export async function PromotionContent({ slug }: { slug: string }) {
       start_time: price.start_time,
       end_time: price.end_time,
       countdown_action: price.countdown_action,
-      standard_price: price.standard_price,
+      promo_price: price.promo_price,
       store: price.store_id ? {
         id: storesMap[price.store_id]?.id || price.store_id,
         slug: storesMap[price.store_id]?.slug || String(price.store_id),

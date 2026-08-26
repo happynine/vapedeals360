@@ -60,7 +60,7 @@ export async function GET(
         start_time,
         end_time,
         countdown_action,
-        standard_price,
+        promo_price,
         is_promotion_hidden,
         is_featured_in_promotion,
         in_stock,
@@ -134,7 +134,7 @@ export async function GET(
         start_time: price.start_time,
         end_time: price.end_time,
         countdown_action: price.countdown_action,
-        standard_price: price.standard_price,
+        promo_price: price.promo_price,
         store: price.store_id ? storesMap[price.store_id] || null : null,
       });
     }

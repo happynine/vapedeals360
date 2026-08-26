@@ -33,7 +33,7 @@ interface StorePrice {
   start_time: string | null;
   end_time: string | null;
   countdown_action: 'convert_to_standard' | 'hide';
-  standard_price?: number | null;
+  promo_price?: number | null;
   store?: PriceStore;
 }
 
@@ -101,7 +101,7 @@ export async function GET(
         start_time,
         end_time,
         countdown_action,
-        standard_price,
+        promo_price,
         is_promotion_hidden,
         in_stock,
         promotion_id
@@ -171,7 +171,7 @@ export async function GET(
             start_time: p.start_time,
             end_time: p.end_time,
             countdown_action: p.countdown_action,
-            standard_price: p.standard_price,
+            promo_price: p.promo_price,
             store: store ? {
               id: store.id,
               slug: store.slug,
