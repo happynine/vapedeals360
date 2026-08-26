@@ -418,11 +418,6 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                   <div className="mt-1 sm:mt-1.5 flex items-baseline gap-1 sm:gap-2">
                     <span className="text-sm sm:text-xl font-bold text-emerald-600 tabular-nums">
                       {lowestPrice?.currency === 'USD' ? '$' : lowestPrice?.currency || '$'}{lowestPriceValue.toFixed(2)}
-                      {lowestPrice?.promo_price && lowestPrice.current_price && lowestPrice.current_price > parseFloat(lowestPrice.promo_price) && (
-                        <span className="ml-1.5 text-sm text-gray-400 line-through tabular-nums align-middle">
-                          {(lowestPrice.currency === 'USD' ? '$' : lowestPrice.currency || '$')}{lowestPrice.current_price.toFixed(2)}
-                        </span>
-                      )}
                     </span>
                     {sortedPrices.length >= 2 && (
                       <span className="text-[9px] sm:text-xs text-emerald-600 font-medium">
@@ -446,9 +441,6 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                           <span className="text-[9px] text-gray-500 truncate">{storeName}</span>
                           <span className="text-[9px] font-semibold text-emerald-600 tabular-nums">
                             {price.currency === 'USD' ? '$' : price.currency || '$'}{getPromoDisplayPrice(price).toFixed(2)}
-                            {price.promo_price && price.current_price && price.current_price > parseFloat(price.promo_price) && (
-                              <span className="block text-[9px] text-gray-400 line-through tabular-nums">{price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price.toFixed(2)}</span>
-                            )}
                           </span>
                         </div>
                       );
@@ -485,9 +477,6 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span className="text-xs font-semibold text-emerald-600 tabular-nums">
                               {price.currency === 'USD' ? '$' : price.currency || '$'}{getPromoDisplayPrice(price).toFixed(2)}
-                            {price.promo_price && price.current_price && price.current_price > parseFloat(price.promo_price) && (
-                              <span className="block text-[9px] text-gray-400 line-through tabular-nums">{price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price.toFixed(2)}</span>
-                            )}
                             </span>
                             {price.product_url && (
                               <a

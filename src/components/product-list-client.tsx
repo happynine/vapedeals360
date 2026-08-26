@@ -608,9 +608,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                         <span className="text-xl font-bold text-emerald-600 tabular-nums">
                           {lowest?.currency || '$'}{lowest ? getDisplayPrice(lowest) : "—"}
                         </span>
-                        {lowest?.promotion_id != null && lowest.promo_price && parseFloat(lowest.current_price) > parseFloat(lowest.promo_price) && (
-                          <span className="text-sm text-gray-400 line-through tabular-nums">{lowest.currency || '$'}{lowest.current_price}</span>
-                        )}
                         {highestOrig && displayPrices.length >= 2 && (
                           <span className="text-xs text-emerald-600 font-medium ml-0.5">
                             {language === "zh" ? "最低价" : "Lowest"}
@@ -860,9 +857,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                     <span className="text-base sm:text-2xl font-bold text-emerald-600 tabular-nums">
                       {lowest?.currency || '$'}{lowest ? getDisplayPrice(lowest) : "—"}
                     </span>
-                    {lowest?.promotion_id != null && lowest.promo_price && parseFloat(lowest.current_price) > parseFloat(lowest.promo_price) && (
-                      <span className="text-xs sm:text-sm text-gray-400 line-through tabular-nums">{lowest.currency || '$'}{lowest.current_price}</span>
-                    )}
                     {highestOrig && displayPrices.length >= 2 && (
                       <span className="text-[10px] sm:text-xs text-emerald-600 font-medium ml-0.5">
                         {language === "zh" ? "最低价" : "Lowest"}
@@ -882,9 +876,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                           <span className="text-[10px] font-semibold text-emerald-600 tabular-nums">
                             {price.currency || '$'}{getDisplayPrice(price)}
                           </span>
-                          {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) && (
-                            <span className="text-[9px] text-gray-400 line-through tabular-nums block">{price.currency || '$'}{price.current_price}</span>
-                          )}
                         </div>
                       );
                     })}
@@ -918,9 +909,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                             <span className="text-xs font-semibold text-emerald-600 tabular-nums">
                               {price.currency || '$'}{getDisplayPrice(price)}
                             </span>
-                            {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) && (
-                              <span className="text-[10px] text-gray-400 line-through tabular-nums">{price.currency || '$'}{price.current_price}</span>
-                            )}
                             <a
                               href={price.product_url}
                               target="_blank"

@@ -423,18 +423,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                     </div>
                   </div>
                   <div className="text-center">
-                    {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) ? (
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-xs text-gray-400 line-through tabular-nums">{price.currency || "$"}{price.current_price}</span>
-                        <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-red-600"}`}>
-                          {price.currency || "$"}{price.promo_price}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
-                        {price.currency || "$"}{getDisplayPrice(price)}
-                      </span>
-                    )}
+                    <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : (price.promotion_id != null ? "text-red-600" : "text-gray-900")}`}>
+                      {price.currency || "$"}{getDisplayPrice(price)}
+                    </span>
                   </div>
                   {/* Countdown column */}
                   <div className="text-center">
@@ -527,18 +518,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) ? (
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-xs text-gray-400 line-through tabular-nums">{price.currency || "$"}{price.current_price}</span>
-                          <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-red-600"}`}>
-                            {price.currency || "$"}{price.promo_price}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
-                          {price.currency || "$"}{getDisplayPrice(price)}
-                        </span>
-                      )}
+                      <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : (price.promotion_id != null ? "text-red-600" : "text-gray-900")}`}>
+                        {price.currency || "$"}{getDisplayPrice(price)}
+                      </span>
                       {priceDiscount && (
                         <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
                           -{priceDiscount}%
