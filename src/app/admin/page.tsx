@@ -46,7 +46,13 @@ async function adminFetch(url: string, options: RequestInit = {}): Promise<Respo
   if (adminToken) {
     headers['x-session'] = adminToken;
   }
-  return fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers });
+  // Auto-logout on 401: token expired or invalid
+  if (res.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('admin_token');
+    window.location.reload();
+  }
+  return res;
 }
 
 let mammothInstance: typeof import('mammoth') | null = null;

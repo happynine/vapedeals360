@@ -92,6 +92,7 @@ function mapPriceRow(p: Record<string, unknown>, productId: number) {
 
 // GET all products (admin view, including inactive)
 export async function GET(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const client = getServiceRoleClient();
     const { searchParams } = new URL(request.url);
