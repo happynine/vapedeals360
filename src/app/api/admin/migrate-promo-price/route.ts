@@ -6,25 +6,37 @@ export async function GET() {
   try {
     const supabaseUrl = process.env.SUPABASE_URL || '';
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    
-    // Extract project ref from URL
     const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
-    results.push({ project_ref: projectRef, service_key_length: serviceKey.length });
-    
-    // Try pooler connection with service role key as password
-    // Supabase pooler format: postgres://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
-    // Try different regions
-    const regions = ['us-east-1', 'us-east-2', 'us-west-1', 'eu-west-1', 'ap-southeast-1', 'ap-northeast-1'];
     
     const { Client } = await import('pg');
     
-    for (const region of regions) {
-      const host = `aws-0-${region}.pooler.supabase.com`;
-      const connStr = `postgresql://postgres.${projectRef}:${serviceKey}@${host}:6543/postgres`;
+    // Try multiple connection formats
+    const connections = [
+      // Direct connection
+      { name: 'direct-5432', host: `db.${projectRef}.supabase.co`, port: 5432, user: 'postgres', password: serviceKey },
+      // Pooler on 6543 with postgres.[ref] user
+      { name: 'pooler-6543-ref-user', host: 'aws-0-us-west-1.pooler.supabase.com', port: 6543, user: `postgres.${projectRef}`, password: serviceKey },
+      // Pooler on 5432 session mode
+      { name: 'pooler-5432-ref-user', host: 'aws-0-us-west-1.pooler.supabase.com', port: 5432, user: `postgres.${projectRef}`, password: serviceKey },
+      // Pooler on 6543 with plain postgres user
+      { name: 'pooler-6543-plain', host: 'aws-0-us-west-1.pooler.supabase.com', port: 6543, user: 'postgres', password: serviceKey },
+      // Try new Supabase pooler domain format
+      { name: 'pooler-new-6543', host: 'aws-1-us-west-1.pooler.supabase.com', port: 6543, user: `postgres.${projectRef}`, password: serviceKey },
+    ];
+    
+    for (const conn of connections) {
       try {
-        const client = new Client({ connectionString: connStr, connectionTimeoutMillis: 5000 });
+        const client = new Client({
+          host: conn.host,
+          port: conn.port,
+          user: conn.user,
+          password: conn.password,
+          database: 'postgres',
+          connectionTimeoutMillis: 8000,
+          ssl: { rejectUnauthorized: false },
+        });
         await client.connect();
-        results.push({ region, status: 'connected' });
+        results.push({ ...conn, status: 'connected' });
         
         // Run migrations
         const migrations = [
@@ -41,16 +53,15 @@ export async function GET() {
           }
         }
         
-        // Verify
         const verify = await client.query(
           "SELECT column_name FROM information_schema.columns WHERE table_name='product_prices' AND column_name IN ('promo_price','standard_price')"
         );
         results.push({ columns: verify.rows });
         
         await client.end();
-        return NextResponse.json({ success: true, results, region_used: region });
+        return NextResponse.json({ success: true, results, connected_via: conn.name });
       } catch (e) {
-        results.push({ region, status: 'failed', error: (e as Error).message.substring(0, 200) });
+        results.push({ name: conn.name, host: conn.host, port: conn.port, user: conn.user, status: 'failed', error: (e as Error).message.substring(0, 200) });
       }
     }
     
