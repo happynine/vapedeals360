@@ -8406,12 +8406,12 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 </select>
                                 {firstP.countdown_action === 'convert_to_standard' && (
                                   <div className="mt-2">
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Standard Price After Expiry', '转为标准价', lang)} ({firstP.currency || '$'})</label>
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Promotional Price', '促销价', lang)}</label>
                                     <input
                                       value={firstP.standard_price}
                                       onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].standard_price = e.target.value; } setPrices(newP); }}
                                       className="w-full rounded-lg border border-purple-500/30 bg-purple-500/5 px-2 py-1 text-xs"
-                                      placeholder={t('Leave empty to use promo price', '留空则用促销价', lang)}
+                                      placeholder={t('Leave empty to show current price', '留空则显示现价', lang)}
                                     />
                                   </div>
                                 )}
@@ -8428,12 +8428,12 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 </select>
                                 {firstP.countdown_action === 'convert_to_standard' && (
                                   <div className="mt-2">
-                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Standard Price After Expiry', '转为标准价', lang)} ({firstP.currency || '$'})</label>
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5">{t('Promotional Price', '促销价', lang)}</label>
                                     <input
                                       value={firstP.standard_price}
                                       onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].standard_price = e.target.value; } setPrices(newP); }}
                                       className="w-full rounded-lg border border-purple-500/30 bg-purple-500/5 px-2 py-1 text-xs"
-                                      placeholder={t('Leave empty to use promo price', '留空则用促销价', lang)}
+                                      placeholder={t('Leave empty to show current price', '留空则显示现价', lang)}
                                     />
                                   </div>
                                 )}
