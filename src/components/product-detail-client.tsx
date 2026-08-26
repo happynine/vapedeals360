@@ -45,7 +45,17 @@ export interface ProductPrice {
   time_type?: 'permanent' | 'time_range' | 'countdown';
   start_time?: string | null;
   end_time?: string | null;
-  countdown_action?: 'close' | 'original_price';
+  countdown_action?: 'close' | 'original_price' | 'convert_to_standard' | 'hide';
+  promotion_id?: number | null;
+  promo_price?: string | null;
+}
+
+/** Display price: active promotion uses promo_price, otherwise current_price */
+function getDisplayPrice(p: ProductPrice): string {
+  if (p.promotion_id != null && p.promo_price != null && p.promo_price !== '') {
+    return p.promo_price;
+  }
+  return p.current_price;
 }
 
 export interface ProductTranslation {
@@ -201,7 +211,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
   const currencyFiltered = allActivePrices.filter((p) => (p.currency || '$') === selectedCurrency);
   const filteredPrices = currencyFiltered.length > 0 ? currencyFiltered : allActivePrices;
 
-  const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+  const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(getDisplayPrice(a)) - parseFloat(getDisplayPrice(b)));
   const lowestPrice = sortedPrices[0];
 
   // Calculate discount
@@ -214,8 +224,8 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
     const lowestCurrency = lowestPrice.currency;
     const sameCurrencyPrices = filteredPrices.filter((p) => p.currency === lowestCurrency);
     if (sameCurrencyPrices.length >= 2) {
-      const highestCurrent = Math.max(...sameCurrencyPrices.map((p) => parseFloat(p.current_price)));
-      const lowestCurrent = parseFloat(lowestPrice.current_price);
+      const highestCurrent = Math.max(...sameCurrencyPrices.map((p) => parseFloat(getDisplayPrice(p))));
+      const lowestCurrent = parseFloat(getDisplayPrice(lowestPrice));
       discountAmount = highestCurrent - lowestCurrent;
       if (discountAmount > 0) {
         discount = Math.round((discountAmount / highestCurrent) * 100);
@@ -227,7 +237,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
     const priceRecord = filteredPrices[0];
     if (priceRecord.original_price) {
       const originalPrice = parseFloat(priceRecord.original_price);
-      const currentPrice = parseFloat(priceRecord.current_price);
+      const currentPrice = parseFloat(getDisplayPrice(priceRecord));
       if (originalPrice > currentPrice) {
         discountAmount = originalPrice - currentPrice;
         discount = Math.round((discountAmount / originalPrice) * 100);
@@ -311,7 +321,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
           <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-5">
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold text-emerald-600 tabular-nums">
-                {lowestPrice?.currency || "$"}{lowestPrice?.current_price || "—"}
+                {lowestPrice?.currency || "$"}{lowestPrice ? getDisplayPrice(lowestPrice) : "—"}
               </span>
               {filteredPrices.length >= 2 && (
                 <span className="text-xs text-emerald-600 font-medium ml-0.5">
@@ -383,7 +393,8 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
           {sortedPrices.map((price, idx) => {
             const st = price.store ? getTranslation(price.store.translations, language) : null;
             const isLowest = idx === 0;
-            const priceDiscount = price.discount_percent || (price.original_price ? Math.round((parseFloat(price.original_price) - parseFloat(price.current_price)) / parseFloat(price.original_price) * 100) : null);
+            const displayPrice = getDisplayPrice(price);
+            const priceDiscount = price.discount_percent || (price.original_price ? Math.round((parseFloat(price.original_price) - parseFloat(displayPrice)) / parseFloat(price.original_price) * 100) : null);
 
             return (
               <div key={price.id} className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? "bg-emerald-50/50" : ""}`}>
@@ -412,9 +423,18 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                     </div>
                   </div>
                   <div className="text-center">
-                    <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
-                      {price.currency || "$"}{price.current_price}
-                    </span>
+                    {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-xs text-gray-400 line-through tabular-nums">{price.currency || "$"}{price.current_price}</span>
+                        <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-red-600"}`}>
+                          {price.currency || "$"}{price.promo_price}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
+                        {price.currency || "$"}{getDisplayPrice(price)}
+                      </span>
+                    )}
                   </div>
                   {/* Countdown column */}
                   <div className="text-center">
@@ -507,9 +527,18 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
-                        {price.currency || "$"}{price.current_price}
-                      </span>
+                      {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-xs text-gray-400 line-through tabular-nums">{price.currency || "$"}{price.current_price}</span>
+                          <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-red-600"}`}>
+                            {price.currency || "$"}{price.promo_price}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className={`text-lg font-bold tabular-nums ${isLowest ? "text-emerald-600" : "text-gray-900"}`}>
+                          {price.currency || "$"}{getDisplayPrice(price)}
+                        </span>
+                      )}
                       {priceDiscount && (
                         <span className="inline-block rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
                           -{priceDiscount}%

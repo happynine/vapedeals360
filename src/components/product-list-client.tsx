@@ -57,6 +57,16 @@ interface ProductPrice {
   region?: string;
   no_quote?: boolean;
   store?: Store;
+  promotion_id?: number | null;
+  promo_price?: string | null;
+}
+
+/** Display price: active promotion uses promo_price, otherwise current_price */
+function getDisplayPrice(p: ProductPrice): string {
+  if (p.promotion_id != null && p.promo_price != null && p.promo_price !== '') {
+    return p.promo_price;
+  }
+  return p.current_price;
 }
 
 interface ProductTranslation {
@@ -204,7 +214,7 @@ const CURRENCY_NAMES: Record<string, Record<string, string>> = {
 
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
   if (!prices || prices.length === 0) return null;
-  return prices.reduce((min, p) => parseFloat(p.current_price) < parseFloat(min.current_price) ? p : min, prices[0]);
+  return prices.reduce((min, p) => parseFloat(getDisplayPrice(p)) < parseFloat(getDisplayPrice(min)) ? p : min, prices[0]);
 }
 
 function getHighestOriginal(prices: ProductPrice[]): string | null {
@@ -231,7 +241,7 @@ function getDiscountDisplay(prices: ProductPrice[]): { type: 'save'; currency: s
 
     for (const [cur, curPrices] of Object.entries(byCurrency)) {
       if (curPrices.length < 2) continue;
-      const priceValues = curPrices.map(p => parseFloat(p.current_price));
+      const priceValues = curPrices.map(p => parseFloat(getDisplayPrice(p)));
       const high = Math.max(...priceValues);
       const low = Math.min(...priceValues);
       const diff = high - low;
@@ -246,7 +256,7 @@ function getDiscountDisplay(prices: ProductPrice[]): { type: 'save'; currency: s
     if (maxDiff === 0) {
       const firstCurrency = Object.keys(byCurrency)[0] || '$';
       const curPrices = byCurrency[firstCurrency] || prices;
-      const priceValues = curPrices.map(p => parseFloat(p.current_price));
+      const priceValues = curPrices.map(p => parseFloat(getDisplayPrice(p)));
       highestPrice = Math.max(...priceValues);
       lowestPrice = Math.min(...priceValues);
       maxDiff = highestPrice - lowestPrice;
@@ -258,7 +268,7 @@ function getDiscountDisplay(prices: ProductPrice[]): { type: 'save'; currency: s
 
   const price = prices[0];
   if (price.original_price) {
-    const current = parseFloat(price.current_price);
+    const current = parseFloat(getDisplayPrice(price));
     const original = parseFloat(price.original_price);
     if (original > current) {
       const percent = Math.round((original - current) / original * 100);
@@ -467,7 +477,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         return (p.currency || '$') === selectedCurrency;
       });
       const lowest = getLowestPrice(filtered);
-      return lowest ? parseFloat(lowest.current_price) : null;
+      return lowest ? parseFloat(getDisplayPrice(lowest)) : null;
     };
 
     if (sortBy === "price_low") {
@@ -596,8 +606,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                       </h3>
                       <div className="mt-2 flex items-baseline gap-2">
                         <span className="text-xl font-bold text-emerald-600 tabular-nums">
-                          {lowest?.currency || '$'}{lowest?.current_price || "—"}
+                          {lowest?.currency || '$'}{lowest ? getDisplayPrice(lowest) : "—"}
                         </span>
+                        {lowest?.promotion_id != null && lowest.promo_price && parseFloat(lowest.current_price) > parseFloat(lowest.promo_price) && (
+                          <span className="text-sm text-gray-400 line-through tabular-nums">{lowest.currency || '$'}{lowest.current_price}</span>
+                        )}
                         {highestOrig && displayPrices.length >= 2 && (
                           <span className="text-xs text-emerald-600 font-medium ml-0.5">
                             {language === "zh" ? "最低价" : "Lowest"}
@@ -783,7 +796,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             const lowest = getLowestPrice(finalPrices);
             const highestOrig = getHighestOriginal(finalPrices);
             const discountInfo = getDiscountDisplay(finalPrices);
-            const sortedPrices = [...finalPrices].sort((a, b) => parseFloat(a.current_price) - parseFloat(b.current_price));
+            const sortedPrices = [...finalPrices].sort((a, b) => parseFloat(getDisplayPrice(a)) - parseFloat(getDisplayPrice(b)));
 
             return (
               <BorderBeam
@@ -845,8 +858,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   </Link>
                   <div className="mt-1.5 sm:mt-2 flex items-baseline gap-1 sm:gap-2">
                     <span className="text-base sm:text-2xl font-bold text-emerald-600 tabular-nums">
-                      {lowest?.currency || '$'}{lowest?.current_price || "—"}
+                      {lowest?.currency || '$'}{lowest ? getDisplayPrice(lowest) : "—"}
                     </span>
+                    {lowest?.promotion_id != null && lowest.promo_price && parseFloat(lowest.current_price) > parseFloat(lowest.promo_price) && (
+                      <span className="text-xs sm:text-sm text-gray-400 line-through tabular-nums">{lowest.currency || '$'}{lowest.current_price}</span>
+                    )}
                     {highestOrig && displayPrices.length >= 2 && (
                       <span className="text-[10px] sm:text-xs text-emerald-600 font-medium ml-0.5">
                         {language === "zh" ? "最低价" : "Lowest"}
@@ -864,8 +880,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                         <div key={price.id} className="flex items-center justify-between gap-1 rounded-md bg-gray-50 px-2 py-1">
                           <span className="text-[10px] text-gray-500 truncate">{st?.name || "Store"}</span>
                           <span className="text-[10px] font-semibold text-emerald-600 tabular-nums">
-                            {price.currency || '$'}{price.current_price}
+                            {price.currency || '$'}{getDisplayPrice(price)}
                           </span>
+                          {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) && (
+                            <span className="text-[9px] text-gray-400 line-through tabular-nums block">{price.currency || '$'}{price.current_price}</span>
+                          )}
                         </div>
                       );
                     })}
@@ -897,8 +916,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-xs font-semibold text-emerald-600 tabular-nums">
-                              {price.currency || '$'}{price.current_price}
+                              {price.currency || '$'}{getDisplayPrice(price)}
                             </span>
+                            {price.promotion_id != null && price.promo_price && parseFloat(price.current_price) > parseFloat(price.promo_price) && (
+                              <span className="text-[10px] text-gray-400 line-through tabular-nums">{price.currency || '$'}{price.current_price}</span>
+                            )}
                             <a
                               href={price.product_url}
                               target="_blank"
