@@ -28,6 +28,7 @@ interface PromotionProductPrice {
   start_time: string | null;
   end_time: string | null;
   countdown_action: 'close' | 'original_price' | 'convert_to_standard' | 'hide';
+  promo_price?: string | null;
   store?: {
     id: number;
     slug: string;
@@ -35,6 +36,16 @@ interface PromotionProductPrice {
     is_active: boolean;
     store_translations?: StoreTranslation[];
   } | null;
+}
+
+
+/** Display price: use promo_price if set, otherwise current_price */
+function getPromoDisplayPrice(p: PromotionProductPrice): number {
+  if (p.promo_price != null && p.promo_price !== '') {
+    const v = parseFloat(p.promo_price);
+    if (!isNaN(v)) return v;
+  }
+  return p.current_price ?? 0;
 }
 
 interface PromotionProductTranslation {
@@ -310,7 +321,7 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
             
             // Show all store prices (both promotion and standard types)
             const promotionPrices = (product.store_prices || [])
-              .filter(p => p.store_id && p.current_price && !p.no_quote)
+              .filter(p => p.store_id && getPromoDisplayPrice(p) > 0 && !p.no_quote)
               // Filter out ended time-limited promotion prices (hide regardless of countdown_action)
               .filter(p => {
                 if (p.store_type === 'promotion' && p.time_type !== 'permanent' && p.end_time) {
@@ -322,9 +333,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
             if (promotionPrices.length === 0) return null;
 
             // Sort by price
-            const sortedPrices = [...promotionPrices].sort((a, b) => (a.current_price || 0) - (b.current_price || 0));
+            const sortedPrices = [...promotionPrices].sort((a, b) => getPromoDisplayPrice(a) - getPromoDisplayPrice(b));
             const lowestPrice = sortedPrices[0];
-            const lowestPriceValue = lowestPrice?.current_price || 0;
+            const lowestPriceValue = lowestPrice ? getPromoDisplayPrice(lowestPrice) : 0;
             
             // Calculate highest original price for discount display
             const highestOriginal = promotionPrices.reduce((max, p) => {
@@ -407,6 +418,11 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                   <div className="mt-1 sm:mt-1.5 flex items-baseline gap-1 sm:gap-2">
                     <span className="text-sm sm:text-xl font-bold text-emerald-600 tabular-nums">
                       {lowestPrice?.currency === 'USD' ? '$' : lowestPrice?.currency || '$'}{lowestPriceValue.toFixed(2)}
+                      {lowestPrice?.promo_price && lowestPrice.current_price && lowestPrice.current_price > parseFloat(lowestPrice.promo_price) && (
+                        <span className="ml-1.5 text-sm text-gray-400 line-through tabular-nums align-middle">
+                          {(lowestPrice.currency === 'USD' ? '$' : lowestPrice.currency || '$')}{lowestPrice.current_price.toFixed(2)}
+                        </span>
+                      )}
                     </span>
                     {sortedPrices.length >= 2 && (
                       <span className="text-[9px] sm:text-xs text-emerald-600 font-medium">
@@ -429,7 +445,10 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                         <div key={price.id} className="flex items-center justify-between gap-1 rounded-md bg-gray-50 px-1.5 py-1">
                           <span className="text-[9px] text-gray-500 truncate">{storeName}</span>
                           <span className="text-[9px] font-semibold text-emerald-600 tabular-nums">
-                            {price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price?.toFixed(2)}
+                            {price.currency === 'USD' ? '$' : price.currency || '$'}{getPromoDisplayPrice(price).toFixed(2)}
+                            {price.promo_price && price.current_price && price.current_price > parseFloat(price.promo_price) && (
+                              <span className="block text-[9px] text-gray-400 line-through tabular-nums">{price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price.toFixed(2)}</span>
+                            )}
                           </span>
                         </div>
                       );
@@ -465,7 +484,10 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span className="text-xs font-semibold text-emerald-600 tabular-nums">
-                              {price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price?.toFixed(2)}
+                              {price.currency === 'USD' ? '$' : price.currency || '$'}{getPromoDisplayPrice(price).toFixed(2)}
+                            {price.promo_price && price.current_price && price.current_price > parseFloat(price.promo_price) && (
+                              <span className="block text-[9px] text-gray-400 line-through tabular-nums">{price.currency === 'USD' ? '$' : price.currency || '$'}{price.current_price.toFixed(2)}</span>
+                            )}
                             </span>
                             {price.product_url && (
                               <a

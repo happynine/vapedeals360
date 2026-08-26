@@ -45,6 +45,7 @@ export default function PromotionProductPage() {
 
     const pp = rawData.product as {
       id: number;
+      promotion_id?: number | null;
       slug: string | null;
       category_id: number | null;
       image_key: string | null;
@@ -75,6 +76,7 @@ export default function PromotionProductPage() {
         start_time: string | null;
         end_time: string | null;
         countdown_action: string;
+        promo_price?: string | null;
         store?: {
           id: number;
           slug: string;
@@ -115,6 +117,8 @@ export default function PromotionProductPage() {
       start_time: p.start_time,
       end_time: p.end_time,
       countdown_action: p.countdown_action,
+      promotion_id: pp.promotion_id || null,
+      promo_price: p.promo_price != null ? String(p.promo_price) : null,
       store: p.store ? {
         id: p.store.id,
         slug: p.store.slug || String(p.store.id),
