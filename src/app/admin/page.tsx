@@ -629,20 +629,21 @@ export default function AdminPage() {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, storeRes, prodRes, bannerRes] = await Promise.all([
-        adminFetch('/api/admin/categories'),
-        adminFetch('/api/admin/stores'),
-        adminFetch('/api/admin/products?limit=500'),
-        adminFetch('/api/admin/banners'),
+      const results = await Promise.allSettled([
+        adminFetch('/api/admin/categories').then(r => r.json()),
+        adminFetch('/api/admin/stores').then(r => r.json()),
+        adminFetch('/api/admin/products?limit=500').then(r => r.json()),
+        adminFetch('/api/admin/banners').then(r => r.json()),
       ]);
-      const catJson = await catRes.json();
-      const storeJson = await storeRes.json();
-      const prodJson = await prodRes.json();
-      const bannerJson = await bannerRes.json();
-      if (catJson.success) setCategories(catJson.data || []);
-      if (storeJson.success) setStores(storeJson.data || []);
-      if (prodJson.success) setProducts(prodJson.data?.products || []);
-      if (bannerJson.success) setBanners(bannerJson.data || []);
+      const [catResult, storeResult, prodResult, bannerResult] = results;
+      if (catResult.status === 'fulfilled' && catResult.value.success) setCategories(catResult.value.data || []);
+      if (storeResult.status === 'fulfilled' && storeResult.value.success) setStores(storeResult.value.data || []);
+      if (prodResult.status === 'fulfilled' && prodResult.value.success) setProducts(prodResult.value.data?.products || []);
+      if (bannerResult.status === 'fulfilled' && bannerResult.value.success) setBanners(bannerResult.value.data || []);
+      // Log any failures without blocking other data
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.error(`fetchAllData[${i}] failed:`, r.reason);
+      });
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
@@ -713,7 +714,7 @@ export default function AdminPage() {
     }
   }, [adminLang]);
 
-  useEffect(() => { fetchAllData(); }, [fetchAllData]);
+  useEffect(() => { if (isLoggedIn) fetchAllData(); }, [isLoggedIn, fetchAllData]);
   useEffect(() => { if (isLoggedIn && activeTab === 'promotions') { fetchPromotions(); fetchPromotionToggle(); } }, [isLoggedIn, activeTab, fetchPromotions, fetchPromotionToggle]);
   useEffect(() => { if (isLoggedIn && activeTab === 'products') { fetchPromotionProducts(); fetchPromotions(); } }, [isLoggedIn, activeTab, fetchPromotionProducts, fetchPromotions]);
 
@@ -8742,6 +8743,7 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
     </>
   );
 }
+
 
 
 
