@@ -8236,14 +8236,15 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold mb-2 text-left">{t('Store Prices', '商城价格', lang)}</h3>
                 {(() => {
-                  // Group prices by store_id + promotion_id (separate standard and promotion)
+                  // Group by store_id + store_type + promotion_id (standard and promotion stay separate)
                   const storeGroups: Array<{ storeId: string; promotionId: string; indices: number[] }> = [];
                   prices.forEach((p, idx) => {
-                    const gid = (p.store_id || '__empty__' + idx) + '_' + (p.promotion_id || 'none');
+                    const sid = p.store_id || '__empty__' + idx;
                     const pid = p.promotion_id || 'none';
-                    let group = storeGroups.find(g => g.storeId === (p.store_id || '__empty__' + idx) && g.promotionId === pid);
+                    const stype = p.store_type || 'standard';
+                    let group = storeGroups.find(g => g.storeId === sid && g.promotionId === pid && (g as any).storeType === stype);
                     if (!group) {
-                      group = { storeId: p.store_id || '__empty__' + idx, promotionId: pid, indices: [] };
+                      group = { storeId: sid, promotionId: pid, indices: [], storeType: stype } as any;
                       storeGroups.push(group);
                     }
                     group.indices.push(idx);
@@ -8255,7 +8256,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                     const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
                     const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
-                      <div key={group.storeId} className={`mb-3 p-3 rounded-lg border ${firstP.store_type === 'promotion' ? 'border-purple-500/30 bg-purple-500/5' : 'border-border bg-secondary/30'}`}>
+                      <div key={`${group.storeId}_${firstP.store_type}_${group.promotionId}`} className={`mb-3 p-3 rounded-lg border ${firstP.store_type === 'promotion' ? 'border-purple-500/30 bg-purple-500/5' : 'border-border bg-secondary/30'}`}>
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城', lang)}</label>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
