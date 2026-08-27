@@ -7302,7 +7302,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             {group.indices.map((pIdx) => {
                               const p = storePrices[pIdx];
                               const currencyLabel = p.currency || '$';
-                              const currencyCode = CURRENCY_OPTIONS.find(c => c.symbol === currencyLabel)?.code || currencyLabel;
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
@@ -8456,6 +8455,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             {group.indices.map((pIdx) => {
                               const p = prices[pIdx];
                               const currencyLabel = p.currency || '$';
+                              const currencyCode = CURRENCY_OPTIONS.find(c => c.symbol === currencyLabel)?.code || currencyLabel;
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
