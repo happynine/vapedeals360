@@ -7302,6 +7302,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             {group.indices.map((pIdx) => {
                               const p = storePrices[pIdx];
                               const currencyLabel = p.currency || '$';
+                              const currencyCode = CURRENCY_OPTIONS.find(c => c.symbol === currencyLabel)?.code || currencyLabel;
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
@@ -8458,7 +8459,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                               return (
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
-                                    <div className="text-xs font-medium text-primary text-left">{p.region || t('Default', '默认', lang)} ({currencyLabel})</div>
+                                    <div className="text-xs font-medium text-primary text-left">{currencyCode} ({currencyLabel})</div>
                                     <label className="flex items-center gap-1 cursor-pointer">
                                       <input
                                         type="checkbox"
