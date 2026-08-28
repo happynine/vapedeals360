@@ -8,7 +8,7 @@ import { useLanguage } from "@/hooks/use-language";
 // 货币代码 → 符号映射（与首页保持一致）
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', JPY: '¥', KRW: '₩', AUD: 'A$',
-  GBP: '£', EUR: '€', RUB: '₽', CAD: 'C$', IDR: 'Rp',
+  GBP: '£', EUR: '€', RUB: '₽', CAD: 'CA$', IDR: 'Rp',
 };
 
 export interface StoreTranslation {
