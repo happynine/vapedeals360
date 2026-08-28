@@ -279,6 +279,30 @@ function getDiscountDisplay(prices: ProductPrice[]): { type: 'save'; currency: s
   return null;
 }
 
+const PRODUCT_CACHE_PREFIX = 'vd360_product_cache_';
+
+function buildCacheKey(language: string, page: number, category: number | null, currency: string, search: string, sortBy: string): string {
+  return `${language}_p${page}_c${category ?? 0}_cur${currency}_s${search}_sort${sortBy}`;
+}
+
+function getCachedProducts(key: string): { products: Product[]; totalPages: number; total: number; categories: Category[] } | null {
+  try {
+    const raw = sessionStorage.getItem(PRODUCT_CACHE_PREFIX + key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setCachedProducts(key: string, data: { products: Product[]; totalPages: number; total: number; categories: Category[] }) {
+  try {
+    sessionStorage.setItem(PRODUCT_CACHE_PREFIX + key, JSON.stringify(data));
+  } catch {
+    // sessionStorage full, ignore
+  }
+}
+
 export function ProductListClient({ initialData }: { initialData: InitialData }) {
   const { language } = useLanguage();
   const searchParams = useSearchParams();
@@ -313,6 +337,17 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
   // Fetch data when filters change (after initial load)
   const fetchData = useCallback(async () => {
+    const cacheKey = buildCacheKey(language, page, selectedCategory, selectedCurrency, searchQuery, sortBy);
+    const cached = getCachedProducts(cacheKey);
+    if (cached) {
+      setProducts(cached.products);
+      setTotalPages(cached.totalPages);
+      setTotal(cached.total);
+      setCategories(cached.categories);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -360,6 +395,12 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         setProducts(allProducts);
         setTotalPages(json.data.pagination?.totalPages || 1);
         setTotal(json.data.pagination?.total || 0);
+        setCachedProducts(cacheKey, {
+          products: allProducts,
+          totalPages: json.data.pagination?.totalPages || 1,
+          total: json.data.pagination?.total || 0,
+          categories: json.data.categories || [],
+        });
       }
 
       // Fetch featured and banners only on first page without filters
