@@ -9,6 +9,11 @@ const CURRENCY_CODE_TO_SYMBOL: Record<string, string> = {
   EUR: '€',
   JPY: '¥',
   CNY: '¥',
+  CAD: 'CA$',
+  AUD: 'A$',
+  RUB: '₽',
+  KRW: '₩',
+  IDR: 'Rp',
 };
 
 // API routes for client-side fetching - allow ISR caching at page level
