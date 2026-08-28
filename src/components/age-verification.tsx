@@ -6,7 +6,7 @@ const REGION_AGE_LIMITS: { code: string; label: string; minAge: number }[] = [
   { code: 'US', label: 'United States (21+)', minAge: 21 },
   { code: 'JP', label: 'Japan (20+)', minAge: 20 },
   { code: 'KR', label: 'South Korea (19+)', minAge: 19 },
-  { code: 'CA', label: 'Canada (18+)', minAge: 18 },
+  { code: 'CA', label: 'Canada (19+)', minAge: 19 },
   { code: 'UK', label: 'United Kingdom (18+)', minAge: 18 },
   { code: 'EU', label: 'European Union (18+)', minAge: 18 },
   { code: 'AU', label: 'Australia (18+)', minAge: 18 },
