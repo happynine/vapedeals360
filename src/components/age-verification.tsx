@@ -6,7 +6,7 @@ const REGION_AGE_LIMITS: { code: string; label: string; minAge: number }[] = [
   { code: 'US', label: 'United States (21+)', minAge: 21 },
   { code: 'JP', label: 'Japan (20+)', minAge: 20 },
   { code: 'KR', label: 'South Korea (19+)', minAge: 19 },
-  { code: 'CA', label: 'Canada (19+)', minAge: 19 },
+  { code: 'CA', label: 'Canada (18+)', minAge: 18 },
   { code: 'UK', label: 'United Kingdom (18+)', minAge: 18 },
   { code: 'EU', label: 'European Union (18+)', minAge: 18 },
   { code: 'AU', label: 'Australia (18+)', minAge: 18 },
@@ -101,7 +101,9 @@ export default function AgeVerification() {
           </div>
           <h2 className="text-2xl font-bold text-white">Age Verification</h2>
           <p className="mt-2 text-sm leading-relaxed text-gray-400">
-            This website contains information about vaping products intended for adults of legal smoking age in their jurisdiction. By entering this site, you confirm that you meet the legal age requirement in your region and understand the health risks associated with nicotine and vaping products.
+            {region
+              ? `This website contains information about vaping products intended for adults aged ${minAge} and older. By entering this site, you confirm that you are at least ${minAge} years of age and understand the health risks associated with nicotine and vaping products.`
+              : 'This website contains information about vaping products intended for adults of legal smoking age in their jurisdiction. By entering this site, you confirm that you meet the legal age requirement in your region and understand the health risks associated with nicotine and vaping products.'}
           </p>
         </div>
 
@@ -179,7 +181,9 @@ export default function AgeVerification() {
             Warning
           </p>
           <p className="mt-1 text-xs leading-relaxed text-amber-300/80">
-            Vaping products contain nicotine, a highly addictive substance. Not intended for use by persons under the legal smoking age in their jurisdiction, pregnant or nursing women, or persons with heart disease or high blood pressure. If you are a smoker, quitting smoking is the best thing you can do to improve your health.
+            Vaping products contain nicotine, a highly addictive substance. {region
+                ? `Not intended for use by persons under the age of ${minAge}, pregnant or nursing women, or persons with heart disease or high blood pressure.`
+                : 'Not intended for use by persons under the legal smoking age in their jurisdiction, pregnant or nursing women, or persons with heart disease or high blood pressure.'} If you are a smoker, quitting smoking is the best thing you can do to improve your health.
           </p>
         </div>
       </div>
