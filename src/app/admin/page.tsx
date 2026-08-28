@@ -565,6 +565,7 @@ export default function AdminPage() {
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productPage, setProductPage] = useState(1);
   const [productCurrencyFilter, setProductCurrencyFilter] = useState<string>('');
+  const [productCurrencyDropdownOpen, setProductCurrencyDropdownOpen] = useState(false);
   const [productTypeFilter, setProductTypeFilter] = useState<string>('');
   const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
@@ -1641,16 +1642,47 @@ export default function AdminPage() {
                     >
                       {t('Confirm', '确认', adminLang)}
                     </button>
-                    <select
-                      value={productCurrencyFilter}
-                      onChange={(e) => { setProductCurrencyFilter(e.target.value); setProductPage(1); }}
-                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    >
-                      <option value="">{t('All Currencies', '全部货币', adminLang)}</option>
-                      {CURRENCY_OPTIONS.map((opt) => (
-                        <option key={opt.code} value={opt.code}>{opt.flagAlt} — {opt.code} ({opt.symbol})</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setProductCurrencyDropdownOpen(!productCurrencyDropdownOpen)}
+                        onBlur={() => setTimeout(() => setProductCurrencyDropdownOpen(false), 150)}
+                        className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 flex items-center gap-1.5 min-w-[140px] justify-between"
+                      >
+                        {productCurrencyFilter ? (() => {
+                          const curr = CURRENCY_OPTIONS.find(c => c.code === productCurrencyFilter);
+                          return curr ? (
+                            <span className="flex items-center gap-1.5">
+                              <img src={curr.flag} alt={curr.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
+                              <span>{curr.code} ({curr.symbol})</span>
+                            </span>
+                          ) : productCurrencyFilter;
+                        })() : t('All Currencies', '全部货币', adminLang)}
+                        <svg className="w-3.5 h-3.5 text-muted-foreground ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {productCurrencyDropdownOpen && (
+                        <div className="absolute z-50 mt-1 w-full min-w-[180px] rounded-lg border border-border bg-card shadow-lg">
+                          <button
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); setProductCurrencyFilter(''); setProductPage(1); setProductCurrencyDropdownOpen(false); }}
+                            className={`w-full px-3 py-2 text-sm text-left hover:bg-secondary ${!productCurrencyFilter ? 'bg-secondary' : ''}`}
+                          >
+                            {t('All Currencies', '全部货币', adminLang)}
+                          </button>
+                          {CURRENCY_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.code}
+                              type="button"
+                              onMouseDown={(e) => { e.preventDefault(); setProductCurrencyFilter(opt.code); setProductPage(1); setProductCurrencyDropdownOpen(false); }}
+                              className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 hover:bg-secondary ${productCurrencyFilter === opt.code ? 'bg-secondary' : ''}`}
+                            >
+                              <img src={opt.flag} alt={opt.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
+                              <span>{opt.code} ({opt.symbol})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <select
                       value={productTypeFilter}
                       onChange={(e) => { setProductTypeFilter(e.target.value); setProductPage(1); }}
