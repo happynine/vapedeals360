@@ -170,7 +170,7 @@ const CURRENCIES: Currency[] = [
   { code: 'KRW', symbol: '₩', flag: '/flags/kr.png', flagAlt: 'KR', name: 'Korean Won' },
   { code: 'AUD', symbol: 'A$', flag: '/flags/au.png', flagAlt: 'AU', name: 'Australian Dollar' },
   { code: 'RUB', symbol: '₽', flag: '/flags/ru.png', flagAlt: 'RU', name: 'Russian Ruble' },
-  { code: 'CAD', symbol: 'C$', flag: '/flags/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
+  { code: 'CAD', symbol: 'CA$', flag: '/flags/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
   { code: 'IDR', symbol: 'Rp', flag: '/flags/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
 ];
 
