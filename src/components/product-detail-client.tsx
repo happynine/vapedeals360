@@ -581,8 +581,8 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
         </div>
         <p className="mt-3 text-xs text-gray-500">
           {language === "zh"
-            ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金。"
-            : "* Prices are from partner stores. We may earn a commission when you purchase through our links."}
+            ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金，且您无需支付额外费用。"
+            : "* Prices are from partner stores. We may earn a commission when you purchase through our links. At no extra cost to you."}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-gray-400">
           {language === "zh"
