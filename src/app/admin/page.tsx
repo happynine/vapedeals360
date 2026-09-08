@@ -7896,9 +7896,12 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           if (p.countdown_days === 0 && p.countdown_hours === 0 && p.countdown_minutes === 0) return p;
           return { ...p, countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 };
         }
-        const days = Math.floor(diffMs / 86400000);
-        const hours = Math.floor((diffMs % 86400000) / 3600000);
-        const minutes = Math.floor((diffMs % 3600000) / 60000);
+        // 最小显示单位为分钟：剩余时间向上补齐到整分钟再拆分，
+        // 避免输入13小时后下一秒因 floor 退位显示12（12:59:59 应显示为13时）
+        const remainMin = Math.ceil(diffMs / 60000);
+        const days = Math.floor(remainMin / 1440);
+        const hours = Math.floor((remainMin % 1440) / 60);
+        const minutes = remainMin % 60;
         if (days === p.countdown_days && hours === p.countdown_hours && minutes === p.countdown_minutes) return p;
         return { ...p, countdown_days: days, countdown_hours: hours, countdown_minutes: minutes };
       }));
@@ -8024,9 +8027,11 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           __endAt = endTs;
           const diff = endTs - Date.now();
           if (diff > 0) {
-            countdown_days = Math.floor(diff / 86400000);
-            countdown_hours = Math.floor((diff % 86400000) / 3600000);
-            countdown_minutes = Math.floor((diff % 3600000) / 60000);
+            // 与弹窗内每秒刷新同一套规则：向上补齐到整分钟
+            const remainMin = Math.ceil(diff / 60000);
+            countdown_days = Math.floor(remainMin / 1440);
+            countdown_hours = Math.floor((remainMin % 1440) / 60);
+            countdown_minutes = remainMin % 60;
           }
         }
         return {
