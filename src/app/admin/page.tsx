@@ -6009,7 +6009,7 @@ function PromotionFormModal({ promotion, products, promotionProducts, onSave, la
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70" />
           <div className="relative w-full max-w-3xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -6203,7 +6203,7 @@ function CategoryFormModal({ category, onSave, lang, activeLanguages }: { catego
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70" />
           <div className="relative w-full max-w-lg max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -6502,7 +6502,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -7056,7 +7056,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70" />
           <div className="relative w-full max-w-4xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -7853,7 +7853,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         }))
       : activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number; __endAt?: number }[]>(
     product?.product_prices?.map((p) => {
       const store = stores.find((s) => s.id.toString() === p.store_id.toString());
       return {
@@ -7882,6 +7882,29 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
   const [saving, setSaving] = useState(false);
   const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([]);
   const isEdit = !!product;
+
+  // 倒计时实时刷新：弹窗打开时每秒按剩余时间更新天/时/分，结束后显示 0；正在编辑的组暂时冻结
+  const editingCountdownRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => {
+      setPrices(prev => prev.map((p) => {
+        if (p.store_type !== 'promotion' || p.time_type !== 'countdown' || p.__endAt == null) return p;
+        if (editingCountdownRef.current != null && p.__endAt === editingCountdownRef.current) return p;
+        const diffMs = p.__endAt - Date.now();
+        if (diffMs <= 0) {
+          if (p.countdown_days === 0 && p.countdown_hours === 0 && p.countdown_minutes === 0) return p;
+          return { ...p, countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 };
+        }
+        const days = Math.floor(diffMs / 86400000);
+        const hours = Math.floor((diffMs % 86400000) / 3600000);
+        const minutes = Math.floor((diffMs % 3600000) / 60000);
+        if (days === p.countdown_days && hours === p.countdown_hours && minutes === p.countdown_minutes) return p;
+        return { ...p, countdown_days: days, countdown_hours: hours, countdown_minutes: minutes };
+      }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [open]);
 
   // Fetch promotions linked to this product that may be inactive or outside current page
   useEffect(() => {
@@ -7993,17 +8016,17 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       // Load existing promotion prices
       const promoPricesList = ((product.promotion_prices as Array<Record<string, unknown>> | undefined) || []).map((p) => {
         const store = stores.find((s) => s.id.toString() === (p.store_id as number)?.toString());
-        // Calculate original countdown duration from start_time to end_time
+        // 倒计时按"剩余时间"反算（now -> end_time），记录结束时刻供弹窗内实时刷新
         let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
+        let __endAt: number | undefined;
         if ((p.time_type as string) === 'countdown' && p.end_time) {
-          const start = p.start_time ? new Date(p.start_time as string) : new Date();
-          const end = new Date(p.end_time as string);
-          const diff = end.getTime() - start.getTime();
+          const endTs = new Date(p.end_time as string).getTime();
+          __endAt = endTs;
+          const diff = endTs - Date.now();
           if (diff > 0) {
             countdown_days = Math.floor(diff / 86400000);
             countdown_hours = Math.floor((diff % 86400000) / 3600000);
             countdown_minutes = Math.floor((diff % 3600000) / 60000);
-            countdown_seconds = Math.floor((diff % 60000) / 1000);
           }
         }
         return {
@@ -8026,6 +8049,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           countdown_hours,
           countdown_minutes,
           countdown_seconds,
+          __endAt,
         };
       });
       setPrices(
@@ -8052,7 +8076,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
     // Validate countdown: at least one value > 0
     for (const p of prices) {
       if (p.store_type === 'promotion' && p.time_type === 'countdown') {
-        const total = (p.countdown_days || 0) + (p.countdown_hours || 0) + (p.countdown_minutes || 0) + (p.countdown_seconds || 0);
+        const total = (p.countdown_days || 0) + (p.countdown_hours || 0) + (p.countdown_minutes || 0);
         if (total <= 0) {
           alert(t('Countdown duration must be greater than 0', '倒计时时长必须大于0', lang));
           setSaving(false);
@@ -8102,11 +8126,17 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           // Compute start_time and end_time from countdown if applicable
           let startTime = p.start_time || null;
           let endTime = p.end_time || null;
-          if (p.time_type === 'countdown' && (p.countdown_days || p.countdown_hours || p.countdown_minutes || p.countdown_seconds)) {
+          if (p.time_type === 'countdown' && (p.countdown_days || p.countdown_hours || p.countdown_minutes)) {
             const now = new Date();
-            startTime = now.toISOString();
-            const totalMs = (p.countdown_days * 86400000) + (p.countdown_hours * 3600000) + (p.countdown_minutes * 60000) + (p.countdown_seconds * 1000);
-            endTime = new Date(now.getTime() + totalMs).toISOString();
+            const totalMs = (p.countdown_days * 86400000) + (p.countdown_hours * 3600000) + (p.countdown_minutes * 60000);
+            if (p.__endAt != null) {
+              // 未改动：保持原开始/结束时间；手动改过：__endAt 已在改动时刻按新时长重算
+              startTime = p.start_time ? new Date(p.start_time).toISOString() : now.toISOString();
+              endTime = new Date(p.__endAt).toISOString();
+            } else {
+              startTime = now.toISOString();
+              endTime = new Date(now.getTime() + totalMs).toISOString();
+            }
           }
           return {
             store_id: parseInt(p.store_id),
@@ -8141,7 +8171,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -8436,7 +8466,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             <label className="text-[10px] text-muted-foreground text-left block mb-1">{t('Time Settings', '时间设置', lang)}</label>
                             <div className="flex gap-1 mb-2">
                               {(['permanent', 'time_range', 'countdown'] as const).map((tt) => (
-                                <button key={tt} onClick={() => { const newP = [...prices]; for (const idx of group.indices) { newP[idx].time_type = tt; if (tt === 'time_range') { newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; } if (tt === 'countdown') { newP[idx].start_time = ''; newP[idx].end_time = ''; } if (tt === 'permanent') { newP[idx].start_time = ''; newP[idx].end_time = ''; newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; } } setPrices(newP); }}
+                                <button key={tt} onClick={() => { const newP = [...prices]; const switchNow = Date.now(); for (const idx of group.indices) { newP[idx].time_type = tt; if (tt === 'time_range') { newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; newP[idx].__endAt = undefined; } if (tt === 'countdown') { newP[idx].start_time = ''; newP[idx].end_time = ''; newP[idx].__endAt = switchNow; } if (tt === 'permanent') { newP[idx].start_time = ''; newP[idx].end_time = ''; newP[idx].countdown_days = 0; newP[idx].countdown_hours = 0; newP[idx].countdown_minutes = 0; newP[idx].countdown_seconds = 0; newP[idx].__endAt = undefined; } } setPrices(newP); }}
                                   className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${firstP.time_type === tt ? 'bg-purple-600 text-white' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
                                   {tt === 'permanent' ? t('Permanent', '永久', lang) : tt === 'time_range' ? t('Time Range', '时间段', lang) : t('Countdown', '倒计时', lang)}
                                 </button>
@@ -8465,13 +8495,27 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                     { key: 'countdown_days', label: t('Days', '天', lang) },
                                     { key: 'countdown_hours', label: t('Hours', '时', lang) },
                                     { key: 'countdown_minutes', label: t('Min', '分', lang) },
-                                    { key: 'countdown_seconds', label: t('Sec', '秒', lang) },
                                   ].map(({ key, label }) => (
                                     <div key={key} className="flex-1">
                                       <label className="text-[10px] text-muted-foreground block">{label}</label>
-                                      <input type="number" min={0} max={key === 'countdown_hours' ? 23 : key === 'countdown_minutes' || key === 'countdown_seconds' ? 59 : 365}
+                                      <input type="number" min={0} max={key === 'countdown_hours' ? 23 : key === 'countdown_minutes' ? 59 : 365}
                                         value={(firstP as Record<string, unknown>)[key] as number || 0}
-                                        onChange={(e) => { const newP = [...prices]; for (const idx of group.indices) { (newP[idx] as Record<string, unknown>)[key] = parseInt(e.target.value) || 0; } setPrices(newP); }}
+                                        onFocus={() => { editingCountdownRef.current = firstP.__endAt ?? null; }}
+                                        onBlur={() => { editingCountdownRef.current = null; }}
+                                        onChange={(e) => {
+                                          const newP = [...prices];
+                                          for (const idx of group.indices) {
+                                            (newP[idx] as Record<string, unknown>)[key] = parseInt(e.target.value) || 0;
+                                            newP[idx].countdown_seconds = 0;
+                                          }
+                                          // 改动后以改动时刻按新时长重新起算
+                                          const fp = newP[group.indices[0]];
+                                          const totalMs = (fp.countdown_days * 86400000) + (fp.countdown_hours * 3600000) + (fp.countdown_minutes * 60000);
+                                          const newEnd = Date.now() + totalMs;
+                                          for (const idx of group.indices) { newP[idx] = { ...newP[idx], __endAt: newEnd }; }
+                                          editingCountdownRef.current = newEnd;
+                                          setPrices(newP);
+                                        }}
                                         className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1 text-xs" />
                                     </div>
                                   ))}
@@ -8720,7 +8764,7 @@ function BannerFormModal({ banner, onSave, lang, activeLanguages }: { banner?: B
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div className="relative w-full max-w-2xl max-h-[90vh] bg-card rounded-xl border border-border shadow-xl overflow-hidden flex flex-col">
             {/* Header - Fixed */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
