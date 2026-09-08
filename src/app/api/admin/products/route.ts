@@ -136,10 +136,14 @@ export async function GET(request: NextRequest) {
 
         // 计算活跃促销数量（未下架的）
         const activePromoCount = promoPrices.filter(p => !p.is_promotion_hidden).length;
+        // 计算已下架/过期促销数量（记录保留、未转为标准产品的）
+        const endedPromoCount = promoPrices.filter(p => p.is_promotion_hidden).length;
 
         product.product_prices = standardPrices;
         (product as Record<string, unknown>).has_promotion = activePromoCount > 0;
         (product as Record<string, unknown>).active_promotion_count = activePromoCount;
+        (product as Record<string, unknown>).has_ended_promotion = activePromoCount === 0 && endedPromoCount > 0;
+        (product as Record<string, unknown>).ended_promotion_count = endedPromoCount;
         (product as Record<string, unknown>).promotion_prices = promoPrices;
       }
     }
