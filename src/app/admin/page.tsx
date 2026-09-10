@@ -7853,7 +7853,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         }))
       : activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number; __endAt?: number }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; out_of_stock: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number; __endAt?: number }[]>(
     product?.product_prices?.map((p) => {
       const store = stores.find((s) => s.id.toString() === p.store_id.toString());
       return {
@@ -7877,7 +7877,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         promo_price: '',
         countdown_seconds: 0,
       };
-    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
   );
   const [saving, setSaving] = useState(false);
   const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([]);
@@ -8003,6 +8003,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           currency: p.currency || '$',
           region: p.region || '',
           no_quote: p.no_quote || false,
+          out_of_stock: p.out_of_stock || false,
           store_type: store?.store_type || 'standard',
           promotion_id: '',
           time_type: 'permanent' as const,
@@ -8043,6 +8044,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           currency: (p.currency as string) || '$',
           region: (p.region as string) || '',
           no_quote: (p.no_quote as boolean) || false,
+          out_of_stock: (p.out_of_stock as boolean) || false,
           store_type: 'promotion',
           promotion_id: (p.promotion_id as number)?.toString() || '',
           time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
@@ -8060,7 +8062,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setPrices(
         [...standardPricesList, ...promoPricesList].length > 0
           ? [...standardPricesList, ...promoPricesList]
-          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
       );
     } else if (open && !product) {
       // Reset all fields for "Add New Product" mode
@@ -8073,7 +8075,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setIsFeatured(false);
       setNotes('');
       setTranslations(activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' })));
-      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
+      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
     }
   }, [open, product?.id, product?.updated_at, activeLanguages, stores]);
 
@@ -8559,24 +8561,39 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 <div key={pIdx} className="rounded-md border border-border/50 bg-card p-2">
                                   <div className="flex items-center justify-between mb-1.5">
                                     <div className="text-xs font-medium text-primary text-left">{currencyCode} ({currencyLabel})</div>
-                                    <label className="flex items-center gap-1 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={p.no_quote || false}
-                                        onChange={(e) => {
-                                          const newP = [...prices];
-                                          newP[pIdx].no_quote = e.target.checked;
-                                          if (e.target.checked) {
-                                            newP[pIdx].current_price = '';
-                                            newP[pIdx].original_price = '';
-                                            newP[pIdx].discount_percent = '';
-                                          }
-                                          setPrices(newP);
-                                        }}
-                                        className="h-3.5 w-3.5 rounded border-border"
-                                      />
-                                      <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价', lang)}</span>
-                                    </label>
+                                    <div className="flex items-center gap-3">
+                                      <label className="flex items-center gap-1 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={p.out_of_stock || false}
+                                          onChange={(e) => {
+                                            const newP = [...prices];
+                                            newP[pIdx].out_of_stock = e.target.checked;
+                                            setPrices(newP);
+                                          }}
+                                          className="h-3.5 w-3.5 rounded border-border"
+                                        />
+                                        <span className="text-[10px] text-muted-foreground">{t('Out of Stock', '缺货', lang)}</span>
+                                      </label>
+                                      <label className="flex items-center gap-1 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={p.no_quote || false}
+                                          onChange={(e) => {
+                                            const newP = [...prices];
+                                            newP[pIdx].no_quote = e.target.checked;
+                                            if (e.target.checked) {
+                                              newP[pIdx].current_price = '';
+                                              newP[pIdx].original_price = '';
+                                              newP[pIdx].discount_percent = '';
+                                            }
+                                            setPrices(newP);
+                                          }}
+                                          className="h-3.5 w-3.5 rounded border-border"
+                                        />
+                                        <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价', lang)}</span>
+                                      </label>
+                                    </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 mb-1.5">
                                     <div>
@@ -8682,10 +8699,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   });
                 })()}
                 <div className="flex gap-3">
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
                     + {t('Add Standard Store', '添加标准商城', lang)}
                   </button>
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
                     + {t('Add Promotion Store', '添加特惠商城', lang)}
                   </button>
                 </div>
