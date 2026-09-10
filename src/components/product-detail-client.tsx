@@ -211,7 +211,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
   const currencyFiltered = allActivePrices.filter((p) => (p.currency || '$') === selectedCurrency);
   const filteredPrices = currencyFiltered.length > 0 ? currencyFiltered : allActivePrices;
 
-  const sortedPrices = [...filteredPrices].sort((a, b) => parseFloat(getDisplayPrice(a)) - parseFloat(getDisplayPrice(b)));
+  const sortedPrices = [...filteredPrices].sort((a, b) => { const aOos = a.in_stock === false ? 1 : 0; const bOos = b.in_stock === false ? 1 : 0; if (aOos !== bOos) return aOos - bOos; return parseFloat(getDisplayPrice(a)) - parseFloat(getDisplayPrice(b)); });
   const lowestPrice = sortedPrices[0];
 
   // Calculate discount
@@ -415,6 +415,11 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                           {language === "zh" ? "最低价" : "LOWEST"}
                         </span>
                       )}
+                      {price.in_stock === false && (
+                        <span className="ml-2 inline-block rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
+                          {language === "zh" ? "缺货" : "OUT OF STOCK"}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-center">
@@ -458,6 +463,11 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                     </span>
                   </div>
                   <div className="text-center">
+                    {price.in_stock === false ? (
+                      <button disabled className="inline-flex items-center gap-1.5 rounded-xl bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-500 cursor-not-allowed">
+                        {language === "zh" ? "缺货" : "Out of Stock"}
+                      </button>
+                    ) : (
                     <a
                       href={price.product_url}
                       target="_blank"
@@ -483,6 +493,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
                     </a>
+                    )}
                   </div>
                 </div>
                 {/* Mobile card */}
@@ -507,6 +518,11 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                           {isLowest && (
                             <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 flex-shrink-0">
                               {language === "zh" ? "最低价" : "LOWEST"}
+                            </span>
+                          )}
+                          {price.in_stock === false && (
+                            <span className="inline-block rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400 flex-shrink-0">
+                              {language === "zh" ? "缺货" : "OUT OF STOCK"}
                             </span>
                           )}
                         </div>
@@ -548,31 +564,37 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                           : language === "zh" ? "商城" : "Store"}
                       </span>
                     </div>
-                    <a
-                      href={price.product_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        fetch("/api/track", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            type: "visit_store",
-                            session_id: sessionStorage.getItem("vp_session_id") || "",
-                            product_id: product.id,
-                            store_id: price.store_id,
-                          }),
-                        }).catch(() => {});
-                      }}
-                      className="inline-flex items-center gap-1 rounded-xl bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-800 transition-all"
-                    >
-                      {(price.store?.store_type || "store") === "official"
-                        ? language === "zh" ? "前往官网" : "Visit Official"
-                        : language === "zh" ? "前往购买" : "Visit Store"}
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
+                    {price.in_stock === false ? (
+                      <button disabled className="inline-flex items-center gap-1 rounded-xl bg-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-500 cursor-not-allowed">
+                        {language === "zh" ? "缺货" : "Out of Stock"}
+                      </button>
+                    ) : (
+                      <a
+                        href={price.product_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          fetch("/api/track", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              type: "visit_store",
+                              session_id: sessionStorage.getItem("vp_session_id") || "",
+                              product_id: product.id,
+                              store_id: price.store_id,
+                            }),
+                          }).catch(() => {});
+                        }}
+                        className="inline-flex items-center gap-1 rounded-xl bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-800 transition-all"
+                      >
+                        {(price.store?.store_type || "store") === "official"
+                          ? language === "zh" ? "前往官网" : "Visit Official"
+                          : language === "zh" ? "前往购买" : "Visit Store"}
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
