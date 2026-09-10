@@ -74,7 +74,7 @@ function mapPriceRow(p: Record<string, unknown>, productId: number) {
     current_price: p.current_price,
     original_price: p.original_price || null,
     product_url: p.product_url,
-    in_stock: p.in_stock !== false,
+    in_stock: p.out_of_stock !== undefined ? !p.out_of_stock : (p.in_stock !== false),
     discount_percent: p.discount_percent || null,
     currency: p.currency || '$',
     region: p.region || '',
