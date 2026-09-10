@@ -8346,9 +8346,26 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                       <div key={`${group.storeId}_${firstP.store_type}_${group.promotionId}`} className={`mb-3 p-3 rounded-lg border ${firstP.store_type === 'promotion' ? 'border-purple-500/30 bg-purple-500/5' : 'border-border bg-secondary/30'}`}>
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城', lang)}</label>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
-                            {firstP.store_type === 'promotion' ? t('Promotion Store', '特惠商城', lang) : t('Standard Store', '标准商城', lang)}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            {!hasMultipleCurrencies && (
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={firstP.out_of_stock || false}
+                                  onChange={(e) => {
+                                    const newP = [...prices];
+                                    for (const idx of group.indices) { newP[idx].out_of_stock = e.target.checked; }
+                                    setPrices(newP);
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-border"
+                                />
+                                <span className="text-[10px] text-muted-foreground">{t('Out of Stock', '缺货', lang)}</span>
+                              </label>
+                            )}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
+                              {firstP.store_type === 'promotion' ? t('Promotion Store', '特惠商城', lang) : t('Standard Store', '标准商城', lang)}
+                            </span>
+                          </div>
                         </div>
                         <StoreSelect
                           stores={stores}
