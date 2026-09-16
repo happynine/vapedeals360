@@ -92,7 +92,7 @@ export async function HomeProductIndex() {
               {it.name}
             </a>
             <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-              from ${it.currency}${it.price.toFixed(2)}
+              from {it.currency}{it.price.toFixed(2)}
             </span>
           </li>
         ))}
