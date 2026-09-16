@@ -194,6 +194,15 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     { href: '/best-vapes', label: 'Best Vapes', tab: 'best-vapes' },
     { href: '/news', label: 'News', tab: 'news' },
   ];
+  const aboutLinks = [
+    { href: '/about', en: 'About Us', zh: '关于我们' },
+    { href: '/contact', en: 'Contact Us', zh: '联系我们' },
+    { href: '/privacy', en: 'Privacy Policy', zh: '隐私政策' },
+    { href: '/disclaimer', en: 'Disclaimer', zh: '免责声明' },
+    { href: '/affiliate-disclosure', en: 'Affiliate Disclosure', zh: '联盟推广披露' },
+    { href: '/terms-of-service', en: 'Terms of Service', zh: '服务条款' },
+  ];
+  const isAboutActive = aboutLinks.some(l => pathname === l.href || pathname.startsWith(l.href + '/'));
   return (
     <header className="sticky top-0 z-50 bg-[#0a0a0e] border-b border-gray-800 relative">
       {/* Desktop Header */}
@@ -350,6 +359,31 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   {item.label}
                 </Link>
               ))}
+              {/* About Hover Dropdown */}
+              <div className="relative group h-12 flex items-center">
+                <button
+                  type="button"
+                  className={`flex items-center gap-1 text-sm font-semibold transition-colors ${isAboutActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}
+                >
+                  About
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div className="absolute left-1/2 top-full -translate-x-1/2 pt-1 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-150 z-50">
+                  <div className="w-52 rounded-xl border border-gray-700 bg-[#1a1a24] shadow-2xl py-2 overflow-hidden">
+                    {aboutLinks.map(l => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className={`block px-4 py-2.5 text-sm transition-colors hover:bg-[#2a2a3a] hover:text-white ${(pathname === l.href || pathname.startsWith(l.href + '/')) ? 'text-purple-400' : 'text-gray-300'}`}
+                      >
+                        {language === 'zh' ? l.zh : l.en}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -584,27 +618,16 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 </Link>
               ))}
               <div className="my-2 mx-5 border-t border-gray-800" />
-              <Link
-                href="/about"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
-              >
-                {language === "zh" ? "关于我们" : "About Us"}
-              </Link>
-              <Link
-                href="/contact"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
-              >
-                {language === "zh" ? "联系我们" : "Contact Us"}
-              </Link>
-              <Link
-                href="/privacy"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
-              >
-                {language === "zh" ? "隐私政策" : "Privacy Policy"}
-              </Link>
+              {aboutLinks.map(l => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3.5 text-base font-medium text-gray-400 hover:text-white hover:bg-[#1a1a24] transition-colors"
+                >
+                  {language === 'zh' ? l.zh : l.en}
+                </Link>
+              ))}
             </nav>
           </div>
         </>
