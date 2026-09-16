@@ -1,52 +1,33 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { SiteHeader } from '@/components/site-header';
-import { useLanguage } from '@/hooks/use-language';
+import type { Metadata } from 'next';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { cleanRichText } from '@/lib/utils';
+import { StaticPageView } from '@/components/static-page-view';
 
-export default function PrivacyPage() {
-  const { language } = useLanguage();
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(true);
+export const revalidate = 3600;
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(`/api/static-pages?slug=privacy-policy&language=${language}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success && d.data) {
-          setContent(cleanRichText(d.data.content || ''));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [language]);
+export const metadata: Metadata = {
+  title: 'Privacy Policy - VapeDeals360',
+  description:
+    'How VapeDeals360 collects, uses, and protects your personal information, including cookies, analytics, advertising partners, and your privacy choices.',
+  alternates: { canonical: 'https://www.vapedeals360.com/privacy' },
+};
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader activeTab="" />
+export default async function PrivacyPolicyPage() {
+  let content = '';
+  try {
+    const client = getSupabaseClient();
+    if (client) {
+      const { data } = await client
+        .from('static_pages')
+        .select('content')
+        .eq('slug', 'privacy-policy')
+        .eq('language', 'en')
+        .maybeSingle();
+      if (data?.content) content = cleanRichText(data.content);
+    }
+  } catch {
+    // Render shell; client layer keeps language switching available
+  }
 
-      <main className="flex-1 bg-white">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-        {loading ? (
-          <div className="text-center py-20">
-            <div className="animate-spin w-8 h-8 border-2 border-purple-700 border-t-transparent rounded-full mx-auto mb-4" />
-          </div>
-        ) : content ? (
-          <div
-            className="rich-text-content"
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
-        ) : (
-          <div className="text-gray-500">
-            <p>Privacy Policy content will be available soon.</p>
-          </div>
-        )}
-      </div>
-      </main>
-
-    </div>
-  );
+  return <StaticPageView slug="privacy-policy" title="Privacy Policy" initialContent={content} />;
 }

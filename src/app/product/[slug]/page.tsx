@@ -113,13 +113,32 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             image: product.image_url,
             description: product.product_translations?.[0]?.description,
             url: `https://www.vapedeals360.com/product/${slug}`,
-            offers: {
-              '@type': 'AggregateOffer',
-              lowPrice: '0.01',
-              highPrice: '999',
-              priceCurrency: 'USD',
-              offerCount: product.product_prices?.length || 0,
-            },
+            ...(() => {
+              // Real USD prices only: numeric, in stock, not no-quote rows
+              const usdPrices = (product.prices as Array<Record<string, unknown>> || [])
+                .filter(p => {
+                  if (p.no_quote === true) return false;
+                  if (p.in_stock === false) return false;
+                  const cur = String(p.currency ?? '$');
+                  return cur === '$' || cur === 'US$' || cur === 'USD';
+                })
+                .map(p => Number(p.current_price))
+                .filter(v => Number.isFinite(v) && v > 0);
+              if (usdPrices.length === 0) return {};
+              const anyInStock = (product.prices as Array<Record<string, unknown>> || [])
+                .some(p => p.in_stock !== false && p.no_quote !== true);
+              return {
+                offers: {
+                  '@type': 'AggregateOffer',
+                  priceCurrency: 'USD',
+                  lowPrice: Math.min(...usdPrices).toFixed(2),
+                  highPrice: Math.max(...usdPrices).toFixed(2),
+                  offerCount: usdPrices.length,
+                  availability: anyInStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                  seller: { '@type': 'Organization', name: 'Various Authorized Retailers' },
+                },
+              };
+            })(),
           }),
         }}
       />
