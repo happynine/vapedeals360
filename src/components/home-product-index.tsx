@@ -17,7 +17,7 @@ export async function HomeProductIndex() {
   try {
     products = (await fetchProducts({
       language: 'en',
-      limit: 60,
+      limit: 120,
       offset: 0,
       currency: '$',
     })) as Array<Record<string, unknown>>;

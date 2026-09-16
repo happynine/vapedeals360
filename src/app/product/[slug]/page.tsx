@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { ProductDetailClient, Product } from "@/components/product-detail-client";
 import { fetchProductBySlug } from "@/lib/database";
+import { RelatedProducts } from "@/components/related-products";
 import { isSupabaseConfigured } from "@/storage/database/supabase-client";
 import { notFound } from "next/navigation";
 
@@ -142,6 +143,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           }),
         }}
       />
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-12 bg-white flex-1">
+        <RelatedProducts
+          currentId={product.id as number}
+          currentSlug={slug}
+          categoryId={(product.category_id as number | null) ?? null}
+        />
+      </div>
     </div>
   );
 }
