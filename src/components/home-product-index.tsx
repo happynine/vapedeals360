@@ -19,7 +19,6 @@ export async function HomeProductIndex() {
       language: 'en',
       limit: 120,
       offset: 0,
-      currency: '$',
     })) as Array<Record<string, unknown>>;
   } catch {
     return null;
@@ -32,30 +31,33 @@ export async function HomeProductIndex() {
       const translations = p.translations as Array<{ language: string; name: string }> | undefined;
       const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
       const prices = (p.prices as Array<Record<string, unknown>> | undefined) || [];
-      const usd = prices.filter(
-        (pr) =>
-          pr.no_quote !== true &&
-          pr.in_stock !== false &&
-          (String(pr.currency ?? '$') === '$' || String(pr.currency) === 'US$')
-      );
-      if (!tr?.name || usd.length === 0) return null;
-      const lowest = Math.min(
-        ...usd.map((pr) => {
-          const v =
-            pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
-              ? Number(pr.promo_price)
-              : Number(pr.current_price);
-          return Number.isFinite(v) ? v : Infinity;
-        })
-      );
+      const valid = prices.filter((pr) => pr.no_quote !== true && pr.in_stock !== false);
+      if (!tr?.name || valid.length === 0) return null;
+      const isUsd = (cur: string) => cur === '$' || cur === 'US$' || cur === 'USD';
+      const usdRows = valid.filter((pr) => isUsd(String(pr.currency ?? '$')));
+      const pool = usdRows.length > 0 ? usdRows : valid;
+      const currency = usdRows.length > 0 ? '$' : '';
+      let lowest = Infinity;
+      let pickedCurrency = currency;
+      for (const pr of pool) {
+        const v =
+          pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
+            ? Number(pr.promo_price)
+            : Number(pr.current_price);
+        if (Number.isFinite(v) && v > 0 && v < lowest) {
+          lowest = v;
+          pickedCurrency = usdRows.length > 0 ? '$' : String(pr.currency ?? '');
+        }
+      }
       if (!Number.isFinite(lowest)) return null;
       return {
         slug: p.slug as string,
         name: tr.name as string,
         price: lowest,
+        currency: pickedCurrency,
       };
     })
-    .filter((x): x is { slug: string; name: string; price: number } => x !== null);
+    .filter((x): x is { slug: string; name: string; price: number; currency: string } => x !== null);
 
   if (items.length === 0) return null;
 
@@ -90,7 +92,7 @@ export async function HomeProductIndex() {
               {it.name}
             </a>
             <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-              from ${it.price.toFixed(2)}
+              from ${it.currency}${it.price.toFixed(2)}
             </span>
           </li>
         ))}
