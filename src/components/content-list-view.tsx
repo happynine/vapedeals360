@@ -84,7 +84,7 @@ export function ContentListView({
               {pages.map((page) => (
                 <Link
                   key={page.id}
-                  href={`${basePath}/${page.slug}`}
+                  href={`${basePath}/${encodeURI(page.slug)}`}
                   className="group block bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-purple-300 transition-all"
                 >
                   <div className="aspect-video bg-white relative overflow-hidden">

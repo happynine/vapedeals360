@@ -48,7 +48,11 @@ async function getGlobalDisclaimer(language: string = 'en'): Promise<GlobalDiscl
   }
 }
 
-async function getNewsArticle(slug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
+async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
+  // Route params may arrive percent-encoded (slugs in DB can contain spaces);
+  // decode so the lookup matches the stored slug.
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   try {
     const supabase = getSupabaseClient();
     const { data: pages, error } = await supabase
@@ -77,11 +81,13 @@ async function getNewsArticle(slug: string, language: string = 'en'): Promise<Co
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   const article = await getNewsArticle(slug);
   if (!article) return { title: 'Article Not Found' };
 
-  const url = `https://www.vapedeals360.com/news/${slug}`;
+  const url = `https://www.vapedeals360.com/news/${encodeURI(slug)}`;
   const description = article.content
     ? article.content.replace(/<[^>]*>/g, '').substring(0, 160)
     : `Read ${article.title} on VapeDeals360`;
@@ -101,7 +107,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function NewsDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   const [article, disclaimer] = await Promise.all([
     getNewsArticle(slug),
     getGlobalDisclaimer(),

@@ -48,7 +48,9 @@ async function getGlobalDisclaimer(language: string = 'en'): Promise<GlobalDiscl
   }
 }
 
-async function getBestVapesArticle(slug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
+async function getBestVapesArticle(rawSlug: string, language: string = 'en'): Promise<ContentPageDetail | null> {
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   try {
     const supabase = getSupabaseClient();
     const { data: pages, error } = await supabase
@@ -77,11 +79,13 @@ async function getBestVapesArticle(slug: string, language: string = 'en'): Promi
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   const article = await getBestVapesArticle(slug);
   if (!article) return { title: 'Article Not Found' };
 
-  const url = `https://www.vapedeals360.com/best-vapes/${slug}`;
+  const url = `https://www.vapedeals360.com/best-vapes/${encodeURI(slug)}`;
   const description = article.content
     ? article.content.replace(/<[^>]*>/g, '').substring(0, 160)
     : `Read ${article.title} on VapeDeals360`;
@@ -101,7 +105,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function BestVapesDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try { slug = decodeURIComponent(rawSlug); } catch { slug = rawSlug; }
   const [article, disclaimer] = await Promise.all([
     getBestVapesArticle(slug),
     getGlobalDisclaimer(),
