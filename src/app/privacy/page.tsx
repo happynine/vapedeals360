@@ -6,7 +6,7 @@ import { StaticPageView } from '@/components/static-page-view';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - VapeDeals360',
+  title: 'Privacy Policy',
   description:
     'How VapeDeals360 collects, uses, and protects your personal information, including cookies, analytics, advertising partners, and your privacy choices.',
   alternates: { canonical: 'https://www.vapedeals360.com/privacy' },
@@ -17,13 +17,15 @@ export default async function PrivacyPolicyPage() {
   try {
     const client = getSupabaseClient();
     if (client) {
-      const { data } = await client
+      const { data: rows } = await client
         .from('static_pages')
-        .select('content')
-        .eq('slug', 'privacy-policy')
-        .eq('language', 'en')
-        .maybeSingle();
-      if (data?.content) content = cleanRichText(data.content);
+        .select('*, static_page_translations(*)')
+        .eq('slug', 'privacy-policy');
+      const page = rows?.[0];
+      const translation = (page?.static_page_translations || []).find(
+        (tr: { language: string }) => tr.language === 'en'
+      );
+      if (translation?.content) content = cleanRichText(translation.content);
     }
   } catch {
     // Render shell; client layer keeps language switching available

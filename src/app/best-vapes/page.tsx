@@ -5,7 +5,7 @@ import { ContentListView } from '@/components/content-list-view';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Best Vapes - VapeDeals360',
+  title: 'Best Vapes',
   description:
     'Expert-curated best vapes guides, reviews, and buying recommendations compared by price across trusted retailers.',
   alternates: { canonical: 'https://www.vapedeals360.com/best-vapes' },
