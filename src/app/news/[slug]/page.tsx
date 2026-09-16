@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { NewsDetailClient } from './NewsDetailClient';
 import { PopularProducts } from '@/components/popular-products';
+import { metaDescription } from '@/lib/seo';
 
 interface ContentPageDetail {
   id: number;
@@ -10,6 +11,8 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface GlobalDisclaimer {
@@ -74,6 +77,8 @@ async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise
       cover_image: page.cover_image,
       title: translation?.title || '',
       content: translation?.content || '',
+      created_at: page.created_at || null,
+      updated_at: page.updated_at || page.created_at || null,
     };
   } catch {
     return null;
@@ -88,20 +93,32 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!article) return { title: 'Article Not Found' };
 
   const url = `https://www.vapedeals360.com/news/${encodeURI(slug)}`;
-  const description = article.content
-    ? article.content.replace(/<[^>]*>/g, '').substring(0, 160)
-    : `Read ${article.title} on VapeDeals360`;
+  const description = metaDescription(
+    article.content,
+    `Read ${article.title} and the latest vape industry news on VapeDeals360.`,
+    158,
+  );
+  const title = article.title || slug;
+  const images = article.cover_image ? [{ url: article.cover_image, alt: title }] : [];
 
   return {
-    title: article.title || slug,
+    title,
     description,
     alternates: { canonical: url },
     openGraph: {
-      title: article.title || slug,
+      title,
       description,
-      images: article.cover_image ? [{ url: article.cover_image }] : [],
+      images,
       url,
       type: 'article',
+      publishedTime: article.created_at || undefined,
+      modifiedTime: article.updated_at || undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: article.cover_image ? [article.cover_image] : [],
     },
   };
 }
@@ -115,8 +132,42 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
     getGlobalDisclaimer(),
   ]);
 
+  const canonical = `https://www.vapedeals360.com/news/${encodeURI(slug)}`;
+  const articleTitle = article?.title || slug;
+  const articleJsonLd = article
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: articleTitle,
+        description: metaDescription(article.content, undefined, 300),
+        image: article.cover_image ? [article.cover_image] : undefined,
+        datePublished: article.created_at || undefined,
+        dateModified: article.updated_at || article.created_at || undefined,
+        author: { '@type': 'Organization', name: 'VapeDeals360' },
+        publisher: {
+          '@type': 'Organization',
+          name: 'VapeDeals360',
+          logo: { '@type': 'ImageObject', url: 'https://www.vapedeals360.com/favicon.ico' },
+        },
+        mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+      }
+    : null;
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.vapedeals360.com/' },
+      { '@type': 'ListItem', position: 2, name: 'News', item: 'https://www.vapedeals360.com/news' },
+      { '@type': 'ListItem', position: 3, name: articleTitle, item: canonical },
+    ],
+  };
+
   return (
     <>
+      {articleJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <NewsDetailClient slug={slug} initialArticle={article} disclaimer={disclaimer} />
       <div className="mx-auto w-full max-w-[1440px] px-4 pb-12 bg-white">
         <PopularProducts limit={10} />

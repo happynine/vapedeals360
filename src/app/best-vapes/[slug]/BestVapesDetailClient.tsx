@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/site-header';
 import { ArticleSidebar } from '@/components/article-sidebar';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
+import { sanitizeArticleHtml } from '@/lib/seo';
 
 interface ContentPageDetail {
   id: number;
@@ -50,7 +51,7 @@ export function BestVapesDetailClient({ slug, initialArticle }: { slug: string; 
                 <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
                 <div
                   className="rich-text-content"
-                  dangerouslySetInnerHTML={{ __html: (page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[1-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[1-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[2-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[2-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}
                 />
                 {!page.disclaimer_hidden && page.disclaimer && (
                   <div className="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400 leading-relaxed" style={{ fontSize: 14 }}>

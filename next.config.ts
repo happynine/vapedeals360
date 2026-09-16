@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import path from 'path';
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   turbopack: {
     root: path.resolve(__dirname),
   },
@@ -25,10 +26,17 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   async headers() {
+    const securityHeaders = [
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+    ];
     return [
       {
         source: '/:path*',
         headers: [
+          ...securityHeaders,
           {
             key: 'Cache-Control',
             value: 'public, s-maxage=60, stale-while-revalidate=300',
@@ -38,6 +46,7 @@ const nextConfig: NextConfig = {
       {
         source: '/_next/static/:path*',
         headers: [
+          ...securityHeaders,
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
@@ -47,6 +56,7 @@ const nextConfig: NextConfig = {
       {
         source: '/public/:path*',
         headers: [
+          ...securityHeaders,
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
@@ -56,6 +66,7 @@ const nextConfig: NextConfig = {
       {
         source: '/api/:path*',
         headers: [
+          ...securityHeaders,
           {
             key: 'Cache-Control',
             value: 'no-store, must-revalidate',

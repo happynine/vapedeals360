@@ -6,9 +6,9 @@ import { isSupabaseConfigured } from '@/storage/database/supabase-client';
  *
  * The interactive product grid lives in ProductListClient, which suspends
  * during SSR (useSearchParams) and therefore renders only a skeleton into the
- * initial HTML. This section renders real product names, prices and /product
- * links on the server so non-JS crawlers and affiliate reviewers can read the
- * core deal content, and adds an ItemList JSON-LD block.
+ * initial HTML. This section renders the page H1, real product images, names,
+ * prices and /product links on the server so non-JS crawlers and affiliate
+ * reviewers can read the core deal content, and adds an ItemList JSON-LD block.
  */
 export async function HomeProductIndex() {
   if (!isSupabaseConfigured()) return null;
@@ -36,9 +36,8 @@ export async function HomeProductIndex() {
       const isUsd = (cur: string) => cur === '$' || cur === 'US$' || cur === 'USD';
       const usdRows = valid.filter((pr) => isUsd(String(pr.currency ?? '$')));
       const pool = usdRows.length > 0 ? usdRows : valid;
-      const currency = usdRows.length > 0 ? '$' : '';
       let lowest = Infinity;
-      let pickedCurrency = currency;
+      let pickedCurrency = usdRows.length > 0 ? '$' : '';
       for (const pr of pool) {
         const v =
           pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
@@ -50,14 +49,20 @@ export async function HomeProductIndex() {
         }
       }
       if (!Number.isFinite(lowest)) return null;
+      const image =
+        (p.home_image_url as string | null) || (p.image_url as string | null) || '';
       return {
         slug: p.slug as string,
         name: tr.name as string,
         price: lowest,
         currency: pickedCurrency,
+        image,
       };
     })
-    .filter((x): x is { slug: string; name: string; price: number; currency: string } => x !== null);
+    .filter(
+      (x): x is { slug: string; name: string; price: number; currency: string; image: string } =>
+        x !== null,
+    );
 
   if (items.length === 0) return null;
 
@@ -67,8 +72,9 @@ export async function HomeProductIndex() {
     itemListElement: items.map((it, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `https://www.vapedeals360.com/product/${it.slug}`,
+      url: `https://www.vapedeals360.com/product/${encodeURI(it.slug)}`,
       name: it.name,
+      image: it.image || undefined,
     })),
   };
 
@@ -78,22 +84,38 @@ export async function HomeProductIndex() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Browse Vape Deals</h2>
-      <p className="text-sm text-gray-500 mb-5">
-        Real-time prices compared across trusted, authorized vape retailers.
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+        Best Vape Deals &amp; Price Comparison
+      </h1>
+      <p className="text-sm text-gray-500 mb-6">
+        Compare real-time prices on {items.length} vapes across trusted, authorized retailers.
       </p>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-2">
+      <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-5">
         {items.map((it) => (
-          <li key={it.slug} className="flex items-baseline justify-between gap-2 py-1">
+          <li key={it.slug}>
             <a
-              href={`/product/${it.slug}`}
-              className="text-sm text-purple-700 hover:underline truncate"
+              href={`/product/${encodeURI(it.slug)}`}
+              className="group block rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-purple-300 hover:shadow-sm"
             >
-              {it.name}
+              {it.image ? (
+                <img
+                  src={it.image}
+                  alt={`${it.name} — best price comparison`}
+                  width={480}
+                  height={480}
+                  loading="lazy"
+                  className="mb-2 aspect-square w-full rounded-xl border border-gray-100 object-cover"
+                />
+              ) : (
+                <div className="mb-2 aspect-square w-full rounded-xl bg-gray-50" />
+              )}
+              <span className="block truncate text-sm font-medium text-purple-700 group-hover:underline">
+                {it.name}
+              </span>
+              <span className="mt-0.5 block text-sm font-semibold text-gray-900">
+                from {it.currency}{it.price.toFixed(2)}
+              </span>
             </a>
-            <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-              from {it.currency}{it.price.toFixed(2)}
-            </span>
           </li>
         ))}
       </ul>

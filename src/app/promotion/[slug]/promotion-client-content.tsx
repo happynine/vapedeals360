@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/hooks/use-language';
 import { cn } from '@/lib/utils';
+import { cleanAffiliateUrl } from '@/lib/seo';
 
 interface StoreTranslation {
   id: number;
@@ -480,9 +481,9 @@ export function PromotionClientContent({ promotion }: { promotion: Promotion }) 
                             </span>
                             {price.product_url && (
                               <a
-                                href={price.product_url}
+                                href={cleanAffiliateUrl(price.product_url)}
                                 target="_blank"
-                                rel="noopener noreferrer"
+                                rel="sponsored nofollow noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-700 hover:text-white transition-all"
                               >

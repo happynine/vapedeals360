@@ -7,6 +7,7 @@ import { fetchProductBySlug } from "@/lib/database";
 import { RelatedProducts } from "@/components/related-products";
 import { isSupabaseConfigured } from "@/storage/database/supabase-client";
 import { notFound } from "next/navigation";
+import { metaDescription } from "@/lib/seo";
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
 export const revalidate = 60;
@@ -34,10 +35,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!product) return { title: 'Product Not Found' };
 
   const title = product.product_translations?.[0]?.name || product.slug;
-  const description = product.product_translations?.[0]?.description 
-    || `Buy ${title} at VapeDeals360. Compare prices across stores.`;
+  const fallback = `Buy ${title} at the best price. Compare live deals across trusted vape stores on VapeDeals360.`;
+  const description = metaDescription(product.product_translations?.[0]?.description, fallback, 158);
   const image = product.image_url || product.home_image_url || '';
-  const url = `https://www.vapedeals360.com/product/${slug}`;
+  const url = `https://www.vapedeals360.com/product/${encodeURI(slug)}`;
 
   return {
     title,
@@ -46,9 +47,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     openGraph: {
       title,
       description,
-      images: image ? [{ url: image, width: 480, height: 480 }] : [],
+      images: image ? [{ url: image, width: 480, height: 480, alt: title }] : [],
       url,
       type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : [],
     },
   };
 }
@@ -112,8 +119,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             '@type': 'Product',
             name: product.product_translations?.[0]?.name,
             image: product.image_url,
-            description: product.product_translations?.[0]?.description,
-            url: `https://www.vapedeals360.com/product/${slug}`,
+            description: metaDescription(product.product_translations?.[0]?.description, undefined, 300),
+            url: `https://www.vapedeals360.com/product/${encodeURI(slug)}`,
             ...(() => {
               // Real USD prices only: numeric, in stock, not no-quote rows
               const usdPrices = (product.prices as Array<Record<string, unknown>> || [])

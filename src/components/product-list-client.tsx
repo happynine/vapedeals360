@@ -8,6 +8,7 @@ import { SafeImage } from "@/components/safe-image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BorderBeam } from "antd";
 import BannerCarousel from "./banner-carousel";
+import { cleanAffiliateUrl } from "@/lib/seo";
 
 // Types
 interface CategoryTranslation {
@@ -951,9 +952,9 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                               {price.currency || '$'}{getDisplayPrice(price)}
                             </span>
                             <a
-                              href={price.product_url}
+                              href={cleanAffiliateUrl(price.product_url)}
                               target="_blank"
-                              rel="noopener noreferrer"
+                              rel="sponsored nofollow noopener noreferrer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const sid = sessionStorage.getItem("vp_session_id") || "";

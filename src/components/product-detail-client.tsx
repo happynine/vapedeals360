@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { useLanguage } from "@/hooks/use-language";
+import { cleanAffiliateUrl } from "@/lib/seo";
 
 // 货币代码 → 符号映射（与首页保持一致）
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -464,9 +465,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                   </div>
                   <div className="text-center">
                     <a
-                      href={price.product_url}
+                      href={cleanAffiliateUrl(price.product_url)}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="sponsored nofollow noopener noreferrer"
                       onClick={() => {
                         fetch("/api/track", {
                           method: "POST",
@@ -559,9 +560,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       </span>
                     </div>
                     <a
-                        href={price.product_url}
+                        href={cleanAffiliateUrl(price.product_url)}
                         target="_blank"
-                        rel="noopener noreferrer"
+                        rel="sponsored nofollow noopener noreferrer"
                         onClick={() => {
                           fetch("/api/track", {
                             method: "POST",
