@@ -63,14 +63,20 @@ export function ContactView() {
                   <div>
                     <h3 className="font-medium">{t('Email', '邮箱', language)}</h3>
                     <p className="text-gray-600">
-                      {/* href is assembled at runtime and the visible address sits
-                          in a readonly textarea, so Cloudflare email obfuscation never
-                          rewrites it: crawlers and reviewers read the plain address. */}
+                      {/* The address is split into parts and only assembled on click,
+                          so Cloudflare email obfuscation never rewrites the visible link.
+                          The plain address is provided for crawlers/reviewers in the
+                          readonly textarea below. */}
                       <a
-                        href={`mailt${"o"}:${"info"}@${"vapedeals360"}.com`}
+                        href="#contact-email"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const addr = ["info", "vapedeals360.com"].join("@");
+                          window.location.href = "mailto:" + addr;
+                        }}
                         className="text-purple-700 hover:underline"
                       >
-                        info@vapedeals360.com
+                        {"info"} [at] {"vapedeals360.com"}
                       </a>
                     </p>
                     <textarea
