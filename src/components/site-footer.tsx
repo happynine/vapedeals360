@@ -37,9 +37,12 @@ export default function SiteFooter() {
                   ? 'VapeDeals360 电子烟价格比价平台，致力于帮助成年电子烟用户找到最优惠的购买方案'
                   : 'Helping adult vapers find the best deals. We track prices across trusted retailers, compare offers in real time.'}
               </p>
-              <a href="mailto:info@vapedeals360.com" className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">
+              {/* Runtime-built href + readonly textarea keeps the plain address
+                  readable to crawlers and out of Cloudflare email obfuscation. */}
+              <a href={`mailt${"o"}:${"info"}@${"vapedeals360"}.com`} className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4">
                 Email: info@vapedeals360.com
               </a>
+              <textarea readOnly aria-label="Contact email address" className="sr-only" defaultValue="info@vapedeals360.com" rows={1} />
               {socialLinks.length > 0 && (
                 <div className="flex items-center gap-3">
                   {socialLinks.map((link) => (
