@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { BestVapesDetailClient } from './BestVapesDetailClient';
+import { PopularProducts } from '@/components/popular-products';
 
 interface ContentPageDetail {
   id: number;
@@ -106,6 +107,13 @@ export default async function BestVapesDetailPage({ params }: { params: Promise<
     getGlobalDisclaimer(),
   ]);
 
-  return <BestVapesDetailClient slug={slug} initialArticle={article} disclaimer={disclaimer} />;
+  return (
+    <>
+      <BestVapesDetailClient slug={slug} initialArticle={article} disclaimer={disclaimer} />
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-12 bg-white">
+        <PopularProducts limit={10} />
+      </div>
+    </>
+  );
 }
 

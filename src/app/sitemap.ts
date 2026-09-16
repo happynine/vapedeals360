@@ -14,9 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/terms-of-service`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/affiliate-disclosure`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${baseUrl}/disclaimer`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${baseUrl}/product`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
     { url: `${baseUrl}/news`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
-    { url: `${baseUrl}/promotion`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
     { url: `${baseUrl}/best-vapes`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
   ];
 
@@ -27,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('products')
       .select('slug, updated_at');
     productPages = (products || []).map((p) => ({
-      url: `${baseUrl}/product/${p.slug}`,
+      url: `${baseUrl}/product/${encodeURI(p.slug)}`,
       lastModified: new Date(p.updated_at),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
@@ -45,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     contentPages = (contentPagesData || []).map((p) => {
       const prefix = p.type === 'news' ? 'news' : 'best-vapes';
       return {
-        url: `${baseUrl}/${prefix}/${p.slug}`,
+        url: `${baseUrl}/${prefix}/${encodeURI(p.slug)}`,
         lastModified: new Date(p.updated_at),
         changeFrequency: 'weekly' as const,
         priority: 0.6,
@@ -62,7 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('promotions')
       .select('slug, updated_at');
     promotionPages = (promotions || []).map((p) => ({
-      url: `${baseUrl}/promotion/${p.slug}`,
+      url: `${baseUrl}/promotion/${encodeURI(p.slug)}`,
       lastModified: new Date(p.updated_at),
       changeFrequency: 'daily' as const,
       priority: 0.8,
