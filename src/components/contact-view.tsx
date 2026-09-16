@@ -63,12 +63,12 @@ export function ContactView() {
                   <div>
                     <h3 className="font-medium">{t('Email', '邮箱', language)}</h3>
                     <p className="text-gray-600">
+                      {/*email_off*/}
                       <a href="mailto:info@vapedeals360.com" className="text-purple-700 hover:underline">
                         info@vapedeals360.com
                       </a>
+                      {/*/email_off*/}
                     </p>
-                    {/* Plain-text email fallback for crawlers / affiliate review tools */}
-                    <p className="sr-only">Contact email: info@vapedeals360.com</p>
                   </div>
                 </div>
               </div>

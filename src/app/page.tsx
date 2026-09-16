@@ -4,6 +4,7 @@ import { ProductListClient, InitialData } from "@/components/product-list-client
 import { fetchCategories, fetchProducts, fetchBanners, countProducts } from "@/lib/database";
 import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
+import { HomeProductIndex } from "@/components/home-product-index";
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
 export const revalidate = 60;
@@ -206,6 +207,8 @@ export default async function HomePage() {
           <Suspense fallback={<HomePageSkeleton />}>
             <ProductListClient initialData={initialData as unknown as InitialData} />
           </Suspense>
+          {/* Server-rendered crawler-readable product index + ItemList JSON-LD */}
+          <HomeProductIndex />
         </div>
       </main>
     </div>
