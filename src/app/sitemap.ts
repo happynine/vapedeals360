@@ -37,9 +37,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const { data: products } = await supabase
       .from('products')
-      .select('slug, updated_at, created_at, home_image_url, image_url');
+      .select('slug, updated_at, created_at, image_url');
     productPages = (products || []).map((p) => {
-      const img = p.home_image_url || p.image_url;
+      const img = p.image_url;
       return {
         url: `${baseUrl}/product/${encodeURI(p.slug)}`,
         lastModified: new Date(p.updated_at || p.created_at || Date.now()),
