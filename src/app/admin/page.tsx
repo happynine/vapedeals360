@@ -591,6 +591,8 @@ export default function AdminPage() {
         if (!p.has_promotion) return false;
       } else if (productTypeFilter === 'standard') {
         if (p.has_promotion) return false;
+      } else if (productTypeFilter === 'featured') {
+        if (!p.is_featured) return false;
       }
       return true;
     });
@@ -1691,6 +1693,7 @@ export default function AdminPage() {
                       <option value="">{t('All Products', '全部', adminLang)}</option>
                       <option value="standard">{t('Standard Products', '标准产品', adminLang)}</option>
                       <option value="promotion">{t('Promotion Products', '活动产品', adminLang)}</option>
+                      <option value="featured">{t('Featured Products', '推荐产品', adminLang)}</option>
                     </select>
                   </div>
                 </div>
@@ -1761,6 +1764,12 @@ export default function AdminPage() {
                                   <div>
                                     <div className="text-sm font-medium flex items-center gap-1.5">
                                       {enName}
+                                      {product.is_featured && (
+                                        <span className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500" title={adminLang === 'zh' ? '推荐产品' : 'Featured product'}>
+                                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                          {adminLang === 'zh' ? '推荐' : 'FEATURED'}
+                                        </span>
+                                      )}
                                       {product.has_promotion && (
                                         <span className="inline-flex items-center rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400" title={
                                           (() => {
