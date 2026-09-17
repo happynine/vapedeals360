@@ -28,6 +28,17 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
   const [mobileCurOpen, setMobileCurOpen] = useState(false);
+  // Currency onboarding hint: auto-shown once per browser session on site open.
+  const [curHintVisible, setCurHintVisible] = useState(false);
+  const curHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissCurHint = useCallback(() => {
+    if (curHintTimerRef.current) {
+      clearTimeout(curHintTimerRef.current);
+      curHintTimerRef.current = null;
+    }
+    setCurHintVisible(false);
+    try { sessionStorage.setItem('vp_cur_hint_shown', '1'); } catch {}
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -55,6 +66,19 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const displayName = siteSettings?.site_name || '';
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  // Auto-show the currency hint once when the site is opened (per browser session)
+  useEffect(() => {
+    let shown = false;
+    try { shown = sessionStorage.getItem('vp_cur_hint_shown') === '1'; } catch {}
+    if (shown) return;
+    // Mark immediately so navigating within 10s does not re-trigger it.
+    try { sessionStorage.setItem('vp_cur_hint_shown', '1'); } catch {}
+    setCurHintVisible(true);
+    curHintTimerRef.current = setTimeout(() => setCurHintVisible(false), 10000);
+    return () => {
+      if (curHintTimerRef.current) clearTimeout(curHintTimerRef.current);
+    };
+  }, []);
   // SSR and first client render must match; only use real logo after mount
   const displayLogo = mounted ? siteSettings?.logo_url : undefined;
   const handleLanguageChange = (lang: string) => {
@@ -356,6 +380,21 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                     </div>
                   </>
                 )}
+                {curHintVisible && (
+                  <div className="absolute right-0 top-full mt-3 z-50 w-64 rounded-lg border border-red-500/40 bg-[#1a1a24]/95 px-3 py-2.5 shadow-lg backdrop-blur hidden sm:block animate-fade-in-up">
+                    <div className="absolute -top-1.5 right-8 h-3 w-3 rotate-45 border-l border-t border-red-500/40 bg-[#1a1a24]" />
+                    <button
+                      onClick={dismissCurHint}
+                      aria-label="Dismiss"
+                      className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                    <p className="pr-5 text-sm font-medium text-red-500">
+                      {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
+                    </p>
+                  </div>
+                )}
               </div>
               {/* Language Dropdown */}
               <div className="relative">
@@ -473,6 +512,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
           {/* Right: Currency + Language + Search */}
           <div className="flex items-center gap-1">
             {/* Currency Toggle */}
+            <div className="relative">
             <button
               onClick={() => setMobileCurOpen(!mobileCurOpen)}
               className="flex items-center gap-1 h-10 px-2 rounded-lg text-gray-300 hover:bg-[#1a1a24] transition-colors"
@@ -485,6 +525,22 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               />
               <span className="text-sm font-medium">{currencyCode}</span>
             </button>
+            {curHintVisible && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-60 rounded-lg border border-red-500/40 bg-[#1a1a24]/95 px-3 py-2.5 shadow-lg backdrop-blur sm:hidden">
+                <div className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-l border-t border-red-500/40 bg-[#1a1a24]" />
+                <button
+                  onClick={dismissCurHint}
+                  aria-label="Dismiss"
+                  className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+                <p className="pr-5 text-sm font-medium text-red-500">
+                  {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
+                </p>
+              </div>
+            )}
+            </div>
             {/* Language Toggle */}
             <button
               onClick={() => setMobileLangOpen(!mobileLangOpen)}
