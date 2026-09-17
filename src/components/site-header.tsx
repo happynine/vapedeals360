@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
+import { useCurrency } from '@/hooks/use-currency';
 import { useSiteSettings } from '@/components/site-settings-provider';
 
 interface SearchResult {
@@ -20,10 +21,13 @@ interface SiteHeaderProps {
 export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const { siteSettings } = useSiteSettings();
   const { language, setLanguage, activeLanguages } = useLanguage();
+  const { currencyCode, setCurrency, currencies } = useCurrency();
   const [langOpen, setLangOpen] = useState(false);
+  const [curOpen, setCurOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
+  const [mobileCurOpen, setMobileCurOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -58,6 +62,11 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setLangOpen(false);
     setMobileLangOpen(false);
     setMobileMenuOpen(false);
+  };
+  const handleCurrencyChange = (code: string) => {
+    setCurOpen(false);
+    setMobileCurOpen(false);
+    setCurrency(code); // persists + reloads so SSR blocks use the new currency
   };
   // Close mobile menu on route change
   useEffect(() => {
@@ -307,10 +316,51 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   </div>
                 )}
               </div>
+              {/* Currency Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => { setCurOpen(!curOpen); setLangOpen(false); }}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#1a1a24] px-3 py-2 text-sm font-medium text-gray-300 hover:bg-[#2a2a3a] transition-colors"
+                  aria-label="Currency"
+                >
+                  <img
+                    src={currencies.find(c => c.code === currencyCode)?.flag}
+                    alt={currencies.find(c => c.code === currencyCode)?.flagAlt}
+                    className="h-4 w-4 rounded-sm object-cover"
+                  />
+                  {currencies.find(c => c.code === currencyCode)?.symbol || '$'}
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {curOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setCurOpen(false)} />
+                    <div className="absolute right-0 mt-2 z-50 w-44 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+                      {currencies.map((cur) => (
+                        <button
+                          key={cur.code}
+                          onClick={() => handleCurrencyChange(cur.code)}
+                          className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${currencyCode === cur.code ? "text-purple-400 font-semibold" : "text-gray-300"}`}
+                        >
+                          <img src={cur.flag} alt={cur.flagAlt} className="h-4 w-4 rounded-sm object-cover" />
+                          <span>{cur.code}</span>
+                          <span className="text-gray-500">({cur.symbol})</span>
+                          {currencyCode === cur.code && (
+                            <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               {/* Language Dropdown */}
               <div className="relative">
                 <button
-                  onClick={() => setLangOpen(!langOpen)}
+                  onClick={() => { setLangOpen(!langOpen); setCurOpen(false); }}
                   className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#1a1a24] px-3 py-2 text-sm font-medium text-gray-300 hover:bg-[#2a2a3a] transition-colors"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -420,8 +470,21 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             )}
             <span className="text-lg font-bold tracking-tight text-white">{displayName || '\u00A0'}</span>
           </Link>
-          {/* Right: Language + Search */}
+          {/* Right: Currency + Language + Search */}
           <div className="flex items-center gap-1">
+            {/* Currency Toggle */}
+            <button
+              onClick={() => setMobileCurOpen(!mobileCurOpen)}
+              className="flex items-center gap-1 h-10 px-2 rounded-lg text-gray-300 hover:bg-[#1a1a24] transition-colors"
+              aria-label="Currency"
+            >
+              <img
+                src={currencies.find(c => c.code === currencyCode)?.flag}
+                alt={currencies.find(c => c.code === currencyCode)?.flagAlt}
+                className="h-4 w-4 rounded-sm object-cover"
+              />
+              <span className="text-sm font-medium">{currencies.find(c => c.code === currencyCode)?.symbol || '$'}</span>
+            </button>
             {/* Language Toggle */}
             <button
               onClick={() => setMobileLangOpen(!mobileLangOpen)}
@@ -444,6 +507,30 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
             </button>
           </div>
         </div>
+        {/* Mobile Currency Dropdown */}
+        {mobileCurOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMobileCurOpen(false)} />
+            <div className="absolute right-4 top-14 z-50 w-44 rounded-lg border border-gray-700 bg-[#1a1a24] shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+              {currencies.map((cur) => (
+                <button
+                  key={cur.code}
+                  onClick={() => handleCurrencyChange(cur.code)}
+                  className={`w-full px-4 py-2.5 text-sm text-left hover:bg-[#2a2a3a] transition-colors flex items-center gap-2 ${currencyCode === cur.code ? "text-purple-400 font-semibold" : "text-gray-300"}`}
+                >
+                  <img src={cur.flag} alt={cur.flagAlt} className="h-4 w-4 rounded-sm object-cover" />
+                  <span>{cur.code}</span>
+                  <span className="text-gray-500">({cur.symbol})</span>
+                  {currencyCode === cur.code && (
+                    <svg className="h-4 w-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         {/* Mobile Language Dropdown */}
         {mobileLangOpen && (
           <>

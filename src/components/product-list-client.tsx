@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
+import { useCurrency } from "@/hooks/use-currency";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -152,66 +153,8 @@ function getTranslation<T extends { language: string }>(translations: T[] | unde
   return translations.find(t => t.language === language) || translations.find(t => t.language === "en") || translations[0];
 }
 
-// 货币定义：国旗 emoji + 货币代码 + 货币符号
-// 货币定义：国旗图片 URL + 货币代码 + 货币符号
-// 使用 flagcdn.com 的国旗图片
-type Currency = {
-  code: string;
-  symbol: string;
-  flag: string;
-  flagAlt: string;
-  name: string;
-};
-
-const CURRENCIES: Currency[] = [
-  { code: 'USD', symbol: '$', flag: '/flags/us.png', flagAlt: 'US', name: 'US Dollar' },
-  { code: 'GBP', symbol: '£', flag: '/flags/gb.png', flagAlt: 'GB', name: 'British Pound' },
-  { code: 'EUR', symbol: '€', flag: '/flags/eu.png', flagAlt: 'EU', name: 'Euro' },
-  { code: 'CAD', symbol: 'CA$', flag: '/flags/ca.png', flagAlt: 'CA', name: 'Canadian Dollar' },
-  { code: 'JPY', symbol: '¥', flag: '/flags/jp.png', flagAlt: 'JP', name: 'Japanese Yen' },
-  { code: 'KRW', symbol: '₩', flag: '/flags/kr.png', flagAlt: 'KR', name: 'Korean Won' },
-  { code: 'AUD', symbol: 'A$', flag: '/flags/au.png', flagAlt: 'AU', name: 'Australian Dollar' },
-  { code: 'RUB', symbol: '₽', flag: '/flags/ru.png', flagAlt: 'RU', name: 'Russian Ruble' },
-  { code: 'IDR', symbol: 'Rp', flag: '/flags/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
-];
-
-
-// 多语言货币名称
-const CURRENCY_NAMES: Record<string, Record<string, string>> = {
-  en: {
-    USD: 'US Dollar',
-    JPY: 'Japanese Yen',
-    KRW: 'Korean Won',
-    AUD: 'Australian Dollar',
-    GBP: 'British Pound',
-    EUR: 'Euro',
-    RUB: 'Russian Ruble',
-    CAD: 'Canadian Dollar',
-    IDR: 'Indonesian Rupiah',
-  },
-  zh: {
-    USD: '美元',
-    JPY: '日元',
-    KRW: '韩元',
-    AUD: '澳元',
-    GBP: '英镑',
-    EUR: '欧元',
-    RUB: '卢布',
-    CAD: '加元',
-    IDR: '印尼盾',
-  },
-  ja: {
-    USD: '米ドル',
-    JPY: '日本円',
-    KRW: '韓国ウォン',
-    AUD: 'オーストラリアドル',
-    GBP: '英国ポンド',
-    EUR: 'ユーロ',
-    RUB: 'ロシアルーブル',
-    CAD: 'カナダドル',
-    IDR: 'インドネシアルピア',
-  },
-};
+// Currency list/labels live in src/lib/currencies.ts and are driven globally
+// by the useCurrency hook + the header selector.
 
 function getLowestPrice(prices: ProductPrice[]): ProductPrice | null {
   if (!prices || prices.length === 0) return null;
@@ -306,6 +249,9 @@ function setCachedProducts(key: string, data: { products: Product[]; totalPages:
 
 export function ProductListClient({ initialData }: { initialData: InitialData }) {
   const { language } = useLanguage();
+  // Global, site-wide currency (mirrors the language selector; persisted in a
+  // cookie so SSR blocks use the same currency). Switching reloads the page.
+  const { currencyCode: selectedCurrencyCode, currencySymbol: selectedCurrency } = useCurrency();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -331,9 +277,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  // 默认选择美元
-  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>("USD");
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("$");
     const hasFetchedRef = useRef(false);
 
   // Fetch data when filters change (after initial load)
@@ -406,7 +349,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       // Fetch featured and banners only on first page without filters
       if (page === 1 && !selectedCategory && !searchQuery) {
-        const featRes = await fetch(`/api/products?featured=true&limit=5&language=${language}`);
+        const featRes = await fetch(`/api/products?featured=true&limit=5&language=${language}&currency=${encodeURIComponent(selectedCurrency)}`);
         const featJson = await featRes.json();
         if (featJson.success) setFeaturedProducts(featJson.data.products || []);
 
@@ -427,34 +370,17 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
     }
   }, [language, page, selectedCategory, selectedCurrencyCode, selectedCurrency, searchQuery, sortBy]);
 
-  // Mount effect - read from sessionStorage
+  // Mount effect
   useEffect(() => {
-    const savedCurrencyCode = sessionStorage.getItem('selectedCurrencyCode');
-    let needsCurrencyFetch = false;
-
-    if (savedCurrencyCode) {
-      const currency = CURRENCIES.find(c => c.code === savedCurrencyCode);
-      if (currency) {
-        // If stored currency differs from server-rendered default (USD/$), need to refetch
-        if (currency.symbol !== "$") {
-          needsCurrencyFetch = true;
-        }
-        setSelectedCurrencyCode(currency.code);
-        setSelectedCurrency(currency.symbol);
-      }
-    }
     setMounted(true);
     // If URL page > 1, need to fetch correct data (server only returns page 1)
     if (urlPage > 1) {
       setIsInitialLoad(false);
       hasFetchedRef.current = true;
       fetchData();
-    } else if (needsCurrencyFetch) {
-      // Currency was changed from default, need to fetch products for that currency
-      setIsInitialLoad(false);
-      // hasFetchedRef stays false so the second effect triggers fetchData
     } else {
-      // Use initial data on first load, skip fetch
+      // Use initial data on first load, skip fetch. Currency is global and the
+      // server already rendered initialData for the visitor's selected currency.
       setIsInitialLoad(false);
       hasFetchedRef.current = true;
     }
@@ -594,7 +520,9 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                   </div>
                 </Link>
               );
-            })}
+              })
+              .filter(Boolean)
+              .slice(0, 3)}
           </div>
         </div>
       )}
@@ -611,19 +539,23 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featuredProducts.slice(0, 3).map(product => {
-              const t = getTranslation(product.translations, language);
-              // Apply currency filtering to featured products
-              const currencyPrices = product.prices.filter(p => {
-                if (p.no_quote) return false;
-                if (p.store && !p.store.is_active) return false;
-                const priceCurrency = p.currency || '$';
-                return priceCurrency === selectedCurrency;
-              });
-              const displayPrices = currencyPrices;
-              const lowest = getLowestPrice(displayPrices);
-              const highestOrig = getHighestOriginal(displayPrices);
-              const discountInfo = getDiscountDisplay(displayPrices);
+            {featuredProducts
+              .map(product => {
+                const t = getTranslation(product.translations, language);
+                // Strict currency filter: a featured product with no price in the
+                // selected currency is hidden entirely (never shown in another
+                // currency or with an empty price).
+                const currencyPrices = product.prices.filter(p => {
+                  if (p.no_quote) return false;
+                  if (p.store && !p.store.is_active) return false;
+                  const priceCurrency = p.currency || '$';
+                  return priceCurrency === selectedCurrency;
+                });
+                if (currencyPrices.length === 0) return null;
+                const displayPrices = currencyPrices;
+                const lowest = getLowestPrice(displayPrices);
+                const highestOrig = getHighestOriginal(displayPrices);
+                const discountInfo = getDiscountDisplay(displayPrices);
 
               return (
                 <Link
@@ -673,43 +605,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
 
       {/* Filter Controls */}
       <div className="mb-6 space-y-3">
-        {/* Currency Filter */}
-        {!mounted ? (
-          <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
-            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "货币" : "Currency"}</span>
-            <div className="flex gap-2">
-              {CURRENCIES.slice(0, 6).map((currency) => (
-                <div key={currency.code} className="h-7 w-20 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
-            <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "货币" : "Currency"}</span>
-            {CURRENCIES.map((currency) => {
-              const currencyName = CURRENCY_NAMES[language]?.[currency.code] || currency.name;
-              return (
-                <button
-                  key={currency.code}
-                  onClick={() => {
-                    setSelectedCurrencyCode(currency.code);
-                    setSelectedCurrency(currency.symbol);
-                    setPage(1);
-                    sessionStorage.setItem('selectedCurrencyCode', currency.code);
-                  }}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-1.5 flex-shrink-0 ${
-                    selectedCurrencyCode === currency.code ? "bg-purple-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  <img src={currency.flag} alt={currency.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
-                  <span>{currency.code}</span>
-                  <span>({currency.symbol})</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
         {/* Category */}
         <div className="flex items-center gap-3 overflow-x-auto sm:flex-wrap scrollbar-hide pb-1 sm:pb-0">
           <span className="text-sm font-semibold text-gray-700 flex-shrink-0">{language === "zh" ? "类型" : "Type"}</span>

@@ -5,12 +5,15 @@ import { fetchCategories, fetchProducts, fetchBanners, countProducts } from "@/l
 import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 import { HomeProductIndex } from "@/components/home-product-index";
+import { getServerCurrency } from "@/lib/server-currency";
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
 export const revalidate = 60;
 
 // 服务端获取初始数据
 async function getInitialData() {
+  // Global visitor currency (from the `currency` cookie; defaults to USD).
+  const { symbol } = await getServerCurrency();
   // 构建时可能没有 Supabase 环境变量，直接返回空数据
   if (!isSupabaseConfigured()) {
     return {
@@ -29,8 +32,8 @@ async function getInitialData() {
     // ISR 自身已缓存页面，无需 unstable_cache 双重缓存
     const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
       fetchCategories("en"),
-      fetchProducts({ language: "en", limit: 20, offset: 0, currency: "$" }),
-      fetchProducts({ language: "en", limit: 5, offset: 0, featured: true }),
+      fetchProducts({ language: "en", limit: 20, offset: 0, currency: symbol }),
+      fetchProducts({ language: "en", limit: 5, offset: 0, featured: true, currency: symbol }),
       fetchBanners("en"),
       // 获取 promotions
       supabase
@@ -124,8 +127,8 @@ async function getInitialData() {
       };
     }));
 
-    // 计算总数（与列表一致：只统计有有效美元价格的产品）
-    const total = await countProducts(undefined, undefined, undefined, "$");
+    // 计算总数（与列表一致：只统计有所选币种有效价格的产品）
+    const total = await countProducts(undefined, undefined, undefined, symbol);
 
     return {
       categories: categories || [],

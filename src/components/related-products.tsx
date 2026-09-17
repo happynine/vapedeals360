@@ -1,5 +1,6 @@
 import { fetchProducts } from '@/lib/database';
 import { isSupabaseConfigured } from '@/storage/database/supabase-client';
+import { getServerCurrency } from '@/lib/server-currency';
 
 interface RelatedProductsProps {
   currentId: number;
@@ -14,14 +15,19 @@ interface RelatedItem {
   currency: string;
 }
 
-function pickLowest(product: Record<string, unknown>): RelatedItem | null {
+function pickLowest(product: Record<string, unknown>, symbol: string): RelatedItem | null {
   const translations = product.translations as
     | Array<{ language: string; name: string }>
     | undefined;
   const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
   const prices = (product.prices as Array<Record<string, unknown>> | undefined) || [];
+  // Strict: only prices in the visitor's selected currency. No fallback to other
+  // currencies so the Related block never mixes currencies.
   const valid = prices.filter(
-    (pr) => pr.no_quote !== true && pr.in_stock !== false
+    (pr) =>
+      pr.no_quote !== true &&
+      pr.in_stock !== false &&
+      String(pr.currency ?? '') === symbol
   );
   if (!tr?.name) return null;
 
@@ -33,48 +39,45 @@ function pickLowest(product: Record<string, unknown>): RelatedItem | null {
     return Number.isFinite(v) && v > 0 ? v : null;
   };
 
-  // Prefer USD, otherwise fall back to the cheapest available currency so that
-  // GBP/CAD-only products are still linked (no orphan pages).
-  const isUsd = (cur: string) => cur === '$' || cur === 'US$' || cur === 'USD';
-  const usdRows = valid.filter((pr) => isUsd(String(pr.currency ?? '$')));
-  const pool = usdRows.length > 0 ? usdRows : valid;
-  let currency = usdRows.length > 0 ? '$' : '';
   let best: number | null = null;
-  for (const pr of pool) {
+  for (const pr of valid) {
     const v = toNum(pr);
     if (v === null) continue;
-    if (best === null || v < best) {
-      best = v;
-      currency = usdRows.length > 0 ? '$' : String(pr.currency ?? '');
-    }
+    if (best === null || v < best) best = v;
   }
   if (best === null) return null;
-  return { slug: product.slug as string, name: tr.name as string, price: best, currency };
+  return { slug: product.slug as string, name: tr.name as string, price: best, currency: symbol };
 }
 
 /**
  * Server-rendered related-product internal links.
- * Same-category products first, topped up with the newest products so every
- * product page exposes real <a href="/product/..."> links in the initial HTML,
- * eliminating orphan pages for crawlers.
+ *
+ * Driven entirely by products the merchant flags is_featured, and strictly
+ * filtered to the visitor's global currency (read from the `currency` cookie).
+ * Same-category featured products first, topped up with other featured products.
+ * If not enough featured products carry a price in the selected currency the
+ * block simply shows fewer items (and renders nothing when there are none) —
+ * it never falls back to another currency.
  */
 export async function RelatedProducts({ currentId, currentSlug, categoryId }: RelatedProductsProps) {
   if (!isSupabaseConfigured()) return null;
 
   try {
-    const [sameCategory, latest] = await Promise.all([
+    const { symbol } = await getServerCurrency();
+
+    const [sameCategory, allFeatured] = await Promise.all([
       categoryId
-        ? fetchProducts({ language: 'en', category_id: categoryId, limit: 40 })
+        ? fetchProducts({ language: 'en', featured: true, currency: symbol, category_id: categoryId, limit: 40 })
         : Promise.resolve([] as unknown[]),
-      fetchProducts({ language: 'en', limit: 40 }),
+      fetchProducts({ language: 'en', featured: true, currency: symbol, limit: 60 }),
     ]);
 
     const seen = new Set<string>([currentSlug]);
     const items: RelatedItem[] = [];
 
-    for (const raw of [...(sameCategory as Array<Record<string, unknown>>), ...(latest as Array<Record<string, unknown>>)]) {
+    for (const raw of [...(sameCategory as Array<Record<string, unknown>>), ...(allFeatured as Array<Record<string, unknown>>)]) {
       if ((raw.id as number) === currentId) continue;
-      const item = pickLowest(raw);
+      const item = pickLowest(raw, symbol);
       if (!item) continue;
       if (seen.has(item.slug)) continue;
       seen.add(item.slug);

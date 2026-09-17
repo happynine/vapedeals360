@@ -4,13 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { useLanguage } from "@/hooks/use-language";
+import { useCurrency } from "@/hooks/use-currency";
 import { cleanAffiliateUrl } from "@/lib/seo";
-
-// 货币代码 → 符号映射（与首页保持一致）
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$', JPY: '¥', KRW: '₩', AUD: 'A$',
-  GBP: '£', EUR: '€', RUB: '₽', CAD: 'CA$', IDR: 'Rp',
-};
 
 export interface StoreTranslation {
   id: number;
@@ -159,15 +154,8 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
   const { language } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(product.home_image_url || product.image_url);
 
-  // 读取用户在首页选择的货币（与首页保持一致）
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('$');
-  useEffect(() => {
-    const savedCurrencyCode = sessionStorage.getItem('selectedCurrencyCode');
-    if (savedCurrencyCode) {
-      const symbol = CURRENCY_SYMBOLS[savedCurrencyCode];
-      if (symbol) setSelectedCurrency(symbol);
-    }
-  }, []);
+  // Global, site-wide currency (same selector as the rest of the site).
+  const { currencySymbol: selectedCurrency } = useCurrency();
 
   // Track page view
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { fetchProducts } from '@/lib/database';
 import { isSupabaseConfigured } from '@/storage/database/supabase-client';
+import { getServerCurrency } from '@/lib/server-currency';
 
 /**
  * Server-rendered, crawler-readable product index for the home page.
@@ -9,14 +10,22 @@ import { isSupabaseConfigured } from '@/storage/database/supabase-client';
  * initial HTML. This section renders the page H1, real product images, names,
  * prices and /product links on the server so non-JS crawlers and affiliate
  * reviewers can read the core deal content, and adds an ItemList JSON-LD block.
+ *
+ * This is the full catalog (not a recommendation block), so every product that
+ * has a live price in the visitor's global currency is listed; products with no
+ * price in the selected currency are hidden rather than shown in another
+ * currency. Renders nothing when the selected currency has no priced products.
  */
 export async function HomeProductIndex() {
   if (!isSupabaseConfigured()) return null;
+
+  const { symbol } = await getServerCurrency();
 
   let products: Array<Record<string, unknown>> = [];
   try {
     products = (await fetchProducts({
       language: 'en',
+      currency: symbol,
       limit: 120,
       offset: 0,
     })) as Array<Record<string, unknown>>;
@@ -31,21 +40,22 @@ export async function HomeProductIndex() {
       const translations = p.translations as Array<{ language: string; name: string }> | undefined;
       const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
       const prices = (p.prices as Array<Record<string, unknown>> | undefined) || [];
-      const valid = prices.filter((pr) => pr.no_quote !== true && pr.in_stock !== false);
+      // Strict: only live prices in the visitor's selected currency.
+      const valid = prices.filter(
+        (pr) =>
+          pr.no_quote !== true &&
+          pr.in_stock !== false &&
+          String(pr.currency ?? '') === symbol
+      );
       if (!tr?.name || valid.length === 0) return null;
-      const isUsd = (cur: string) => cur === '$' || cur === 'US$' || cur === 'USD';
-      const usdRows = valid.filter((pr) => isUsd(String(pr.currency ?? '$')));
-      const pool = usdRows.length > 0 ? usdRows : valid;
       let lowest = Infinity;
-      let pickedCurrency = usdRows.length > 0 ? '$' : '';
-      for (const pr of pool) {
+      for (const pr of valid) {
         const v =
           pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
             ? Number(pr.promo_price)
             : Number(pr.current_price);
         if (Number.isFinite(v) && v > 0 && v < lowest) {
           lowest = v;
-          pickedCurrency = usdRows.length > 0 ? '$' : String(pr.currency ?? '');
         }
       }
       if (!Number.isFinite(lowest)) return null;
@@ -55,7 +65,7 @@ export async function HomeProductIndex() {
         slug: p.slug as string,
         name: tr.name as string,
         price: lowest,
-        currency: pickedCurrency,
+        currency: symbol,
         image,
       };
     })
