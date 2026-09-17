@@ -210,6 +210,9 @@ export async function fetchProducts(options?: {
   if (featured) {
     query = query.eq('is_featured', true);
   }
+  if (featured) {
+    query = query.eq('is_featured', true);
+  }
   // Track the active sales_region for price filtering
   const activeRegion = (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') ? sales_region : null;
 
@@ -467,12 +470,12 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
 }
 
 // Count products
-export async function countProducts(category_id?: number, sales_region?: string, search?: string, currency?: string) {
+export async function countProducts(category_id?: number, sales_region?: string, search?: string, currency?: string, featured?: boolean) {
   const client = getClient();
   if (!client) return 0;
   
   // Debug log
-  console.log('[countProducts] params:', { category_id, sales_region, search, currency });
+  console.log('[countProducts] params:', { category_id, sales_region, search, currency, featured });
 
   // If search keyword provided, find matching product IDs first
   let matchingProductIds: number[] | null = null;

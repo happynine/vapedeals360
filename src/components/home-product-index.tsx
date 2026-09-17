@@ -11,10 +11,11 @@ import { getServerCurrency } from '@/lib/server-currency';
  * prices and /product links on the server so non-JS crawlers and affiliate
  * reviewers can read the core deal content, and adds an ItemList JSON-LD block.
  *
- * This is the full catalog (not a recommendation block), so every product that
- * has a live price in the visitor's global currency is listed; products with no
- * price in the selected currency are hidden rather than shown in another
- * currency. Renders nothing when the selected currency has no priced products.
+ * This lists only products the admin marked as Featured (the home page is a
+ * curated deals page), restricted to products that have a live price in the
+ * visitor's global currency; products with no price in the selected currency
+ * are hidden rather than shown in another currency. Renders nothing (including
+ * the H1) when no featured product has a price in the selected currency.
  */
 export async function HomeProductIndex() {
   if (!isSupabaseConfigured()) return null;
@@ -25,6 +26,7 @@ export async function HomeProductIndex() {
   try {
     products = (await fetchProducts({
       language: 'en',
+      featured: true,
       currency: symbol,
       limit: 120,
       offset: 0,

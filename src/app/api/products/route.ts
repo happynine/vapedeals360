@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         sort_by: sortBy,
         sort_order: sortOrder,
       }),
-      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion, search, currency),
+      countProducts(categoryId ? parseInt(categoryId) : undefined, salesRegion, search, currency, featured),
     ]);
 
     return NextResponse.json({

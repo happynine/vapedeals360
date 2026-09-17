@@ -259,7 +259,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   // Initial state from server
   const [categories, setCategories] = useState<Category[]>(initialData.categories);
   const [products, setProducts] = useState<Product[]>(initialData.products);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(initialData.featuredProducts);
   const [banners, setBanners] = useState<Banner[]>(initialData.banners);
   const [promotions, setPromotions] = useState<Promotion[]>(initialData.promotions);
   const [totalPages, setTotalPages] = useState(initialData.pagination.totalPages);
@@ -303,6 +302,10 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       if (selectedCategory) params.set("category_id", selectedCategory.toString());
       if (searchQuery) params.set("search", searchQuery);
       if (selectedCurrency) params.set("currency", selectedCurrency);
+      // Home view (no category/search filters): only products the admin marked
+      // Featured are listed. Category/search views keep the full catalog for
+      // those conditions. When nothing is featured, the grid stays empty.
+      if (!selectedCategory && !searchQuery) params.set("featured", "true");
       if (sortBy === "newest") {
         params.set("sort_by", "id");
         params.set("sort_order", "desc");
@@ -347,12 +350,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         });
       }
 
-      // Fetch featured and banners only on first page without filters
+      // Fetch banners and promotions only on first page without filters
       if (page === 1 && !selectedCategory && !searchQuery) {
-        const featRes = await fetch(`/api/products?featured=true&limit=5&language=${language}&currency=${encodeURIComponent(selectedCurrency)}`);
-        const featJson = await featRes.json();
-        if (featJson.success) setFeaturedProducts(featJson.data.products || []);
-
         const bannerRes = await fetch(`/api/banners?language=${language}`);
         const bannerJson = await bannerRes.json();
         if (bannerJson.success) setBanners(bannerJson.data || []);
@@ -523,82 +522,6 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
               })
               .filter(Boolean)
               .slice(0, 3)}
-          </div>
-        </div>
-      )}
-
-      {/* Featured Products */}
-      {featuredProducts.length > 0 && page === 1 && !selectedCategory && !searchQuery && (
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 animate-pulse-deal">
-              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M12.395 2.553a1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
-              </svg>
-              {language === "zh" ? "今日特价" : "HOT DEALS"}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featuredProducts
-              .map(product => {
-                const t = getTranslation(product.translations, language);
-                // Strict currency filter: a featured product with no price in the
-                // selected currency is hidden entirely (never shown in another
-                // currency or with an empty price).
-                const currencyPrices = product.prices.filter(p => {
-                  if (p.no_quote) return false;
-                  if (p.store && !p.store.is_active) return false;
-                  const priceCurrency = p.currency || '$';
-                  return priceCurrency === selectedCurrency;
-                });
-                if (currencyPrices.length === 0) return null;
-                const displayPrices = currencyPrices;
-                const lowest = getLowestPrice(displayPrices);
-                const highestOrig = getHighestOriginal(displayPrices);
-                const discountInfo = getDiscountDisplay(displayPrices);
-
-              return (
-                <Link
-                  key={product.id}
-                  href={`/product/${product.slug}`}
-                  className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md hover:border-purple-300 transition-all"
-                >
-                  {discountInfo && (
-                    <div className="absolute top-3 right-3 z-10 rounded-lg bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
-                      {discountInfo.type === 'percent' ? `-${discountInfo.value}%` : `Save ${discountInfo.currency}${discountInfo.amount}`}
-                    </div>
-                  )}
-                  <div className="flex gap-4">
-                    <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                      {(product.home_image_url || product.image_url) && (
-                        <SafeImage src={product.home_image_url || product.image_url_small || product.image_url} alt={t?.name || ""} fill className="object-cover" sizes="96px" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-purple-700 transition-colors">
-                        {t?.name}
-                      </h3>
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-xl font-bold text-emerald-600 tabular-nums">
-                          {lowest?.currency || '$'}{lowest ? getDisplayPrice(lowest) : "—"}
-                        </span>
-                        {highestOrig && displayPrices.length >= 2 && (
-                          <span className="text-xs text-emerald-600 font-medium ml-0.5">
-                            {language === "zh" ? "最低价" : "Lowest"}
-                          </span>
-                        )}
-                        {highestOrig && displayPrices.length < 2 && (
-                          <span className="text-sm text-gray-400 line-through tabular-nums">${highestOrig}</span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {displayPrices.length} {language === "zh" ? "家商城比价" : "stores compared"}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
           </div>
         </div>
       )}

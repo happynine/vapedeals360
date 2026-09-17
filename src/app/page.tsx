@@ -28,12 +28,10 @@ async function getInitialData() {
 
   try {
     const supabase = getSupabaseClient();
-    
     // ISR 自身已缓存页面，无需 unstable_cache 双重缓存
-    const [categories, products, featuredProducts, bannersData, promotionsResult] = await Promise.all([
+    const [categories, products, bannersData, promotionsResult] = await Promise.all([
       fetchCategories("en"),
-      fetchProducts({ language: "en", limit: 20, offset: 0, currency: symbol }),
-      fetchProducts({ language: "en", limit: 5, offset: 0, featured: true, currency: symbol }),
+      fetchProducts({ language: "en", limit: 20, offset: 0, featured: true, currency: symbol }),
       fetchBanners("en"),
       // 获取 promotions
       supabase
@@ -127,13 +125,13 @@ async function getInitialData() {
       };
     }));
 
-    // 计算总数（与列表一致：只统计有所选币种有效价格的产品）
-    const total = await countProducts(undefined, undefined, undefined, symbol);
+    // 计算总数（与首页推荐列表一致：只统计有所选币种有效价格的 Featured 产品）
+    const total = await countProducts(undefined, undefined, undefined, symbol, true);
 
     return {
       categories: categories || [],
       products: products || [],
-      featuredProducts: featuredProducts || [],
+      featuredProducts: [],
       banners,
       promotions,
       pagination: {
