@@ -210,9 +210,6 @@ export async function fetchProducts(options?: {
   if (featured) {
     query = query.eq('is_featured', true);
   }
-  if (featured) {
-    query = query.eq('is_featured', true);
-  }
   // Track the active sales_region for price filtering
   const activeRegion = (sales_region && sales_region !== '不限地区' && sales_region !== 'All Regions') ? sales_region : null;
 
@@ -496,6 +493,9 @@ export async function countProducts(category_id?: number, sales_region?: string,
   }
   if (category_id) {
     query = query.eq('category_id', category_id);
+  }
+  if (featured) {
+    query = query.eq('is_featured', true);
   }
   
   // Track active region for currency filtering
