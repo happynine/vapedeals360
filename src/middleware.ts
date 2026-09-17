@@ -32,10 +32,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  // 301 legacy news slug -> clean slug (pathname is already URL-decoded).
-  const newsMatch = request.nextUrl.pathname.match(/^\/news\/(.+?)\/?$/);
+  // 301 legacy news slug -> clean slug.
+  // Match on the raw (still-encoded) pathname so Cloudflare/Vercel normalized
+  // variants are both handled, then decode before looking up the slug.
+  const rawPath = request.nextUrl.pathname;
+  const newsMatch = rawPath.match(/^\/news\/(.+?)\/?$/);
+  let debugKey = '';
   if (newsMatch) {
-    const target = NEWS_SLUG_REDIRECTS[normalizeSlug(newsMatch[1])];
+    const decoded = (() => { try { return decodeURIComponent(newsMatch[1]); } catch { return newsMatch[1]; } })();
+    const key = normalizeSlug(decoded);
+    debugKey = key;
+    const target = NEWS_SLUG_REDIRECTS[key];
     if (target) {
       const url = request.nextUrl.clone();
       url.pathname = `/news/${target}`;
@@ -43,7 +50,9 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  res.headers.set('x-mw-dbg', 'hit:' + rawPath.slice(0, 60) + '|key=' + debugKey.slice(0, 60));
+  return res;
 }
 
 export const config = {
