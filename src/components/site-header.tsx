@@ -328,7 +328,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                     alt={currencies.find(c => c.code === currencyCode)?.flagAlt}
                     className="h-4 w-4 rounded-sm object-cover"
                   />
-                  {currencies.find(c => c.code === currencyCode)?.symbol || '$'}
+                  {currencyCode}
                   <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -483,7 +483,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 alt={currencies.find(c => c.code === currencyCode)?.flagAlt}
                 className="h-4 w-4 rounded-sm object-cover"
               />
-              <span className="text-sm font-medium">{currencies.find(c => c.code === currencyCode)?.symbol || '$'}</span>
+              <span className="text-sm font-medium">{currencyCode}</span>
             </button>
             {/* Language Toggle */}
             <button
