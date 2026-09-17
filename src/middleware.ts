@@ -33,16 +33,14 @@ export function middleware(request: NextRequest) {
   }
 
   // 301 legacy news slug -> clean slug.
-  // Match on the raw (still-encoded) pathname so Cloudflare/Vercel normalized
-  // variants are both handled, then decode before looking up the slug.
-  const rawPath = request.nextUrl.pathname;
-  const newsMatch = rawPath.match(/^\/news\/(.+?)\/?$/);
-  let debugKey = '';
+  // Match on the raw pathname and decode first so both percent-encoded
+  // (%2C/%3A/%27) and literal-comma variants reach the redirect map.
+  const newsMatch = request.nextUrl.pathname.match(/^\/news\/(.+?)\/?$/);
   if (newsMatch) {
-    const decoded = (() => { try { return decodeURIComponent(newsMatch[1]); } catch { return newsMatch[1]; } })();
-    const key = normalizeSlug(decoded);
-    debugKey = key;
-    const target = NEWS_SLUG_REDIRECTS[key];
+    const decoded = (() => {
+      try { return decodeURIComponent(newsMatch[1]); } catch { return newsMatch[1]; }
+    })();
+    const target = NEWS_SLUG_REDIRECTS[normalizeSlug(decoded)];
     if (target) {
       const url = request.nextUrl.clone();
       url.pathname = `/news/${target}`;
@@ -50,9 +48,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const res = NextResponse.next();
-  res.headers.set('x-mw-dbg', 'hit:' + rawPath.slice(0, 60) + '|key=' + debugKey.slice(0, 60));
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {
