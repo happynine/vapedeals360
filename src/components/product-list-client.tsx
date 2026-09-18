@@ -701,7 +701,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
                       {discountInfo.type === 'percent' ? `-${discountInfo.value}%` : `Save ${discountInfo.currency}${discountInfo.amount}`}
                     </div>
                   )}
-                  {product.is_featured && (
+                  {product.is_featured && (selectedCategory || searchQuery) && (
                     <div className="absolute top-2 right-2 z-10 rounded-lg bg-purple-700 px-2 py-0.5 text-xs font-semibold text-white">
                       {language === "zh" ? "精选" : "Featured"}
                     </div>

@@ -30,11 +30,17 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const [mobileCurOpen, setMobileCurOpen] = useState(false);
   // Currency onboarding hint: auto-shown once per browser session on site open.
   const [curHintVisible, setCurHintVisible] = useState(false);
+  const [curHintCountdown, setCurHintCountdown] = useState(10);
   const curHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const curHintIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dismissCurHint = useCallback(() => {
     if (curHintTimerRef.current) {
       clearTimeout(curHintTimerRef.current);
       curHintTimerRef.current = null;
+    }
+    if (curHintIntervalRef.current) {
+      clearInterval(curHintIntervalRef.current);
+      curHintIntervalRef.current = null;
     }
     setCurHintVisible(false);
     try { sessionStorage.setItem('vp_cur_hint_shown', '1'); } catch {}
@@ -73,10 +79,15 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     if (shown) return;
     // Mark immediately so navigating within 10s does not re-trigger it.
     try { sessionStorage.setItem('vp_cur_hint_shown', '1'); } catch {}
+    setCurHintCountdown(10);
     setCurHintVisible(true);
+    curHintIntervalRef.current = setInterval(() => {
+      setCurHintCountdown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
     curHintTimerRef.current = setTimeout(() => setCurHintVisible(false), 10000);
     return () => {
       if (curHintTimerRef.current) clearTimeout(curHintTimerRef.current);
+      if (curHintIntervalRef.current) clearInterval(curHintIntervalRef.current);
     };
   }, []);
   // SSR and first client render must match; only use real logo after mount
@@ -392,6 +403,9 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                     </button>
                     <p className="pr-5 text-sm font-medium text-gray-900">
                       {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
+                      <span className="ml-1 font-normal text-gray-400 tabular-nums">
+                        {language === 'zh' ? `（${curHintCountdown}秒）` : `(${curHintCountdown}s)`}
+                      </span>
                     </p>
                   </div>
                 )}
@@ -537,6 +551,9 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 </button>
                 <p className="pr-5 text-sm font-medium text-gray-900">
                   {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
+                  <span className="ml-1 font-normal text-gray-400 tabular-nums">
+                    {language === 'zh' ? `（${curHintCountdown}秒）` : `(${curHintCountdown}s)`}
+                  </span>
                 </p>
               </div>
             )}
