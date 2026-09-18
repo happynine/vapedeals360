@@ -91,7 +91,7 @@ export async function HomeProductIndex() {
   };
 
   return (
-    <section aria-label="Browse all vape deals" className="mt-12 border-t border-gray-200 pt-8">
+    <section aria-label="Browse all vape deals" className="mt-12 pt-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
