@@ -381,16 +381,16 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   </>
                 )}
                 {curHintVisible && (
-                  <div className="absolute right-0 top-full mt-3 z-50 w-64 rounded-lg border border-red-500/40 bg-[#1a1a24]/95 px-3 py-2.5 shadow-lg backdrop-blur hidden sm:block animate-fade-in-up">
-                    <div className="absolute -top-1.5 right-8 h-3 w-3 rotate-45 border-l border-t border-red-500/40 bg-[#1a1a24]" />
+                  <div className="absolute right-0 top-full mt-3 z-50 w-64 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-lg hidden sm:block animate-fade-in-up">
+                    <div className="absolute -top-1.5 right-8 h-3 w-3 rotate-45 border-l border-t border-gray-200 bg-white" />
                     <button
                       onClick={dismissCurHint}
                       aria-label="Dismiss"
-                      className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10"
+                      className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-gray-900 hover:bg-gray-100"
                     >
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
-                    <p className="pr-5 text-sm font-medium text-red-500">
+                    <p className="pr-5 text-sm font-medium text-gray-900">
                       {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
                     </p>
                   </div>
@@ -526,16 +526,16 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               <span className="text-sm font-medium">{currencyCode}</span>
             </button>
             {curHintVisible && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-60 rounded-lg border border-red-500/40 bg-[#1a1a24]/95 px-3 py-2.5 shadow-lg backdrop-blur sm:hidden">
-                <div className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-l border-t border-red-500/40 bg-[#1a1a24]" />
+              <div className="absolute right-0 top-full mt-2 z-50 w-60 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-lg sm:hidden">
+                <div className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-l border-t border-gray-200 bg-white" />
                 <button
                   onClick={dismissCurHint}
                   aria-label="Dismiss"
-                  className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10"
+                  className="absolute right-1.5 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-gray-900 hover:bg-gray-100"
                 >
                   <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <p className="pr-5 text-sm font-medium text-red-500">
+                <p className="pr-5 text-sm font-medium text-gray-900">
                   {language === 'zh' ? '请选择您需要交易货币种类' : 'Please select your preferred currency'}
                 </p>
               </div>
