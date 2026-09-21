@@ -413,12 +413,29 @@ export const categoryDescriptions = pgTable("category_descriptions", {
 	index("cd_category_key_idx").using("btree", table.categoryKey.asc().nullsLast().op("text_ops")),
 ]);
 
+export const authors = pgTable("authors", {
+	id: serial().primaryKey().notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	avatarUrl: text("avatar_url"),
+	bio: text(),
+	language: varchar({ length: 10 }).default('en').notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	domain: varchar({ length: 20 }).default('news').notNull(),
+	title: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("authors_language_idx").using("btree", table.language.asc().nullsLast().op("text_ops")),
+	index("authors_domain_idx").using("btree", table.domain.asc().nullsLast().op("text_ops")),
+]);
+
 export const contentPageTranslations = pgTable("content_page_translations", {
 	id: serial().primaryKey().notNull(),
 	pageId: integer("page_id").notNull(),
 	language: varchar({ length: 10 }).notNull(),
 	title: varchar({ length: 500 }).notNull(),
 	content: text(),
+	authorId: integer("author_id"),
 }, (table) => [
 	index("cpt_page_id_idx").using("btree", table.pageId.asc().nullsLast().op("int4_ops")),
 	foreignKey({
@@ -426,6 +443,11 @@ export const contentPageTranslations = pgTable("content_page_translations", {
 			foreignColumns: [contentPages.id],
 			name: "content_page_translations_page_id_fkey"
 		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.authorId],
+			foreignColumns: [authors.id],
+			name: "cpt_author_id_fkey"
+		}).onDelete("set null"),
 ]);
 
 export const contentPages = pgTable("content_pages", {

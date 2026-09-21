@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     // Get single page with all translations
     const { data: page, error } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*)')
+      .select('*, content_page_translations(*, authors(*))')
       .eq('id', parseInt(id))
       .single();
 
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
   // Get all pages of this type
   const { data: pages, error } = await supabase
     .from('content_pages')
-    .select('*, content_page_translations(*)')
+    .select('*, content_page_translations(*, authors(*))')
     .eq('type', type)
     .order('sort_order', { ascending: true });
 
@@ -169,11 +169,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (translations && translations.length > 0) {
-    const translationRows = translations.map((t: { language: string; title: string; content: string }) => ({
+    const translationRows = translations.map((t: { language: string; title: string; content: string; author_id?: number | null }) => ({
       page_id: page.id,
       language: t.language,
       title: t.title,
       content: t.content,
+      author_id: t.author_id ?? null,
     }));
 
     const { data: insertedTranslations, error: transError } = await supabase
@@ -299,6 +300,7 @@ export async function PUT(request: NextRequest) {
           .update({
             title: t.title,
             content: t.content,
+            author_id: t.author_id ?? null,
           })
           .eq('id', t.id);
       } else {
@@ -318,6 +320,7 @@ export async function PUT(request: NextRequest) {
             .update({
               title: t.title,
               content: t.content,
+              author_id: t.author_id ?? null,
             })
             .eq('id', existing[0].id);
         } else {
@@ -329,6 +332,7 @@ export async function PUT(request: NextRequest) {
               language: t.language,
               title: t.title,
               content: t.content,
+              author_id: t.author_id ?? null,
             });
         }
       }

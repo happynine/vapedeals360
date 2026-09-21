@@ -1,20 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { SafeImage } from '@/components/safe-image';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
-
-interface ContentPageItem {
-  id: number;
-  type: string;
-  slug: string;
-  cover_image: string | null;
-  sort_order: number;
-  title: string;
-}
+import { ArticleCard, ContentCardItem } from '@/components/article-card';
 
 interface ContentListViewProps {
   type: 'news' | 'best_vapes';
@@ -23,7 +13,7 @@ interface ContentListViewProps {
   basePath: string;
   gridClassName: string;
   emptyText: string;
-  initialPages: ContentPageItem[];
+  initialPages: ContentCardItem[];
   initialDescription: string;
 }
 
@@ -39,7 +29,7 @@ export function ContentListView({
 }: ContentListViewProps) {
   const { language } = useLanguage();
   const { siteSettings } = useSiteSettings();
-  const [pages, setPages] = useState<ContentPageItem[]>(initialPages);
+  const [pages, setPages] = useState<ContentCardItem[]>(initialPages);
   const [description, setDescription] = useState(initialDescription);
   const [loading, setLoading] = useState(false);
 
@@ -82,28 +72,7 @@ export function ContentListView({
 
             <div className={gridClassName}>
               {pages.map((page) => (
-                <Link
-                  key={page.id}
-                  href={`${basePath}/${encodeURI(page.slug)}`}
-                  className="group block bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-purple-300 transition-all"
-                >
-                  <div className="aspect-video bg-white relative overflow-hidden">
-                    {page.cover_image ? (
-                      <SafeImage src={page.cover_image} alt={page.title} fill className="object-cover group-hover:scale-105 transition-transform" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        {type === 'news' ? (
-                          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
-                        ) : (
-                          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-5">
-                    <h2 className="text-lg font-semibold group-hover:text-purple-700 transition-colors">{page.title || page.slug}</h2>
-                  </div>
-                </Link>
+                <ArticleCard key={page.id} page={page} basePath={basePath} type={type} />
               ))}
             </div>
 

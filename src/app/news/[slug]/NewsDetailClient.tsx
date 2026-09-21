@@ -7,6 +7,7 @@ import { ArticleSidebar } from '@/components/article-sidebar';
 import { useLanguage } from '@/hooks/use-language';
 import { useSiteSettings } from '@/components/site-settings-provider';
 import { sanitizeArticleHtml } from '@/lib/seo';
+import { getImageUrl } from '@/lib/image-url';
 
 interface ContentPageDetail {
   id: number;
@@ -15,6 +16,15 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  author?: { id: number; name: string; avatar_url: string | null; bio: string | null; title?: string | null } | null;
+  created_at?: string | null;
+}
+
+function formatArticleDate(value?: string | null): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 interface GlobalDisclaimer {
@@ -70,7 +80,26 @@ export function NewsDetailClient({ slug, initialArticle, disclaimer: initialDisc
             <div className="flex gap-8">
               {/* Main content */}
               <article className="flex-1 min-w-0">
-                <h1 className="text-3xl font-bold mb-6">{page.title || page.slug}</h1>
+                <h1 className="text-3xl font-bold mb-4">{page.title || page.slug}</h1>
+                {(page.author || page.created_at) && (
+                  <div className="flex items-center gap-3 mb-6 text-sm">
+                    {page.author && (
+                      <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center shrink-0">
+                        {page.author.avatar_url
+                          ? <img src={getImageUrl(page.author.avatar_url)} alt={page.author.name} className="w-full h-full object-cover" />
+                          : <span className="text-sm font-bold text-purple-700">{page.author.name.charAt(0)}</span>}
+                      </div>
+                    )}
+                    <div className="text-gray-600">
+                      {page.author && <span className="font-medium text-gray-900">{page.author.name}</span>}
+                      {page.author?.title && <span className="text-gray-500">, {page.author.title}</span>}
+                      {page.author && page.created_at && <span className="mx-1.5 text-gray-300">·</span>}
+                      {page.created_at && (
+                        <span>Published: {formatArticleDate(page.created_at)}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div
                   className="rich-text-content"
                   dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(page.content || '').replace(/<p[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/p>/gi, '').replace(/<h[2-6][^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/h[2-6]>/gi, '').replace(/<div[^>]*>(\s|<br\s*\/?>|&nbsp;|<span[^>]*>\s*(&nbsp;\s*)*\s*<\/span>)*<\/div>/gi, '') }}

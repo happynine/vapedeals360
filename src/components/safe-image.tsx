@@ -51,6 +51,13 @@ function isVercelBlobUrl(src: string): boolean {
   return src.includes('.blob.vercel-storage.com') || src.includes('.public.blob.vercel-storage.com');
 }
 
+/**
+ * Whether a URL is same-origin (relative) so a HEAD fetch won't hit CORS.
+ */
+function isSameOriginUrl(src: string): boolean {
+  return src.startsWith('/') && !src.startsWith('//');
+}
+
 interface SafeImageProps extends Omit<ImageProps, 'src'> {
   src: string | null | undefined;
   fallback?: React.ReactNode;
@@ -70,105 +77,101 @@ interface SafeImageProps extends Omit<ImageProps, 'src'> {
  * - S3 keys (e.g. "stores/logo.png") → proxy through /api/image?key=...
  * - Invalid/empty → render fallback
  * For SVG-returning URLs (like placehold.co), adds unoptimized to avoid Next.js errors.
- * 
+ *
  * Image optimization logic:
  * - If unoptimized=true: always skip optimization (use plain img)
  * - If unoptimized=false: always use Next.js Image (auto-optimize)
- * - If unoptimized=undefined: auto-detect by fetching image size
- *   - >200KB: use Next.js Image (auto-optimize)
- *   - <=200KB: use plain img tag (no compression)
+ * - If unoptimized=undefined: auto-detect size for same-origin images;
+ *   cross-origin images skip the (CORS-blocked) probe and default to plain img.
  */
 export function SafeImage({ src, fallback, alt, unoptimized: forceUnoptimized, ...rest }: SafeImageProps) {
+  // Hooks MUST be called unconditionally, before any early return, to obey rules of hooks.
   const [shouldOptimize, setShouldOptimize] = useState<boolean | null>(null);
 
-  if (!src) {
-    if (fallback) return <>{fallback}</>;
-    return (
-      <div className="flex items-center justify-center w-full h-full bg-secondary/50 text-muted-foreground text-xs">
-        No Image
-      </div>
-    );
-  }
+  const hasSrc = !!src;
+  const trimmedSrc = hasSrc ? (src as string).trim() : '';
+  const s3Key = hasSrc && isS3Key(trimmedSrc) ? trimmedSrc : null;
+  const validUrl = hasSrc && !s3Key && isValidImageUrl(trimmedSrc) ? trimmedSrc : null;
+  const svg = validUrl ? isSvgUrl(validUrl) : false;
+  const vercelBlob = validUrl ? isVercelBlobUrl(validUrl) : false;
+  const canProbe = validUrl ? isSameOriginUrl(validUrl) : false;
 
-  const trimmedSrc = src.trim();
-
-  // If it's an S3 key, convert to proxy URL and use plain img (not next/image, to avoid domain issues)
-  if (isS3Key(trimmedSrc)) {
-    const proxyUrl = s3KeyToProxyUrl(trimmedSrc);
-    return <img src={proxyUrl} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
-  }
-
-  // If it's not a valid URL, show fallback
-  if (!isValidImageUrl(trimmedSrc)) {
-    if (fallback) return <>{fallback}</>;
-    return (
-      <div className="flex items-center justify-center w-full h-full bg-secondary/50 text-muted-foreground text-xs">
-        No Image
-      </div>
-    );
-  }
-
-  // Determine if we need unoptimized mode
-  const isSvg = isSvgUrl(trimmedSrc);
-  const isVercelBlob = isVercelBlobUrl(trimmedSrc);
-  
-  // If explicitly set or known types that should skip optimization
-  if (forceUnoptimized !== undefined) {
-    // User explicitly set the value
-    if (forceUnoptimized || isSvg || isVercelBlob) {
-      return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
-    }
-    return <Image src={trimmedSrc} alt={alt} {...rest} />;
-  }
-
-  // Auto-detect mode: fetch image size to decide optimization
-  // For SVG and Vercel Blob, always skip optimization
-  if (isSvg || isVercelBlob) {
-    return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
-  }
-
-  // Check image size on client side
+  // Only auto-detect size for same-origin URLs where a HEAD request won't be CORS-blocked.
   useEffect(() => {
+    if (!canProbe) return;
     let cancelled = false;
-    
+
     async function checkSize() {
       try {
-        const response = await fetch(trimmedSrc, { method: 'HEAD' });
+        const response = await fetch(validUrl as string, { method: 'HEAD' });
         const contentLength = response.headers.get('content-length');
         const sizeInBytes = contentLength ? parseInt(contentLength, 10) : 0;
         const sizeInKB = sizeInBytes / 1024;
-        
         if (!cancelled) {
           // >200KB: optimize; <=200KB: no optimize
           setShouldOptimize(sizeInKB > 200);
         }
       } catch {
-        // If fetch fails, default to no optimization to be safe
         if (!cancelled) {
           setShouldOptimize(false);
         }
       }
     }
-    
-    checkSize();
-    return () => { cancelled = true; };
-  }, [trimmedSrc]);
 
-  // While checking size, show placeholder
+    checkSize();
+    return () => {
+      cancelled = true;
+    };
+  }, [canProbe, validUrl]);
+
+  const imgClass = typeof rest.className === 'string' ? rest.className : undefined;
+
+  if (!hasSrc || (!s3Key && !validUrl)) {
+    if (fallback) return <>{fallback}</>;
+    return (
+      <div className="flex items-center justify-center w-full h-full bg-secondary/50 text-muted-foreground text-xs">
+        No Image
+      </div>
+    );
+  }
+
+  // S3 key → proxy through API, plain img
+  if (s3Key) {
+    const proxyUrl = s3KeyToProxyUrl(s3Key);
+    return <img src={proxyUrl} alt={(alt as string) || ''} className={imgClass} style={rest.style} />;
+  }
+
+  // SVG / Vercel Blob → always plain img
+  if (svg || vercelBlob) {
+    return <img src={validUrl as string} alt={(alt as string) || ''} className={imgClass} style={rest.style} />;
+  }
+
+  // Explicit optimization choice
+  if (forceUnoptimized !== undefined) {
+    if (forceUnoptimized) {
+      return <img src={validUrl as string} alt={(alt as string) || ''} className={imgClass} style={rest.style} />;
+    }
+    return <Image src={validUrl as string} alt={alt} {...rest} />;
+  }
+
+  // Cross-origin (no probe possible): default to plain img, the proven-safe path.
+  if (!canProbe) {
+    return <img src={validUrl as string} alt={(alt as string) || ''} className={imgClass} style={rest.style} />;
+  }
+
+  // Same-origin: while the size probe runs, show a placeholder.
   if (shouldOptimize === null) {
     return (
-      <div 
-        className={typeof rest.className === 'string' ? rest.className : undefined} 
+      <div
+        className={imgClass}
         style={{ ...rest.style, backgroundColor: 'var(--color-secondary)', opacity: 0.5 }}
       />
     );
   }
 
-  // Use Next.js Image for large files (auto-optimize)
   if (shouldOptimize) {
-    return <Image src={trimmedSrc} alt={alt} {...rest} />;
+    return <Image src={validUrl as string} alt={alt} {...rest} />;
   }
 
-  // Use plain img for small files (no compression)
-  return <img src={trimmedSrc} alt={alt as string || ''} className={typeof rest.className === 'string' ? rest.className : undefined} style={rest.style} />;
+  return <img src={validUrl as string} alt={(alt as string) || ''} className={imgClass} style={rest.style} />;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { makeExcerpt } from '@/lib/excerpt';
 
 // GET /api/content-pages?type=best_vapes&language=en
 // Allow ISR caching at page level
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Get single content page detail (only published)
     const { data: pages, error: pageError } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*)')
+      .select('*, content_page_translations(*, authors(*))')
       .eq('slug', slug)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
@@ -35,6 +36,13 @@ export async function GET(request: NextRequest) {
     }
 
     const translation = page.content_page_translations?.[0] || page.content_page_translations;
+    const author = translation?.authors;
+    const authorData = author ? {
+      id: author.id,
+      name: author.name,
+      avatar_url: author.avatar_url,
+      bio: author.bio,
+    } : null;
 
     return NextResponse.json({
       success: true,
@@ -48,6 +56,7 @@ export async function GET(request: NextRequest) {
         created_at: page.created_at,
         title: translation?.title || '',
         content: translation?.content || '',
+        author: authorData,
       },
     });
   }
@@ -67,7 +76,7 @@ export async function GET(request: NextRequest) {
   // Get content pages list
   const { data: pages, error } = await supabase
     .from('content_pages')
-    .select('*, content_page_translations(*)')
+    .select('*, content_page_translations(*, authors(*))')
     .eq('type', type)
     .eq('is_published', true)
     .eq('content_page_translations.language', language)
@@ -78,14 +87,22 @@ export async function GET(request: NextRequest) {
   }
 
   const formattedPages = (pages || []).map((p: Record<string, unknown>) => {
-    const translation = Array.isArray(p.content_page_translations) ? p.content_page_translations[0] : p.content_page_translations;
+    const rawTranslation = p.content_page_translations;
+    const translation = Array.isArray(rawTranslation) ? rawTranslation[0] : rawTranslation;
+    const author = (translation as { authors?: unknown } | null)?.authors as
+      | { id?: number; name?: string; avatar_url?: string | null }
+      | null
+      | undefined;
     return {
       id: p.id,
       type: p.type,
       slug: p.slug,
       cover_image: p.cover_image,
       sort_order: p.sort_order,
+      created_at: p.created_at,
       title: translation?.title || '',
+      excerpt: makeExcerpt((translation as { content?: string } | null)?.content),
+      author: author ? { id: author.id, name: author.name, avatar_url: author.avatar_url } : null,
     };
   });
 

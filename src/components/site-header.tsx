@@ -5,23 +5,33 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/hooks/use-language';
 import { useCurrency } from '@/hooks/use-currency';
 import { useSiteSettings } from '@/components/site-settings-provider';
+import { SearchDropdownContent } from '@/components/search-dropdown-content';
 
-interface SearchResult {
+interface ProductHit {
   slug: string;
   name: string;
   image_url: string | null;
   price: string | null;
-  original_price: string | null;
 }
+interface ArticleHit {
+  slug: string;
+  title: string;
+}
+interface SearchData {
+  products: ProductHit[];
+  news: ArticleHit[];
+  best_vapes: ArticleHit[];
+}
+const EMPTY_SEARCH: SearchData = { products: [], news: [], best_vapes: [] };
 
 interface SiteHeaderProps {
-  activeTab?: 'vape-deals' | 'best-vapes' | 'news' | '';
+  activeTab?: 'vape-deals' | 'best-vapes' | 'news' | 'shop-by-state' | '';
 }
 
 export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   const { siteSettings } = useSiteSettings();
   const { language, setLanguage, activeLanguages } = useLanguage();
-  const { currencyCode, setCurrency, currencies } = useCurrency();
+  const { currencyCode, currencySymbol, setCurrency, currencies } = useCurrency();
   const [langOpen, setLangOpen] = useState(false);
   const [curOpen, setCurOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,11 +56,13 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     try { sessionStorage.setItem('vp_cur_hint_shown', '1'); } catch {}
   }, []);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchData>(EMPTY_SEARCH);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchDwell, setSearchDwell] = useState(false);
   const [desktopSearchQuery, setDesktopSearchQuery] = useState('');
-  const [desktopSearchResults, setDesktopSearchResults] = useState<SearchResult[]>([]);
+  const [desktopSearchResults, setDesktopSearchResults] = useState<SearchData>(EMPTY_SEARCH);
   const [desktopSearchLoading, setDesktopSearchLoading] = useState(false);
+  const [desktopSearchDwell, setDesktopSearchDwell] = useState(false);
   const [desktopSearchFocused, setDesktopSearchFocused] = useState(false);
   const desktopSearchRef = useRef<HTMLDivElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
@@ -108,7 +120,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
     setMobileMenuOpen(false);
     setMobileSearchOpen(false);
     setSearchQuery('');
-    setSearchResults([]);
+    setSearchResults(EMPTY_SEARCH);
   }, [pathname]);
   // Cleanup debounce timers
   useEffect(() => {
@@ -127,102 +139,85 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
       mobileSearchInputRef.current.focus();
     }
   }, [mobileSearchOpen]);
-  // Mobile search with debounce
-  const handleMobileSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-    if (!query.trim()) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-    setSearchLoading(true);
-    searchDebounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/products?language=${language}&limit=8&search=${encodeURIComponent(query.trim())}`);
-        const json = await res.json();
-        if (json.success) {
-          const filtered = (json.data.products || []).slice(0, 8).map((p: Record<string, unknown>) => {
-            const translations = p.product_translations as Record<string, unknown>[];
-            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
-            const prices = (p.product_prices as Record<string, unknown>[]) || [];
-            const lowestPrice = prices.length > 0
-              ? prices.reduce((min: Record<string, unknown>, pr: Record<string, unknown>) => {
-                  const curr = parseFloat(pr.current_price as string);
-                  return curr < parseFloat(min.current_price as string) ? pr : min;
-                }, prices[0])
-              : null;
-            return {
-              slug: p.slug as string,
-              name: (t?.name as string) || '',
-              image_url: p.image_url as string | null,
-              price: lowestPrice ? (lowestPrice.current_price as string) : null,
-              original_price: lowestPrice?.original_price ? (lowestPrice.original_price as string) : null,
-            };
-          });
-          setSearchResults(filtered);
-        }
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
+  // Unified search call: matches after the debounce delay
+  const runSearch = useCallback(
+    async (query: string): Promise<SearchData> => {
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(query.trim())}&language=${language}&currency=${encodeURIComponent(currencySymbol)}&view=dropdown`,
+      );
+      const json = await res.json();
+      if (json?.success && json.data) return json.data as SearchData;
+      return EMPTY_SEARCH;
+    },
+    [language, currencySymbol],
+  );
+
+  // Mobile search with debounce (2s dwell before matching)
+  const handleMobileSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
       }
-    }, 300);
-  }, [language]);
+      // Hide the dropdown while the user is still typing; it only appears after
+      // the 2s dwell timer fires (no loading spinner shown meanwhile).
+      setSearchLoading(false);
+      setSearchDwell(false);
+      setSearchResults(EMPTY_SEARCH);
+      if (!query.trim()) {
+        return;
+      }
+      searchDebounceRef.current = setTimeout(async () => {
+        setSearchDwell(true);
+        setSearchLoading(true);
+        try {
+          setSearchResults(await runSearch(query));
+        } catch {
+          setSearchResults(EMPTY_SEARCH);
+        } finally {
+          setSearchLoading(false);
+        }
+      }, 2000);
+    },
+    [runSearch],
+  );
   const handleSearchResultClick = () => {
     setSearchQuery('');
-    setSearchResults([]);
+    setSearchResults(EMPTY_SEARCH);
     setMobileSearchOpen(false);
     setDesktopSearchQuery('');
-    setDesktopSearchResults([]);
+    setDesktopSearchResults(EMPTY_SEARCH);
     setDesktopSearchFocused(false);
   };
-  // Desktop search with debounce
-  const handleDesktopSearch = useCallback((query: string) => {
-    setDesktopSearchQuery(query);
-    if (desktopDebounceRef.current) {
-      clearTimeout(desktopDebounceRef.current);
-    }
-    if (!query.trim()) {
-      setDesktopSearchResults([]);
-      setDesktopSearchLoading(false);
-      return;
-    }
-    setDesktopSearchLoading(true);
-    desktopDebounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/products?language=${language}&limit=8&search=${encodeURIComponent(query.trim())}`);
-        const json = await res.json();
-        if (json.success) {
-          const filtered = (json.data.products || []).slice(0, 8).map((p: Record<string, unknown>) => {
-            const translations = p.product_translations as Record<string, unknown>[];
-            const t = translations?.find((tr: Record<string, unknown>) => tr.language === language) || translations?.[0];
-            const prices = (p.product_prices as Record<string, unknown>[]) || [];
-            const lowestPrice = prices.length > 0
-              ? prices.reduce((min: Record<string, unknown>, pr: Record<string, unknown>) => {
-                  const curr = parseFloat(pr.current_price as string);
-                  return curr < parseFloat(min.current_price as string) ? pr : min;
-                }, prices[0])
-              : null;
-            return {
-              slug: p.slug as string,
-              name: (t?.name as string) || '',
-              image_url: p.image_url as string | null,
-              price: lowestPrice ? (lowestPrice.current_price as string) : null,
-              original_price: lowestPrice?.original_price ? (lowestPrice.original_price as string) : null,
-            };
-          });
-          setDesktopSearchResults(filtered);
-        }
-      } catch {
-        setDesktopSearchResults([]);
-      } finally {
-        setDesktopSearchLoading(false);
+  // Desktop search with debounce (2s dwell before matching)
+  const handleDesktopSearch = useCallback(
+    (query: string) => {
+      setDesktopSearchQuery(query);
+      if (desktopDebounceRef.current) {
+        clearTimeout(desktopDebounceRef.current);
       }
-    }, 300);
-  }, [language]);
+      // Hide the dropdown while the user is still typing; it only appears after
+      // the 2s dwell timer fires (no loading spinner shown meanwhile).
+      setDesktopSearchLoading(false);
+      setDesktopSearchDwell(false);
+      setDesktopSearchResults(EMPTY_SEARCH);
+      if (!query.trim()) {
+        return;
+      }
+      desktopDebounceRef.current = setTimeout(async () => {
+        setDesktopSearchDwell(true);
+        setDesktopSearchLoading(true);
+        try {
+          setDesktopSearchResults(await runSearch(query));
+        } catch {
+          setDesktopSearchResults(EMPTY_SEARCH);
+        } finally {
+          setDesktopSearchLoading(false);
+        }
+      }, 2000);
+    },
+    [runSearch],
+  );
   // Close desktop search dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -235,6 +230,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
   }, []);
   const navItems = [
     { href: '/', label: 'Vape Deals', tab: 'vape-deals' },
+    { href: '/vape-laws', label: 'US Market', tab: 'shop-by-state' },
     { href: '/best-vapes', label: 'Best Vapes', tab: 'best-vapes' },
     { href: '/news', label: 'News', tab: 'news' },
   ];
@@ -283,12 +279,12 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   <input
                     type="text"
                     value={desktopSearchQuery}
-                    onChange={(e) => handleDesktopSearch(e.target.value)}
-                    onFocus={() => { if (desktopSearchQuery.trim()) handleDesktopSearch(desktopSearchQuery); }}
+                    onChange={(e) => { setDesktopSearchFocused(true); handleDesktopSearch(e.target.value); }}
+                    onFocus={() => { setDesktopSearchFocused(true); if (desktopSearchQuery.trim()) handleDesktopSearch(desktopSearchQuery); }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && desktopSearchQuery.trim()) {
                         e.preventDefault();
-                        router.push(`/?search=${encodeURIComponent(desktopSearchQuery.trim())}`);
+                        router.push(`/search?q=${encodeURIComponent(desktopSearchQuery.trim())}`);
                         setDesktopSearchFocused(false);
                       }
                     }}
@@ -297,7 +293,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   />
                   {desktopSearchQuery && (
                     <button
-                      onClick={() => { handleDesktopSearch(''); setDesktopSearchResults([]); }}
+                      onClick={() => { handleDesktopSearch(''); setDesktopSearchResults(EMPTY_SEARCH); }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,47 +303,19 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                   )}
                 </div>
                 {/* Desktop Search Results Dropdown */}
-                {desktopSearchFocused && desktopSearchQuery.trim() && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a24] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto">
-                    {desktopSearchLoading ? (
-                      <div className="flex items-center justify-center py-6">
-                        <svg className="animate-spin h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        <span className="ml-2 text-sm text-gray-400">{language === "zh" ? "搜索中..." : "Searching..."}</span>
-                      </div>
-                    ) : desktopSearchResults.length > 0 ? (
-                      desktopSearchResults.map((product) => (
-                        <Link
-                          key={product.slug}
-                          href={`/product/${product.slug}`}
-                          onClick={() => { setDesktopSearchFocused(false); setDesktopSearchQuery(''); }}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3a] transition-colors border-b border-gray-800 last:border-b-0"
-                        >
-                          <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-800 overflow-hidden">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name} className="h-full w-full object-contain" />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">No img</div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">{product.name}</div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {product.price && <span className="text-sm font-semibold text-emerald-500">${product.price}</span>}
-                              {product.original_price && product.original_price !== product.price && (
-                                <span className="text-xs text-gray-500 line-through">${product.original_price}</span>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      ))
-                    ) : (
-                      <div className="px-4 py-6 text-center text-sm text-gray-400">
-                        {language === "zh" ? "未找到相关产品" : "No products found"}
-                      </div>
-                    )}
+                {desktopSearchFocused && desktopSearchQuery.trim() && desktopSearchDwell && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[440px] max-w-[92vw] bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-[70vh] overflow-y-auto">
+                    <SearchDropdownContent
+                      loading={desktopSearchLoading}
+                      data={desktopSearchResults}
+                      query={desktopSearchQuery}
+                      zh={language === 'zh'}
+                      onNavigate={() => {
+                        setDesktopSearchFocused(false);
+                        setDesktopSearchQuery('');
+                        setDesktopSearchResults(EMPTY_SEARCH);
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -646,7 +614,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && searchQuery.trim()) {
                     e.preventDefault();
-                    router.push(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+                    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
                     setMobileSearchOpen(false);
                   }
                 }}
@@ -655,7 +623,7 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               />
               {searchQuery && (
                 <button
-                  onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                  onClick={() => { setSearchQuery(''); setSearchResults(EMPTY_SEARCH); }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -665,61 +633,18 @@ export function SiteHeader({ activeTab = 'vape-deals' }: SiteHeaderProps) {
               )}
             </div>
             {/* Search Results Dropdown */}
-            {searchQuery.trim() && (
-              <div className="mt-2 rounded-xl border border-gray-700 bg-[#1a1a24] overflow-hidden max-h-[60vh] overflow-y-auto">
-                {searchLoading ? (
-                  <div className="px-4 py-6 text-center text-sm text-gray-400">
-                    <svg className="animate-spin h-5 w-5 mx-auto mb-2 text-purple-400" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {language === "zh" ? "搜索中..." : "Searching..."}
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <ul>
-                    {searchResults.map((result) => (
-                      <li key={result.slug}>
-                        <Link
-                          href={`/product/${result.slug}`}
-                          onClick={handleSearchResultClick}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#2a2a3a] transition-colors"
-                        >
-                          {result.image_url ? (
-                            <img
-                              src={result.image_url.startsWith("http") ? result.image_url : `/api/image?key=${encodeURIComponent(result.image_url)}`}
-                              alt={result.name}
-                              className="w-10 h-10 rounded-lg object-contain bg-white flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
-                              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">{result.name}</p>
-                            <div className="flex items-center gap-2">
-                              {result.price && (
-                                <span className="text-sm font-semibold text-emerald-400">${result.price}</span>
-                              )}
-                              {result.original_price && result.price && parseFloat(result.original_price) > parseFloat(result.price) && (
-                                <span className="text-xs text-gray-500 line-through">${result.original_price}</span>
-                              )}
-                            </div>
-                          </div>
-                          <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="px-4 py-6 text-center text-sm text-gray-400">
-                    {language === "zh" ? "未找到相关产品" : "No products found"}
-                  </div>
-                )}
+            {searchQuery.trim() && searchDwell && (
+              <div className="mt-2 rounded-2xl border border-gray-200 bg-white shadow-xl max-h-[60vh] overflow-y-auto">
+                <SearchDropdownContent
+                  loading={searchLoading}
+                  data={searchResults}
+                  query={searchQuery}
+                  zh={language === 'zh'}
+                  onNavigate={() => {
+                    setSearchQuery('');
+                    setSearchResults(EMPTY_SEARCH);
+                  }}
+                />
               </div>
             )}
           </div>

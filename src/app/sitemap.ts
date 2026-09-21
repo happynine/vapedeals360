@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { LAUNCH_STATES } from '@/lib/states';
 
 const baseUrl = 'https://www.vapedeals360.com';
 
@@ -93,5 +94,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Failed to fetch promotions for sitemap:', e);
   }
 
-  return [...staticPages, ...productPages, ...contentPages, ...promotionPages];
+  // Shop by State Hub + the 5 full-content launch states.
+  // Non-launch (generic/noindex) state pages are intentionally excluded.
+  const vapeLawPages: MetadataRoute.Sitemap = [
+    { url: `${baseUrl}/vape-laws`, lastModified: new Date('2026-09-20'), changeFrequency: 'daily', priority: 0.8 },
+    { url: `${baseUrl}/vape-laws/laws`, lastModified: new Date('2026-09-20'), changeFrequency: 'weekly', priority: 0.7 },
+    ...LAUNCH_STATES.map((s) => ({
+      url: `${baseUrl}/vape-laws/${s.slug}`,
+      lastModified: new Date('2026-09-19'),
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    })),
+  ];
+
+  return [...staticPages, ...vapeLawPages, ...productPages, ...contentPages, ...promotionPages];
 }

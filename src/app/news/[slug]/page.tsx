@@ -11,6 +11,7 @@ interface ContentPageDetail {
   cover_image: string | null;
   title: string;
   content: string;
+  author: { id: number; name: string; avatar_url: string | null; bio: string | null; title?: string | null } | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -60,7 +61,7 @@ async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise
     const supabase = getSupabaseClient();
     const { data: pages, error } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*)')
+      .select('*, content_page_translations(*, authors(*))')
       .eq('slug', slug)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
@@ -70,6 +71,7 @@ async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise
 
     const page = pages[0];
     const translation = page.content_page_translations?.[0];
+    const author = translation?.authors;
     return {
       id: page.id,
       type: page.type,
@@ -77,6 +79,7 @@ async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise
       cover_image: page.cover_image,
       title: translation?.title || '',
       content: translation?.content || '',
+      author: author ? { id: author.id, name: author.name, avatar_url: author.avatar_url, bio: author.bio, title: author.title ?? null } : null,
       created_at: page.created_at || null,
       updated_at: page.updated_at || page.created_at || null,
     };
@@ -143,7 +146,9 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
         image: article.cover_image ? [article.cover_image] : undefined,
         datePublished: article.created_at || undefined,
         dateModified: article.updated_at || article.created_at || undefined,
-        author: { '@type': 'Organization', name: 'VapeDeals360' },
+        author: article.author
+          ? { '@type': 'Person', name: article.author.name, image: article.author.avatar_url || undefined, jobTitle: article.author.title || undefined, url: `https://www.vapedeals360.com/news#writer-${article.author.id}` }
+          : { '@type': 'Organization', name: 'VapeDeals360' },
         publisher: {
           '@type': 'Organization',
           name: 'VapeDeals360',

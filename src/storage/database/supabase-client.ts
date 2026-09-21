@@ -6,15 +6,15 @@ let _client: SupabaseClient | null = null;
 let _serviceClient: SupabaseClient | null = null;
 
 function getSupabaseUrl(): string {
-  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  return process.env.COZE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 }
 
 function getAnonKey(): string {
-  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  return process.env.COZE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 }
 
 function getServiceRoleKey(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 }
 
 // Public client (anon key) - for client-side safe operations

@@ -5,6 +5,8 @@ import { fetchCategories, fetchProducts, fetchBanners, countProducts } from "@/l
 import { isSupabaseConfigured, getSupabaseClient } from "@/storage/database/supabase-client";
 import { getPresignedUrl } from "@/lib/storage";
 import { HomeProductIndex } from "@/components/home-product-index";
+import { HomeArticleRow } from "@/components/home-article-row";
+import { fetchHomeArticles } from "@/lib/home-articles";
 import { getServerCurrency } from "@/lib/server-currency";
 
 // ISR: 每 60 秒重新验证，但跳过构建时预渲染（避免连接海外 Supabase 超时）
@@ -199,6 +201,10 @@ function HomePageSkeleton() {
 
 export default async function HomePage() {
   const initialData = await getInitialData();
+  const [bestVapes, news] = await Promise.all([
+    fetchHomeArticles("best_vapes", 5, "en"),
+    fetchHomeArticles("news", 5, "en"),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -208,6 +214,9 @@ export default async function HomePage() {
           <Suspense fallback={<HomePageSkeleton />}>
             <ProductListClient initialData={initialData as unknown as InitialData} />
           </Suspense>
+          {/* Latest Best Vapes & News rows */}
+          <HomeArticleRow type="best_vapes" basePath="/best-vapes" initialPages={bestVapes} />
+          <HomeArticleRow type="news" basePath="/news" initialPages={news} />
           {/* Server-rendered crawler-readable product index + ItemList JSON-LD */}
           <HomeProductIndex />
         </div>
