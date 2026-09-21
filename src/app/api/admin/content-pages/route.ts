@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { deleteFile, deleteByPrefix, extractImageKeysFromHtml, extractKeyFromUrl } from '@/lib/storage';
+import { attachAuthors } from '@/lib/content-authors';
 
 // Admin POST operations are never cached
 
@@ -74,13 +75,15 @@ export async function GET(request: NextRequest) {
     // Get single page with all translations
     const { data: page, error } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*, authors(*))')
+      .select('*, content_page_translations(*)')
       .eq('id', parseInt(id))
       .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await attachAuthors(supabase, page);
 
     return NextResponse.json({ success: true, data: page });
   }
@@ -98,13 +101,15 @@ export async function GET(request: NextRequest) {
   // Get all pages of this type
   const { data: pages, error } = await supabase
     .from('content_pages')
-    .select('*, content_page_translations(*, authors(*))')
+    .select('*, content_page_translations(*)')
     .eq('type', type)
     .order('sort_order', { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await attachAuthors(supabase, pages);
 
   return NextResponse.json({
     success: true,

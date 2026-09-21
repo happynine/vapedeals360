@@ -3,6 +3,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { NewsDetailClient } from './NewsDetailClient';
 import { PopularProducts } from '@/components/popular-products';
 import { metaDescription } from '@/lib/seo';
+import { attachAuthors } from '@/lib/content-authors';
 
 interface ContentPageDetail {
   id: number;
@@ -61,13 +62,15 @@ async function getNewsArticle(rawSlug: string, language: string = 'en'): Promise
     const supabase = getSupabaseClient();
     const { data: pages, error } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*, authors(*))')
+      .select('*, content_page_translations(*)')
       .eq('slug', slug)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
       .limit(1);
 
     if (error || !pages || pages.length === 0) return null;
+
+    await attachAuthors(supabase, pages);
 
     const page = pages[0];
     const translation = page.content_page_translations?.[0];

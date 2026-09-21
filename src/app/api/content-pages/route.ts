@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { makeExcerpt } from '@/lib/excerpt';
+import { attachAuthors } from '@/lib/content-authors';
 
 // GET /api/content-pages?type=best_vapes&language=en
 // Allow ISR caching at page level
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Get single content page detail (only published)
     const { data: pages, error: pageError } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*, authors(*))')
+      .select('*, content_page_translations(*)')
       .eq('slug', slug)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest) {
     if (pageError) {
       return NextResponse.json({ error: pageError.message }, { status: 500 });
     }
+
+    await attachAuthors(supabase, pages);
 
     const page = pages?.[0];
     if (!page) {
@@ -76,7 +79,7 @@ export async function GET(request: NextRequest) {
   // Get content pages list
   const { data: pages, error } = await supabase
     .from('content_pages')
-    .select('*, content_page_translations(*, authors(*))')
+    .select('*, content_page_translations(*)')
     .eq('type', type)
     .eq('is_published', true)
     .eq('content_page_translations.language', language)
@@ -85,6 +88,8 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await attachAuthors(supabase, pages);
 
   const formattedPages = (pages || []).map((p: Record<string, unknown>) => {
     const rawTranslation = p.content_page_translations;
