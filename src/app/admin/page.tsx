@@ -6915,7 +6915,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
               </div>
               {/* ===== 地区清单（独立） ===== */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{t('Shipping Regions', '配送地区', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Delivery Areas', '送达地区', lang)}</label>
                 <div className="mt-1 space-y-2">
                   {caps.regions.map((rg, idx) => (
                     <div key={idx} className="flex items-center gap-2">
