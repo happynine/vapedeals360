@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
 
@@ -85,16 +84,12 @@ export function ContactView() {
                 />
               </div>
 
-              <div className="relative w-full aspect-[16/9] overflow-hidden rounded-2xl">
-                <Image
-                  src="/images/contact-cover.jpg"
-                  alt={t('Contact VapeDeals360', '联系 VapeDeals360', language)}
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 560px"
-                  className="object-cover"
-                  priority
-                />
-              </div>
+              <img
+                src="/images/contact-cover.jpg"
+                alt={t('Contact VapeDeals360', '联系 VapeDeals360', language)}
+                className="w-full h-auto rounded-2xl"
+                loading="eager"
+              />
             </div>
 
             {/* Right: form */}
