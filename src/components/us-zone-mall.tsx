@@ -65,9 +65,12 @@ function displayPrice(p: ProductPrice): string {
   return p.current_price;
 }
 
-/** 取商城的 USD 配置（只有显式配齐美国专区字段的才算美国专区商城） */
+/** 取商城的美国专区配置：仅「全球+美元」或「美国+美元」才准入
+ *  （Canada 等地区即便用美元报价，也不进入美国专区） */
 function storeUsRegion(store: Store | undefined): StoreRegion | undefined {
-  return store?.regions?.find((r) => r.currency === 'USD');
+  return store?.regions?.find(
+    (r) => r.currency === 'USD' && (r.region === 'Global' || r.region === 'USA')
+  );
 }
 
 type ShipFilter = 'all' | UsShipFrom;

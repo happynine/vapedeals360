@@ -6702,6 +6702,11 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
     { code: 'IDR', symbol: 'Rp', flag: '/flags/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
   ];
 
+  // 地区选项：与货币解耦，可独立选择
+  const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Europe', 'Japan'];
+  // 美国专区准入：仅「全球+美元」或「美国+美元」
+  const isUsZoneEntry = (r: StoreRegion) =>
+    r.currency === 'USD' && (r.region === 'Global' || r.region === 'USA');
 
   const addRegion = () => {
     setRegions([...regions, { region: '', currency: '' }]);
@@ -6884,6 +6889,18 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                   {regions.map((r, idx) => (
                     <div key={idx} className="rounded-lg border border-border/70 p-2 space-y-2">
                     <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <select
+                          value={r.region || ''}
+                          onChange={(e) => updateRegion(idx, 'region', e.target.value)}
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                        >
+                          <option value="">{t('Select Region', '选择地区', lang)}</option>
+                          {REGION_OPTIONS.map((rg) => (
+                            <option key={rg} value={rg}>{rg}</option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="relative flex-1">
                         <button
                           type="button"
@@ -6930,8 +6947,8 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                      {/* USD 专属：美国专区属性（分类 / 发货地 / 禁售州） */}
-                      {r.currency === 'USD' && (
+                      {/* 美国专区属性（仅 全球+美元 或 美国+美元）：分类 / 发货地 / 禁售州 */}
+                      {isUsZoneEntry(r) && (
                         <div className="space-y-2 rounded-md bg-secondary/50 p-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
