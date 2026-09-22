@@ -12,6 +12,8 @@ import { getSupabaseBrowserClientWithRetry } from '@/lib/supabase-browser';
 import { getImageUrl } from '@/lib/image-url';
 import { ALL_STATES } from '@/lib/states';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { parseStoreCapabilities, derivePairs, canEnterUsZone } from '@/lib/store-capabilities';
+import type { StoreCapabilities } from '@/lib/store-capabilities';
 
 // Currency options with flag, code, and symbol
 type CurrencyOption = {
@@ -274,8 +276,9 @@ interface Category { id: number; slug: string; icon: string | null; sort_order: 
 interface StoreTranslation { id: number; store_id: number; language: string; name: string; }
 type UsSiteType = 'domestic' | 'international';
 type UsShipFrom = 'us_warehouse' | 'intl_warehouse';
-interface StoreRegion { region: string; currency: string; us_site_type?: UsSiteType; us_ship_from?: UsShipFrom; banned_states?: string[]; }
-interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; website_urls: Array<{url: string; label?: string}>; store_type: string; is_active: boolean; regions: StoreRegion[]; notes: string; store_translations: StoreTranslation[]; }
+// 地区 / 货币已解耦：regions JSONB 统一为 StoreCapabilities
+type StoreRegion = StoreCapabilities;
+interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; website_urls: Array<{url: string; label?: string}>; store_type: string; is_active: boolean; regions: StoreCapabilities; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
 interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
@@ -2137,18 +2140,34 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'en')?.name || '—'}</td>
                           <td className="px-4 py-3 text-sm">
-                            {Array.isArray(store.regions) && store.regions.length > 0
-                              ? store.regions.map((r: any, i: number) => {
-                                  const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
-                                  return (
-                                    <span key={i} className="inline-flex items-center gap-1 mr-2">
-                                      <img src={curr?.flag || ''} alt={curr?.flagAlt || ''} className="w-4 h-4 rounded-sm object-cover" />
-                                      <span>{curr?.code || r.currency} ({curr?.symbol || ''})</span>
-                                    </span>
-                                  );
-                                })
-                              : '—'
-                            }
+                            {(() => {
+                              const c = parseStoreCapabilities(store.regions);
+                              if (c.regions.length === 0 && c.currencies.length === 0) return '—';
+                              return (
+                                <div className="space-y-1">
+                                  {c.regions.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {c.regions.map((rg, i) => (
+                                        <span key={i} className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[11px]">{rg}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {c.currencies.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {c.currencies.map((cu, i) => {
+                                        const curr = CURRENCY_OPTIONS.find(o => o.code === cu);
+                                        return (
+                                          <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                                            {curr && <img src={curr.flag} alt={curr.flagAlt} className="w-3.5 h-3.5 rounded-sm object-cover" />}
+                                            {curr ? `${curr.code} (${curr.symbol})` : cu}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-32" title={store.notes || ''}>{store.notes || '—'}</td>
                           <td className="px-4 py-3 text-sm truncate max-w-48">
@@ -6683,10 +6702,9 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
   });
   const [storeType, setStoreType] = useState<'store' | 'official'>((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
   const [isActive, setIsActive] = useState(store?.is_active !== false);
-  const [regions, setRegions] = useState<StoreRegion[]>(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
+  // 地区 / 货币两个独立清单（统一解析，兼容旧配对数据）
+  const [caps, setCaps] = useState<StoreCapabilities>(parseStoreCapabilities(store?.regions));
   const [notes, setNotes] = useState(store?.notes || '');
-  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
-  const [currencyDropdownIdx, setCurrencyDropdownIdx] = useState<number | null>(null);
 
   // 货币选项：国旗 + 代码 + 符号
   // 货币选项：国旗图片 + 代码 + 符号
@@ -6702,36 +6720,40 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
     { code: 'IDR', symbol: 'Rp', flag: '/flags/id.png', flagAlt: 'ID', name: 'Indonesian Rupiah' },
   ];
 
-  // 地区选项：与货币解耦，可独立选择
+  // 地区选项
   const REGION_OPTIONS = ['Global', 'USA', 'Canada', 'UK', 'Europe', 'Japan'];
-  // 美国专区准入：仅「全球+美元」或「美国+美元」
-  const isUsZoneEntry = (r: StoreRegion) =>
-    r.currency === 'USD' && (r.region === 'Global' || r.region === 'USA');
+  // 美国专区准入：货币含 USD 且 地区含 Global 或 USA
+  const usZoneEnabled = canEnterUsZone(caps);
 
-  const addRegion = () => {
-    setRegions([...regions, { region: '', currency: '' }]);
+  // —— 地区清单 ——
+  const addRegionRow = () => setCaps({ ...caps, regions: [...caps.regions, ''] });
+  const removeRegionRow = (idx: number) =>
+    setCaps({ ...caps, regions: caps.regions.filter((_, i) => i !== idx) });
+  const updateRegionRow = (idx: number, value: string) => {
+    const next = [...caps.regions];
+    next[idx] = value;
+    setCaps({ ...caps, regions: next });
   };
-  const removeRegion = (idx: number) => {
-    setRegions(regions.filter((_, i) => i !== idx));
+
+  // —— 货币清单 ——
+  const addCurrencyRow = () => setCaps({ ...caps, currencies: [...caps.currencies, ''] });
+  const removeCurrencyRow = (idx: number) =>
+    setCaps({ ...caps, currencies: caps.currencies.filter((_, i) => i !== idx) });
+  const updateCurrencyRow = (idx: number, value: string) => {
+    const next = [...caps.currencies];
+    next[idx] = value;
+    setCaps({ ...caps, currencies: next });
   };
-  const updateRegion = (idx: number, field: 'region' | 'currency', value: string) => {
-    const newRegions = [...regions];
-    newRegions[idx] = { ...newRegions[idx], [field]: value };
-    setRegions(newRegions);
-  };
-  // 美国专区扩展字段（仅对 USD 那条货币生效）
-  const [bannedDropdownIdx, setBannedDropdownIdx] = useState<number | null>(null);
-  const updateUsField = (idx: number, field: 'us_site_type' | 'us_ship_from', value: string) => {
-    const next = [...regions];
-    next[idx] = { ...next[idx], [field]: value } as StoreRegion;
-    setRegions(next);
-  };
-  const toggleBannedState = (idx: number, code: string) => {
-    const next = [...regions];
-    const cur = new Set(next[idx].banned_states || []);
+
+  // —— 美国专区设置（挂在商城上） ——
+  const [bannedDropdownOpen, setBannedDropdownOpen] = useState(false);
+  const updateUsSetting = (field: 'us_site_type' | 'us_ship_from', value: string) =>
+    setCaps({ ...caps, [field]: value || undefined } as StoreCapabilities);
+  const toggleBannedState = (code: string) => {
+    const cur = new Set(caps.banned_states || []);
     if (cur.has(code)) cur.delete(code); else cur.add(code);
-    next[idx] = { ...next[idx], banned_states: Array.from(cur) };
-    setRegions(next);
+    const arr = Array.from(cur);
+    setCaps({ ...caps, banned_states: arr.length > 0 ? arr : undefined });
   };
   const [translations, setTranslations] = useState<{ language: string; name: string }[]>(
     (store?.store_translations && store.store_translations.length > 0)
@@ -6754,7 +6776,8 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
       });
       setStoreType((store?.store_type === 'official' ? 'official' : store?.store_type === 'store' ? 'store' : null) || defaultType || 'store');
       setIsActive(store?.is_active !== false);
-      setRegions(Array.isArray(store?.regions) && store.regions.length > 0 ? store.regions : []);
+      setCaps(parseStoreCapabilities(store?.regions));
+      setBannedDropdownOpen(false);
       setNotes(store?.notes || '');
       // Reset translations from store data or empty
       if (store?.store_translations && store.store_translations.length > 0) {
@@ -6787,7 +6810,7 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
         website_urls: websiteUrls,
         store_type: storeType,
         is_active: isActive,
-        regions,
+        regions: caps,
         notes,
         translations,
       };
@@ -6883,140 +6906,132 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                   </button>
                 </div>
               </div>
+              {/* ===== 地区清单（独立） ===== */}
               <div>
-                <label className="text-xs text-muted-foreground text-left block">{t('Currency', '货币', lang)}</label>
+                <label className="text-xs text-muted-foreground text-left block">{t('Regions', '地区', lang)}</label>
                 <div className="mt-1 space-y-2">
-                  {regions.map((r, idx) => (
-                    <div key={idx} className="rounded-lg border border-border/70 p-2 space-y-2">
-                    <div className="flex items-center gap-2">
+                  {caps.regions.map((rg, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
                       <div className="flex-1">
                         <select
-                          value={r.region || ''}
-                          onChange={(e) => updateRegion(idx, 'region', e.target.value)}
+                          value={rg || ''}
+                          onChange={(e) => updateRegionRow(idx, e.target.value)}
                           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
                         >
                           <option value="">{t('Select Region', '选择地区', lang)}</option>
-                          {REGION_OPTIONS.map((rg) => (
-                            <option key={rg} value={rg}>{rg}</option>
+                          {REGION_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
                       </div>
-                      <div className="relative flex-1">
-                        <button
-                          type="button"
-                          onClick={() => { setCurrencyDropdownOpen(currencyDropdownOpen && currencyDropdownIdx === idx ? false : true); setCurrencyDropdownIdx(idx); }}
-                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-left flex items-center justify-between"
-                        >
-                          <span>
-                            {r.currency ? (() => {
-                              const curr = CURRENCY_OPTIONS.find(c => c.code === r.currency);
-                              return curr ? (
-                                <span className="flex items-center gap-1.5">
-                                  <img src={curr.flag} alt={curr.flagAlt} className="w-4 h-4 rounded-sm object-cover" />
-                                  <span>{curr.code} ({curr.symbol})</span>
-                                </span>
-                              ) : r.currency;
-                            })() : t('Select Currency', '选择货币', lang)}
-                          </span>
-                          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </button>
-                        {currencyDropdownOpen && currencyDropdownIdx === idx && (
-                          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg">
-                            {CURRENCY_OPTIONS.map((opt) => {
-                              const disabled = regions.some((rr, ii) => ii !== idx && rr.currency === opt.code);
-                              return (
-                                <button
-                                  key={opt.code}
-                                  type="button"
-                                  disabled={disabled}
-                                  onClick={() => { updateRegion(idx, 'currency', opt.code); setCurrencyDropdownOpen(false); setCurrencyDropdownIdx(null); }}
-                                  className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'} ${r.currency === opt.code ? 'bg-secondary' : ''}`}
-                                >
-                                  {r.currency === opt.code && <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                                  <span className={r.currency === opt.code ? '' : 'ml-6'}>
-                                    <img src={opt.flag} alt={opt.flagAlt} className="w-4 h-4 rounded-sm object-cover inline-block mr-1.5" />
-                                    {opt.code} ({opt.symbol})
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <button type="button" onClick={() => removeRegion(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                      <button type="button" onClick={() => removeRegionRow(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                      {/* 美国专区属性（仅 全球+美元 或 美国+美元）：分类 / 发货地 / 禁售州 */}
-                      {isUsZoneEntry(r) && (
-                        <div className="space-y-2 rounded-md bg-secondary/50 p-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[11px] text-muted-foreground text-left block">{t('US zone category', '美国专区分类', lang)}</label>
-                              <select
-                                value={r.us_site_type || ''}
-                                onChange={(e) => updateUsField(idx, 'us_site_type', e.target.value)}
-                                className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                              >
-                                <option value="">{t('Unspecified (hidden)', '未指定（不展示）', lang)}</option>
-                                <option value="domestic">{t('US domestic store', '美国本土站', lang)}</option>
-                                <option value="international">{t('International store', '国际站', lang)}</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[11px] text-muted-foreground text-left block">{t('Ships from', '发货地', lang)}</label>
-                              <select
-                                value={r.us_ship_from || ''}
-                                onChange={(e) => updateUsField(idx, 'us_ship_from', e.target.value)}
-                                className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
-                              >
-                                <option value="">{t('Unspecified (hidden)', '未指定（不展示）', lang)}</option>
-                                <option value="us_warehouse">{t('US warehouse', '美国仓', lang)}</option>
-                                <option value="intl_warehouse">{t('International warehouse', '国际仓', lang)}</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="relative">
-                            <label className="text-[11px] text-muted-foreground text-left block">{t('US banned states (hidden there)', '美国禁售州（在这些州隐藏）', lang)}</label>
-                            <button
-                              type="button"
-                              onClick={() => setBannedDropdownIdx(bannedDropdownIdx === idx ? null : idx)}
-                              className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm text-left flex items-center justify-between"
-                            >
-                              <span className="truncate">
-                                {(r.banned_states && r.banned_states.length > 0)
-                                  ? r.banned_states.join(', ')
-                                  : t('None — ships nationwide', '无（全国可售）', lang)}
-                              </span>
-                              <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                            </button>
-                            {bannedDropdownIdx === idx && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={() => setBannedDropdownIdx(null)} />
-                                <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-1">
-                                  {ALL_STATES.map((s) => {
-                                    const checked = !!(r.banned_states || []).includes(s.code);
-                                    return (
-                                      <label key={s.code} className="flex items-center gap-2 px-2 py-1 text-sm rounded hover:bg-secondary cursor-pointer">
-                                        <input type="checkbox" checked={checked} onChange={() => toggleBannedState(idx, s.code)} className="rounded" />
-                                        <span className="flex-1">{s.name}</span>
-                                        <span className="text-xs text-muted-foreground font-semibold">{s.code}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                  ))}
+                  <button type="button" onClick={addRegionRow} className="text-xs text-primary hover:underline">
+                    + {t('Add Region', '添加地区', lang)}
+                  </button>
+                </div>
+              </div>
+
+              {/* ===== 货币清单（独立） ===== */}
+              <div>
+                <label className="text-xs text-muted-foreground text-left block">{t('Currencies', '货币', lang)}</label>
+                <div className="mt-1 space-y-2">
+                  {caps.currencies.map((cu, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <select
+                          value={cu || ''}
+                          onChange={(e) => updateCurrencyRow(idx, e.target.value)}
+                          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                        >
+                          <option value="">{t('Select Currency', '选择货币', lang)}</option>
+                          {CURRENCY_OPTIONS.map((opt) => (
+                            <option key={opt.code} value={opt.code}>
+                              {opt.code} ({opt.symbol})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button type="button" onClick={() => removeCurrencyRow(idx)} className="p-1 rounded hover:bg-destructive/10 text-destructive">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
-                  <button type="button" onClick={addRegion} className="text-xs text-primary hover:underline">
+                  <button type="button" onClick={addCurrencyRow} className="text-xs text-primary hover:underline">
                     + {t('Add Currency', '添加货币', lang)}
                   </button>
                 </div>
               </div>
+
+              {/* ===== 美国专区设置（货币含USD 且 地区含Global/USA 时显示） ===== */}
+              {usZoneEnabled && (
+                <div className="space-y-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-3">
+                  <label className="text-xs font-semibold text-purple-300 text-left block">
+                    {t('US Market settings', '美国专区设置', lang)}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground text-left block">{t('US zone category', '美国专区分类', lang)}</label>
+                      <select
+                        value={caps.us_site_type || ''}
+                        onChange={(e) => updateUsSetting('us_site_type', e.target.value)}
+                        className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                      >
+                        <option value="">{t('Unspecified (hidden)', '未指定（不展示）', lang)}</option>
+                        <option value="domestic">{t('US domestic store', '美国本土站', lang)}</option>
+                        <option value="international">{t('International store', '国际站', lang)}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground text-left block">{t('Ships from', '发货地', lang)}</label>
+                      <select
+                        value={caps.us_ship_from || ''}
+                        onChange={(e) => updateUsSetting('us_ship_from', e.target.value)}
+                        className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm"
+                      >
+                        <option value="">{t('Unspecified (hidden)', '未指定（不展示）', lang)}</option>
+                        <option value="us_warehouse">{t('US warehouse', '美国仓', lang)}</option>
+                        <option value="intl_warehouse">{t('International warehouse', '国际仓', lang)}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <label className="text-[11px] text-muted-foreground text-left block">{t('US banned states (hidden there)', '美国禁售州（在这些州隐藏）', lang)}</label>
+                    <button
+                      type="button"
+                      onClick={() => setBannedDropdownOpen(!bannedDropdownOpen)}
+                      className="mt-0.5 w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-sm text-left flex items-center justify-between"
+                    >
+                      <span className="truncate">
+                        {(caps.banned_states && caps.banned_states.length > 0)
+                          ? caps.banned_states.join(', ')
+                          : t('None — ships nationwide', '无（全国可售）', lang)}
+                      </span>
+                      <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {bannedDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setBannedDropdownOpen(false)} />
+                        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-1">
+                          {ALL_STATES.map((s) => {
+                            const checked = !!(caps.banned_states || []).includes(s.code);
+                            return (
+                              <label key={s.code} className="flex items-center gap-2 px-2 py-1 text-sm rounded hover:bg-secondary cursor-pointer">
+                                <input type="checkbox" checked={checked} onChange={() => toggleBannedState(s.code)} className="rounded" />
+                                <span className="flex-1">{s.name}</span>
+                                <span className="text-xs text-muted-foreground font-semibold">{s.code}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground text-left block">{t('Notes', '备注', lang)}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm resize-y" placeholder={t('Internal notes (not shown on frontend)', '内部备注（不在前端展示）', lang)} />
@@ -7640,7 +7655,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                   return <>{storeGroups.map((group) => {
                     const firstP = storePrices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
-                    const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
+                    const storeRegions = derivePairs(parseStoreCapabilities(selectedStore?.regions));
                     const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
                       <div key={group.storeId} className="mb-3 p-3 rounded-lg border border-border bg-secondary/30">
@@ -7659,7 +7674,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                             onChange={(val) => {
                               const newP = [...storePrices];
                               const s = stores.find(st => st.id === Number(val));
-                              const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
+                              const sRegions = derivePairs(parseStoreCapabilities(s?.regions));
                               // Preserve existing price data for this store group by region
                               const existingByRegion: Record<string, typeof storePrices[0]> = {};
                               for (const idx of group.indices) {
@@ -8721,7 +8736,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   return storeGroups.map((group) => {
                     const firstP = prices[group.indices[0]];
                     const selectedStore = stores.find(s => s.id === Number(firstP.store_id));
-                    const storeRegions: Array<{region: string; currency: string}> = Array.isArray(selectedStore?.regions) && selectedStore.regions.length > 0 ? selectedStore.regions : [];
+                    const storeRegions = derivePairs(parseStoreCapabilities(selectedStore?.regions));
                     const hasMultipleCurrencies = storeRegions.length > 1;
                     return (
                       <div key={`${group.storeId}_${firstP.store_type}_${group.promotionId}`} className={`mb-3 p-3 rounded-lg border ${firstP.store_type === 'promotion' ? 'border-purple-500/30 bg-purple-500/5' : 'border-border bg-secondary/30'}`}>
@@ -8756,7 +8771,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                           onChange={(val) => {
                             const newP = [...prices];
                             const s = stores.find(st => st.id === Number(val));
-                            const sRegions: Array<{region: string; currency: string}> = Array.isArray(s?.regions) && s.regions.length > 0 ? s.regions : [];
+                            const sRegions = derivePairs(parseStoreCapabilities(s?.regions));
                             // Preserve existing price data for this store group by region
                             const existingByRegion: Record<string, typeof prices[0]> = {};
                             for (const idx of group.indices) {

@@ -9,20 +9,13 @@ import { cleanAffiliateUrl } from '@/lib/seo';
 import { ALL_STATES, LAUNCH_STATES, getStateContent } from '@/lib/states';
 import { useLanguage } from '@/hooks/use-language';
 import { SiteHeader } from '@/components/site-header';
+import { parseStoreCapabilities, canEnterUsZone } from '@/lib/store-capabilities';
+import type { UsSiteType, UsShipFrom, StoreCapabilities } from '@/lib/store-capabilities';
 
 // 美国专区只展示 USD 报价，DB 中 USD 货币以符号 '$' 存储
 const USD_SYMBOL = '$';
 const STATE_STORAGE_KEY = 'last_vape_state';
 
-type UsSiteType = 'domestic' | 'international';
-type UsShipFrom = 'us_warehouse' | 'intl_warehouse';
-interface StoreRegion {
-  region: string;
-  currency: string;
-  us_site_type?: UsSiteType;
-  us_ship_from?: UsShipFrom;
-  banned_states?: string[];
-}
 interface StoreTranslation { language: string; name: string }
 interface Store {
   id: number;
@@ -30,7 +23,7 @@ interface Store {
   logo_url: string | null;
   is_active: boolean;
   translations?: StoreTranslation[];
-  regions?: StoreRegion[];
+  regions?: StoreCapabilities;
 }
 interface ProductPrice {
   id: number;
@@ -63,14 +56,6 @@ function getTranslation<T extends { language: string }>(list: T[] | undefined | 
 function displayPrice(p: ProductPrice): string {
   if (p.promotion_id != null && p.promo_price != null && p.promo_price !== '') return p.promo_price;
   return p.current_price;
-}
-
-/** 取商城的美国专区配置：仅「全球+美元」或「美国+美元」才准入
- *  （Canada 等地区即便用美元报价，也不进入美国专区） */
-function storeUsRegion(store: Store | undefined): StoreRegion | undefined {
-  return store?.regions?.find(
-    (r) => r.currency === 'USD' && (r.region === 'Global' || r.region === 'USA')
-  );
 }
 
 type ShipFilter = 'all' | UsShipFrom;
@@ -121,12 +106,14 @@ export function UsZoneMall() {
     if ((p.currency || '$') !== USD_SYMBOL) return false;
     const store = p.store;
     if (!store || store.is_active === false) return false;
-    const us = storeUsRegion(store);
+    // 地区/货币已解耦：货币含 USD 且 地区含 Global/USA 才准入
+    const caps = parseStoreCapabilities(store.regions);
+    if (!canEnterUsZone(caps)) return false;
     // 必须显式配齐美国专区字段，否则不进入美国专区
-    if (!us || !us.us_site_type || !us.us_ship_from) return false;
-    if (us.us_site_type !== siteTab) return false;
-    if (shipFilter !== 'all' && us.us_ship_from !== shipFilter) return false;
-    if (stateCode && (us.banned_states || []).includes(stateCode)) return false;
+    if (!caps.us_site_type || !caps.us_ship_from) return false;
+    if (caps.us_site_type !== siteTab) return false;
+    if (shipFilter !== 'all' && caps.us_ship_from !== shipFilter) return false;
+    if (stateCode && (caps.banned_states || []).includes(stateCode)) return false;
     return true;
   };
 

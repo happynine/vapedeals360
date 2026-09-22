@@ -1,5 +1,6 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
+import { parseStoreCapabilities, storeServesRegion } from '@/lib/store-capabilities';
 
 // Type definitions
 export interface Category {
@@ -227,15 +228,11 @@ export async function fetchProducts(options?: {
         // Exclude inactive stores
         if (s.is_active === false) return false;
         
-        const regions = s.regions as { region: string; currency: string }[] | null;
         const storeType = s.store_type as string | null;
         // Official类型的商城视为Global，包含在所有region中
         if (storeType === 'official') return true;
-        // regions为空或包含"Global"的store也包含在所有region中
-        if (!regions || regions.length === 0) return true;
-        if (regions.some(r => r.region === 'Global')) return true;
-        // 否则检查是否包含当前region
-        return regions.some(r => r.region === activeRegion);
+        // 否则用统一能力解析判断是否服务该地区（空地区/Global 均可售）
+        return storeServesRegion(parseStoreCapabilities(s.regions), activeRegion);
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return [];
@@ -301,21 +298,15 @@ export async function fetchProducts(options?: {
   const { data, error } = await query;
   if (error) throw new Error(`Fetch products failed: ${error.message}`);
 
-  // Build a map of store regions for currency filtering
-  let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
+  // Build a map of whether each store serves the active region
+  const storeRegionMap: Record<number, boolean> = {};
   if (activeRegion && allStores) {
     for (const s of allStores) {
-      const regions = s.regions as { region: string; currency: string }[] | null;
-      const storeId = s.id as number;
-      if (Array.isArray(regions) && regions.length > 0) {
-        if (regions.some(r => r.region === activeRegion)) {
-          storeRegionMap[storeId] = regions;
-        } else if (regions.some(r => r.region === 'Global')) {
-          storeRegionMap[storeId] = regions;
-        }
-      } else {
-        storeRegionMap[storeId] = [];
-      }
+      const storeType = s.store_type as string | null;
+      const serves = storeType === 'official'
+        ? true
+        : storeServesRegion(parseStoreCapabilities(s.regions), activeRegion);
+      storeRegionMap[s.id as number] = serves;
     }
   }
 
@@ -342,8 +333,7 @@ export async function fetchProducts(options?: {
           const pRegion = p.region as string | null;
           if (pRegion === activeRegion || pRegion === 'Global') return true;
           if (!pRegion) {
-            const storeRegions = storeRegionMap[pStoreId];
-            return storeRegions !== undefined;
+            return storeRegionMap[pStoreId] === true;
           }
           return false;
         })
@@ -400,23 +390,17 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
     .map(p => processPublicPrice(p))
     .filter((p): p is Record<string, unknown> => p !== null);
 
-  // Build store region map for filtering
-  let storeRegionMap: Record<number, { region: string; currency: string }[]> = {};
+  // Build map of whether each store serves the active region
+  const storeRegionMap: Record<number, boolean> = {};
   if (activeRegion) {
     for (const p of allPrices) {
       const storeData = p.stores as Record<string, unknown> | null;
       if (storeData) {
         const storeId = storeData.id as number;
-        const regions = storeData.regions as { region: string; currency: string }[] | null;
-        if (Array.isArray(regions) && regions.length > 0) {
-          if (regions.some(r => r.region === activeRegion)) {
-            storeRegionMap[storeId] = regions;
-          } else if (regions.some(r => r.region === 'Global')) {
-            storeRegionMap[storeId] = regions;
-          }
-        } else {
-          storeRegionMap[storeId] = [];
-        }
+        const storeType = storeData.store_type as string | null;
+        storeRegionMap[storeId] = storeType === 'official'
+          ? true
+          : storeServesRegion(parseStoreCapabilities(storeData.regions), activeRegion);
       }
     }
   }
@@ -428,8 +412,7 @@ export async function fetchProductBySlug(slug: string, language: string = 'en', 
         const pRegion = p.region as string | null;
         if (pRegion === activeRegion || pRegion === 'Global') return true;
         if (!pRegion) {
-          const storeRegions = storeRegionMap[pStoreId];
-          return storeRegions !== undefined;
+          return storeRegionMap[pStoreId] === true;
         }
         return false;
       })
@@ -510,12 +493,9 @@ export async function countProducts(category_id?: number, sales_region?: string,
     const storeIds = (storeData || [])
       .filter((s: Record<string, unknown>) => {
         if (s.is_active === false) return false;
-        const regions = s.regions as { region: string; currency: string }[] | null;
         const storeType = s.store_type as string | null;
         if (storeType === 'official') return true;
-        if (!regions || regions.length === 0) return true;
-        if (regions.some(r => r.region === 'Global')) return true;
-        return regions.some(r => r.region === activeRegion);
+        return storeServesRegion(parseStoreCapabilities(s.regions), activeRegion);
       })
       .map((s: Record<string, unknown>) => s.id as number);
     if (storeIds.length === 0) return 0;
