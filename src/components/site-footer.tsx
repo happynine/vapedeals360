@@ -48,7 +48,7 @@ export default function SiteFooter() {
                 }}
                 className="text-sm text-gray-500 hover:text-purple-400 transition-colors block mb-4"
               >
-                Email: {"info"} [at] {"vapedeals360.com"}
+                Email: info@vapedeals360.com
               </a>
               <textarea readOnly aria-label="Contact email address" className="sr-only" defaultValue="info@vapedeals360.com" rows={1} />
               {socialLinks.length > 0 && (

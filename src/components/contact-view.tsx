@@ -76,7 +76,7 @@ export function ContactView() {
                         }}
                         className="text-purple-700 hover:underline"
                       >
-                        {"info"} [at] {"vapedeals360.com"}
+                        info@vapedeals360.com
                       </a>
                     </p>
                     <textarea
