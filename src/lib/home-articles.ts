@@ -1,7 +1,6 @@
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { makeExcerpt } from '@/lib/excerpt';
 import type { ContentCardItem } from '@/components/article-card';
-import { attachAuthors } from '@/lib/content-authors';
 
 /**
  * Server-side fetch of latest published articles for homepage rows.
@@ -18,7 +17,7 @@ export async function fetchHomeArticles(
 
     const { data: pages, error } = await supabase
       .from('content_pages')
-      .select('*, content_page_translations(*)')
+      .select('*, content_page_translations(*, authors(*))')
       .eq('type', type)
       .eq('is_published', true)
       .eq('content_page_translations.language', language)
@@ -26,8 +25,6 @@ export async function fetchHomeArticles(
       .limit(limit);
 
     if (error) return [];
-
-    await attachAuthors(supabase, pages);
 
     return (pages || []).map((p: Record<string, unknown>) => {
       const rawTranslations = p.content_page_translations as

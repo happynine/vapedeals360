@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { ContentListView } from '@/components/content-list-view';
 import { makeExcerpt } from '@/lib/excerpt';
-import { attachAuthors } from '@/lib/content-authors';
 
 export const revalidate = 300;
 
@@ -40,7 +39,7 @@ async function fetchInitialData(): Promise<{ pages: ContentPageItem[]; descripti
         .single(),
       supabase
         .from('content_pages')
-        .select('*, content_page_translations(*)')
+        .select('*, content_page_translations(*, authors(*))')
         .eq('type', 'news')
         .eq('is_published', true)
         .eq('content_page_translations.language', 'en')
@@ -48,8 +47,6 @@ async function fetchInitialData(): Promise<{ pages: ContentPageItem[]; descripti
     ]);
 
     if (error) return empty;
-
-    await attachAuthors(supabase, pages);
 
     const formattedPages: ContentPageItem[] = (pages || []).map((p: Record<string, unknown>) => {
       const rawTranslations = p.content_page_translations as
