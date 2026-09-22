@@ -2132,7 +2132,14 @@ export default function AdminPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono">{store.slug}</td>
+                          <td className="px-4 py-3 text-sm font-mono">
+                            <span className="mr-2">{store.slug}</span>
+                            {!store.is_active && (
+                              <span className="inline-block rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-500 border border-red-500/30 align-middle">
+                                {t('Inactive', '未启用', adminLang)}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-sm">
                             <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${(store.store_type || 'store') === 'official' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                               {(store.store_type || 'store') === 'official' ? t('Official', '官网', adminLang) : t('Store', '商城', adminLang)}
