@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { SiteHeader } from '@/components/site-header';
 import { useLanguage } from '@/hooks/use-language';
 
@@ -35,19 +36,22 @@ export function ContactView() {
     }
   };
 
+  const inputClass =
+    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-gray-900 placeholder-gray-400 ' +
+    'focus:ring-2 focus:ring-purple-700/30 focus:border-purple-700 outline-none transition-colors';
+
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader activeTab="" />
 
       <main className="flex-1 bg-white">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold mb-6">{t('Contact Us', '联系我们', language)}</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
+          <h1 className="text-4xl font-bold text-gray-900 mb-12">{t('Contact Us', '联系我们', language)}</h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Contact Info */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+            {/* Left: info + illustration */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">{t('Get in Touch', '联系方式', language)}</h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-lg text-gray-700 leading-relaxed mb-8 max-w-xl">
                 {t(
                   'Have questions, feedback, or business inquiries? We\'d love to hear from you. Fill out the form and we\'ll get back to you as soon as possible.',
                   '有任何问题、建议或商务合作意向？欢迎与我们联系。填写表单，我们会尽快回复。',
@@ -55,47 +59,49 @@ export function ContactView() {
                 )}
               </p>
 
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-purple-700 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <h3 className="font-medium">{t('Email', '邮箱', language)}</h3>
-                    <p className="text-gray-600">
-                      {/* The address is split into parts and only assembled on click,
-                          so Cloudflare email obfuscation never rewrites the visible link.
-                          The plain address is provided for crawlers/reviewers in the
-                          readonly textarea below. */}
-                      <a
-                        href="#contact-email"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          const addr = ["info", "vapedeals360.com"].join("@");
-                          window.location.href = "mailto:" + addr;
-                        }}
-                        className="text-purple-700 hover:underline"
-                      >
-                        info@vapedeals360.com
-                      </a>
-                    </p>
-                    <textarea
-                      readOnly
-                      aria-label="Contact email address"
-                      className="sr-only"
-                      defaultValue="info@vapedeals360.com"
-                      rows={1}
-                    />
-                  </div>
-                </div>
+              <div className="flex items-center gap-3 mb-8">
+                <span className="text-lg font-semibold text-gray-900">{t('Email', '邮箱', language)}</span>
+                {/* The address is split into parts and only assembled on click,
+                    so Cloudflare email obfuscation never rewrites the visible link.
+                    The plain address is provided for crawlers/reviewers in the
+                    readonly textarea below. */}
+                <a
+                  href="#contact-email"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const addr = ['info', 'vapedeals360.com'].join('@');
+                    window.location.href = 'mailto:' + addr;
+                  }}
+                  className="text-lg text-gray-900 hover:underline"
+                >
+                  info@vapedeals360.com
+                </a>
+                <textarea
+                  readOnly
+                  aria-label="Contact email address"
+                  className="sr-only"
+                  defaultValue="info@vapedeals360.com"
+                  rows={1}
+                />
+              </div>
+
+              <div className="relative w-full aspect-[16/9] overflow-hidden rounded-2xl">
+                <Image
+                  src="/images/contact-cover.jpg"
+                  alt={t('Contact VapeDeals360', '联系 VapeDeals360', language)}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 560px"
+                  className="object-cover"
+                  priority
+                />
               </div>
             </div>
 
-            {/* Contact Form */}
+            {/* Right: form */}
             <div>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-base text-gray-700 mb-1.5">
                     {t('Name', '姓名', language)}
                   </label>
                   <input
@@ -103,12 +109,12 @@ export function ContactView() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-700 focus:border-transparent outline-none"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-base text-gray-700 mb-1.5">
                     {t('Email', '邮箱', language)}
                   </label>
                   <input
@@ -116,12 +122,12 @@ export function ContactView() {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-700 focus:border-transparent outline-none"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-base text-gray-700 mb-1.5">
                     {t('Subject', '主题', language)}
                   </label>
                   <input
@@ -129,27 +135,27 @@ export function ContactView() {
                     required
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-700 focus:border-transparent outline-none"
+                    className={inputClass}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-base text-gray-700 mb-1.5">
                     {t('Message', '留言', language)}
                   </label>
                   <textarea
                     required
-                    rows={5}
+                    rows={6}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-700 focus:border-transparent outline-none resize-none"
+                    className={`${inputClass} resize-none`}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={status === 'sending'}
-                  className="bg-purple-700 text-white px-6 py-2 rounded-lg hover:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-purple-700 text-white px-8 py-3 rounded-lg text-base font-medium hover:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {status === 'sending'
                     ? t('Sending...', '发送中...', language)
