@@ -7014,12 +7014,12 @@ function StoreFormModal({ store, onSave, lang, defaultType, activeLanguages, all
                           ? caps.banned_states.join(', ')
                           : t('None — ships nationwide', '无（全国可售）', lang)}
                       </span>
-                      <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      <svg className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${bannedDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {bannedDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setBannedDropdownOpen(false)} />
-                        <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-1">
+                        <div className="absolute z-50 bottom-full mb-1 w-full max-h-[28rem] overflow-y-auto rounded-lg border border-border bg-card shadow-lg p-1">
                           {ALL_STATES.map((s) => {
                             const checked = !!(caps.banned_states || []).includes(s.code);
                             return (
