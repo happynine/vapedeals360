@@ -97,7 +97,7 @@ function LaunchedStatePage({ content: c }: { content: StateLawContent }) {
       <SiteHeader activeTab="shop-by-state" />
 
       <div className="border-b border-gray-100 bg-gradient-to-b from-purple-50 to-white">
-        <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-10">
           <nav aria-label="Breadcrumb" className="mb-3 text-xs text-gray-400">
             <Link href="/" className="hover:text-purple-600">Home</Link>
             <span className="mx-1">/</span>
@@ -122,7 +122,7 @@ function LaunchedStatePage({ content: c }: { content: StateLawContent }) {
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 py-10">
+      <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <h2 className="text-xl font-bold text-gray-900">The rules in plain English</h2>
@@ -193,7 +193,8 @@ function LaunchedStatePage({ content: c }: { content: StateLawContent }) {
 
         <StateProductIndex
           title={`Popular vapes for ${c.name} shoppers`}
-          subtitle="National deal snapshot — confirm each product is legal for delivery to your state at checkout."
+          subtitle={`Only products available for delivery to ${c.name} from US-zone stores. Confirm details at checkout.`}
+          stateCode={c.code}
         />
 
         <p className="mt-10 rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
@@ -209,7 +210,7 @@ function GenericStatePage({ name, code }: { name: string; code: string }) {
     <div className="min-h-screen bg-white">
       <SiteHeader activeTab="shop-by-state" />
       <div className="border-b border-gray-100 bg-gradient-to-b from-purple-50 to-white">
-        <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-10">
           <nav aria-label="Breadcrumb" className="mb-3 text-xs text-gray-400">
             <Link href="/" className="hover:text-purple-600">Home</Link>
             <span className="mx-1">/</span>
@@ -228,7 +229,7 @@ function GenericStatePage({ name, code }: { name: string; code: string }) {
         </div>
       </div>
 
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-10">
         <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
           <h2 className="text-lg font-semibold text-gray-900">
             {name} guide is being prepared
@@ -243,10 +244,11 @@ function GenericStatePage({ name, code }: { name: string; code: string }) {
           </p>
         </div>
 
-        {/* Keep the page non-empty with real, nationally available content. */}
+        {/* Keep the page non-empty with real content deliverable to this state. */}
         <StateProductIndex
           title="Popular vapes & deals right now"
-          subtitle="National snapshot — confirm eligibility and shipping to your state at checkout."
+          subtitle={`Products available for delivery to ${name} from US-zone stores. Confirm details at checkout.`}
+          stateCode={code}
         />
 
         <div className="mt-8 flex flex-wrap gap-3">

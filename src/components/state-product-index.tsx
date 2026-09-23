@@ -1,33 +1,38 @@
 import { fetchProducts } from '@/lib/database';
 import { isSupabaseConfigured } from '@/storage/database/supabase-client';
-import { getServerCurrency } from '@/lib/server-currency';
+import { parseStoreCapabilities, canEnterUsZone } from '@/lib/store-capabilities';
 
 /**
  * Server-rendered, crawler-readable deal strip reused by the vape-laws Hub and
- * state pages. Mirrors HomeProductIndex: real product names, images, prices
- * and internal /product links are emitted in the initial HTML so these legal
- * pages are not thin/empty shells. State-specific legal filtering belongs to
- * the future compliance engine (PRD 06); until then this presents nationally
- * available deals WITHOUT claiming state-legal eligibility for any product.
+ * state pages. Real product names, images, USD prices and internal /product
+ * links are emitted in the initial HTML.
+ *
+ * When `stateCode` is provided, a product only appears if at least one active
+ * US-zone store sells it there: the store must be admitted to the US market
+ * (USD + Global/USA) and the state must NOT be in that store's banned list.
+ * If every US-zone store bans the state, the section renders nothing.
  */
 export async function StateProductIndex({
   title = 'Popular vapes & deals right now',
   subtitle = 'Compare real-time prices across trusted, authorized retailers. Always confirm the product is legal in your state at checkout.',
   limit = 10,
+  stateCode,
 }: {
   title?: string;
   subtitle?: string;
   limit?: number;
+  stateCode?: string;
 }) {
   if (!isSupabaseConfigured()) return null;
 
-  const { symbol } = await getServerCurrency();
+  // US state pages always price in USD ('$'), independent of visitor currency.
+  const symbol = '$';
 
   let products: Array<Record<string, unknown>> = [];
   try {
     products = (await fetchProducts({
       language: 'en',
-      limit,
+      limit: stateCode ? 100 : limit, // over-fetch so state filtering can still fill `limit`
       offset: 0,
       currency: symbol,
     })) as Array<Record<string, unknown>>;
@@ -35,6 +40,18 @@ export async function StateProductIndex({
     return null;
   }
   if (!products || products.length === 0) return null;
+
+  // A store may carry a product into `stateCode` only if it is US-admitted and
+  // does not ban that state.
+  const storeAllowed = (store: unknown): boolean => {
+    if (!store) return false;
+    const s = store as Record<string, unknown>;
+    if (s.is_active === false) return false;
+    const caps = parseStoreCapabilities(s.regions);
+    if (!canEnterUsZone(caps)) return false;
+    if (stateCode && (caps.banned_states || []).includes(stateCode)) return false;
+    return true;
+  };
 
   const items = products
     .map((p) => {
@@ -45,7 +62,8 @@ export async function StateProductIndex({
         (pr) =>
           pr.no_quote !== true &&
           pr.in_stock !== false &&
-          String(pr.currency ?? '') === symbol,
+          String(pr.currency ?? '') === symbol &&
+          (!stateCode || storeAllowed(pr.store)),
       );
       if (!tr?.name || valid.length === 0) return null;
       let lowest = Infinity;
@@ -64,14 +82,15 @@ export async function StateProductIndex({
       (x): x is { slug: string; name: string; price: number; image: string } => x !== null,
     );
 
-  if (items.length === 0) return null;
+  const shown = stateCode ? items.slice(0, limit) : items;
+  if (shown.length === 0) return null;
 
   return (
     <section aria-label={title} className="mt-12">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
       <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
       <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-5">
-        {items.map((it) => (
+        {shown.map((it) => (
           <li key={it.slug}>
             <a
               href={`/product/${encodeURI(it.slug)}`}
