@@ -2174,10 +2174,7 @@ export default function AdminPage() {
                                   </div>
                                   {banned.length > 0 && (
                                     <div className="mt-1 text-[11px] text-muted-foreground leading-snug">
-                                      {banned.map(code => {
-                                        const st = ALL_STATES.find(s => s.code === code);
-                                        return st ? `${st.name} ${code}` : code;
-                                      }).join('、')}
+                                      {banned.join('、')}
                                     </div>
                                   )}
                                 </div>
