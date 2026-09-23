@@ -2104,9 +2104,9 @@ export default function AdminPage() {
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Logo', 'Logo', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Slug</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Type', '类型', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Name (EN)', '名称 (英文)', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Currencies', '货币', adminLang)}</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Delivery Areas', '送达地区', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Notes', '备注', adminLang)}</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">{t('Website', '网址', adminLang)}</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">{t('Actions', '操作', adminLang)}</th>
@@ -2140,38 +2140,35 @@ export default function AdminPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${(store.store_type || 'store') === 'official' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                              {(store.store_type || 'store') === 'official' ? t('Official', '官网', adminLang) : t('Store', '商城', adminLang)}
-                            </span>
-                          </td>
                           <td className="px-4 py-3 text-sm">{store.store_translations?.find((tr) => tr.language === 'en')?.name || '—'}</td>
                           <td className="px-4 py-3 text-sm">
                             {(() => {
                               const c = parseStoreCapabilities(store.regions);
-                              if (c.regions.length === 0 && c.currencies.length === 0) return '—';
+                              if (c.currencies.length === 0) return '—';
                               return (
-                                <div className="space-y-1">
-                                  {c.regions.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {c.regions.map((rg, i) => (
-                                        <span key={i} className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[11px]">{rg}</span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {c.currencies.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {c.currencies.map((cu, i) => {
-                                        const curr = CURRENCY_OPTIONS.find(o => o.code === cu);
-                                        return (
-                                          <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px]">
-                                            {curr && <img src={curr.flag} alt={curr.flagAlt} className="w-3.5 h-3.5 rounded-sm object-cover" />}
-                                            {curr ? `${curr.code} (${curr.symbol})` : cu}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+                                <div className="flex flex-wrap gap-1">
+                                  {c.currencies.map((cu, i) => {
+                                    const curr = CURRENCY_OPTIONS.find(o => o.code === cu);
+                                    return (
+                                      <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                                        {curr && <img src={curr.flag} alt={curr.flagAlt} className="w-3.5 h-3.5 rounded-sm object-cover" />}
+                                        {curr ? `${curr.code} (${curr.symbol})` : cu}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {(() => {
+                              const c = parseStoreCapabilities(store.regions);
+                              if (c.regions.length === 0) return '—';
+                              return (
+                                <div className="flex flex-wrap gap-1">
+                                  {c.regions.map((rg, i) => (
+                                    <span key={i} className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[11px]">{rg}</span>
+                                  ))}
                                 </div>
                               );
                             })()}
