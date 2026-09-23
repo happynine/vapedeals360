@@ -2164,11 +2164,22 @@ export default function AdminPage() {
                             {(() => {
                               const c = parseStoreCapabilities(store.regions);
                               if (c.regions.length === 0) return '—';
+                              const banned = c.regions.includes('USA') ? (c.banned_states || []) : [];
                               return (
-                                <div className="flex flex-wrap gap-1">
-                                  {c.regions.map((rg, i) => (
-                                    <span key={i} className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[11px]">{rg}</span>
-                                  ))}
+                                <div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {c.regions.map((rg, i) => (
+                                      <span key={i} className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[11px]">{rg}</span>
+                                    ))}
+                                  </div>
+                                  {banned.length > 0 && (
+                                    <div className="mt-1 text-[11px] text-muted-foreground leading-snug">
+                                      {banned.map(code => {
+                                        const st = ALL_STATES.find(s => s.code === code);
+                                        return st ? `${st.name} ${code}` : code;
+                                      }).join('、')}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })()}
