@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
+function esc(s: string): string {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // POST /api/contact - Send contact form email
 export async function POST(request: Request) {
   const rl = checkRateLimit(request, "public");
@@ -41,18 +45,19 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'onboarding@resend.dev',
-          to: ['funan9999@gmail.com'],
+          from: 'VapeDeals360 Contact <noreply@vapedeals360.com>',
+          to: ['info@vapedeals360.com'],
+          reply_to: email,
           subject: `[Contact] ${subject}`,
           html: `
             <h2>New Contact Message</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Subject:</strong> ${subject}</p>
+            <p><strong>Name:</strong> ${esc(name)}</p>
+            <p><strong>Email:</strong> ${esc(email)}</p>
+            <p><strong>Subject:</strong> ${esc(subject)}</p>
             <p><strong>Message:</strong></p>
-            <p>${message.replace(/\n/g, '<br/>')}</p>
+            <p>${esc(message).replace(/\n/g, '<br/>')}</p>
             <hr/>
-            <p style="color:#999;font-size:12px;">Sent from VapeDeal Contact Form</p>
+            <p style="color:#999;font-size:12px;">Sent from VapeDeals360 Contact Form</p>
           `,
         }),
       });
