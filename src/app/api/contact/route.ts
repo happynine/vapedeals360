@@ -45,7 +45,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'VapeDeals360 Contact <noreply@vapedeals360.com>',
+          from: 'VapeDeals360 <contact@vapedeals360.com>',
           to: ['info@vapedeals360.com'],
           reply_to: email,
           subject: `[Contact] ${subject}`,
