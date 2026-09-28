@@ -108,62 +108,6 @@ export async function POST(request: NextRequest) {
 
     const priceSpec = entry.prices[0];
 
-    // --- Confirmed fuzzy merge: attach feed identity + this store's price to an
-    // existing product. We deliberately do NOT overwrite its name/description/
-    // image/category — only the link & price are brought over (no auto-clobber).
-    if (entry.kind === 'possible_match' && entry.mergeProductId !== null) {
-      const mergeId = entry.mergeProductId;
-      const idPatch: Record<string, unknown> = {};
-      if (entry.awProductId) idPatch.aw_product_id = entry.awProductId;
-      if (entry.merchantProductId)
-        idPatch.merchant_product_id = entry.merchantProductId;
-      if (Object.keys(idPatch).length > 0) {
-        const { error } = await supabase
-          .from('products')
-          .update(idPatch)
-          .eq('id', mergeId);
-        if (error) {
-          result.errors.push(
-            `${entry.slug}: merge identity update failed (${error.message})`,
-          );
-          return;
-        }
-      }
-      // Bring over this store's commission price/link (update or insert).
-      if (priceSpec && priceSpec.newPrice !== null) {
-        const { data: existingPrice } = await supabase
-          .from('product_prices')
-          .select('id')
-          .eq('product_id', mergeId)
-          .eq('store_id', storeId)
-          .maybeSingle();
-        const pricePayload = {
-          current_price: priceSpec.newPrice,
-          currency: priceSpec.currency,
-          product_url: priceSpec.newUrl || null,
-          in_stock: priceSpec.inStock,
-        };
-        const { error: priceErr } = existingPrice
-          ? await supabase
-              .from('product_prices')
-              .update(pricePayload)
-              .eq('id', existingPrice.id)
-          : await supabase.from('product_prices').insert({
-              product_id: mergeId,
-              store_id: storeId,
-              ...pricePayload,
-            });
-        if (priceErr) {
-          result.errors.push(
-            `${entry.slug}: merge price failed (${priceErr.message})`,
-          );
-          return;
-        }
-      }
-      result.updated++;
-      return;
-    }
-
     if (entry.kind === 'new' || entry.productId === null) {
       // --- Create product ---
       const { data: product, error: productError } = await supabase
@@ -313,3 +257,4 @@ export async function POST(request: NextRequest) {
   if (result.errors.length > 0) result.success = false;
   return NextResponse.json(result);
 }
+
