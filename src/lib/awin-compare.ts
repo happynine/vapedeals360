@@ -7,12 +7,14 @@ import type { NormalizedFeedItem } from './awin-feed';
 import type {
   CategoryGroup,
   ChangeKind,
+  MatchCandidate,
   PreviewEntry,
   PreviewPrice,
   PreviewPromo,
 } from './awin-import-types';
 import type { PromoInfo } from './promo-page';
 import { productPath } from './promo-page';
+import { scoreSimilarity } from './product-similarity';
 export interface DbProductRow {
   id: number;
   slug: string;
@@ -47,12 +49,15 @@ export interface CompareInput {
   categories: DbCategoryRow[];
   /** Promotion info keyed by the store product pathname. */
   promoMap?: Map<string, PromoInfo>;
+  /** User-defined feed top-category → internal slug overrides. */
+  categoryOverrides?: Record<string, string>;
 }
 export interface CompareResult {
   entries: PreviewEntry[];
   totals: Record<ChangeKind, number>;
   unmappedCategories: string[];
   categoryGroups: CategoryGroup[];
+  categoryOverrides: Record<string, string>;
   promoCount: number;
 }
 const EMPTY_TOTALS: Record<ChangeKind, number> = {
@@ -60,6 +65,7 @@ const EMPTY_TOTALS: Record<ChangeKind, number> = {
   price_changed: 0,
   info_changed: 0,
   unchanged: 0,
+  possible_match: 0,
   missing: 0,
 };
 /** Normalize text for comparison: collapse whitespace, lowercase. */
@@ -99,10 +105,16 @@ const CATEGORY_ALIASES: Record<string, string> = {
 function mapCategory(
   feedCategory: string,
   categories: DbCategoryRow[],
+  overrides?: Record<string, string>,
 ): string | null {
   const key = categoryKey(feedCategory);
   if (!key) return null;
-  // 1. Explicit alias (only when the target category actually exists).
+  // 0. User-defined override (highest priority; target must exist).
+  if (overrides) {
+    const override = overrides[key];
+    if (override && categories.some((c) => c.slug === override)) return override;
+  }
+  // 1. Explicit built-in alias (only when the target category actually exists).
   const alias = CATEGORY_ALIASES[key];
   if (alias && categories.some((c) => c.slug === alias)) return alias;
   for (const c of categories) {
@@ -140,6 +152,7 @@ export function buildPreview(input: CompareInput): CompareResult {
     prices,
     categories,
     promoMap,
+    categoryOverrides,
   } = input;
   // Indexes of existing products.
   const byMerchantSku = new Map<string, DbProductRow>();
@@ -179,7 +192,7 @@ export function buildPreview(input: CompareInput): CompareResult {
     const promo =
       (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
       null;
-    let categorySlug = mapCategory(item.category, categories);
+    let categorySlug = mapCategory(item.category, categories, categoryOverrides);
     if (!categorySlug && item.category) {
       categorySlug = slugify(topCategory(item.category) || item.category);
       unmapped.add(item.category);
@@ -244,9 +257,32 @@ export function buildPreview(input: CompareInput): CompareResult {
         feedCategory,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
+        matchCandidates: [],
         prices: [previewPrice],
       });
     } else {
+      // Fuzzy candidates: compare the feed name against every existing product
+      // not already claimed by a stronger key. Keep 'strong' + best 'possible'.
+      const candidates: MatchCandidate[] = [];
+      for (const p of products) {
+        if (matchedProductIds.has(p.id)) continue;
+        const r = scoreSimilarity(item.name, p.name || p.slug);
+        if (r.level === 'none') continue;
+        candidates.push({
+          productId: p.id,
+          slug: p.slug,
+          name: p.name || p.slug,
+          imageUrl: p.image_url,
+          score: r.score,
+          level: r.level,
+        });
+      }
+      candidates.sort((a, b) => b.score - a.score);
+      // strong candidate pre-fills productId, possible leaves it null; either
+      // way the row is unselected — nothing merges without explicit approval.
+      const best = candidates[0] ?? null;
+      const kind: ChangeKind = best ? 'possible_match' : 'new';
+
       // New product. Generate a unique slug.
       const baseSlug = slugify(item.name) ||
         (item.merchantProductId ? slugify(item.merchantProductId) : '') ||
@@ -260,11 +296,11 @@ export function buildPreview(input: CompareInput): CompareResult {
       usedSlugs.add(slug);
       entries.push({
         key: `n-${item.awProductId || slug}`,
-        kind: 'new',
+        kind,
         selected: false,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
-        productId: null,
+        productId: best && best.level === 'strong' ? best.productId : null,
         slug,
         name: item.name,
         oldName: null,
@@ -277,6 +313,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         feedCategory,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
+        matchCandidates: candidates.slice(0, 6),
         prices: [
           {
             priceId: null,
@@ -319,6 +356,7 @@ export function buildPreview(input: CompareInput): CompareResult {
       feedCategory: '',
       promo: null,
       brand: '',
+      matchCandidates: [],
       prices: [
         {
           priceId: oldRow.id,
@@ -363,7 +401,7 @@ export function buildPreview(input: CompareInput): CompareResult {
     totals,
     unmappedCategories: Array.from(unmapped),
     categoryGroups,
+    categoryOverrides: categoryOverrides ?? {},
     promoCount,
   };
 }
-
