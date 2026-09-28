@@ -26,6 +26,40 @@ function parsePromoUrls(raw: string): string[] {
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
+/**
+ * Parse user-supplied category overrides. Accepts either a JSON object
+ * (feed category -> internal category slug) or one mapping per line in the
+ * form "Feed Category = target-slug". Invalid entries are silently dropped.
+ */
+function parseCategoryOverrides(raw: string): Record<string, string> {
+  const text = raw.trim();
+  if (!text) return {};
+  if (text.startsWith('{')) {
+    try {
+      const obj = JSON.parse(text);
+      if (obj && typeof obj === 'object') {
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(obj)) {
+          if (typeof k === 'string' && typeof v === 'string' && v.trim()) {
+            out[k.trim()] = v.trim();
+          }
+        }
+        return out;
+      }
+    } catch {
+      // fall through to line parsing
+    }
+  }
+  const out: Record<string, string> = {};
+  for (const line of text.split(/[\r\n]+/)) {
+    const idx = line.indexOf('=');
+    if (idx < 0) continue;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (key && value) out[key] = value;
+  }
+  return out;
+}
 interface AdvertiserContext {
   advertiserId: string;
   advertiserName: string;
@@ -125,6 +159,8 @@ export async function POST(request: NextRequest) {
     const explicitStoreId = (formData.get('store_id') as string) || '';
     const currency = (formData.get('currency') as string) || 'USD';
     const promoUrlsRaw = (formData.get('promo_urls') as string) || '';
+    const categoryOverridesRaw =
+      (formData.get('category_overrides') as string) || '';
     if (!file) {
       return NextResponse.json(
         { success: false, error: 'No feed file uploaded' },
@@ -215,6 +251,7 @@ export async function POST(request: NextRequest) {
       prices,
       categories,
       promoMap,
+      categoryOverrides: parseCategoryOverrides(categoryOverridesRaw),
     });
     return NextResponse.json({
       success: true,
@@ -226,6 +263,11 @@ export async function POST(request: NextRequest) {
       totals: result.totals,
       entries: result.entries,
       categoryGroups: result.categoryGroups,
+      categoryOverrides: result.categoryOverrides,
+      internalCategories: categories.map((c) => ({
+        slug: c.slug,
+        name: c.name || c.slug,
+      })),
       promoCount: result.promoCount,
       unmappedCategories: result.unmappedCategories,
       promoErrors,

@@ -6,7 +6,18 @@ export type ChangeKind =
   | 'price_changed' // Existing product, current store price differs.
   | 'info_changed' // Existing product, name/description/image differs.
   | 'unchanged' // No meaningful difference.
+  | 'possible_match' // Fuzzy candidate: may be the same product, manual confirm.
   | 'missing'; // Existing Awin price row not present in the new feed.
+
+/** A fuzzy match candidate for one feed item. */
+export interface MatchCandidate {
+  productId: number;
+  slug: string;
+  name: string;
+  imageUrl: string | null;
+  score: number;
+  level: 'strong' | 'possible';
+}
 
 export interface PreviewPromo {
   currentPrice: number | null;
@@ -51,6 +62,12 @@ export interface PreviewEntry {
   /** Promotion info matched from a landing page, when any. */
   promo: PreviewPromo | null;
   brand: string;
+  /**
+   * Fuzzy candidates for a 'new' / 'possible_match' item, best first. For a
+   * 'possible_match' entry the chosen candidate is productId; the full list is
+   * kept so the user can switch or reject it.
+   */
+  matchCandidates: MatchCandidate[];
   /** Price rows touched for the Awin advertiser store (usually one). */
   prices: PreviewPrice[];
 }
@@ -78,6 +95,13 @@ export interface PreviewResponse {
   unmappedCategories: string[];
   /** Non-fatal problems while fetching/parsing promotion pages. */
   promoErrors: string[];
+  /**
+   * User-defined feed-category → internal-slug mapping in effect for this
+   * preview. Persisted client-side per site and echoed back.
+   */
+  categoryOverrides: Record<string, string>;
+  /** Internal categories (slug + English name) usable as mapping targets. */
+  internalCategories: Array<{ slug: string; name: string }>;
   error?: string;
 }
 /** Payload for a single committed entry after the user reviews it. */
@@ -93,6 +117,11 @@ export interface CommitEntry {
   imageUrl: string;
   category: string;
   brand: string;
+  /**
+   * When the user confirmed a fuzzy merge, the existing product id to merge
+   * into; null means create as new / no merge.
+   */
+  mergeProductId: number | null;
   prices: Array<{
     priceId: number | null;
     storeId: number | null;
