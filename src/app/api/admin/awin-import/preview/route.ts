@@ -76,11 +76,11 @@ async function resolveStore(
     .eq('language', 'en')
     .maybeSingle();
   if (byName) {
-    const name = await getStoreName(supabase, byName.storeId);
+    const name = await getStoreName(supabase, byName.store_id);
     return {
       advertiserId,
       advertiserName,
-      storeId: byName.storeId,
+      storeId: byName.store_id,
       storeName: name,
     };
   }

@@ -159,7 +159,7 @@ export function parsePrice(raw: string): number | null {
     normalized = cleaned.replace(/,/g, '');
   }
   const value = Number.parseFloat(normalized);
-  return Number.isFinite(value ? value : null;
+  return Number.isFinite(value) ? value : null;
 }
 function parseAvailability(raw: string | undefined): boolean {
   if (!raw) return true;
