@@ -6,7 +6,6 @@
  * import pipeline understands. This module is intentionally free of any
  * database / business-logic concerns so it can be reused for other networks.
  */
-
 export interface AwinRawRow {
   data_feed_id?: string;
   merchant_id?: string;
@@ -36,7 +35,6 @@ export interface AwinRawRow {
   product_type?: string;
   availability?: string;
 }
-
 export interface NormalizedFeedItem {
   awProductId: string;
   merchantProductId: string;
@@ -47,12 +45,13 @@ export interface NormalizedFeedItem {
   price: number | null;
   currency: string;
   deepLink: string;
+  /** Store's own product URL (used to match promotion pages). */
+  merchantUrl: string;
   imageUrl: string;
   category: string;
   brand: string;
   inStock: boolean;
 }
-
 /**
  * Parse a single CSV line, honoring double-quoted fields and escaped quotes
  * ("") inside them. Returns null for empty lines.
@@ -62,7 +61,6 @@ export function parseCsvLine(line: string): string[] | null {
   const fields: string[] = [];
   let current = '';
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (inQuotes) {
@@ -88,7 +86,6 @@ export function parseCsvLine(line: string): string[] | null {
   fields.push(current);
   return fields;
 }
-
 /**
  * Parse an Awin CSV document into normalized feed items.
  *
@@ -101,10 +98,8 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
   const lines = clean.split('\n');
   const headerLine = parseCsvLine(lines[0] ?? '');
   if (!headerLine) return [];
-
   const headers = headerLine.map((h) => h.trim());
   const items: NormalizedFeedItem[] = [];
-
   for (let i = 1; i < lines.length; i++) {
     const record = parseCsvLine(lines[i]);
     if (!record) continue;
@@ -113,12 +108,10 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
       // Only assign known keys; tolerate feeds with extra columns.
       (row as Record<string, string>)[key] = (record[idx] ?? '').trim();
     });
-
     const name = (row.product_name || row.title || '').trim();
     const awProductId = (row.aw_product_id || row.id || '').trim();
     // Skip rows with no usable name or identity (trailing blank lines etc.).
     if (!name && !awProductId) continue;
-
     const price = parsePrice(row.search_price || row.price || '');
     const deepLink = (row.aw_deep_link || row.link || row.merchant_deep_link || '').trim();
     const imageUrl = (
@@ -127,7 +120,6 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
       row.image_link ||
       ''
     ).trim();
-
     items.push({
       awProductId,
       merchantProductId: (row.merchant_product_id || '').trim(),
@@ -138,16 +130,15 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
       price,
       currency: defaultCurrency,
       deepLink,
+      merchantUrl: (row.merchant_deep_link || '').trim(),
       imageUrl,
       category: (row.merchant_category || row.category_name || row.product_type || '').trim(),
       brand: (row.brand_name || '').trim(),
       inStock: parseAvailability(row.availability),
     });
   }
-
   return items;
 }
-
 /**
  * Parse a price that may include a currency symbol / thousands separators,
  * e.g. "9.99", "$1,299.00", "9.99 USD". Returns null when unparseable.
@@ -157,7 +148,6 @@ export function parsePrice(raw: string): number | null {
   // Keep digits, dot and comma.
   const cleaned = raw.replace(/[^0-9.,]/g, '').trim();
   if (!cleaned) return null;
-
   // Heuristic: if a comma appears after the last dot, comma is the decimal
   // separator (e.g. 1.299,00); otherwise treat commas as thousands.
   const lastDot = cleaned.lastIndexOf('.');
@@ -169,9 +159,8 @@ export function parsePrice(raw: string): number | null {
     normalized = cleaned.replace(/,/g, '');
   }
   const value = Number.parseFloat(normalized);
-  return Number.isFinite(value) ? value : null;
+  return Number.isFinite(value ? value : null;
 }
-
 function parseAvailability(raw: string | undefined): boolean {
   if (!raw) return true;
   const v = raw.trim().toLowerCase();

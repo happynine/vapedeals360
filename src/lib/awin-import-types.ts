@@ -1,7 +1,6 @@
 /**
  * Shared types for the Awin feed import preview + commit pipeline.
  */
-
 export type ChangeKind =
   | 'new' // Not present in the database; will be created.
   | 'price_changed' // Existing product, current store price differs.
@@ -9,6 +8,12 @@ export type ChangeKind =
   | 'unchanged' // No meaningful difference.
   | 'missing'; // Existing Awin price row not present in the new feed.
 
+export interface PreviewPromo {
+  currentPrice: number | null;
+  originalPrice: number | null;
+  couponCode: string | null;
+  sourceUrl: string;
+}
 export interface PreviewPrice {
   /** Database price row id, when this price already exists. */
   priceId: number | null;
@@ -21,20 +26,17 @@ export interface PreviewPrice {
   newUrl: string | null;
   inStock: boolean;
 }
-
 export interface PreviewEntry {
   /** Stable client-side key. */
   key: string;
   kind: ChangeKind;
   /** Whether the row is selected for import (user can toggle). */
   selected: boolean;
-
   // Identity
   awProductId: string;
   merchantProductId: string;
   productId: number | null; // Existing product id when matched.
   slug: string;
-
   // Editable fields (for new / changed products).
   name: string;
   oldName: string | null;
@@ -44,12 +46,21 @@ export interface PreviewEntry {
   oldImageUrl: string | null;
   category: string; // Mapped internal category slug.
   categoryLabel: string; // Human label / original feed category.
+  /** Top-level feed category used for grouping/filtering, e.g. "Disposable Vapes". */
+  feedCategory: string;
+  /** Promotion info matched from a landing page, when any. */
+  promo: PreviewPromo | null;
   brand: string;
-
   /** Price rows touched for the Awin advertiser store (usually one). */
   prices: PreviewPrice[];
 }
-
+/** One group in the category filter bar. */
+export interface CategoryGroup {
+  key: string; // Stable key, '' for blank.
+  label: string;
+  count: number;
+  promoCount: number;
+}
 export interface PreviewResponse {
   success: boolean;
   advertiserId: string;
@@ -59,11 +70,16 @@ export interface PreviewResponse {
   generatedAt: string;
   totals: Record<ChangeKind, number>;
   entries: PreviewEntry[];
+  /** Category groups present in the feed. */
+  categoryGroups: CategoryGroup[];
+  /** Count of entries annotated with a promotion. */
+  promoCount: number;
   /** Categories in the feed that could not be mapped automatically. */
   unmappedCategories: string[];
+  /** Non-fatal problems while fetching/parsing promotion pages. */
+  promoErrors: string[];
   error?: string;
 }
-
 /** Payload for a single committed entry after the user reviews it. */
 export interface CommitEntry {
   kind: ChangeKind;
@@ -86,13 +102,11 @@ export interface CommitEntry {
     inStock: boolean;
   }>;
 }
-
 export interface CommitRequest {
   advertiserId: string;
   storeId: number;
   entries: CommitEntry[];
 }
-
 export interface CommitResponse {
   success: boolean;
   created: number;

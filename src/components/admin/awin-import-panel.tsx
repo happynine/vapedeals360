@@ -1,7 +1,6 @@
 'use client';
-
 import { useState } from 'react';
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2 } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,17 +10,12 @@ import type {
   PreviewResponse,
 } from '@/lib/awin-import-types';
 
-type FilterTab = 'all' | PreviewEntry['kind'];
-
-const KIND_META: Record<
-  PreviewEntry['kind'],
-  { label: string; color: string }
-> = {
-  new: { label: '新产品', color: 'text-blue-400' },
-  price_changed: { label: '价格/链接', color: 'text-green-400' },
-  info_changed: { label: '信息变动', color: 'text-yellow-400' },
-  unchanged: { label: '无变化', color: 'text-zinc-400' },
-  missing: { label: '待确认', color: 'text-orange-400' },
+const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
+  new: '新品',
+  price_changed: '价格/链接',
+  info_changed: '信息变动',
+  unchanged: '无变化',
+  missing: '待确认',
 };
 
 interface CommitSummary {
@@ -35,10 +29,12 @@ interface CommitSummary {
 export default function AwinImportPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [currency, setCurrency] = useState('USD');
+  const [promoUrls, setPromoUrls] = useState('');
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [entries, setEntries] = useState<PreviewEntry[]>([]);
-  const [filter, setFilter] = useState<FilterTab>('all');
+  const [catFilter, setCatFilter] = useState<string>('__all__');
+  const [onlyPromo, setOnlyPromo] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [summary, setSummary] = useState<CommitSummary | null>(null);
   const [error, setError] = useState('');
@@ -64,6 +60,7 @@ export default function AwinImportPanel() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('currency', currency);
+      fd.append('promo_urls', promoUrls);
       const res = await adminFetch('/api/admin/awin-import/preview', {
         method: 'POST',
         body: fd,
@@ -74,8 +71,8 @@ export default function AwinImportPanel() {
       }
       setPreview(data);
       setEntries(data.entries);
-      // Default to showing actionable rows first.
-      setFilter('all');
+      setCatFilter('__all__');
+      setOnlyPromo(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Preview failed');
     } finally {
@@ -88,6 +85,32 @@ export default function AwinImportPanel() {
       prev.map((e) => (e.key === key ? { ...e, ...patch } : e)),
     );
   };
+
+  // Which entries belong to the currently active category filter.
+  const inCategory = (e: PreviewEntry) =>
+    catFilter === '__all__'
+      ? e.kind !== 'missing'
+      : (e.feedCategory || '') === catFilter;
+
+  const visibleEntries = entries.filter(
+    (e) =>
+      inCategory(e) &&
+      (!onlyPromo || !!e.promo),
+  );
+
+  // Bulk select only over the rows currently visible (category + promo filter).
+  const setVisibleSelected = (value: boolean) => {
+    const keys = new Set(visibleEntries.map((e) => e.key));
+    setEntries((prev) =>
+      prev.map((e) => (keys.has(e.key) ? { ...e, selected: value } : e)),
+    );
+  };
+
+  // 'missing' rows only exist when viewing all categories.
+  const missingEntries = entries.filter((e) => e.kind === 'missing');
+  const shownMissing = catFilter === '__all__' ? missingEntries : [];
+
+  const selectedCount = entries.filter((e) => e.selected).length;
 
   const handleCommit = async () => {
     if (!preview) return;
@@ -134,11 +157,6 @@ export default function AwinImportPanel() {
     }
   };
 
-  const filtered = entries.filter(
-    (e) => filter === 'all' || e.kind === filter,
-  );
-  const selectedCount = entries.filter((e) => e.selected).length;
-
   return (
     <div className="space-y-4">
       {/* Upload controls */}
@@ -146,7 +164,7 @@ export default function AwinImportPanel() {
         <div>
           <h3 className="font-semibold text-white">Awin 联盟数据导入</h3>
           <p className="text-sm text-zinc-400 mt-1">
-            上传广告主的 Awin 产品 feed（.csv 或 .csv.gz），先预览对比、核对修改，确认后再导入。链接会替换为 Awin 佣金链接。
+            上传广告主的 Awin 产品 feed（.csv 或 .csv.gz），先按品类预览、核对促销，确认后再导入。佣金链接会自动替换原链接。
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -177,6 +195,16 @@ export default function AwinImportPanel() {
             生成预览
           </Button>
         </div>
+        {/* Promo page URLs */}
+        <label className="block text-xs text-zinc-400 space-y-1">
+          促销 / 优惠页网址（可选，每行一个，用于自动标注促销价、划线原价与优惠码）
+          <Textarea
+            value={promoUrls}
+            onChange={(e) => setPromoUrls(e.target.value)}
+            placeholder={'https://vapesourcing.com/remit.html\nhttps://vapesourcing.com/sale.html'}
+            className="text-xs text-zinc-200 h-16"
+          />
+        </label>
         {error && (
           <p className="text-sm text-red-400 flex items-center gap-1">
             <AlertTriangle className="w-4 h-4" /> {error}
@@ -184,59 +212,107 @@ export default function AwinImportPanel() {
         )}
       </div>
 
-      {/* Summary + filters */}
+      {/* Summary + category filters */}
       {preview && (
         <>
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 space-y-3">
+            <div className="text-sm text-zinc-300">
+              广告主：<span className="text-white font-medium">{preview.advertiserName}</span>
+              {' '}（ID {preview.advertiserId}） · 店铺：
+              <span className="text-white font-medium">{preview.storeName}</span>
+              {preview.promoCount > 0 && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded bg-pink-600/20 border border-pink-500/40 px-2 py-0.5 text-xs text-pink-300">
+                  <Tag className="w-3 h-3" /> 促销匹配 {preview.promoCount}
+                </span>
+              )}
+            </div>
+
+            {/* Category chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              <CatChip
+                active={catFilter === '__all__'}
+                onClick={() => setCatFilter('__all__')}
+                label="全部品类"
+                count={preview.categoryGroups.reduce((s, g) => s + g.count, 0)}
+                promo={preview.promoCount}
+              />
+              {preview.categoryGroups.map((g) => (
+                <CatChip
+                  key={g.key || '__blank__'}
+                  active={catFilter === g.key}
+                  onClick={() => setCatFilter(g.key)}
+                  label={g.label}
+                  count={g.count}
+                  promo={g.promoCount}
+                />
+              ))}
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm text-zinc-300">
-                广告主：<span className="text-white font-medium">{preview.advertiserName}</span>
-                {' '}（ID {preview.advertiserId}） · 店铺：
-                <span className="text-white font-medium">{preview.storeName}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                {(['new', 'price_changed', 'info_changed', 'unchanged', 'missing'] as const).map(
-                  (k) => (
-                    <button
-                      key={k}
-                      onClick={() => setFilter(k)}
-                      className={`${KIND_META[k].color} ${
-                        filter === k ? 'font-bold underline' : ''
-                      }`}
-                    >
-                      {KIND_META[k].label} {preview.totals[k]}
-                    </button>
-                  ),
-                )}
-                <button
-                  onClick={() => setFilter('all')}
-                  className={`text-zinc-300 ${filter === 'all' ? 'font-bold underline' : ''}`}
+              <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                <Checkbox
+                  checked={onlyPromo}
+                  onCheckedChange={(v) => setOnlyPromo(v === true)}
+                />
+                仅看促销产品
+              </label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleSelected(true)}
+                  className="text-xs h-7 border-zinc-600 text-zinc-200 hover:bg-zinc-800"
                 >
-                  全部
-                </button>
+                  勾选当前列表
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleSelected(false)}
+                  className="text-xs h-7 border-zinc-600 text-zinc-200 hover:bg-zinc-800"
+                >
+                  取消当前列表
+                </Button>
               </div>
             </div>
+
             {preview.unmappedCategories.length > 0 && (
               <p className="text-xs text-yellow-500">
-                {preview.unmappedCategories.length} 个分类未自动匹配，已按名称生成，导入前请核对分类列。
+                {preview.unmappedCategories.length} 个分类未自动匹配站内分类，导入时会按名称新建，导入前请在下方「分类」列核对。
               </p>
+            )}
+            {preview.promoErrors.length > 0 && (
+              <div className="rounded border border-yellow-700/40 bg-yellow-900/10 px-2 py-1 text-xs text-yellow-400 space-y-0.5">
+                <p className="flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> 部分促销页未取到（不影响主流程）：</p>
+                {preview.promoErrors.slice(0, 5).map((e, i) => (
+                  <p key={i} className="break-all pl-4">{e}</p>
+                ))}
+              </div>
             )}
           </div>
 
           {/* Entries */}
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-            {filtered.map((entry) => (
+            {visibleEntries.map((entry) => (
               <EntryRow
                 key={entry.key}
                 entry={entry}
                 onChange={(patch) => updateEntry(entry.key, patch)}
               />
             ))}
-            {filtered.length === 0 && (
+            {visibleEntries.length === 0 && (
               <p className="text-sm text-zinc-500 text-center py-6">
                 当前筛选下没有记录
               </p>
             )}
+            {/* Missing rows */}
+            {shownMissing.map((entry) => (
+              <EntryRow
+                key={entry.key}
+                entry={entry}
+                onChange={(patch) => updateEntry(entry.key, patch)}
+              />
+            ))}
           </div>
 
           {/* Commit bar */}
@@ -288,6 +364,35 @@ export default function AwinImportPanel() {
   );
 }
 
+function CatChip({
+  active,
+  onClick,
+  label,
+  count,
+  promo,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+  promo: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+        active
+          ? 'border-purple-400 bg-purple-500/20 text-white'
+          : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500'
+      }`}
+    >
+      {label}
+      <span className="text-zinc-400">{count}</span>
+      {promo > 0 && <span className="text-pink-400">·{promo}促</span>}
+    </button>
+  );
+}
+
 function EntryRow({
   entry,
   onChange,
@@ -295,14 +400,14 @@ function EntryRow({
   entry: PreviewEntry;
   onChange: (patch: Partial<PreviewEntry>) => void;
 }) {
-  const meta = KIND_META[entry.kind];
   const price = entry.prices[0];
   const linkChanged =
     price?.oldUrl &&
     price?.newUrl &&
     price.oldUrl !== price.newUrl &&
     entry.kind !== 'new';
-
+  // Struck-through original: prefer promo page value, fall back to nothing.
+  const strikeOld = entry.promo?.originalPrice ?? price?.oldPrice ?? null;
   return (
     <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
       <div className="flex items-start gap-3">
@@ -321,15 +426,24 @@ function EntryRow({
         )}
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-semibold ${meta.color}`}>
-              {meta.label}
-            </span>
+            <span className="text-xs text-zinc-500">{KIND_LABEL[entry.kind]}</span>
             <span className="text-sm text-white font-medium truncate">
               {entry.name || entry.slug}
             </span>
+            {entry.promo && (
+              <span className="inline-flex items-center gap-1 rounded bg-pink-600/20 border border-pink-500/40 px-1.5 py-0.5 text-[10px] text-pink-300">
+                <Tag className="w-2.5 h-2.5" /> 促销
+                {entry.promo.couponCode && (
+                  <span className="font-mono">{entry.promo.couponCode}</span>
+                )}
+              </span>
+            )}
           </div>
-          {entry.merchantProductId && (
-            <p className="text-xs text-zinc-500">SKU: {entry.merchantProductId}</p>
+          {(entry.merchantProductId || entry.feedCategory) && (
+            <p className="text-xs text-zinc-500">
+              {entry.feedCategory}
+              {entry.merchantProductId ? ` · SKU ${entry.merchantProductId}` : ''}
+            </p>
           )}
         </div>
         {/* Price */}
@@ -338,13 +452,13 @@ function EntryRow({
             <span className="text-sm text-orange-400">本次 feed 未返回</span>
           ) : (
             <>
-              {price?.oldPrice !== null && price?.oldPrice !== undefined && (
+              {strikeOld !== null && (
                 <span className="text-xs text-zinc-500 line-through mr-2">
-                  {price.oldPrice}
+                  {strikeOld}
                 </span>
               )}
               <span className="text-sm font-semibold text-green-400">
-                {price?.newPrice ?? '—'} {price?.currency}
+                {entry.promo?.currentPrice ?? price?.newPrice ?? '—'} {price?.currency}
               </span>
             </>
           )}
@@ -362,7 +476,7 @@ function EntryRow({
         </div>
       )}
 
-      {/* Editable fields: shown for selected actionable rows */}
+      {/* Editable fields for selected actionable rows */}
       {entry.selected && entry.kind !== 'missing' && entry.kind !== 'unchanged' && (
         <div className="ml-7 grid grid-cols-1 md:grid-cols-2 gap-2">
           <label className="text-xs text-zinc-400 space-y-1">
@@ -405,10 +519,9 @@ function EntryRow({
           </label>
         </div>
       )}
-
       {entry.kind === 'missing' && entry.selected && (
         <p className="ml-7 text-xs text-orange-400">
-          将把该店价格行标记为缺货（不删除），你也可以取消勾选以原样保留。
+          将把该店价格行标记为缺货（不删除），也可取消勾选原样保留。
         </p>
       )}
     </div>

@@ -10,7 +10,7 @@ import {
   type DbPriceRow,
   type DbProductRow,
 } from '@/lib/awin-compare';
-
+import { buildPromoMap } from '@/lib/promo-page';
 /**
  * Decompress gzip content when the uploaded bytes look gzipped (magic 1f 8b).
  */
@@ -19,14 +19,19 @@ function maybeGunzip(bytes: Uint8Array): string {
   const buf = isGzip ? gunzipSync(Buffer.from(bytes)) : Buffer.from(bytes);
   return buf.toString('utf8');
 }
-
+/** Split a newline-separated promo URL list into trimmed unique URLs. */
+function parsePromoUrls(raw: string): string[] {
+  return raw
+    .split(/[\r\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
 interface AdvertiserContext {
   advertiserId: string;
   advertiserName: string;
   storeId: number;
   storeName: string;
 }
-
 /**
  * Resolve the Awin advertiser to an internal store. Explicit form fields take
  * precedence; otherwise find a store whose slug/name matches the advertiser,
@@ -52,7 +57,6 @@ async function resolveStore(
       }
     }
   }
-
   const slug = slugify(advertiserName);
   // Try matching an existing store by slug.
   const { data: bySlug } = await supabase
@@ -72,16 +76,15 @@ async function resolveStore(
     .eq('language', 'en')
     .maybeSingle();
   if (byName) {
-    const name = await getStoreName(supabase, byName.store_id);
+    const name = await getStoreName(supabase, byName.storeId);
     return {
       advertiserId,
       advertiserName,
-      storeId: byName.store_id,
+      storeId: byName.storeId,
       storeName: name,
     };
   }
-
-  // Create a new store for this advertiser.
+  // Create a new store for the advertiser.
   const { data: created, error } = await supabase
     .from('stores')
     .insert({ slug, website_url: '', is_active: true })
@@ -102,7 +105,6 @@ async function resolveStore(
     storeName: advertiserName,
   };
 }
-
 async function getStoreName(
   supabase: ReturnType<typeof getServiceRoleClient>,
   storeId: number,
@@ -115,23 +117,20 @@ async function getStoreName(
     .maybeSingle();
   return data?.name || `Store #${storeId}`;
 }
-
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
-
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const explicitStoreId = (formData.get('store_id') as string) || '';
     const currency = (formData.get('currency') as string) || 'USD';
-
+    const promoUrlsRaw = (formData.get('promo_urls') as string) || '';
     if (!file) {
       return NextResponse.json(
         { success: false, error: 'No feed file uploaded' },
         { status: 400 },
       );
     }
-
     const bytes = new Uint8Array(await file.arrayBuffer());
     const text = maybeGunzip(bytes);
     const feedItems: NormalizedFeedItem[] = parseAwinCsv(text, currency);
@@ -141,13 +140,15 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
+    // Fetch promotion pages (non-fatal).
+    const { map: promoMap, errors: promoErrors } = await buildPromoMap(
+      parsePromoUrls(promoUrlsRaw),
+    );
     // All rows in one Awin feed belong to the same advertiser.
     const advertiserId =
       feedItems.find((f) => f.merchantId)?.merchantId || '';
     const advertiserName =
       feedItems.find((f) => f.merchantName)?.merchantName || 'Unknown Advertiser';
-
     const supabase = getServiceRoleClient();
     const ctx = await resolveStore(
       supabase,
@@ -155,35 +156,29 @@ export async function POST(request: NextRequest) {
       advertiserName,
       explicitStoreId,
     );
-
     // Fetch current catalog state.
     const { data: productRows, error: productError } = await supabase
       .from('products')
       .select('id, slug, image_url, aw_product_id, merchant_product_id');
     if (productError) throw productError;
-
     const { data: translationRows, error: translationError } = await supabase
       .from('product_translations')
       .select('product_id, language, name, description')
       .eq('language', 'en');
     if (translationError) throw translationError;
-
     const { data: priceRows, error: priceError } = await supabase
       .from('product_prices')
       .select('id, product_id, store_id, current_price, product_url, in_stock, currency');
     if (priceError) throw priceError;
-
     const { data: categoryRows, error: categoryError } = await supabase
       .from('categories')
       .select('id, slug');
     if (categoryError) throw categoryError;
-
     const { data: categoryTranslationRows, error: ctError } = await supabase
       .from('category_translations')
       .select('category_id, language, name')
       .eq('language', 'en');
     if (ctError) throw ctError;
-
     // Merge translations into the products.
     const trByProduct = new Map(
       (translationRows ?? []).map((t) => [t.product_id, t]),
@@ -200,9 +195,7 @@ export async function POST(request: NextRequest) {
         description: t?.description ?? null,
       };
     });
-
     const prices: DbPriceRow[] = priceRows ?? [];
-
     // Merge category translations.
     const ctById = new Map(
       (categoryTranslationRows ?? []).map((c) => [c.category_id, c]),
@@ -212,7 +205,6 @@ export async function POST(request: NextRequest) {
       slug: c.slug,
       name: ctById.get(c.id)?.name ?? null,
     }));
-
     const result = buildPreview({
       advertiserId,
       advertiserName,
@@ -222,8 +214,8 @@ export async function POST(request: NextRequest) {
       products,
       prices,
       categories,
+      promoMap,
     });
-
     return NextResponse.json({
       success: true,
       advertiserId,
@@ -233,7 +225,10 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
       totals: result.totals,
       entries: result.entries,
+      categoryGroups: result.categoryGroups,
+      promoCount: result.promoCount,
       unmappedCategories: result.unmappedCategories,
+      promoErrors,
     });
   } catch (error) {
     console.error('Awin preview error:', error);

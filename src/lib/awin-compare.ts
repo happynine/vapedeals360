@@ -3,14 +3,16 @@
  * database contents. No I/O here — the route layer fetches rows and passes
  * them in, which keeps this module deterministic and testable.
  */
-
 import type { NormalizedFeedItem } from './awin-feed';
 import type {
+  CategoryGroup,
   ChangeKind,
   PreviewEntry,
   PreviewPrice,
+  PreviewPromo,
 } from './awin-import-types';
-
+import type { PromoInfo } from './promo-page';
+import { productPath } from './promo-page';
 export interface DbProductRow {
   id: number;
   slug: string;
@@ -20,7 +22,6 @@ export interface DbProductRow {
   name?: string | null; // merged en translation
   description?: string | null; // merged en translation
 }
-
 export interface DbPriceRow {
   id: number;
   product_id: number;
@@ -30,13 +31,11 @@ export interface DbPriceRow {
   in_stock: boolean | null;
   currency: string | null;
 }
-
 export interface DbCategoryRow {
   id: number;
   slug: string;
   name?: string | null; // merged en translation
 }
-
 export interface CompareInput {
   advertiserId: string;
   advertiserName: string;
@@ -46,14 +45,16 @@ export interface CompareInput {
   products: DbProductRow[];
   prices: DbPriceRow[];
   categories: DbCategoryRow[];
+  /** Promotion info keyed by the store product pathname. */
+  promoMap?: Map<string, PromoInfo>;
 }
-
 export interface CompareResult {
   entries: PreviewEntry[];
   totals: Record<ChangeKind, number>;
   unmappedCategories: string[];
+  categoryGroups: CategoryGroup[];
+  promoCount: number;
 }
-
 const EMPTY_TOTALS: Record<ChangeKind, number> = {
   new: 0,
   price_changed: 0,
@@ -61,12 +62,10 @@ const EMPTY_TOTALS: Record<ChangeKind, number> = {
   unchanged: 0,
   missing: 0,
 };
-
 /** Normalize text for comparison: collapse whitespace, lowercase. */
 function normText(value: string | null | undefined): string {
   return (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
-
 /** URL-friendly slug. */
 export function slugify(input: string): string {
   return input
@@ -77,13 +76,14 @@ export function slugify(input: string): string {
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
-
+/** Top-level feed category (first segment before / or >), blank when none. */
+export function topCategory(value: string): string {
+  return (value.split(/[/>]/)[0] || '').trim();
+}
 /** Normalize a category name for matching (take first segment, strip symbols). */
 function categoryKey(value: string): string {
-  const first = value.split(/[/>]/)[0] || value;
-  return normText(first);
+  return normText(topCategory(value));
 }
-
 /**
  * Map a feed category string to an internal category slug using existing
  * database categories. Returns null when no confident match exists.
@@ -105,13 +105,19 @@ function mapCategory(
   }
   return null;
 }
-
 function toNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === '') return null;
   const n = typeof value === 'number' ? value : Number.parseFloat(String(value));
   return Number.isFinite(n) ? n : null;
 }
-
+function toPreviewPromo(p: PromoInfo): PreviewPromo {
+  return {
+    currentPrice: p.currentPrice,
+    originalPrice: p.originalPrice,
+    couponCode: p.couponCode,
+    sourceUrl: p.sourceUrl,
+  };
+}
 /**
  * Build a preview comparing feed items against DB state for one advertiser.
  */
@@ -122,8 +128,8 @@ export function buildPreview(input: CompareInput): CompareResult {
     products,
     prices,
     categories,
+    promoMap,
   } = input;
-
   // Indexes of existing products.
   const byMerchantSku = new Map<string, DbProductRow>();
   const byAwId = new Map<string, DbProductRow>();
@@ -139,7 +145,6 @@ export function buildPreview(input: CompareInput): CompareResult {
       byName.set(normText(p.name), p);
     }
   }
-
   // Prices at the target advertiser store, grouped by product.
   const pricesByProduct = new Map<number, DbPriceRow[]>();
   for (const pr of prices) {
@@ -148,12 +153,10 @@ export function buildPreview(input: CompareInput): CompareResult {
     list.push(pr);
     pricesByProduct.set(pr.product_id, list);
   }
-
   const entries: PreviewEntry[] = [];
   const matchedProductIds = new Set<number>();
   const unmapped = new Set<string>();
   const usedSlugs = new Set<string>(products.map((p) => p.slug));
-
   for (const item of feedItems) {
     // Match with priority: merchant SKU -> Awin id -> exact name.
     const matched =
@@ -161,19 +164,20 @@ export function buildPreview(input: CompareInput): CompareResult {
       (item.awProductId && byAwId.get(normText(item.awProductId))) ||
       (item.name && byName.get(normText(item.name))) ||
       null;
-
+    const feedCategory = topCategory(item.category);
+    const promo =
+      (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
+      null;
     let categorySlug = mapCategory(item.category, categories);
     if (!categorySlug && item.category) {
-      categorySlug = slugify(item.category.split(/[/>]/)[0] || item.category);
+      categorySlug = slugify(topCategory(item.category) || item.category);
       unmapped.add(item.category);
     }
     if (!categorySlug) categorySlug = 'uncategorized';
-
     if (matched) {
       matchedProductIds.add(matched.id);
       const existingPrices = pricesByProduct.get(matched.id) ?? [];
       const oldRow = existingPrices[0] ?? null;
-
       const oldPrice = toNumber(oldRow?.current_price ?? null);
       const priceChanged =
         item.price !== null && oldPrice !== null && item.price !== oldPrice;
@@ -182,7 +186,6 @@ export function buildPreview(input: CompareInput): CompareResult {
         !!oldRow?.product_url &&
         normText(oldRow.product_url) !== normText(item.deepLink);
       const priceMissingBefore = oldRow === null && item.price !== null;
-
       const nameChanged =
         !!matched.name && normText(matched.name) !== normText(item.name);
       const descChanged =
@@ -191,7 +194,6 @@ export function buildPreview(input: CompareInput): CompareResult {
       const imageChanged =
         !!matched.image_url &&
         normText(matched.image_url) !== normText(item.imageUrl);
-
       let kind: ChangeKind;
       if (priceChanged || linkChanged || priceMissingBefore) {
         kind = 'price_changed';
@@ -200,7 +202,6 @@ export function buildPreview(input: CompareInput): CompareResult {
       } else {
         kind = 'unchanged';
       }
-
       const previewPrice: PreviewPrice = {
         priceId: oldRow?.id ?? null,
         storeId: targetStoreId,
@@ -212,12 +213,11 @@ export function buildPreview(input: CompareInput): CompareResult {
         newUrl: item.deepLink || oldRow?.product_url || null,
         inStock: item.inStock,
       };
-
       entries.push({
         key: `p-${matched.id}`,
         kind,
-        // Auto-select actionable changes; leave unchanged rows unselected.
-        selected: kind !== 'unchanged',
+        // Nothing auto-selected: the user chooses by category explicitly.
+        selected: false,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
         productId: matched.id,
@@ -230,6 +230,8 @@ export function buildPreview(input: CompareInput): CompareResult {
         oldImageUrl: matched.image_url ?? null,
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
+        feedCategory,
+        promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         prices: [previewPrice],
       });
@@ -245,11 +247,10 @@ export function buildPreview(input: CompareInput): CompareResult {
         n++;
       }
       usedSlugs.add(slug);
-
       entries.push({
         key: `n-${item.awProductId || slug}`,
         kind: 'new',
-        selected: true,
+        selected: false,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
         productId: null,
@@ -262,6 +263,8 @@ export function buildPreview(input: CompareInput): CompareResult {
         oldImageUrl: null,
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
+        feedCategory,
+        promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         prices: [
           {
@@ -279,7 +282,6 @@ export function buildPreview(input: CompareInput): CompareResult {
       });
     }
   }
-
   // Missing: products with an existing price at this store that were not in
   // the feed at all. These require a manual keep/hide decision.
   for (const [productId, rowList] of pricesByProduct) {
@@ -303,6 +305,8 @@ export function buildPreview(input: CompareInput): CompareResult {
       oldImageUrl: product.image_url ?? null,
       category: '',
       categoryLabel: '',
+      feedCategory: '',
+      promo: null,
       brand: '',
       prices: [
         {
@@ -319,13 +323,35 @@ export function buildPreview(input: CompareInput): CompareResult {
       ],
     });
   }
-
   const totals = { ...EMPTY_TOTALS };
   for (const e of entries) totals[e.kind]++;
-
+  // Build category groups from feed-sourced entries (exclude 'missing').
+  const groupOrder: string[] = [];
+  const groupCount = new Map<string, number>();
+  const groupPromo = new Map<string, number>();
+  for (const e of entries) {
+    if (e.kind === 'missing') continue;
+    const g = e.feedCategory || 'Uncategorized';
+    if (!groupCount.has(g)) {
+      groupCount.set(g, 0);
+      groupPromo.set(g, 0);
+      groupOrder.push(g);
+    }
+    groupCount.set(g, (groupCount.get(g) ?? 0) + 1);
+    if (e.promo) groupPromo.set(g, (groupPromo.get(g) ?? 0) + 1);
+  }
+  const categoryGroups: CategoryGroup[] = groupOrder.map((label) => ({
+    key: label === 'Uncategorized' ? '' : label,
+    label,
+    count: groupCount.get(label) ?? 0,
+    promoCount: groupPromo.get(label) ?? 0,
+  }));
+  const promoCount = entries.filter((e) => e.promo).length;
   return {
     entries,
     totals,
     unmappedCategories: Array.from(unmapped),
+    categoryGroups,
+    promoCount,
   };
 }
