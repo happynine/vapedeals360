@@ -14,10 +14,7 @@ import type {
 } from './awin-import-types';
 import type { PromoInfo } from './promo-page';
 import { productPath } from './promo-page';
-// STUB for bisect
-function scoreSimilarity(): { score: number; level: 'none' } {
-  return { score: 0, level: 'none' };
-}
+import { scoreSimilarity } from './product-similarity';
 export interface DbProductRow {
   id: number;
   slug: string;
