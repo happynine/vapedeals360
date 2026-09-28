@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2, Tag, Settings2, GitMerge } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,7 +16,6 @@ const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
   info_changed: '信息变动',
   unchanged: '无变化',
   missing: '待确认',
-  possible_match: '疑似重复',
 };
 
 interface CommitSummary {
@@ -39,28 +38,6 @@ export default function AwinImportPanel() {
   const [committing, setCommitting] = useState(false);
   const [summary, setSummary] = useState<CommitSummary | null>(null);
   const [error, setError] = useState('');
-  // User-defined feed-category → internal-slug mapping, keyed per advertiser.
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
-  const [showMapping, setShowMapping] = useState(false);
-
-  const storageKey = (advertiserId?: string) =>
-    `awin_cat_overrides_${advertiserId || 'default'}`;
-  const loadOverrides = (advertiserId: string) => {
-    try {
-      const raw = localStorage.getItem(storageKey(advertiserId));
-      setOverrides(raw ? JSON.parse(raw) : {});
-    } catch {
-      setOverrides({});
-    }
-  };
-  const saveOverrides = (advertiserId: string, next: Record<string, string>) => {
-    setOverrides(next);
-    try {
-      localStorage.setItem(storageKey(advertiserId), JSON.stringify(next));
-    } catch {
-      // ignore persistence failures
-    }
-  };
 
   const adminFetch = (url: string, init?: RequestInit) =>
     fetch(url, {
@@ -84,7 +61,6 @@ export default function AwinImportPanel() {
       fd.append('file', file);
       fd.append('currency', currency);
       fd.append('promo_urls', promoUrls);
-      fd.append('category_overrides', JSON.stringify(overrides));
       const res = await adminFetch('/api/admin/awin-import/preview', {
         method: 'POST',
         body: fd,
@@ -95,7 +71,6 @@ export default function AwinImportPanel() {
       }
       setPreview(data);
       setEntries(data.entries);
-      loadOverrides(data.advertiserId);
       setCatFilter('__all__');
       setOnlyPromo(false);
     } catch (e) {
@@ -151,8 +126,6 @@ export default function AwinImportPanel() {
           awProductId: e.awProductId,
           merchantProductId: e.merchantProductId,
           productId: e.productId,
-          mergeProductId:
-            e.kind === 'possible_match' && e.selected ? e.productId : null,
           slug: e.slug,
           name: e.name,
           description: e.description,
@@ -243,86 +216,16 @@ export default function AwinImportPanel() {
       {preview && (
         <>
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-sm text-zinc-300">
-                广告主：<span className="text-white font-medium">{preview.advertiserName}</span>
-                {' '}（ID {preview.advertiserId}） · 店铺：
-                <span className="text-white font-medium">{preview.storeName}</span>
-                {preview.promoCount > 0 && (
-                  <span className="ml-2 inline-flex items-center gap-1 rounded bg-pink-600/20 border border-pink-500/40 px-2 py-0.5 text-xs text-pink-300">
-                    <Tag className="w-3 h-3" /> 促销匹配 {preview.promoCount}
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowMapping((v) => !v)}
-                className="text-xs h-7 border-zinc-600 text-zinc-200 hover:bg-zinc-800"
-              >
-                <Settings2 className="w-3.5 h-3.5 mr-1" />
-                设置映射关系
-              </Button>
+            <div className="text-sm text-zinc-300">
+              广告主：<span className="text-white font-medium">{preview.advertiserName}</span>
+              {' '}（ID {preview.advertiserId}） · 店铺：
+              <span className="text-white font-medium">{preview.storeName}</span>
+              {preview.promoCount > 0 && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded bg-pink-600/20 border border-pink-500/40 px-2 py-0.5 text-xs text-pink-300">
+                  <Tag className="w-3 h-3" /> 促销匹配 {preview.promoCount}
+                </span>
+              )}
             </div>
-
-            {/* Category mapping editor */}
-            {showMapping && (
-              <div className="rounded border border-zinc-700 bg-zinc-900 p-3 space-y-2">
-                <p className="text-xs text-zinc-400">
-                  为每个 feed 品类指定站内分类（不同广告主可不同，自动保存在本浏览器）。修改后点「应用并重新预览」生效。
-                </p>
-                <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                  {preview.categoryGroups.map((g) => (
-                    <div key={g.key || '__blank__'} className="flex items-center gap-2">
-                      <span className="text-xs text-zinc-300 w-44 truncate flex-shrink-0">
-                        {g.label}
-                      </span>
-                      <span className="text-zinc-600">→</span>
-                      <select
-                        value={overrides[g.key] || ''}
-                        onChange={(e) =>
-                          saveOverrides(preview.advertiserId, {
-                            ...overrides,
-                            [g.key]: e.target.value,
-                          })
-                        }
-                        className="flex-1 rounded bg-zinc-800 border border-zinc-700 px-2 py-1 text-xs text-zinc-200"
-                      >
-                        <option value="">自动判定</option>
-                        {preview.internalCategories.map((c) => (
-                          <option key={c.slug} value={c.slug}>
-                            {c.name}（{c.slug}）
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    onClick={handlePreview}
-                    disabled={loading}
-                    className="text-xs h-7 bg-purple-600 hover:bg-purple-700"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                    ) : null}
-                    应用并重新预览
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      saveOverrides(preview.advertiserId, {})
-                    }
-                    className="text-xs h-7 border-zinc-600 text-zinc-300 hover:bg-zinc-800"
-                  >
-                    清空自定义
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {/* Category chips */}
             <div className="flex flex-wrap items-center gap-2">
@@ -562,51 +465,6 @@ function EntryRow({
         </div>
       </div>
 
-      {/* Fuzzy merge candidates */}
-      {entry.kind === 'possible_match' && entry.matchCandidates.length > 0 && (
-        <div className="ml-7 rounded bg-blue-500/10 border border-blue-500/30 px-2 py-2 space-y-1.5">
-          <p className="text-blue-300 text-xs flex items-center gap-1">
-            <GitMerge className="w-3.5 h-3.5" />
-            可能与现有产品重复，选择要合并到的产品（仅勾选后才会执行）：
-          </p>
-          {entry.matchCandidates.map((c) => {
-            const active = entry.productId === c.productId;
-            return (
-              <button
-                key={c.productId}
-                type="button"
-                onClick={() => onChange({ productId: c.productId })}
-                className={`w-full flex items-center gap-2 rounded border px-2 py-1 text-left text-xs transition-colors ${
-                  active
-                    ? 'border-blue-400 bg-blue-500/20'
-                    : 'border-zinc-700 bg-zinc-900/60 hover:border-zinc-500'
-                }`}
-              >
-                {c.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-zinc-800 flex-shrink-0" />
-                )}
-                <span className="flex-1 min-w-0 text-zinc-200 truncate">{c.name}</span>
-                <span className={c.level === 'strong' ? 'text-green-400' : 'text-yellow-500'}>
-                  {c.level === 'strong' ? '高度相似' : '可能相似'} {Math.round(c.score * 100)}%
-                </span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => onChange({ productId: null })}
-            className={`w-full rounded border px-2 py-1 text-left text-xs transition-colors ${
-              entry.productId === null
-                ? 'border-zinc-400 bg-zinc-700/40 text-zinc-100'
-                : 'border-zinc-700 bg-zinc-900/60 text-zinc-400 hover:border-zinc-500'
-            }`}
-          >
-            都不是，作为新品导入
-          </button>
-        </div>
-      )}
-
       {/* Link change highlight */}
       {linkChanged && (
         <div className="ml-7 rounded bg-orange-500/10 border border-orange-500/30 px-2 py-1 text-xs space-y-1">
@@ -619,10 +477,7 @@ function EntryRow({
       )}
 
       {/* Editable fields for selected actionable rows */}
-      {entry.selected &&
-        entry.kind !== 'missing' &&
-        entry.kind !== 'unchanged' &&
-        !(entry.kind === 'possible_match' && entry.productId !== null) && (
+      {entry.selected && entry.kind !== 'missing' && entry.kind !== 'unchanged' && (
         <div className="ml-7 grid grid-cols-1 md:grid-cols-2 gap-2">
           <label className="text-xs text-zinc-400 space-y-1">
             名称
@@ -664,13 +519,6 @@ function EntryRow({
           </label>
         </div>
       )}
-      {entry.kind === 'possible_match' && entry.selected && (
-        <p className="ml-7 text-xs text-blue-400">
-          {entry.productId !== null
-            ? `将把该店的价格/链接更新到现有产品 #${entry.productId}，不会新建重复产品。`
-            : '未选择合并目标，将作为新品创建。'}
-        </p>
-      )}
       {entry.kind === 'missing' && entry.selected && (
         <p className="ml-7 text-xs text-orange-400">
           将把该店价格行标记为缺货（不删除），也可取消勾选原样保留。
@@ -679,3 +527,4 @@ function EntryRow({
     </div>
   );
 }
+
