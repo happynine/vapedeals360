@@ -85,6 +85,14 @@ function categoryKey(value: string): string {
   return normText(topCategory(value));
 }
 /**
+ * Explicit feed-category → internal-slug aliases. These take priority over
+ * automatic matching so a feed name without an exact internal counterpart is
+ * routed to the intended existing category instead of creating a duplicate.
+ */
+const CATEGORY_ALIASES: Record<string, string> = {
+  'vape kit': 'pod-systems',
+};
+/**
  * Map a feed category string to an internal category slug using existing
  * database categories. Returns null when no confident match exists.
  */
@@ -94,6 +102,9 @@ function mapCategory(
 ): string | null {
   const key = categoryKey(feedCategory);
   if (!key) return null;
+  // 1. Explicit alias (only when the target category actually exists).
+  const alias = CATEGORY_ALIASES[key];
+  if (alias && categories.some((c) => c.slug === alias)) return alias;
   for (const c of categories) {
     if (categoryKey(c.slug) === key) return c.slug;
     if (categoryKey(c.name || '') === key) return c.slug;
