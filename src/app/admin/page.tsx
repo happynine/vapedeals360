@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import AwinImportPanel from '@/components/admin/awin-import-panel';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ImageUpload } from '@/components/image-upload';
@@ -1617,6 +1618,11 @@ export default function AdminPage() {
                     />
                   </label>
                 </div>
+              </div>
+
+              {/* Awin affiliate feed import */}
+              <div className="mt-6">
+                <AwinImportPanel />
               </div>
             </div>
           )}
