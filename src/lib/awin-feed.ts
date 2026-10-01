@@ -156,8 +156,11 @@ export function dedupeFeedItems(items: NormalizedFeedItem[]): NormalizedFeedItem
   const out: NormalizedFeedItem[] = [];
   for (const item of items) {
     // Prefer the store's own SKU, fall back to the Awin product id; only
-    // dedupe when we have a stable identity.
-    const key = item.merchantProductId || item.awProductId || '';
+    // dedupe when we have a stable identity. Scope the key by advertiser so
+    // the same factory SKU sold by several merchants stays as separate rows.
+    const identity = item.merchantProductId || item.awProductId || '';
+    const advKey = item.merchantId || item.merchantName || 'unknown';
+    const key = identity ? `${advKey}::${identity}` : '';
     if (!key) {
       out.push({ ...item, extraCategories: [] });
       continue;
@@ -206,4 +209,53 @@ function parseAvailability(raw: string | undefined): boolean {
   // Explicit out-of-stock / unavailable means not sellable; anything else is in stock.
   if (v.startsWith('out') || v === 'unavailable') return false;
   return true;
+}
+
+/** Summary of one advertiser discovered inside a (possibly multi-merchant) feed. */
+export interface AdvertiserSummary {
+  advertiserId: string;
+  advertiserName: string;
+  productCount: number;
+  currency: string;
+}
+
+/**
+ * Group already-parsed + deduped feed items by advertiser. A single Awin feed
+ * file can contain several merchants, so callers must never assume one.
+ */
+export function groupByAdvertiser(
+  items: NormalizedFeedItem[],
+): Map<string, NormalizedFeedItem[]> {
+  const groups = new Map<string, NormalizedFeedItem[]>();
+  for (const item of items) {
+    const key = item.merchantId || item.merchantName || 'unknown';
+    const list = groups.get(key);
+    if (list) list.push(item);
+    else groups.set(key, [item]);
+  }
+  return groups;
+}
+
+/** Lightweight per-advertiser summary list, in first-seen order. */
+export function summarizeAdvertisers(
+  items: NormalizedFeedItem[],
+): AdvertiserSummary[] {
+  const out: AdvertiserSummary[] = [];
+  const index = new Map<string, number>();
+  for (const item of items) {
+    const key = item.merchantId || item.merchantName || 'unknown';
+    const idx = index.get(key);
+    if (idx === undefined) {
+      index.set(key, out.length);
+      out.push({
+        advertiserId: item.merchantId,
+        advertiserName: item.merchantName || 'Unknown Advertiser',
+        productCount: 1,
+        currency: item.currency,
+      });
+    } else {
+      out[idx].productCount++;
+    }
+  }
+  return out;
 }

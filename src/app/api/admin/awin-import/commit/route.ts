@@ -7,11 +7,10 @@ import type {
   CommitResponse,
 } from '@/lib/awin-import-types';
 
+type Supa = ReturnType<typeof getServiceRoleClient>;
+
 /** Ensure a category exists for the given slug; return its id. */
-async function ensureCategory(
-  supabase: ReturnType<typeof getServiceRoleClient>,
-  slug: string,
-): Promise<number | null> {
+async function ensureCategory(supabase: Supa, slug: string): Promise<number | null> {
   if (!slug) return null;
   const { data: existing } = await supabase
     .from('categories')
@@ -25,7 +24,7 @@ async function ensureCategory(
     .insert({ slug, is_active: true })
     .select('id')
     .single();
-  if (error) return null;
+  if (error || !created) return null;
   await supabase.from('category_translations').insert({
     category_id: created.id,
     language: 'en',
@@ -36,7 +35,7 @@ async function ensureCategory(
 
 /** Link a product to a category (idempotent). */
 async function linkProductCategory(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: Supa,
   productId: number,
   categoryId: number,
 ) {
@@ -53,15 +52,36 @@ async function linkProductCategory(
   }
 }
 
+function eventFor(
+  oldPrice: number | null,
+  newPrice: number | null,
+): { event: string; changePercent: number | null } {
+  if (oldPrice === null) return { event: 'new_product', changePercent: null };
+  if (newPrice === null) return { event: 'delisted', changePercent: null };
+  if (newPrice < oldPrice) {
+    return {
+      event: 'price_down',
+      changePercent: Number((((newPrice - oldPrice) / oldPrice) * 100).toFixed(2)),
+    };
+  }
+  if (newPrice > oldPrice) {
+    return {
+      event: 'price_up',
+      changePercent: Number((((newPrice - oldPrice) / oldPrice) * 100).toFixed(2)),
+    };
+  }
+  return { event: 'info_changed', changePercent: 0 };
+}
+
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
 
   const body = (await request.json()) as CommitRequest;
-  const { storeId, region, entries } = body;
+  const { mappings, entries, fileName } = body;
 
-  if (!storeId || !region || !Array.isArray(entries)) {
+  if (!mappings || typeof mappings !== 'object' || !Array.isArray(entries)) {
     return NextResponse.json(
-      { success: false, error: 'store_id, region and entries are required' },
+      { success: false, error: 'mappings and entries are required' },
       { status: 400 },
     );
   }
@@ -69,6 +89,7 @@ export async function POST(request: NextRequest) {
   const supabase = getServiceRoleClient();
   const result: CommitResponse = {
     success: true,
+    batchId: null,
     created: 0,
     updated: 0,
     skipped: 0,
@@ -76,11 +97,107 @@ export async function POST(request: NextRequest) {
     errors: [],
   };
 
+  // Create the audit batch up front (fails loudly if migration not applied).
+  const { data: batch, error: batchErr } = await supabase
+    .from('awin_import_batches')
+    .insert({
+      mode: 'mapping',
+      source: 'upload',
+      file_name: fileName || '',
+      advertisers_count: Object.keys(mappings).length,
+      products_total: entries.filter((e) => e.kind !== 'missing').length,
+      status: 'applied',
+    })
+    .select('id')
+    .single();
+  if (batchErr || !batch) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `无法写入批次表，请确认已执行建表 migration（awin_import_batches）：${batchErr?.message}`,
+      },
+      { status: 500 },
+    );
+  }
+  result.batchId = batch.id;
+
+  // Persist/update advertiser mappings (upsert keyed by advertiser_id).
+  for (const [advertiserId, m] of Object.entries(mappings)) {
+    const { error } = await supabase.from('awin_advertiser_mappings').upsert(
+      {
+        advertiser_id: advertiserId,
+        store_id: m.storeId,
+        region: m.region,
+        currency: m.currency,
+        is_active: true,
+        first_seen_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'advertiser_id' },
+    );
+    if (error) {
+      result.errors.push(`${advertiserId}: mapping upsert failed (${error.message})`);
+    }
+  }
+
+  /** Record one append-only history row. */
+  const addHistory = async (args: {
+    productId: number;
+    storeId: number;
+    region: string;
+    currency: string;
+    price: number | null;
+    inStock: boolean;
+    oldPrice: number | null;
+  }) => {
+    const { event, changePercent } = eventFor(args.oldPrice, args.price);
+    const stockEvent = !args.inStock ? 'out_of_stock' : null;
+    await supabase.from('product_price_history').insert({
+      product_id: args.productId,
+      store_id: args.storeId,
+      region: args.region,
+      currency: args.currency,
+      price: args.price,
+      in_stock: args.inStock,
+      event_type: stockEvent ?? event,
+      price_prev: args.oldPrice,
+      change_percent: changePercent,
+      batch_id: batch.id,
+    });
+  };
+
+  /** Link an external identity to a product (deduplicated). */
+  const linkExternalId = async (args: {
+    productId: number;
+    advertiserId: string;
+    awProductId: string;
+    merchantProductId: string;
+    primary?: boolean;
+  }) => {
+    if (!args.awProductId) return;
+    const { data: existing } = await supabase
+      .from('product_external_ids')
+      .select('id')
+      .eq('advertiser_id', args.advertiserId)
+      .eq('aw_product_id', args.awProductId)
+      .maybeSingle();
+    if (existing) return;
+    await supabase.from('product_external_ids').insert({
+      product_id: args.productId,
+      network: 'awin',
+      advertiser_id: args.advertiserId,
+      aw_product_id: args.awProductId,
+      merchant_product_id: args.merchantProductId,
+      is_primary: !!args.primary,
+      first_seen_at: new Date().toISOString(),
+    });
+  };
+
   const processOne = async (entry: CommitEntry) => {
-    // 'missing' rows are handled separately (manual hide decision).
+    // Missing → manual hide decision.
     if (entry.kind === 'missing') {
-      const shouldHide = entry.selected;
-      if (shouldHide) {
+      if (entry.selected) {
         const price = entry.prices[0];
         if (price?.priceId) {
           const { error } = await supabase
@@ -88,9 +205,7 @@ export async function POST(request: NextRequest) {
             .update({ in_stock: false })
             .eq('id', price.priceId);
           if (error) {
-            result.errors.push(
-              `${entry.slug}: failed to hide price (${error.message})`,
-            );
+            result.errors.push(`${entry.slug}: hide failed (${error.message})`);
           } else {
             result.hidden++;
           }
@@ -106,61 +221,71 @@ export async function POST(request: NextRequest) {
       return;
     }
 
-    const priceSpec = entry.prices[0];
+    const spec = entry.prices[0];
+    const region = spec?.region || mappings[entry.advertiserId]?.region || '';
+    const targetStore = spec?.storeId ?? mappings[entry.advertiserId]?.storeId ?? null;
 
-    // --- Confirmed fuzzy merge: attach feed identity + this store's price to an
-    // existing product. We deliberately do NOT overwrite its name/description/
-    // image/category — only the link & price are brought over (no auto-clobber).
+    // --- Confirmed fuzzy merge: attach identity + price, never clobber content.
     if (entry.kind === 'possible_match' && entry.mergeProductId !== null) {
       const mergeId = entry.mergeProductId;
-      const idPatch: Record<string, unknown> = {};
-      if (entry.awProductId) idPatch.aw_product_id = entry.awProductId;
-      if (entry.merchantProductId)
-        idPatch.merchant_product_id = entry.merchantProductId;
-      if (Object.keys(idPatch).length > 0) {
-        const { error } = await supabase
-          .from('products')
-          .update(idPatch)
-          .eq('id', mergeId);
-        if (error) {
-          result.errors.push(
-            `${entry.slug}: merge identity update failed (${error.message})`,
-          );
-          return;
-        }
+      const { error: idErr } = await supabase
+        .from('products')
+        .update({
+          ...(entry.awProductId ? { aw_product_id: entry.awProductId } : {}),
+          ...(entry.merchantProductId
+            ? { merchant_product_id: entry.merchantProductId }
+            : {}),
+        })
+        .eq('id', mergeId);
+      if (idErr) {
+        result.errors.push(`${entry.slug}: merge identity failed (${idErr.message})`);
+        return;
       }
-      // Bring over this store's commission price/link (update or insert).
-      if (priceSpec && priceSpec.newPrice !== null) {
+      await linkExternalId({
+        productId: mergeId,
+        advertiserId: entry.advertiserId,
+        awProductId: entry.awProductId,
+        merchantProductId: entry.merchantProductId,
+      });
+
+      if (spec && spec.newPrice !== null && targetStore !== null) {
         const { data: existingPrice } = await supabase
           .from('product_prices')
-          .select('id')
+          .select('id, current_price, currency')
           .eq('product_id', mergeId)
-          .eq('store_id', storeId)
+          .eq('store_id', targetStore)
           .eq('region', region)
           .maybeSingle();
-        const pricePayload = {
-          current_price: priceSpec.newPrice,
-          currency: priceSpec.currency,
-          region,
-          product_url: priceSpec.newUrl || null,
-          in_stock: priceSpec.inStock,
+        const payload = {
+          current_price: spec.newPrice,
+          currency: spec.currency,
+          product_url: spec.newUrl || null,
+          in_stock: spec.inStock,
         };
+        const oldPrice = existingPrice?.current_price
+          ? Number(existingPrice.current_price)
+          : null;
         const { error: priceErr } = existingPrice
-          ? await supabase
-              .from('product_prices')
-              .update(pricePayload)
-              .eq('id', existingPrice.id)
+          ? await supabase.from('product_prices').update(payload).eq('id', existingPrice.id)
           : await supabase.from('product_prices').insert({
               product_id: mergeId,
-              store_id: storeId,
-              ...pricePayload,
+              store_id: targetStore,
+              region,
+              ...payload,
             });
         if (priceErr) {
-          result.errors.push(
-            `${entry.slug}: merge price failed (${priceErr.message})`,
-          );
+          result.errors.push(`${entry.slug}: merge price failed (${priceErr.message})`);
           return;
         }
+        await addHistory({
+          productId: mergeId,
+          storeId: targetStore,
+          region,
+          currency: spec.currency,
+          price: spec.newPrice,
+          inStock: spec.inStock,
+          oldPrice,
+        });
       }
       result.updated++;
       return;
@@ -179,9 +304,7 @@ export async function POST(request: NextRequest) {
         .select('id')
         .single();
       if (productError || !product) {
-        result.errors.push(
-          `${entry.slug}: create failed (${productError?.message})`,
-        );
+        result.errors.push(`${entry.slug}: create failed (${productError?.message})`);
         return;
       }
 
@@ -195,28 +318,43 @@ export async function POST(request: NextRequest) {
       const categoryId = await ensureCategory(supabase, entry.category);
       if (categoryId) await linkProductCategory(supabase, product.id, categoryId);
 
-      if (priceSpec && priceSpec.newPrice !== null) {
+      await linkExternalId({
+        productId: product.id,
+        advertiserId: entry.advertiserId,
+        awProductId: entry.awProductId,
+        merchantProductId: entry.merchantProductId,
+        primary: true,
+      });
+
+      if (spec && spec.newPrice !== null && targetStore !== null) {
         const { error: priceErr } = await supabase.from('product_prices').insert({
           product_id: product.id,
-          store_id: storeId,
-          current_price: priceSpec.newPrice,
-          currency: priceSpec.currency,
+          store_id: targetStore,
           region,
-          product_url: priceSpec.newUrl || null,
-          in_stock: priceSpec.inStock,
+          current_price: spec.newPrice,
+          currency: spec.currency,
+          product_url: spec.newUrl || null,
+          in_stock: spec.inStock,
         });
         if (priceErr) {
-          result.errors.push(
-            `${entry.slug}: price create failed (${priceErr.message})`,
-          );
+          result.errors.push(`${entry.slug}: price create failed (${priceErr.message})`);
+        } else {
+          await addHistory({
+            productId: product.id,
+            storeId: targetStore,
+            region,
+            currency: spec.currency,
+            price: spec.newPrice,
+            inStock: spec.inStock,
+            oldPrice: null,
+          });
         }
       }
       result.created++;
     } else {
-      // --- Update existing product ---
+      // --- Update existing product (hard matched) ---
       const productId = entry.productId;
 
-      // Identity fields (keep SKU/aw ids populated).
       const patch: Record<string, unknown> = {};
       if (entry.awProductId) patch.aw_product_id = entry.awProductId;
       if (entry.merchantProductId)
@@ -226,7 +364,6 @@ export async function POST(request: NextRequest) {
         await supabase.from('products').update(patch).eq('id', productId);
       }
 
-      // Update English translation.
       const { data: existingTr } = await supabase
         .from('product_translations')
         .select('product_id')
@@ -251,49 +388,70 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Category (only when mapped).
       if (entry.category) {
         const categoryId = await ensureCategory(supabase, entry.category);
-        if (categoryId) {
-          await linkProductCategory(supabase, productId, categoryId);
-        }
+        if (categoryId) await linkProductCategory(supabase, productId, categoryId);
       }
 
-      // Price row for this store: update in place (keeping the row and only
-      // swapping price / commission link), or insert when none exists.
-      if (priceSpec) {
-        if (priceSpec.priceId) {
+      await linkExternalId({
+        productId,
+        advertiserId: entry.advertiserId,
+        awProductId: entry.awProductId,
+        merchantProductId: entry.merchantProductId,
+      });
+
+      if (spec && targetStore !== null) {
+        if (spec.priceId) {
+          const { data: before } = await supabase
+            .from('product_prices')
+            .select('current_price')
+            .eq('id', spec.priceId)
+            .maybeSingle();
           const { error } = await supabase
             .from('product_prices')
             .update({
               current_price:
-                priceSpec.newPrice === null
-                  ? undefined
-                  : priceSpec.newPrice,
-              currency: priceSpec.currency,
-              product_url: priceSpec.newUrl || undefined,
-              in_stock: priceSpec.inStock,
+                spec.newPrice === null ? undefined : spec.newPrice,
+              currency: spec.currency,
+              product_url: spec.newUrl || undefined,
+              in_stock: spec.inStock,
             })
-            .eq('id', priceSpec.priceId);
+            .eq('id', spec.priceId);
           if (error) {
-            result.errors.push(
-              `${entry.slug}: price update failed (${error.message})`,
-            );
+            result.errors.push(`${entry.slug}: price update failed (${error.message})`);
+          } else if (spec.newPrice !== null) {
+            await addHistory({
+              productId,
+              storeId: targetStore,
+              region,
+              currency: spec.currency,
+              price: spec.newPrice,
+              inStock: spec.inStock,
+              oldPrice: before?.current_price ? Number(before.current_price) : null,
+            });
           }
-        } else if (priceSpec.newPrice !== null) {
+        } else if (spec.newPrice !== null) {
           const { error } = await supabase.from('product_prices').insert({
             product_id: productId,
-            store_id: storeId,
-            current_price: priceSpec.newPrice,
-            currency: priceSpec.currency,
+            store_id: targetStore,
             region,
-            product_url: priceSpec.newUrl || null,
-            in_stock: priceSpec.inStock,
+            current_price: spec.newPrice,
+            currency: spec.currency,
+            product_url: spec.newUrl || null,
+            in_stock: spec.inStock,
           });
           if (error) {
-            result.errors.push(
-              `${entry.slug}: price insert failed (${error.message})`,
-            );
+            result.errors.push(`${entry.slug}: price insert failed (${error.message})`);
+          } else {
+            await addHistory({
+              productId,
+              storeId: targetStore,
+              region,
+              currency: spec.currency,
+              price: spec.newPrice,
+              inStock: spec.inStock,
+              oldPrice: null,
+            });
           }
         }
       }
@@ -301,7 +459,6 @@ export async function POST(request: NextRequest) {
     }
   };
 
-  // Process sequentially to keep the catalog consistent and errors ordered.
   for (const entry of entries) {
     try {
       await processOne(entry);
@@ -313,6 +470,21 @@ export async function POST(request: NextRequest) {
       );
     }
   }
+
+  // Finalize batch aggregates.
+  await supabase
+    .from('awin_import_batches')
+    .update({
+      finished_at: new Date().toISOString(),
+      counts: {
+        created: result.created,
+        updated: result.updated,
+        hidden: result.hidden,
+        skipped: result.skipped,
+        errors: result.errors.length,
+      },
+    })
+    .eq('id', batch.id);
 
   if (result.errors.length > 0) result.success = false;
   return NextResponse.json(result);

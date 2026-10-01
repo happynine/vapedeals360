@@ -2,6 +2,10 @@
  * Pure comparison logic between normalized Awin feed items and the current
  * database contents. No I/O here — the route layer fetches rows and passes
  * them in, which keeps this module deterministic and testable.
+ *
+ * Supports feeds containing multiple advertisers, each mapped to a store +
+ * region. Identity matching prefers persisted external ids; same-SKU / same
+ * name / fuzzy matches are never auto-trusted and surface as candidates.
  */
 import type { NormalizedFeedItem } from './awin-feed';
 import type {
@@ -45,23 +49,37 @@ export interface DbStoreRow {
   name?: string | null;
   store_type?: string | null;
 }
-export interface CompareInput {
+/** One advertiser's resolved target (store name looked up from catalog). */
+export interface AdvertiserTarget {
   advertiserId: string;
   advertiserName: string;
-  targetStoreId: number;
-  targetStoreName: string;
-  /** Region within the target store this feed maps to (USA / UK / Japan). */
-  targetRegion: string;
+  storeId: number;
+  storeName: string;
+  region: string;
+}
+export interface CompareInput {
+  /** Every advertiser in the file, already mapped to a store + region. */
+  targets: AdvertiserTarget[];
+  /** All feed items (all advertisers). */
   feedItems: NormalizedFeedItem[];
   products: DbProductRow[];
   prices: DbPriceRow[];
   categories: DbCategoryRow[];
   /** Catalog stores, used to label which stores sell each candidate product. */
   stores: DbStoreRow[];
+  /** External identities already persisted (network, advertiser, awId/sku). */
+  externalIds: DbExternalIdRow[];
   /** Promotion info keyed by the store product pathname. */
   promoMap?: Map<string, PromoInfo>;
   /** User-defined feed top-category → internal slug overrides. */
   categoryOverrides?: Record<string, string>;
+}
+export interface DbExternalIdRow {
+  product_id: number;
+  network: string;
+  advertiser_id: string;
+  aw_product_id: string | null;
+  merchant_product_id: string | null;
 }
 export interface CompareResult {
   entries: PreviewEntry[];
@@ -184,64 +202,86 @@ function toPreviewPromo(p: PromoInfo): PreviewPromo {
     sourceUrl: p.sourceUrl,
   };
 }
+
 /**
- * Build a preview comparing feed items against DB state for one advertiser.
+ * Build a preview comparing feed items against DB state across every mapped
+ * advertiser. Each advertiser resolves to a store + region, so price lookup and
+ * the missing scan are scoped to that (store, region) tuple.
  */
 export function buildPreview(input: CompareInput): CompareResult {
   const {
-    targetStoreId,
-    targetRegion,
+    targets,
     feedItems,
     products,
     prices,
     categories,
     stores,
+    externalIds,
     promoMap,
     categoryOverrides,
   } = input;
-  // Indexes of existing products.
+
+  const targetsByAdv = new Map<string, AdvertiserTarget>(
+    targets.map((t) => [t.advertiserId, t]),
+  );
+
+  // --- Product identity indexes ------------------------------------------------
   const byMerchantSku = new Map<string, DbProductRow>();
-  const byAwId = new Map<string, DbProductRow>();
   const byName = new Map<string, DbProductRow>();
   for (const p of products) {
-    if (p.merchant_product_id) {
-      byMerchantSku.set(normText(p.merchant_product_id), p);
+    if (p.merchant_product_id) byMerchantSku.set(normText(p.merchant_product_id), p);
+    if (p.name) byName.set(normText(p.name), p);
+  }
+
+  // Persisted external identities:
+  //  (advertiser, aw_product_id) -> product   [only safe auto-match]
+  //  merchant SKU -> products                 [cross-merchant same-product hint]
+  const extByAdvAw = new Map<string, DbProductRow>();
+  const productById = new Map<number, DbProductRow>(products.map((p) => [p.id, p]));
+  const extByMerchantSku = new Map<string, DbProductRow[]>();
+  for (const e of externalIds) {
+    const p = productById.get(e.product_id);
+    if (!p) continue;
+    if (e.aw_product_id) {
+      extByAdvAw.set(`${e.advertiser_id}::${normText(e.aw_product_id)}`, p);
     }
-    if (p.aw_product_id) {
-      byAwId.set(normText(p.aw_product_id), p);
-    }
-    if (p.name) {
-      byName.set(normText(p.name), p);
+    if (e.merchant_product_id) {
+      const key = normText(e.merchant_product_id);
+      const list = extByMerchantSku.get(key) ?? [];
+      if (!list.some((x) => x.id === p.id)) list.push(p);
+      extByMerchantSku.set(key, list);
     }
   }
-  // Existing prices at the target advertiser store + target region, grouped by
-  // product. Each region has its own price row, so UK feed must not touch USA.
-  const pricesByProduct = new Map<number, DbPriceRow[]>();
-  for (const pr of prices) {
-    if (pr.store_id !== targetStoreId) continue;
-    if ((pr.region ?? '') !== targetRegion) continue;
-    const list = pricesByProduct.get(pr.product_id) ?? [];
-    list.push(pr);
-    pricesByProduct.set(pr.product_id, list);
-  }
-  // Store lookup + the full set of stores selling each product (all stores,
-  // not just the target), used to classify candidates as cross-store/internal.
+
+  // --- Price + store helpers ---------------------------------------------------
   const storesById = new Map<number, DbStoreRow>(stores.map((s) => [s.id, s]));
   const storeName = (id: number): string => {
     const s = storesById.get(id);
     return s?.name || s?.slug || `Store #${id}`;
   };
+  // All stores selling each product (candidate source classification).
   const storesByProduct = new Map<number, number[]>();
   for (const pr of prices) {
     const list = storesByProduct.get(pr.product_id) ?? [];
     if (!list.includes(pr.store_id)) list.push(pr.store_id);
     storesByProduct.set(pr.product_id, list);
   }
-  // Build one candidate object for an existing product vs a feed item.
+  // Existing price rows keyed by (product, store, region).
+  const priceKeyOf = (productId: number, storeId: number, region: string) =>
+    `${productId}::${storeId}::${region}`;
+  const pricesByKey = new Map<string, DbPriceRow[]>();
+  for (const pr of prices) {
+    const key = priceKeyOf(pr.product_id, pr.store_id, pr.region ?? '');
+    const list = pricesByKey.get(key) ?? [];
+    list.push(pr);
+    pricesByKey.set(key, list);
+  }
+
   const toCandidate = (
     p: DbProductRow,
     score: number,
     level: 'strong' | 'possible',
+    targetStoreId: number,
   ): MatchCandidate => {
     const sellingIds = (storesByProduct.get(p.id) ?? []).filter(
       (sid) => sid !== targetStoreId,
@@ -253,31 +293,50 @@ export function buildPreview(input: CompareInput): CompareResult {
       imageUrl: p.image_url,
       score,
       level,
-      // Available at one or more other stores → cross-store duplicate; a
-      // catalog product with no other store price is an internal match.
       source: sellingIds.length > 0 ? 'cross_store' : 'internal',
       sellingStores: sellingIds.map((sid) => ({ id: sid, name: storeName(sid) })),
     };
   };
+
   const entries: PreviewEntry[] = [];
-  const matchedProductIds = new Set<number>();
+  // Canonical product ids matched per advertiser (hard match) — feeds it.
+  const hardMatchedByAdv = new Map<string, Set<number>>();
+  // Global guard: never emit a duplicate entry for the same physical product
+  // target (advertiser + aw id), even if advertiser id is blank across rows.
+  const seenFeedKeys = new Set<string>();
   const unmapped = new Set<string>();
   const usedSlugs = new Set<string>(products.map((p) => p.slug));
+
+  const makePrice = (
+    t: AdvertiserTarget,
+    oldRow: DbPriceRow | null,
+    item: NormalizedFeedItem,
+  ): PreviewPrice => ({
+    priceId: oldRow?.id ?? null,
+    storeId: t.storeId,
+    storeName: t.storeName,
+    region: t.region,
+    oldPrice: toNumber(oldRow?.current_price ?? null),
+    newPrice: item.price,
+    currency: item.currency,
+    oldUrl: oldRow?.product_url ?? null,
+    newUrl: item.deepLink || oldRow?.product_url || null,
+    inStock: item.inStock,
+  });
+
   for (const item of feedItems) {
-    // Hard identity keys are safe to auto-trust: the store's own SKU or the
-    // globally unique Awin product id.
-    const hardMatched =
-      (item.merchantProductId && byMerchantSku.get(normText(item.merchantProductId))) ||
-      (item.awProductId && byAwId.get(normText(item.awProductId))) ||
-      null;
-    // An exact-name hit is NOT auto-trusted: different items can share a name.
-    // Route it through the candidate card for explicit confirmation.
-    const nameMatched =
-      (!hardMatched && item.name && byName.get(normText(item.name))) || null;
-    const matched = hardMatched;
+    const advId = item.merchantId || item.merchantName || 'unknown';
+    const t = targetsByAdv.get(advId);
+    // Items whose advertiser wasn't mapped are skipped here (listed separately).
+    if (!t) continue;
+
+    const dedupeKey = `${advId}::${item.merchantProductId || item.awProductId}`;
+    if (dedupeKey !== '::') {
+      if (seenFeedKeys.has(dedupeKey)) continue;
+      seenFeedKeys.add(dedupeKey);
+    }
+
     const feedCategory = normalizeTopCategory(item.category);
-    // Normalize the extra (deduped) categories to top buckets; keep only those
-    // distinct from the canonical bucket so one entry can appear under several.
     const extraBuckets: string[] = [];
     for (const extraRaw of item.extraCategories ?? []) {
       const bucket = normalizeTopCategory(extraRaw);
@@ -295,10 +354,24 @@ export function buildPreview(input: CompareInput): CompareResult {
       unmapped.add(mappedFrom);
     }
     if (!categorySlug) categorySlug = 'uncategorized';
-    if (matched) {
-      matchedProductIds.add(matched.id);
-      const existingPrices = pricesByProduct.get(matched.id) ?? [];
-      const oldRow = existingPrices[0] ?? null;
+
+    // ① Only a persisted external id (this advertiser + this aw id) auto-matches.
+    const hard =
+      (item.awProductId &&
+        extByAdvAw.get(`${advId}::${normText(item.awProductId)}`)) ||
+      null;
+
+    if (hard) {
+      let set = hardMatchedByAdv.get(advId);
+      if (!set) {
+        set = new Set();
+        hardMatchedByAdv.set(advId, set);
+      }
+      set.add(hard.id);
+
+      const oldRows =
+        pricesByKey.get(priceKeyOf(hard.id, t.storeId, t.region)) ?? [];
+      const oldRow = oldRows[0] ?? null;
       const oldPrice = toNumber(oldRow?.current_price ?? null);
       const priceChanged =
         item.price !== null && oldPrice !== null && item.price !== oldPrice;
@@ -308,48 +381,34 @@ export function buildPreview(input: CompareInput): CompareResult {
         normText(oldRow.product_url) !== normText(item.deepLink);
       const priceMissingBefore = oldRow === null && item.price !== null;
       const nameChanged =
-        !!matched.name && normText(matched.name) !== normText(item.name);
+        !!hard.name && normText(hard.name) !== normText(item.name);
       const descChanged =
-        !!matched.description &&
-        normText(matched.description) !== normText(item.description);
+        !!hard.description &&
+        normText(hard.description) !== normText(item.description);
       const imageChanged =
-        !!matched.image_url &&
-        normText(matched.image_url) !== normText(item.imageUrl);
+        !!hard.image_url &&
+        normText(hard.image_url) !== normText(item.imageUrl);
       let kind: ChangeKind;
-      if (priceChanged || linkChanged || priceMissingBefore) {
-        kind = 'price_changed';
-      } else if (nameChanged || descChanged || imageChanged) {
-        kind = 'info_changed';
-      } else {
-        kind = 'unchanged';
-      }
-      const previewPrice: PreviewPrice = {
-        priceId: oldRow?.id ?? null,
-        storeId: targetStoreId,
-        storeName: input.targetStoreName,
-        region: targetRegion,
-        oldPrice,
-        newPrice: item.price,
-        currency: item.currency,
-        oldUrl: oldRow?.product_url ?? null,
-        newUrl: item.deepLink || oldRow?.product_url || null,
-        inStock: item.inStock,
-      };
+      if (priceChanged || linkChanged || priceMissingBefore) kind = 'price_changed';
+      else if (nameChanged || descChanged || imageChanged) kind = 'info_changed';
+      else kind = 'unchanged';
+
       entries.push({
-        key: `p-${matched.id}`,
+        key: `p-${advId}-${hard.id}`,
         kind,
-        // Nothing auto-selected: the user chooses by category explicitly.
         selected: false,
+        advertiserId: advId,
+        advertiserName: item.merchantName,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
-        productId: matched.id,
-        slug: matched.slug,
-        name: item.name || matched.name || '',
-        oldName: matched.name ?? null,
-        description: item.description || matched.description || '',
-        oldDescription: matched.description ?? null,
-        imageUrl: item.imageUrl || matched.image_url || '',
-        oldImageUrl: matched.image_url ?? null,
+        productId: hard.id,
+        slug: hard.slug,
+        name: item.name || hard.name || '',
+        oldName: hard.name ?? null,
+        description: item.description || hard.description || '',
+        oldDescription: hard.description ?? null,
+        imageUrl: item.imageUrl || hard.image_url || '',
+        oldImageUrl: hard.image_url ?? null,
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
         feedCategory,
@@ -357,33 +416,50 @@ export function buildPreview(input: CompareInput): CompareResult {
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: [],
-        prices: [previewPrice],
+        prices: [makePrice(t, oldRow, item)],
       });
     } else {
-      // Similar existing products: an exact-name match (highest confidence)
-      // plus fuzzy candidates. Classified per source (cross-store / internal).
+      // Not an established identity → candidates, never pre-selected.
       const candidateIds = new Set<number>();
       const candidates: MatchCandidate[] = [];
-      if (nameMatched && !matchedProductIds.has(nameMatched.id)) {
-        candidateIds.add(nameMatched.id);
-        candidates.push(toCandidate(nameMatched, 1, 'strong'));
+      const pushCandidate = (
+        p: DbProductRow,
+        score: number,
+        level: 'strong' | 'possible',
+      ) => {
+        if (candidateIds.has(p.id)) return;
+        candidateIds.add(p.id);
+        candidates.push(toCandidate(p, score, level, t.storeId));
+      };
+      // ② Same merchant (factory) SKU → strong cross-merchant hint.
+      if (item.merchantProductId) {
+        for (const p of extByMerchantSku.get(normText(item.merchantProductId)) ?? []) {
+          pushCandidate(p, 0.95, 'strong');
+        }
+        const bySku = byMerchantSku.get(normText(item.merchantProductId));
+        if (bySku) pushCandidate(bySku, 0.9, 'strong');
       }
+      // ③ Exact name → strong, still needs confirmation.
+      if (item.name) {
+        const exact = byName.get(normText(item.name));
+        if (exact) pushCandidate(exact, 0.8, 'strong');
+      }
+      // ④ Fuzzy similarity.
       for (const p of products) {
-        if (matchedProductIds.has(p.id) || candidateIds.has(p.id)) continue;
+        if (candidateIds.has(p.id)) continue;
         const r = scoreSimilarity(item.name, p.name || p.slug);
         if (r.level === 'none') continue;
-        candidateIds.add(p.id);
-        candidates.push(toCandidate(p, r.score, r.level));
+        pushCandidate(p, r.score, r.level === 'strong' ? 0.78 : r.score);
       }
       candidates.sort((a, b) => b.score - a.score);
-      // Never pre-select: every merge requires an explicit user click.
       const best = candidates[0] ?? null;
       const kind: ChangeKind = best ? 'possible_match' : 'new';
 
-      // New product. Generate a unique slug.
-      const baseSlug = slugify(item.name) ||
+      // Unique slug for the new product.
+      const baseSlug =
+        slugify(item.name) ||
         (item.merchantProductId ? slugify(item.merchantProductId) : '') ||
-        `awin-${item.awProductId}`;
+        `awin-${item.awProductId || advId}`;
       let slug = baseSlug;
       let n = 2;
       while (usedSlugs.has(slug)) {
@@ -391,10 +467,13 @@ export function buildPreview(input: CompareInput): CompareResult {
         n++;
       }
       usedSlugs.add(slug);
+
       entries.push({
-        key: `n-${item.awProductId || slug}`,
+        key: `n-${advId}-${item.awProductId || slug}`,
         kind,
         selected: false,
+        advertiserId: item.merchantId,
+        advertiserName: item.merchantName,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
         productId: null,
@@ -412,77 +491,72 @@ export function buildPreview(input: CompareInput): CompareResult {
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: candidates.slice(0, 6),
+        prices: [makePrice(t, null, item)],
+      });
+    }
+  }
+
+  // --- Missing: per advertiser (store + region), existing rows absent in feed --
+  for (const t of targets) {
+    const hardSet = hardMatchedByAdv.get(t.advertiserId) ?? new Set<number>();
+    // Every existing price row in this (store, region).
+    for (const pr of prices) {
+      if (pr.store_id !== t.storeId) continue;
+      if ((pr.region ?? '') !== t.region) continue;
+      if (hardSet.has(pr.product_id)) continue;
+      const product = productById.get(pr.product_id);
+      if (!product) continue;
+      const key = `m-${t.advertiserId}-${pr.id}`;
+      if (entries.some((e) => e.key === key)) continue;
+      entries.push({
+        key,
+        kind: 'missing',
+        selected: false,
+        advertiserId: t.advertiserId,
+        advertiserName: t.advertiserName,
+        awProductId: product.aw_product_id || '',
+        merchantProductId: product.merchant_product_id || '',
+        productId: product.id,
+        slug: product.slug,
+        name: product.name || '',
+        oldName: product.name ?? null,
+        description: product.description || '',
+        oldDescription: product.description ?? null,
+        imageUrl: product.image_url || '',
+        oldImageUrl: product.image_url ?? null,
+        category: '',
+        categoryLabel: '',
+        feedCategory: '',
+        extraFeedCategories: [],
+        promo: null,
+        brand: '',
+        matchCandidates: [],
         prices: [
           {
-            priceId: null,
-            storeId: targetStoreId,
-            storeName: input.targetStoreName,
-            region: targetRegion,
-            oldPrice: null,
-            newPrice: item.price,
-            currency: item.currency,
-            oldUrl: null,
-            newUrl: item.deepLink || null,
-            inStock: item.inStock,
+            priceId: pr.id,
+            storeId: t.storeId,
+            storeName: t.storeName,
+            region: t.region,
+            oldPrice: toNumber(pr.current_price),
+            newPrice: null,
+            currency: pr.currency || '',
+            oldUrl: pr.product_url,
+            newUrl: null,
+            inStock: pr.in_stock ?? true,
           },
         ],
       });
     }
   }
-  // Missing: products with an existing price at this store that were not in
-  // the feed at all. These require a manual keep/hide decision.
-  for (const [productId, rowList] of pricesByProduct) {
-    if (matchedProductIds.has(productId)) continue;
-    const product = products.find((p) => p.id === productId);
-    if (!product) continue;
-    const oldRow = rowList[0];
-    entries.push({
-      key: `m-${productId}`,
-      kind: 'missing',
-      selected: false,
-      awProductId: product.aw_product_id || '',
-      merchantProductId: product.merchant_product_id || '',
-      productId: product.id,
-      slug: product.slug,
-      name: product.name || '',
-      oldName: product.name ?? null,
-      description: product.description || '',
-      oldDescription: product.description ?? null,
-      imageUrl: product.image_url || '',
-      oldImageUrl: product.image_url ?? null,
-      category: '',
-      categoryLabel: '',
-      feedCategory: '',
-      extraFeedCategories: [],
-      promo: null,
-      brand: '',
-      matchCandidates: [],
-      prices: [
-        {
-          priceId: oldRow.id,
-          storeId: targetStoreId,
-          storeName: input.targetStoreName,
-          region: targetRegion,
-          oldPrice: toNumber(oldRow.current_price),
-          newPrice: null,
-          currency: oldRow.currency || 'USD',
-          oldUrl: oldRow.product_url,
-          newUrl: null,
-          inStock: oldRow.in_stock ?? true,
-        },
-      ],
-    });
-  }
+
+  // --- Aggregate totals + category groups --------------------------------------
   const totals = { ...EMPTY_TOTALS };
   for (const e of entries) totals[e.kind]++;
-  // Build category groups from feed-sourced entries (exclude 'missing').
   const groupOrder: string[] = [];
   const groupCount = new Map<string, number>();
   const groupPromo = new Map<string, number>();
   for (const e of entries) {
     if (e.kind === 'missing') continue;
-    // Count the entry once per bucket it belongs to (canonical + extras), so a
-    // product listed under several categories is reflected in every chip.
     const buckets = [e.feedCategory || 'Uncategorized', ...e.extraFeedCategories];
     for (const labelRaw of buckets) {
       const label = labelRaw || 'Uncategorized';
@@ -505,7 +579,6 @@ export function buildPreview(input: CompareInput): CompareResult {
   return {
     entries,
     totals,
-    targetRegion,
     unmappedCategories: Array.from(unmapped),
     categoryGroups,
     categoryOverrides: categoryOverrides ?? {},
