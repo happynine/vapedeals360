@@ -5,7 +5,6 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { parseAwinCsv, dedupeFeedItems, type NormalizedFeedItem } from '@/lib/awin-feed';
 import {
   buildPreview,
-  slugify,
   type DbCategoryRow,
   type DbPriceRow,
   type DbProductRow,
@@ -65,79 +64,37 @@ interface AdvertiserContext {
   advertiserName: string;
   storeId: number;
   storeName: string;
+  region: string;
 }
 /**
- * Resolve the Awin advertiser to an internal store. Explicit form fields take
- * precedence; otherwise find a store whose slug/name matches the advertiser,
- * and as a last resort create a new store for it.
+ * Resolve the Awin advertiser to an internal store + region. The store and
+ * region MUST be chosen explicitly in the panel — feeds are never allowed to
+ * auto-create stores (that previously produced junk stores).
  */
 async function resolveStore(
   supabase: ReturnType<typeof getServiceRoleClient>,
   advertiserId: string,
   advertiserName: string,
   explicitStoreId: string,
+  region: string,
 ): Promise<AdvertiserContext> {
-  if (explicitStoreId) {
-    const id = Number.parseInt(explicitStoreId, 10);
-    if (Number.isFinite(id)) {
-      const { data: store } = await supabase
-        .from('stores')
-        .select('id, slug')
-        .eq('id', id)
-        .maybeSingle();
-      if (store) {
-        const name = await getStoreName(supabase, id);
-        return { advertiserId, advertiserName, storeId: id, storeName: name };
-      }
-    }
+  const id = Number.parseInt(explicitStoreId, 10);
+  if (!Number.isFinite(id)) {
+    throw new Error('请选择要导入到的站内商城（store_id 缺失）');
   }
-  const slug = slugify(advertiserName);
-  // Try matching an existing store by slug.
-  const { data: bySlug } = await supabase
+  if (!region || !region.trim()) {
+    throw new Error('请选择该广告主对应的地区（region 缺失）');
+  }
+  const { data: store } = await supabase
     .from('stores')
     .select('id, slug')
-    .eq('slug', slug)
+    .eq('id', id)
     .maybeSingle();
-  if (bySlug) {
-    const name = await getStoreName(supabase, bySlug.id);
-    return { advertiserId, advertiserName, storeId: bySlug.id, storeName: name };
+  if (!store) {
+    throw new Error(`站内商城 #${id} 不存在`);
   }
-  // Try translation name match.
-  const { data: byName } = await supabase
-    .from('store_translations')
-    .select('store_id, name')
-    .eq('name', advertiserName)
-    .eq('language', 'en')
-    .maybeSingle();
-  if (byName) {
-    const name = await getStoreName(supabase, byName.store_id);
-    return {
-      advertiserId,
-      advertiserName,
-      storeId: byName.store_id,
-      storeName: name,
-    };
-  }
-  // Create a new store for the advertiser.
-  const { data: created, error } = await supabase
-    .from('stores')
-    .insert({ slug, website_url: '', is_active: true })
-    .select('id')
-    .single();
-  if (error || !created) {
-    throw new Error(`Failed to create store for "${advertiserName}": ${error?.message}`);
-  }
-  await supabase.from('store_translations').insert({
-    store_id: created.id,
-    language: 'en',
-    name: advertiserName,
-  });
-  return {
-    advertiserId,
-    advertiserName,
-    storeId: created.id,
-    storeName: advertiserName,
-  };
+  const name = await getStoreName(supabase, id);
+  return { advertiserId, advertiserName, storeId: id, storeName: name, region: region.trim() };
 }
 async function getStoreName(
   supabase: ReturnType<typeof getServiceRoleClient>,
@@ -157,6 +114,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const explicitStoreId = (formData.get('store_id') as string) || '';
+    const region = (formData.get('region') as string) || '';
     const currency = (formData.get('currency') as string) || 'USD';
     const promoUrlsRaw = (formData.get('promo_urls') as string) || '';
     const categoryOverridesRaw =
@@ -191,6 +149,7 @@ export async function POST(request: NextRequest) {
       advertiserId,
       advertiserName,
       explicitStoreId,
+      region,
     );
     // Fetch current catalog state.
     const { data: productRows, error: productError } = await supabase
@@ -204,7 +163,7 @@ export async function POST(request: NextRequest) {
     if (translationError) throw translationError;
     const { data: priceRows, error: priceError } = await supabase
       .from('product_prices')
-      .select('id, product_id, store_id, current_price, product_url, in_stock, currency');
+      .select('id, product_id, store_id, current_price, product_url, in_stock, currency, region');
     if (priceError) throw priceError;
     const { data: categoryRows, error: categoryError } = await supabase
       .from('categories')
@@ -256,6 +215,7 @@ export async function POST(request: NextRequest) {
       advertiserName,
       targetStoreId: ctx.storeId,
       targetStoreName: ctx.storeName,
+      targetRegion: ctx.region,
       feedItems,
       products,
       prices,
@@ -270,6 +230,7 @@ export async function POST(request: NextRequest) {
       advertiserName,
       storeId: ctx.storeId,
       storeName: ctx.storeName,
+      targetRegion: ctx.region,
       generatedAt: new Date().toISOString(),
       totals: result.totals,
       entries: result.entries,

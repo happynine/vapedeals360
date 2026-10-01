@@ -38,6 +38,8 @@ export interface PreviewPrice {
   priceId: number | null;
   storeId: number | null;
   storeName: string;
+  /** Region this price row belongs to (e.g. USA / UK), multi-region stores. */
+  region: string;
   oldPrice: number | null;
   newPrice: number | null;
   currency: string;
@@ -97,6 +99,8 @@ export interface PreviewResponse {
   advertiserName: string;
   storeId: number | null;
   storeName: string;
+  /** Region this feed maps the store to (USA / UK / Japan …). */
+  targetRegion: string;
   generatedAt: string;
   totals: Record<ChangeKind, number>;
   entries: PreviewEntry[];
@@ -138,6 +142,7 @@ export interface CommitEntry {
   prices: Array<{
     priceId: number | null;
     storeId: number | null;
+    region: string;
     newPrice: number | null;
     currency: string;
     newUrl: string | null;
@@ -147,6 +152,8 @@ export interface CommitEntry {
 export interface CommitRequest {
   advertiserId: string;
   storeId: number;
+  /** Region all committed price rows belong to. */
+  region: string;
   entries: CommitEntry[];
 }
 export interface CommitResponse {

@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
-import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2, Tag, Settings2, GitMerge } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, Loader2, CheckCircle2, AlertTriangle, Link2, Tag, Settings2, GitMerge, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { parseStoreCapabilities } from '@/lib/store-capabilities';
 import type {
   PreviewEntry,
   PreviewResponse,
@@ -19,6 +20,29 @@ const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
   possible_match: '疑似重复',
 };
 
+/** Internal stores available as import targets (subset used by the panel). */
+interface StoreOption {
+  id: number;
+  slug: string;
+  regions: string[];
+  currencies: string[];
+}
+
+/** Remembered advertiser → store / region / currency mapping. */
+interface StoreMapping {
+  storeId: number;
+  region: string;
+  currency: string;
+}
+
+/** Built-in defaults before the user ever maps an advertiser (USA site). */
+const DEFAULT_STORE_MAPPINGS: Record<string, StoreMapping> = {
+  // Shenzhen Vapesourcing Electronics Co.,Ltd. → USA / USD
+  '50315': { storeId: 1, region: 'USA', currency: 'USD' },
+};
+
+const MAPPING_STORAGE_KEY = 'awin_store_mappings';
+
 interface CommitSummary {
   created: number;
   updated: number;
@@ -29,6 +53,9 @@ interface CommitSummary {
 
 export default function AwinImportPanel() {
   const [file, setFile] = useState<File | null>(null);
+  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
+  const [storeId, setStoreId] = useState<number>(1);
+  const [region, setRegion] = useState<string>('USA');
   const [currency, setCurrency] = useState('USD');
   const [promoUrls, setPromoUrls] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,8 +70,62 @@ export default function AwinImportPanel() {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [showMapping, setShowMapping] = useState(false);
 
+  // Load all internal stores once so the user can pick where the feed lands.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/stores', {
+          headers: { 'x-session': localStorage.getItem('admin_token') || '' },
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) return;
+        const options: StoreOption[] = (json.data ?? []).map((s: any) => {
+          const caps = parseStoreCapabilities(s.regions);
+          return {
+            id: s.id,
+            slug: s.slug,
+            regions: caps.regions,
+            currencies: caps.currencies,
+          };
+        });
+        if (!cancelled) setStoreOptions(options);
+      } catch {
+        // store dropdown simply stays empty; preview will flag missing store
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rememberMapping = (advertiserId: string, patch: Partial<StoreMapping>) => {
+    const mappings = loadStoreMappings();
+    const base =
+      mappings[advertiserId] ??
+      DEFAULT_STORE_MAPPINGS[advertiserId] ?? { storeId, region, currency };
+    const next: StoreMapping = { ...base, ...patch };
+    mappings[advertiserId] = next;
+    try {
+      localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(mappings));
+    } catch {
+      // ignore persistence failures
+    }
+  };
+
   const storageKey = (advertiserId?: string) =>
     `awin_cat_overrides_${advertiserId || 'default'}`;
+
+  const loadStoreMappings = (): Record<string, StoreMapping> => {
+    try {
+      const raw = localStorage.getItem(MAPPING_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  };
+
   const loadOverrides = (advertiserId: string) => {
     try {
       const raw = localStorage.getItem(storageKey(advertiserId));
@@ -70,7 +151,6 @@ export default function AwinImportPanel() {
         'x-session': localStorage.getItem('admin_token') || '',
       },
     });
-
   const handlePreview = async () => {
     if (!file) {
       setError('Please select a feed file first');
@@ -82,6 +162,8 @@ export default function AwinImportPanel() {
     try {
       const fd = new FormData();
       fd.append('file', file);
+      fd.append('store_id', String(storeId));
+      fd.append('region', region);
       fd.append('currency', currency);
       fd.append('promo_urls', promoUrls);
       fd.append('category_overrides', JSON.stringify(overrides));
@@ -96,6 +178,8 @@ export default function AwinImportPanel() {
       setPreview(data);
       setEntries(data.entries);
       loadOverrides(data.advertiserId);
+      // Persist this advertiser's chosen store/region/currency for next upload.
+      rememberMapping(data.advertiserId, { storeId, region, currency });
       setCatFilter('__all__');
       setOnlyPromo(false);
     } catch (e) {
@@ -147,7 +231,8 @@ export default function AwinImportPanel() {
     try {
       const payload = {
         advertiserId: preview.advertiserId,
-        storeId: preview.storeId,
+        storeId,
+        region,
         entries: entries.map((e) => ({
           kind: e.kind,
           selected: e.selected,
@@ -165,6 +250,7 @@ export default function AwinImportPanel() {
           prices: e.prices.map((p) => ({
             priceId: p.priceId,
             storeId: p.storeId,
+            region: p.region || region,
             newPrice: p.newPrice,
             currency: p.currency,
             newUrl: p.newUrl,
@@ -205,12 +291,65 @@ export default function AwinImportPanel() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
           <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 text-zinc-400" />
+            <span className="text-sm text-zinc-400">站内商城</span>
+            <select
+              value={storeId}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                setStoreId(id);
+                // Reset region/currency to the newly chosen store's first pair.
+                const opt = storeOptions.find((o) => o.id === id);
+                if (opt) {
+                  setRegion(opt.regions[0] ?? region);
+                  setCurrency(opt.currencies[0] ?? currency);
+                }
+              }}
+              className="h-9 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+            >
+              {storeOptions.length === 0 && <option value={storeId}>#{storeId}</option>}
+              {storeOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.slug} (#{o.id})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-zinc-400">地区</span>
+            <select
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              className="h-9 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+            >
+              {(() => {
+                const opt = storeOptions.find((o) => o.id === storeId);
+                const regions = opt?.regions.length ? opt.regions : [region];
+                return regions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ));
+              })()}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
             <span className="text-sm text-zinc-400">货币</span>
-            <Input
+            <select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              className="w-20 text-zinc-200"
-            />
+              onChange={(e) => setCurrency(e.target.value)}
+              className="h-9 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+            >
+              {(() => {
+                const opt = storeOptions.find((o) => o.id === storeId);
+                const currencies = opt?.currencies.length ? opt.currencies : [currency];
+                return currencies.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ));
+              })()}
+            </select>
           </div>
           <Button
             onClick={handlePreview}

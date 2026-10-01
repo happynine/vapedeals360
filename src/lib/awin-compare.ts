@@ -32,6 +32,7 @@ export interface DbPriceRow {
   product_url: string | null;
   in_stock: boolean | null;
   currency: string | null;
+  region?: string | null;
 }
 export interface DbCategoryRow {
   id: number;
@@ -49,6 +50,8 @@ export interface CompareInput {
   advertiserName: string;
   targetStoreId: number;
   targetStoreName: string;
+  /** Region within the target store this feed maps to (USA / UK / Japan). */
+  targetRegion: string;
   feedItems: NormalizedFeedItem[];
   products: DbProductRow[];
   prices: DbPriceRow[];
@@ -187,6 +190,7 @@ function toPreviewPromo(p: PromoInfo): PreviewPromo {
 export function buildPreview(input: CompareInput): CompareResult {
   const {
     targetStoreId,
+    targetRegion,
     feedItems,
     products,
     prices,
@@ -210,10 +214,12 @@ export function buildPreview(input: CompareInput): CompareResult {
       byName.set(normText(p.name), p);
     }
   }
-  // Prices at the target advertiser store, grouped by product.
+  // Existing prices at the target advertiser store + target region, grouped by
+  // product. Each region has its own price row, so UK feed must not touch USA.
   const pricesByProduct = new Map<number, DbPriceRow[]>();
   for (const pr of prices) {
     if (pr.store_id !== targetStoreId) continue;
+    if ((pr.region ?? '') !== targetRegion) continue;
     const list = pricesByProduct.get(pr.product_id) ?? [];
     list.push(pr);
     pricesByProduct.set(pr.product_id, list);
@@ -321,6 +327,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         priceId: oldRow?.id ?? null,
         storeId: targetStoreId,
         storeName: input.targetStoreName,
+        region: targetRegion,
         oldPrice,
         newPrice: item.price,
         currency: item.currency,
@@ -410,6 +417,7 @@ export function buildPreview(input: CompareInput): CompareResult {
             priceId: null,
             storeId: targetStoreId,
             storeName: input.targetStoreName,
+            region: targetRegion,
             oldPrice: null,
             newPrice: item.price,
             currency: item.currency,
@@ -454,6 +462,7 @@ export function buildPreview(input: CompareInput): CompareResult {
           priceId: oldRow.id,
           storeId: targetStoreId,
           storeName: input.targetStoreName,
+          region: targetRegion,
           oldPrice: toNumber(oldRow.current_price),
           newPrice: null,
           currency: oldRow.currency || 'USD',
@@ -496,6 +505,7 @@ export function buildPreview(input: CompareInput): CompareResult {
   return {
     entries,
     totals,
+    targetRegion,
     unmappedCategories: Array.from(unmapped),
     categoryGroups,
     categoryOverrides: categoryOverrides ?? {},

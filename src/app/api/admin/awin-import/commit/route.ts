@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
 
   const body = (await request.json()) as CommitRequest;
-  const { storeId, entries } = body;
+  const { storeId, region, entries } = body;
 
-  if (!storeId || !Array.isArray(entries)) {
+  if (!storeId || !region || !Array.isArray(entries)) {
     return NextResponse.json(
-      { success: false, error: 'store_id and entries are required' },
+      { success: false, error: 'store_id, region and entries are required' },
       { status: 400 },
     );
   }
@@ -136,10 +136,12 @@ export async function POST(request: NextRequest) {
           .select('id')
           .eq('product_id', mergeId)
           .eq('store_id', storeId)
+          .eq('region', region)
           .maybeSingle();
         const pricePayload = {
           current_price: priceSpec.newPrice,
           currency: priceSpec.currency,
+          region,
           product_url: priceSpec.newUrl || null,
           in_stock: priceSpec.inStock,
         };
@@ -199,6 +201,7 @@ export async function POST(request: NextRequest) {
           store_id: storeId,
           current_price: priceSpec.newPrice,
           currency: priceSpec.currency,
+          region,
           product_url: priceSpec.newUrl || null,
           in_stock: priceSpec.inStock,
         });
@@ -283,6 +286,7 @@ export async function POST(request: NextRequest) {
             store_id: storeId,
             current_price: priceSpec.newPrice,
             currency: priceSpec.currency,
+            region,
             product_url: priceSpec.newUrl || null,
             in_stock: priceSpec.inStock,
           });
