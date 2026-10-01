@@ -86,6 +86,33 @@ export function slugify(input: string): string {
 export function topCategory(value: string): string {
   return (value.split(/[/>]/)[0] || '').trim();
 }
+
+/**
+ * Collapse a (possibly fine-grained) feed category to one of a fixed set of
+ * top-level buckets by keyword. This keeps the importer's category filter to a
+ * handful of chips even when the feed exposes subcategories as standalone names
+ * (e.g. "Disposable Mango Vapes" -> "Disposable Vapes").
+ */
+const TOP_CATEGORY_RULES: Array<[RegExp, string]> = [
+  [/disposable|puffs?\b|nicotine pouch|nicotine gum/, 'Disposable Vapes'],
+  [/\be-?liquids?\b|vape juices?|freebase|salt nic|nicotine juices?/, 'E-liquids'],
+  // 整机/套装优先于 mods、tanks，避免 "box mod kit"、"disposable tank" 被抢走
+  [/\bkits?\b|\bpods?\b|pod system|starter kit|vape pen/, 'Vape Kit'],
+  [/\btanks?\b|glass replacement|clearomizer|rta\b|rdta\b/, 'Tanks'],
+  [/\bmods?\b|box mod|new in hardware/, 'Vape Mods'],
+  [/vaporizer|dry herb|concentrate/, 'Vaporizers'],
+  [/coil|atomizer|batter|charger|accessor|drip tip|replacement pod|510 thread/, 'Accessories'],
+];
+
+function normalizeTopCategory(raw: string): string {
+  const first = topCategory(raw);
+  const text = (first || '').toLowerCase().trim();
+  if (!text) return '';
+  for (const [re, bucket] of TOP_CATEGORY_RULES) {
+    if (re.test(text)) return bucket;
+  }
+  return first;
+}
 /** Normalize a category name for matching (take first segment, strip symbols). */
 function categoryKey(value: string): string {
   return normText(topCategory(value));
@@ -188,14 +215,15 @@ export function buildPreview(input: CompareInput): CompareResult {
       (item.awProductId && byAwId.get(normText(item.awProductId))) ||
       (item.name && byName.get(normText(item.name))) ||
       null;
-    const feedCategory = topCategory(item.category);
+    const feedCategory = normalizeTopCategory(item.category);
     const promo =
       (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
       null;
-    let categorySlug = mapCategory(item.category, categories, categoryOverrides);
-    if (!categorySlug && item.category) {
-      categorySlug = slugify(topCategory(item.category) || item.category);
-      unmapped.add(item.category);
+    const mappedFrom = feedCategory || item.category;
+    let categorySlug = mapCategory(mappedFrom, categories, categoryOverrides);
+    if (!categorySlug && mappedFrom) {
+      categorySlug = slugify(mappedFrom);
+      unmapped.add(mappedFrom);
     }
     if (!categorySlug) categorySlug = 'uncategorized';
     if (matched) {
