@@ -94,6 +94,8 @@ export function topCategory(value: string): string {
  * (e.g. "Disposable Mango Vapes" -> "Disposable Vapes").
  */
 const TOP_CATEGORY_RULES: Array<[RegExp, string]> = [
+  // Merchandising collections are not real product types.
+  [/best sellers?|new arrivals?|clearance|deals?\b|sale\b|rechargeable\b/, 'Uncategorized'],
   [/disposable|puffs?\b|nicotine pouch|nicotine gum/, 'Disposable Vapes'],
   [/\be-?liquids?\b|vape juices?|freebase|salt nic|nicotine juices?/, 'E-liquids'],
   // 整机/套装优先于 mods、tanks，避免 "box mod kit"、"disposable tank" 被抢走
@@ -102,6 +104,9 @@ const TOP_CATEGORY_RULES: Array<[RegExp, string]> = [
   [/\bmods?\b|box mod|new in hardware/, 'Vape Mods'],
   [/vaporizer|dry herb|concentrate/, 'Vaporizers'],
   [/coil|atomizer|batter|charger|accessor|drip tip|replacement pod|510 thread/, 'Accessories'],
+  // Flavored vapes (disposable lines) after the above; "vape juice/flavour"
+  // stays an e-liquid via the earlier rule, plain flavor words imply devices.
+  [/flavou?red|flavou?rs?/, 'Disposable Vapes'],
 ];
 
 function normalizeTopCategory(raw: string): string {
@@ -216,6 +221,15 @@ export function buildPreview(input: CompareInput): CompareResult {
       (item.name && byName.get(normText(item.name))) ||
       null;
     const feedCategory = normalizeTopCategory(item.category);
+    // Normalize the extra (deduped) categories to top buckets; keep only those
+    // distinct from the canonical bucket so one entry can appear under several.
+    const extraBuckets: string[] = [];
+    for (const extraRaw of item.extraCategories ?? []) {
+      const bucket = normalizeTopCategory(extraRaw);
+      if (bucket && bucket !== feedCategory && !extraBuckets.includes(bucket)) {
+        extraBuckets.push(bucket);
+      }
+    }
     const promo =
       (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
       null;
@@ -283,6 +297,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
         feedCategory,
+        extraFeedCategories: extraBuckets,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: [],
@@ -339,6 +354,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
         feedCategory,
+        extraFeedCategories: extraBuckets,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: candidates.slice(0, 6),
@@ -382,6 +398,7 @@ export function buildPreview(input: CompareInput): CompareResult {
       category: '',
       categoryLabel: '',
       feedCategory: '',
+      extraFeedCategories: [],
       promo: null,
       brand: '',
       matchCandidates: [],
@@ -408,14 +425,19 @@ export function buildPreview(input: CompareInput): CompareResult {
   const groupPromo = new Map<string, number>();
   for (const e of entries) {
     if (e.kind === 'missing') continue;
-    const g = e.feedCategory || 'Uncategorized';
-    if (!groupCount.has(g)) {
-      groupCount.set(g, 0);
-      groupPromo.set(g, 0);
-      groupOrder.push(g);
+    // Count the entry once per bucket it belongs to (canonical + extras), so a
+    // product listed under several categories is reflected in every chip.
+    const buckets = [e.feedCategory || 'Uncategorized', ...e.extraFeedCategories];
+    for (const labelRaw of buckets) {
+      const label = labelRaw || 'Uncategorized';
+      if (!groupCount.has(label)) {
+        groupCount.set(label, 0);
+        groupPromo.set(label, 0);
+        groupOrder.push(label);
+      }
+      groupCount.set(label, (groupCount.get(label) ?? 0) + 1);
+      if (e.promo) groupPromo.set(label, (groupPromo.get(label) ?? 0) + 1);
     }
-    groupCount.set(g, (groupCount.get(g) ?? 0) + 1);
-    if (e.promo) groupPromo.set(g, (groupPromo.get(g) ?? 0) + 1);
   }
   const categoryGroups: CategoryGroup[] = groupOrder.map((label) => ({
     key: label === 'Uncategorized' ? '' : label,

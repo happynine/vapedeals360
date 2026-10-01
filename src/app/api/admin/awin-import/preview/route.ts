@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
-import { parseAwinCsv, type NormalizedFeedItem } from '@/lib/awin-feed';
+import { parseAwinCsv, dedupeFeedItems, type NormalizedFeedItem } from '@/lib/awin-feed';
 import {
   buildPreview,
   slugify,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const text = maybeGunzip(bytes);
-    const feedItems: NormalizedFeedItem[] = parseAwinCsv(text, currency);
+    const feedItems: NormalizedFeedItem[] = dedupeFeedItems(parseAwinCsv(text, currency));
     if (feedItems.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No products found in feed file' },

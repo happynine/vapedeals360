@@ -49,6 +49,8 @@ export interface NormalizedFeedItem {
   merchantUrl: string;
   imageUrl: string;
   category: string;
+  /** Additional merchant categories the same SKU is listed under (deduped). */
+  extraCategories: string[];
   brand: string;
   inStock: boolean;
 }
@@ -133,11 +135,47 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
       merchantUrl: (row.merchant_deep_link || '').trim(),
       imageUrl,
       category: (row.merchant_category || row.category_name || row.product_type || '').trim(),
+      extraCategories: [],
       brand: (row.brand_name || '').trim(),
       inStock: parseAvailability(row.availability),
     });
   }
   return items;
+}
+/**
+ * Collapse duplicate feed rows that share the same product identity.
+ *
+ * Awin advertisers frequently list one product under several merchant
+ * categories, which otherwise produces multiple preview entries for the same
+ * SKU (one per category tab). We keep the first row as canonical and collect
+ * the additional categories so the product is still reachable under every tab
+ * while being imported only once.
+ */
+export function dedupeFeedItems(items: NormalizedFeedItem[]): NormalizedFeedItem[] {
+  const indexByKey = new Map<string, number>();
+  const out: NormalizedFeedItem[] = [];
+  for (const item of items) {
+    // Prefer the store's own SKU, fall back to the Awin product id; only
+    // dedupe when we have a stable identity.
+    const key = item.merchantProductId || item.awProductId || '';
+    if (!key) {
+      out.push({ ...item, extraCategories: [] });
+      continue;
+    }
+    const existingIdx = indexByKey.get(key);
+    if (existingIdx === undefined) {
+      indexByKey.set(key, out.length);
+      out.push({ ...item, extraCategories: [] });
+      continue;
+    }
+    const existing = out[existingIdx];
+    if (item.category && item.category !== existing.category) {
+      const extras = existing.extraCategories ?? [];
+      if (!extras.includes(item.category)) extras.push(item.category);
+      out[existingIdx] = { ...existing, extraCategories: extras };
+    }
+  }
+  return out;
 }
 /**
  * Parse a price that may include a currency symbol / thousands separators,

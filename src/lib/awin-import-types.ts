@@ -59,6 +59,11 @@ export interface PreviewEntry {
   categoryLabel: string; // Human label / original feed category.
   /** Top-level feed category used for grouping/filtering, e.g. "Disposable Vapes". */
   feedCategory: string;
+  /**
+   * Other top-level feed buckets the same SKU is listed under (deduped from
+   * duplicate feed rows). Lets one entry show under several category chips.
+   */
+  extraFeedCategories: string[];
   /** Promotion info matched from a landing page, when any. */
   promo: PreviewPromo | null;
   brand: string;
