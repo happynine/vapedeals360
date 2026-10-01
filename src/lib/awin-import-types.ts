@@ -17,6 +17,14 @@ export interface MatchCandidate {
   imageUrl: string | null;
   score: number;
   level: 'strong' | 'possible';
+  /**
+   * Where the similar product lives:
+   * - 'cross_store': the same product is already sold by another store.
+   * - 'internal':   an existing VapeDeals360 catalog product not from a store.
+   */
+  source: 'cross_store' | 'internal';
+  /** Other stores currently selling this product (ids + names), cross_store. */
+  sellingStores: Array<{ id: number; name: string }>;
 }
 
 export interface PreviewPromo {

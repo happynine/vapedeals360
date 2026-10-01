@@ -112,10 +112,13 @@ export default function AwinImportPanel() {
   };
 
   // Which entries belong to the currently active category filter.
-  const inCategory = (e: PreviewEntry) =>
-    catFilter === '__all__'
-      ? e.kind !== 'missing'
-      : (e.feedCategory || '') === catFilter;
+  const inCategory = (e: PreviewEntry) => {
+    if (catFilter === '__all__') return e.kind !== 'missing';
+    // The Uncategorized chip uses key '' but the entry's bucket label is
+    // 'Uncategorized'; match it explicitly.
+    const buckets = [e.feedCategory || 'Uncategorized', ...e.extraFeedCategories];
+    return buckets.includes(catFilter === '' ? 'Uncategorized' : catFilter);
+  };
 
   const visibleEntries = entries.filter(
     (e) =>
@@ -330,7 +333,7 @@ export default function AwinImportPanel() {
                 active={catFilter === '__all__'}
                 onClick={() => setCatFilter('__all__')}
                 label="全部品类"
-                count={preview.categoryGroups.reduce((s, g) => s + g.count, 0)}
+                count={entries.filter((e) => e.kind !== 'missing').length}
                 promo={preview.promoCount}
               />
               {preview.categoryGroups.map((g) => (
@@ -538,6 +541,10 @@ function EntryRow({
           </div>
           {(entry.merchantProductId || entry.feedCategory) && (
             <p className="text-xs text-zinc-500">
+              <span className="text-zinc-400">
+                {price?.storeName || ''}
+              </span>
+              {price?.storeName ? ' · ' : ''}
               {entry.feedCategory}
               {entry.merchantProductId ? ` · SKU ${entry.merchantProductId}` : ''}
             </p>
@@ -562,37 +569,56 @@ function EntryRow({
         </div>
       </div>
 
-      {/* Fuzzy merge candidates */}
+      {/* Fuzzy merge candidates, split by source */}
       {entry.kind === 'possible_match' && entry.matchCandidates.length > 0 && (
-        <div className="ml-7 rounded bg-blue-500/10 border border-blue-500/30 px-2 py-2 space-y-1.5">
-          <p className="text-blue-300 text-xs flex items-center gap-1">
-            <GitMerge className="w-3.5 h-3.5" />
-            可能与现有产品重复，选择要合并到的产品（仅勾选后才会执行）：
-          </p>
-          {entry.matchCandidates.map((c) => {
-            const active = entry.productId === c.productId;
+        <div className="ml-7 space-y-2">
+          {([
+            ['cross_store', '① 其他商城也在卖的同款 —— 把本商城价格挂到该产品', 'text-emerald-300'],
+            ['internal', '② VapeDeals360 站内已有的同款', 'text-blue-300'],
+          ] as const).map(([source, title, toneCls]) => {
+            const list = entry.matchCandidates.filter((c) => c.source === source);
+            if (list.length === 0) return null;
             return (
-              <button
-                key={c.productId}
-                type="button"
-                onClick={() => onChange({ productId: c.productId })}
-                className={`w-full flex items-center gap-2 rounded border px-2 py-1 text-left text-xs transition-colors ${
-                  active
-                    ? 'border-blue-400 bg-blue-500/20'
-                    : 'border-zinc-700 bg-zinc-900/60 hover:border-zinc-500'
-                }`}
+              <div
+                key={source}
+                className="rounded bg-blue-500/10 border border-blue-500/30 px-2 py-2 space-y-1.5"
               >
-                {c.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-zinc-800 flex-shrink-0" />
-                )}
-                <span className="flex-1 min-w-0 text-zinc-200 truncate">{c.name}</span>
-                <span className={c.level === 'strong' ? 'text-green-400' : 'text-yellow-500'}>
-                  {c.level === 'strong' ? '高度相似' : '可能相似'} {Math.round(c.score * 100)}%
-                </span>
-              </button>
+                <p className={`${toneCls} text-xs flex items-center gap-1`}>
+                  <GitMerge className="w-3.5 h-3.5" /> {title}
+                </p>
+                {list.map((c) => {
+                  const active = entry.productId === c.productId;
+                  return (
+                    <button
+                      key={c.productId}
+                      type="button"
+                      onClick={() => onChange({ productId: c.productId })}
+                      className={`w-full flex items-center gap-2 rounded border px-2 py-1 text-left text-xs transition-colors ${
+                        active
+                          ? 'border-blue-400 bg-blue-500/20'
+                          : 'border-zinc-700 bg-zinc-900/60 hover:border-zinc-500'
+                      }`}
+                    >
+                      {c.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-zinc-800 flex-shrink-0" />
+                      )}
+                      <span className="flex-1 min-w-0 text-zinc-200 truncate">{c.name}</span>
+                      {c.sellingStores.length > 0 && (
+                        <span className="text-[10px] text-zinc-400 truncate max-w-[160px]">
+                          {c.sellingStores.map((s) => s.name).join(', ')}
+                        </span>
+                      )}
+                      <span className={c.level === 'strong' ? 'text-green-400' : 'text-yellow-500'}>
+                        {c.level === 'strong' ? '高度相似' : '可能相似'} {Math.round(c.score * 100)}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
+          <p className="text-[11px] text-zinc-500">点击其中一项即表示确认合并（仅在勾选该行后才会执行）；都不符合就选下方「作为新品」。</p>
           <button
             type="button"
             onClick={() => onChange({ productId: null })}

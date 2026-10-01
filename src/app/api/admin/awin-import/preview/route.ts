@@ -215,6 +215,10 @@ export async function POST(request: NextRequest) {
       .select('category_id, language, name')
       .eq('language', 'en');
     if (ctError) throw ctError;
+    const { data: storeRows, error: storeError } = await supabase
+      .from('stores')
+      .select('id, slug, store_type');
+    if (storeError) throw storeError;
     // Merge translations into the products.
     const trByProduct = new Map(
       (translationRows ?? []).map((t) => [t.product_id, t]),
@@ -241,6 +245,12 @@ export async function POST(request: NextRequest) {
       slug: c.slug,
       name: ctById.get(c.id)?.name ?? null,
     }));
+    const stores = (storeRows ?? []).map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.slug,
+      store_type: s.store_type ?? null,
+    }));
     const result = buildPreview({
       advertiserId,
       advertiserName,
@@ -250,6 +260,7 @@ export async function POST(request: NextRequest) {
       products,
       prices,
       categories,
+      stores,
       promoMap,
       categoryOverrides: parseCategoryOverrides(categoryOverridesRaw),
     });

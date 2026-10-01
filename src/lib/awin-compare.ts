@@ -38,6 +38,12 @@ export interface DbCategoryRow {
   slug: string;
   name?: string | null; // merged en translation
 }
+export interface DbStoreRow {
+  id: number;
+  slug: string;
+  name?: string | null;
+  store_type?: string | null;
+}
 export interface CompareInput {
   advertiserId: string;
   advertiserName: string;
@@ -47,6 +53,8 @@ export interface CompareInput {
   products: DbProductRow[];
   prices: DbPriceRow[];
   categories: DbCategoryRow[];
+  /** Catalog stores, used to label which stores sell each candidate product. */
+  stores: DbStoreRow[];
   /** Promotion info keyed by the store product pathname. */
   promoMap?: Map<string, PromoInfo>;
   /** User-defined feed top-category → internal slug overrides. */
@@ -183,6 +191,7 @@ export function buildPreview(input: CompareInput): CompareResult {
     products,
     prices,
     categories,
+    stores,
     promoMap,
     categoryOverrides,
   } = input;
@@ -209,17 +218,57 @@ export function buildPreview(input: CompareInput): CompareResult {
     list.push(pr);
     pricesByProduct.set(pr.product_id, list);
   }
+  // Store lookup + the full set of stores selling each product (all stores,
+  // not just the target), used to classify candidates as cross-store/internal.
+  const storesById = new Map<number, DbStoreRow>(stores.map((s) => [s.id, s]));
+  const storeName = (id: number): string => {
+    const s = storesById.get(id);
+    return s?.name || s?.slug || `Store #${id}`;
+  };
+  const storesByProduct = new Map<number, number[]>();
+  for (const pr of prices) {
+    const list = storesByProduct.get(pr.product_id) ?? [];
+    if (!list.includes(pr.store_id)) list.push(pr.store_id);
+    storesByProduct.set(pr.product_id, list);
+  }
+  // Build one candidate object for an existing product vs a feed item.
+  const toCandidate = (
+    p: DbProductRow,
+    score: number,
+    level: 'strong' | 'possible',
+  ): MatchCandidate => {
+    const sellingIds = (storesByProduct.get(p.id) ?? []).filter(
+      (sid) => sid !== targetStoreId,
+    );
+    return {
+      productId: p.id,
+      slug: p.slug,
+      name: p.name || p.slug,
+      imageUrl: p.image_url,
+      score,
+      level,
+      // Available at one or more other stores → cross-store duplicate; a
+      // catalog product with no other store price is an internal match.
+      source: sellingIds.length > 0 ? 'cross_store' : 'internal',
+      sellingStores: sellingIds.map((sid) => ({ id: sid, name: storeName(sid) })),
+    };
+  };
   const entries: PreviewEntry[] = [];
   const matchedProductIds = new Set<number>();
   const unmapped = new Set<string>();
   const usedSlugs = new Set<string>(products.map((p) => p.slug));
   for (const item of feedItems) {
-    // Match with priority: merchant SKU -> Awin id -> exact name.
-    const matched =
+    // Hard identity keys are safe to auto-trust: the store's own SKU or the
+    // globally unique Awin product id.
+    const hardMatched =
       (item.merchantProductId && byMerchantSku.get(normText(item.merchantProductId))) ||
       (item.awProductId && byAwId.get(normText(item.awProductId))) ||
-      (item.name && byName.get(normText(item.name))) ||
       null;
+    // An exact-name hit is NOT auto-trusted: different items can share a name.
+    // Route it through the candidate card for explicit confirmation.
+    const nameMatched =
+      (!hardMatched && item.name && byName.get(normText(item.name))) || null;
+    const matched = hardMatched;
     const feedCategory = normalizeTopCategory(item.category);
     // Normalize the extra (deduped) categories to top buckets; keep only those
     // distinct from the canonical bucket so one entry can appear under several.
@@ -304,25 +353,23 @@ export function buildPreview(input: CompareInput): CompareResult {
         prices: [previewPrice],
       });
     } else {
-      // Fuzzy candidates: compare the feed name against every existing product
-      // not already claimed by a stronger key. Keep 'strong' + best 'possible'.
+      // Similar existing products: an exact-name match (highest confidence)
+      // plus fuzzy candidates. Classified per source (cross-store / internal).
+      const candidateIds = new Set<number>();
       const candidates: MatchCandidate[] = [];
+      if (nameMatched && !matchedProductIds.has(nameMatched.id)) {
+        candidateIds.add(nameMatched.id);
+        candidates.push(toCandidate(nameMatched, 1, 'strong'));
+      }
       for (const p of products) {
-        if (matchedProductIds.has(p.id)) continue;
+        if (matchedProductIds.has(p.id) || candidateIds.has(p.id)) continue;
         const r = scoreSimilarity(item.name, p.name || p.slug);
         if (r.level === 'none') continue;
-        candidates.push({
-          productId: p.id,
-          slug: p.slug,
-          name: p.name || p.slug,
-          imageUrl: p.image_url,
-          score: r.score,
-          level: r.level,
-        });
+        candidateIds.add(p.id);
+        candidates.push(toCandidate(p, r.score, r.level));
       }
       candidates.sort((a, b) => b.score - a.score);
-      // strong candidate pre-fills productId, possible leaves it null; either
-      // way the row is unselected — nothing merges without explicit approval.
+      // Never pre-select: every merge requires an explicit user click.
       const best = candidates[0] ?? null;
       const kind: ChangeKind = best ? 'possible_match' : 'new';
 
@@ -343,7 +390,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         selected: false,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
-        productId: best && best.level === 'strong' ? best.productId : null,
+        productId: null,
         slug,
         name: item.name,
         oldName: null,
