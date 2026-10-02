@@ -259,12 +259,16 @@ export function buildPreview(input: CompareInput): CompareResult {
     const s = storesById.get(id);
     return s?.name || s?.slug || `Store #${id}`;
   };
-  // All stores selling each product (candidate source classification).
-  const storesByProduct = new Map<number, number[]>();
+  // All (store, region) pairs selling each product. Same store in a different
+  // region counts as a separate marketplace for candidate classification.
+  const sellingByProduct = new Map<number, Array<{ storeId: number; region: string }>>();
   for (const pr of prices) {
-    const list = storesByProduct.get(pr.product_id) ?? [];
-    if (!list.includes(pr.store_id)) list.push(pr.store_id);
-    storesByProduct.set(pr.product_id, list);
+    const list = sellingByProduct.get(pr.product_id) ?? [];
+    const region = pr.region ?? '';
+    if (!list.some((x) => x.storeId === pr.store_id && x.region === region)) {
+      list.push({ storeId: pr.store_id, region });
+    }
+    sellingByProduct.set(pr.product_id, list);
   }
   // Existing price rows keyed by (product, store, region).
   const priceKeyOf = (productId: number, storeId: number, region: string) =>
@@ -282,10 +286,14 @@ export function buildPreview(input: CompareInput): CompareResult {
     score: number,
     level: 'strong' | 'possible',
     targetStoreId: number,
+    targetRegion: string,
   ): MatchCandidate => {
-    const sellingIds = (storesByProduct.get(p.id) ?? []).filter(
-      (sid) => sid !== targetStoreId,
+    // Other marketplaces = any (store, region) other than this very target.
+    const others = (sellingByProduct.get(p.id) ?? []).filter(
+      (x) => !(x.storeId === targetStoreId && x.region === targetRegion),
     );
+    const sellingIds: number[] = [];
+    for (const x of others) if (!sellingIds.includes(x.storeId)) sellingIds.push(x.storeId);
     return {
       productId: p.id,
       slug: p.slug,
@@ -293,7 +301,7 @@ export function buildPreview(input: CompareInput): CompareResult {
       imageUrl: p.image_url,
       score,
       level,
-      source: sellingIds.length > 0 ? 'cross_store' : 'internal',
+      source: others.length > 0 ? 'cross_store' : 'internal',
       sellingStores: sellingIds.map((sid) => ({ id: sid, name: storeName(sid) })),
     };
   };
@@ -429,7 +437,7 @@ export function buildPreview(input: CompareInput): CompareResult {
       ) => {
         if (candidateIds.has(p.id)) return;
         candidateIds.add(p.id);
-        candidates.push(toCandidate(p, score, level, t.storeId));
+        candidates.push(toCandidate(p, score, level, t.storeId, t.region));
       };
       // ② Same merchant (factory) SKU → strong cross-merchant hint.
       if (item.merchantProductId) {
