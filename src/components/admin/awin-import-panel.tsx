@@ -826,21 +826,30 @@ function CompareModal({
   // Per-entry state so sibling feed duplicates can be confirmed together.
   const [modeByKey, setModeByKey] = useState<Record<string, 'merge' | 'new'>>({});
   const [choicesByKey, setChoicesByKey] = useState<Record<string, FieldChoices>>({});
+  // Which match candidate is currently displayed (0 = top scored).
+  const [candIdxByKey, setCandIdxByKey] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (entry) {
-      setModeByKey({ [entry.key]: entry.mergeProductId ? 'merge' : 'new' });
+      // Direct "Compare" click: default to the best candidate + merge mode so
+      // columns B and the site-value column are never blank.
+      const hasCand = entry.matchCandidates.length > 0;
+      setModeByKey({ [entry.key]: entry.mergeProductId || hasCand ? 'merge' : 'new' });
       setChoicesByKey({ [entry.key]: entry.fieldChoices ?? DEFAULT_CHOICES });
+      const preSel = entry.matchCandidates.findIndex(
+        (c) => c.productId === entry.mergeProductId,
+      );
+      setCandIdxByKey({ [entry.key]: preSel >= 0 ? preSel : 0 });
     }
   }, [entry?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!entry) return null;
 
-  const candidate =
-    entry.mergeProductId && entry.matchCandidates.length > 0
-      ? entry.matchCandidates.find((c) => c.productId === entry.mergeProductId) ??
-        entry.matchCandidates[0]
-      : null;
+  const candIdx = Math.min(
+    candIdxByKey[entry.key] ?? 0,
+    Math.max(0, entry.matchCandidates.length - 1),
+  );
+  const candidate = entry.matchCandidates[candIdx] ?? null;
 
   const advertiserName = stores.find((s) => s.id === entry.targetStore)?.name ?? 'A商城';
 
@@ -906,6 +915,38 @@ function CompareModal({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
+          {/* Candidate switcher: lets the user pick which local product to compare */}
+          {entry.matchCandidates.length > 0 && (
+            <div className="rounded-md border border-zinc-800 bg-zinc-900/60 p-2.5">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                站内疑似同款（{entry.matchCandidates.length}）— 点击切换对比对象
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {entry.matchCandidates.map((c, i) => (
+                  <button
+                    key={c.productId}
+                    onClick={() => {
+                      setCandIdxByKey((m) => ({ ...m, [entry.key]: i }));
+                      setModeByKey((m) => ({ ...m, [entry.key]: 'merge' }));
+                    }}
+                    className={`flex items-center gap-2 rounded border px-2 py-1 text-[11px] transition ${
+                      i === candIdx
+                        ? 'border-purple-500 bg-purple-500/15 text-purple-200'
+                        : 'border-zinc-700 bg-zinc-800/60 text-zinc-300 hover:border-zinc-500'
+                    }`}
+                  >
+                    <img
+                      src={c.imageUrl || ''}
+                      alt=""
+                      className="h-6 w-6 rounded bg-zinc-700 object-cover"
+                    />
+                    <span className="max-w-[260px] truncate">{c.name}</span>
+                    <span className="text-zinc-500">#{c.productId}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Header */}
           <div className="grid grid-cols-[110px_1fr_1fr_1fr] gap-3">
             <div />
