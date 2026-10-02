@@ -9,6 +9,21 @@ import type {
 
 type Supa = ReturnType<typeof getServiceRoleClient>;
 
+/** Original price + derived discount percent for a price payload. */
+function originalFields(
+  newPrice: number | null,
+  newOriginalPrice: number | null,
+): { original_price?: number | null; discount_percent?: number | null } {
+  if (newOriginalPrice === null) return {};
+  let discountPercent: number | null = null;
+  if (newPrice !== null && newOriginalPrice > 0 && newPrice < newOriginalPrice) {
+    discountPercent = Math.round(
+      ((newOriginalPrice - newPrice) / newOriginalPrice) * 1000,
+    ) / 10;
+  }
+  return { original_price: newOriginalPrice, discount_percent: discountPercent };
+}
+
 /** Ensure a category exists for the given slug; return its id. */
 async function ensureCategory(supabase: Supa, slug: string): Promise<number | null> {
   if (!slug) return null;
@@ -285,6 +300,7 @@ export async function POST(request: NextRequest) {
           product_url: spec.newUrl || null,
           in_stock: spec.inStock,
           has_commission: true,
+          ...originalFields(spec.newPrice, spec.newOriginalPrice),
         };
         const oldPrice = existingPrice?.current_price
           ? Number(existingPrice.current_price)
@@ -360,6 +376,7 @@ export async function POST(request: NextRequest) {
           product_url: spec.newUrl || null,
           in_stock: spec.inStock,
           has_commission: true,
+          ...originalFields(spec.newPrice, spec.newOriginalPrice),
         });
         if (priceErr) {
           result.errors.push(`${entry.slug}: price create failed (${priceErr.message})`);
@@ -441,6 +458,9 @@ export async function POST(request: NextRequest) {
               product_url: spec.newUrl || undefined,
               in_stock: spec.inStock,
               has_commission: true,
+              ...(spec.newPrice !== null
+                ? originalFields(spec.newPrice, spec.newOriginalPrice)
+                : {}),
             })
             .eq('id', spec.priceId);
           if (error) {
@@ -466,6 +486,7 @@ export async function POST(request: NextRequest) {
             product_url: spec.newUrl || null,
             in_stock: spec.inStock,
             has_commission: true,
+            ...originalFields(spec.newPrice, spec.newOriginalPrice),
           });
           if (error) {
             result.errors.push(`${entry.slug}: price insert failed (${error.message})`);

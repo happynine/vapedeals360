@@ -33,6 +33,8 @@ export interface DbPriceRow {
   product_id: number;
   store_id: number;
   current_price: number | string | null;
+  original_price?: number | string | null;
+  discount_percent?: number | string | null;
   product_url: string | null;
   in_stock: boolean | null;
   currency: string | null;
@@ -225,6 +227,13 @@ export function buildPreview(input: CompareInput): CompareResult {
   const targetsByAdv = new Map<string, AdvertiserTarget>(
     targets.map((t) => [t.advertiserId, t]),
   );
+  // Any advertiser feeding each store (used to look up that store's SKU).
+  const advsByStore = new Map<number, string[]>();
+  for (const t of targets) {
+    const list = advsByStore.get(t.storeId) ?? [];
+    if (!list.includes(t.advertiserId)) list.push(t.advertiserId);
+    advsByStore.set(t.storeId, list);
+  };
 
   // --- Product identity indexes ------------------------------------------------
   const byMerchantSku = new Map<string, DbProductRow>();
@@ -240,6 +249,8 @@ export function buildPreview(input: CompareInput): CompareResult {
   const extByAdvAw = new Map<string, DbProductRow>();
   const productById = new Map<number, DbProductRow>(products.map((p) => [p.id, p]));
   const extByMerchantSku = new Map<string, DbProductRow[]>();
+  // Known per-store SKU: (product, store) -> merchant_product_id.
+  const extSkuByProductStore = new Map<string, string>();
   for (const e of externalIds) {
     const p = productById.get(e.product_id);
     if (!p) continue;
@@ -251,6 +262,7 @@ export function buildPreview(input: CompareInput): CompareResult {
       const list = extByMerchantSku.get(key) ?? [];
       if (!list.some((x) => x.id === p.id)) list.push(p);
       extByMerchantSku.set(key, list);
+      extSkuByProductStore.set(`${e.product_id}::${e.advertiser_id}`, e.merchant_product_id);
     }
   }
 
@@ -305,15 +317,21 @@ export function buildPreview(input: CompareInput): CompareResult {
     // Existing per-store offers (all rows for this product), for column B.
     const storePrices = (allPricesByProduct.get(p.id) ?? []).map((pr) => {
       const s = storesById.get(pr.store_id);
+      const advId = (advsByStore.get(pr.store_id) ?? [])[0] ?? '';
+      let sku: string | null = null;
+      if (advId) sku = extSkuByProductStore.get(`${p.id}::${advId}`) ?? null;
       return {
         storeId: pr.store_id,
         storeName: storeName(pr.store_id),
         logoUrl: s?.logoUrl ?? null,
         region: pr.region ?? '',
         price: toNumber(pr.current_price),
+        originalPrice: toNumber(pr.original_price ?? null),
+        discountPercent: toNumber(pr.discount_percent ?? null),
         currency: pr.currency || '',
         inStock: pr.in_stock ?? true,
         productUrl: pr.product_url ?? null,
+        sku,
       };
     });
     return {
@@ -353,6 +371,8 @@ export function buildPreview(input: CompareInput): CompareResult {
     region: t.region,
     oldPrice: toNumber(oldRow?.current_price ?? null),
     newPrice: item.price,
+    oldOriginalPrice: toNumber(oldRow?.original_price ?? null),
+    newOriginalPrice: item.rrpPrice ?? toNumber(oldRow?.original_price ?? null),
     currency: item.currency,
     oldUrl: oldRow?.product_url ?? null,
     newUrl: item.deepLink || oldRow?.product_url || null,

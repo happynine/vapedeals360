@@ -23,9 +23,13 @@ export interface CandidateStorePrice {
   logoUrl?: string | null;
   region: string;
   price: number | null;
+  originalPrice: number | null;
+  discountPercent: number | null;
   currency: string;
   inStock: boolean;
   productUrl: string | null;
+  /** This store's own SKU for the product (external identity), when known. */
+  sku?: string | null;
 }
 
 /** A fuzzy match candidate for one feed item. */
@@ -66,6 +70,9 @@ export interface PreviewPrice {
   region: string;
   oldPrice: number | null;
   newPrice: number | null;
+  /** Old / new original (RRP) price, when known. */
+  oldOriginalPrice: number | null;
+  newOriginalPrice: number | null;
   currency: string;
   oldUrl: string | null;
   newUrl: string | null;
@@ -196,6 +203,7 @@ export interface CommitEntry {
     storeId: number | null;
     region: string;
     newPrice: number | null;
+    newOriginalPrice: number | null;
     currency: string;
     newUrl: string | null;
     inStock: boolean;

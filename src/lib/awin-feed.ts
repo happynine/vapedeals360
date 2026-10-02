@@ -53,6 +53,8 @@ export interface NormalizedFeedItem {
   extraCategories: string[];
   brand: string;
   inStock: boolean;
+  /** RRP / original price when the feed provides one (rrp_price column). */
+  rrpPrice: number | null;
 }
 /**
  * Parse a single CSV line, honoring double-quoted fields and escaped quotes
@@ -138,6 +140,7 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
       extraCategories: [],
       brand: (row.brand_name || '').trim(),
       inStock: parseAvailability(row.availability),
+      rrpPrice: parsePrice(row.rrp_price || row.original_price || ''),
     });
   }
   return items;

@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
     if (translationError) throw translationError;
     const { data: priceRows, error: priceError } = await supabase
       .from('product_prices')
-      .select('id, product_id, store_id, current_price, product_url, in_stock, currency, region');
+      .select('id, product_id, store_id, current_price, original_price, discount_percent, product_url, in_stock, currency, region');
     if (priceError) throw priceError;
     const { data: categoryRows, error: categoryError } = await supabase
       .from('categories')
