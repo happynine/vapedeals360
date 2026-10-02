@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       prices,
       categories,
       stores: targets.length
-        ? stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name }))
+        ? stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, logoUrl: s.logoUrl ?? null }))
         : [],
       externalIds,
       promoMap,

@@ -25,7 +25,7 @@ export interface MatchCandidate {
    */
   source: 'cross_store' | 'internal';
   /** Other stores currently selling this product (ids + names), cross_store. */
-  sellingStores: Array<{ id: number; name: string }>;
+  sellingStores: Array<{ id: number; name: string; logoUrl?: string | null }>;
 }
 
 export interface PreviewPromo {

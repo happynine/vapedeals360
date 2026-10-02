@@ -1777,8 +1777,8 @@ export default function AdminPage() {
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                   <div>
-                                    <div className="text-sm font-medium flex items-center gap-1.5">
-                                      {enName}
+                                    <div className="text-sm font-medium">{enName}</div>
+                                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                                       {product.has_promotion && (
                                         <span className="inline-flex items-center rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400" title={
                                           (() => {
@@ -1816,49 +1816,41 @@ export default function AdminPage() {
                                         </span>
                                       )}
                                     </div>
-                                    {product.is_featured ? (
-                                      <div className="mt-0.5">
-                                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500" title={adminLang === 'zh' ? '推荐产品' : 'Featured product'}>
-                                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                                          {adminLang === 'zh' ? '推荐' : 'FEATURED'}
-                                        </span>
-                                      </div>
-                                    ) : null}
+                                    {product.is_featured && (
+                                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500" title={adminLang === 'zh' ? '推荐产品' : 'Featured product'}>
+                                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                        {adminLang === 'zh' ? '推荐' : 'FEATURED'}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-sm text-muted-foreground">{catName}</td>
                               <td className="px-4 py-3 text-sm text-muted-foreground">
                                 {(() => {
-                                  const storeIds = new Set<number>();
-                                  product.product_prices?.forEach((p: ProductPrice) => { if (p.store_id) storeIds.add(p.store_id); });
+                                  const storesByCommission = new Map<number, boolean>();
+                                  product.product_prices?.forEach((p: ProductPrice) => {
+                                    if (!p.store_id) return;
+                                    // A store counts as commission-bearing if any of its price rows say so.
+                                    storesByCommission.set(p.store_id,
+                                      storesByCommission.get(p.store_id) || !!p.has_commission);
+                                  });
                                   (product.promotion_prices as Array<Record<string, unknown>> | undefined)?.forEach((p) => {
                                     const sid = p.store_id as number;
-                                    if (sid) storeIds.add(sid);
+                                    if (!sid) return;
+                                    storesByCommission.set(sid,
+                                      storesByCommission.get(sid) || !!(p.has_commission as boolean));
                                   });
+                                  let commCount = 0;
+                                  storesByCommission.forEach((v) => { if (v) commCount += 1; });
+                                  const freeCount = storesByCommission.size - commCount;
                                   return (
-                                    <div className="space-y-1">
-                                      <div>{`${storeIds.size} ${t('stores', '家商城', adminLang)}`}</div>
-                                      <div className="flex flex-wrap gap-1">
-                                        {Array.from(storeIds).map((sid) => {
-                                          // A (store, region) quote is commission-bearing if any such price row says so.
-                                          const rows = product.product_prices?.filter((p: ProductPrice) => p.store_id === sid) ?? [];
-                                          const comm = rows.some((p) => p.has_commission);
-                                          return (
-                                            <span
-                                              key={sid}
-                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                                                comm
-                                                  ? 'bg-emerald-500/15 text-emerald-400'
-                                                  : 'bg-zinc-500/15 text-zinc-400'
-                                              }`}
-                                              title={comm ? (adminLang === 'zh' ? 'Awin 佣金链接' : 'Awin commission link') : (adminLang === 'zh' ? '手动添加，无佣金' : 'Manually added, no commission')}
-                                            >
-                                              #{sid} {comm ? (adminLang === 'zh' ? '佣金' : 'COMM') : (adminLang === 'zh' ? '无偿' : 'FREE')}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {`${freeCount} ${adminLang === 'zh' ? '无偿' : 'Free'}`}
+                                      <span className="mx-1.5 text-zinc-600">·</span>
+                                      <span className={commCount > 0 ? 'text-emerald-400' : ''}>
+                                        {`${commCount} ${adminLang === 'zh' ? '佣金' : 'Commission'}`}
+                                      </span>
                                     </div>
                                   );
                                 })()}
@@ -7768,6 +7760,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                     currency: CURRENCY_OPTIONS.find(c => c.code === sr.currency)?.symbol || sr.currency || '$',
                                     region: sr.region || '',
                                     no_quote: existing?.no_quote || false,
+                                    has_commission: existing?.has_commission ?? false,
                                     store_type: existing?.store_type || 'promotion',
                                     time_type: existing?.time_type || 'permanent',
                                     start_time: existing?.start_time || '',
@@ -7789,24 +7782,6 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               setStorePrices(newP);
                             }}
                           />
-                          {/* Commission vs free flag */}
-                          <label className="mt-2 flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={firstP.has_commission || false}
-                              onChange={(e) => {
-                                const np = [...storePrices];
-                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
-                                setStorePrices(np);
-                              }}
-                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
-                            />
-                            {firstP.has_commission ? (
-                              <span className="text-[10px] font-semibold text-emerald-400">{translate('Commission', '佣金', lang)}</span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-zinc-400">{translate('Free (no commission)', '无偿', lang)}</span>
-                            )}
-                          </label>
                         </div>
                         {hasMultipleCurrencies ? (
                           <div className="space-y-2">
@@ -8230,11 +8205,34 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                           )}
                         </div>
                         )}
-                        {storePrices.length > 1 && (
-                          <button onClick={() => setStorePrices(storePrices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
-                            {translate('Remove Store', '移除商城', lang)}
-                          </button>
-                        )}
+                        {/* Footer: commission flag on the left, Remove Store on the right */}
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 pt-2">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.has_commission || false}
+                              onChange={(e) => {
+                                const np = [...storePrices];
+                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
+                                setStorePrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
+                            />
+                            {firstP.has_commission ? (
+                              <span className="text-[10px] font-semibold text-emerald-400">{translate('Commission', '佣金', lang)}</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-zinc-400">{translate('Free (no commission)', '无偿', lang)}</span>
+                            )}
+                          </label>
+                          {storePrices.length > 1 && (
+                            <button
+                              onClick={() => setStorePrices(storePrices.filter((_, i) => !group.indices.includes(i)))}
+                              className="ml-auto text-[10px] text-destructive hover:underline"
+                            >
+                              {translate('Remove Store', '移除商城', lang)}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}</>
@@ -8895,40 +8893,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             setPrices(newP);
                           }}
                         />
-                        {/* Commission / Free / Out-of-stock flags for this store group */}
-                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                          {/* Commission vs free: one checkbox, label reflects the state */}
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={firstP.has_commission || false}
-                              onChange={(e) => {
-                                const np = [...prices];
-                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
-                                setPrices(np);
-                              }}
-                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
-                            />
-                            {firstP.has_commission ? (
-                              <span className="text-[10px] font-semibold text-emerald-400">{t('Commission', '佣金', lang)}</span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-zinc-400">{t('Free (no commission)', '无偿', lang)}</span>
-                            )}
-                          </label>
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={firstP.out_of_stock || false}
-                              onChange={(e) => {
-                                const np = [...prices];
-                                for (const idx of group.indices) np[idx].out_of_stock = e.target.checked;
-                                setPrices(np);
-                              }}
-                              className="h-3.5 w-3.5 rounded border-border accent-red-500"
-                            />
-                            <span className="text-[10px] text-red-400">{t('Out of Stock', '无货', lang)}</span>
-                          </label>
-                        </div>
                         {/* Promotion Selector for Promotion Store */}
                         {firstP.store_type === 'promotion' && (
                           <div className="mt-2">
@@ -9066,19 +9030,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                       <label className="flex items-center gap-1 cursor-pointer">
                                         <input
                                           type="checkbox"
-                                          checked={p.out_of_stock || false}
-                                          onChange={(e) => {
-                                            const newP = [...prices];
-                                            newP[pIdx].out_of_stock = e.target.checked;
-                                            setPrices(newP);
-                                          }}
-                                          className="h-3.5 w-3.5 rounded border-border"
-                                        />
-                                        <span className="text-[10px] text-muted-foreground">{t('Out of Stock', '缺货', lang)}</span>
-                                      </label>
-                                      <label className="flex items-center gap-1 cursor-pointer">
-                                        <input
-                                          type="checkbox"
                                           checked={p.no_quote || false}
                                           onChange={(e) => {
                                             const newP = [...prices];
@@ -9190,11 +9141,67 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             </div>
                           </div>
                         )}
-                        {prices.length > 1 && (
-                          <button onClick={() => setPrices(prices.filter((_, i) => !group.indices.includes(i)))} className="mt-2 text-[10px] text-destructive hover:underline">
-                            {t('Remove Store', '移除商城', lang)}
-                          </button>
-                        )}
+                        {/* Footer: quote flags on the left, Remove Store on the right */}
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 pt-2">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.has_commission || false}
+                              onChange={(e) => {
+                                const np = [...prices];
+                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
+                                setPrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
+                            />
+                            {firstP.has_commission ? (
+                              <span className="text-[10px] font-semibold text-emerald-400">{t('Commission', '佣金', lang)}</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-zinc-400">{t('Free (no commission)', '无偿', lang)}</span>
+                            )}
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.out_of_stock || false}
+                              onChange={(e) => {
+                                const np = [...prices];
+                                for (const idx of group.indices) np[idx].out_of_stock = e.target.checked;
+                                setPrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-red-500"
+                            />
+                            <span className="text-[10px] text-red-400">{t('Out of Stock', '无货', lang)}</span>
+                          </label>
+                          {!hasMultipleCurrencies && (
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={firstP.no_quote || false}
+                                onChange={(e) => {
+                                  const np = [...prices];
+                                  np[group.indices[0]].no_quote = e.target.checked;
+                                  if (e.target.checked) {
+                                    np[group.indices[0]].current_price = '';
+                                    np[group.indices[0]].original_price = '';
+                                    np[group.indices[0]].discount_percent = '';
+                                  }
+                                  setPrices(np);
+                                }}
+                                className="h-3.5 w-3.5 rounded border-border"
+                              />
+                              <span className="text-[10px] text-muted-foreground">{t('No Quote', '无报价', lang)}</span>
+                            </label>
+                          )}
+                          {prices.length > 1 && (
+                            <button
+                              onClick={() => setPrices(prices.filter((_, i) => !group.indices.includes(i)))}
+                              className="ml-auto text-[10px] text-destructive hover:underline"
+                            >
+                              {t('Remove Store', '移除商城', lang)}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   });

@@ -47,6 +47,7 @@ export interface DbStoreRow {
   id: number;
   slug: string;
   name?: string | null;
+  logoUrl?: string | null;
   store_type?: string | null;
 }
 /** One advertiser's resolved target (store name looked up from catalog). */
@@ -302,7 +303,10 @@ export function buildPreview(input: CompareInput): CompareResult {
       score,
       level,
       source: others.length > 0 ? 'cross_store' : 'internal',
-      sellingStores: sellingIds.map((sid) => ({ id: sid, name: storeName(sid) })),
+      sellingStores: sellingIds.map((sid) => {
+        const s = storesById.get(sid);
+        return { id: sid, name: storeName(sid), logoUrl: s?.logoUrl ?? null };
+      }),
     };
   };
 

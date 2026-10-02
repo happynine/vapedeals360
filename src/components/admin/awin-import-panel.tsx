@@ -718,20 +718,38 @@ function CandidateGroup({
       : 'border-blue-800/60 bg-blue-950/20';
   return (
     <div className={`rounded-md border p-2 space-y-1 ${toneCls}`}>
-      <p className="text-xs font-medium text-zinc-300">{title}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-zinc-300">{title}</p>
+        <span className="text-[10px] text-zinc-500">（VapeDeals360 站内商城）</span>
+      </div>
       {candidates.map((c) => (
         <button
           key={c.productId}
           onClick={() => onChoose(c.productId)}
-          className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs ${
+          className={`w-full rounded px-2 py-1.5 text-left text-xs ${
             activeId === c.productId ? 'bg-zinc-700 text-white' : 'text-zinc-300 hover:bg-zinc-800'
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={c.imageUrl || ''} alt="" className="h-8 w-8 rounded object-cover bg-zinc-800" />
-          <span className="flex-1 truncate">{c.name}</span>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={c.imageUrl || ''} alt="" className="h-8 w-8 rounded object-cover bg-zinc-800" />
+            <span className="flex-1">{c.name}</span>
+            <span className="shrink-0 text-[10px] text-zinc-500">#{c.productId}</span>
+          </div>
           {c.sellingStores.length > 0 && (
-            <span className="text-zinc-500">{c.sellingStores.map((s) => s.name).join(', ')}</span>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1 pl-10">
+              <span className="text-[10px] text-zinc-500">在售商城：</span>
+              {c.sellingStores.map((s) => (
+                <span
+                  key={s.id}
+                  className="inline-flex items-center gap-1 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[10px] text-zinc-300"
+                >
+                  <StoreLogo src={s.logoUrl} alt={s.name} />
+                  {s.name}
+                  <span className="text-zinc-500">#{s.id}</span>
+                </span>
+              ))}
+            </div>
           )}
         </button>
       ))}
