@@ -261,6 +261,7 @@ export async function POST(request: NextRequest) {
           currency: spec.currency,
           product_url: spec.newUrl || null,
           in_stock: spec.inStock,
+          has_commission: true,
         };
         const oldPrice = existingPrice?.current_price
           ? Number(existingPrice.current_price)
@@ -335,6 +336,7 @@ export async function POST(request: NextRequest) {
           currency: spec.currency,
           product_url: spec.newUrl || null,
           in_stock: spec.inStock,
+          has_commission: true,
         });
         if (priceErr) {
           result.errors.push(`${entry.slug}: price create failed (${priceErr.message})`);
@@ -415,6 +417,7 @@ export async function POST(request: NextRequest) {
               currency: spec.currency,
               product_url: spec.newUrl || undefined,
               in_stock: spec.inStock,
+              has_commission: true,
             })
             .eq('id', spec.priceId);
           if (error) {
@@ -439,6 +442,7 @@ export async function POST(request: NextRequest) {
             currency: spec.currency,
             product_url: spec.newUrl || null,
             in_stock: spec.inStock,
+            has_commission: true,
           });
           if (error) {
             result.errors.push(`${entry.slug}: price insert failed (${error.message})`);

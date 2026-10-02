@@ -116,6 +116,7 @@ export interface StoreInfo {
   id: number;
   slug: string;
   name: string;
+  logoUrl?: string | null;
   regions: string[];
   currencies: string[];
 }

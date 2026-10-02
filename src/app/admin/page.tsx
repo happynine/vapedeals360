@@ -281,7 +281,7 @@ type UsShipFrom = 'us_warehouse' | 'intl_warehouse';
 type StoreRegion = StoreCapabilities;
 interface Store { id: number; slug: string; logo_url: string | null; logo_key: string | null; website_url: string | null; website_urls: Array<{url: string; label?: string}>; store_type: string; is_active: boolean; regions: StoreCapabilities; notes: string; store_translations: StoreTranslation[]; }
 interface ProductTranslation { id: number; product_id: number; language: string; name: string; description: string | null; features: string | null; specs: string | null; }
-interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; }
+interface ProductPrice { id: number; product_id: number; store_id: number; current_price: string; original_price: string | null; product_url: string; in_stock: boolean; discount_percent: number | null; currency: string; region: string; no_quote?: boolean; has_commission?: boolean; }
 interface BannerTranslation { id: number; banner_id: number; language: string; image_key: string | null; title: string | null; subtitle: string | null; }
 interface Banner { id: number; image_key: string | null; mobile_image_key: string | null; image_url: string | null; mobile_image_url: string | null; link_url: string | null; sort_order: number; is_active: boolean; banner_translations: BannerTranslation[]; }
 interface PromotionTranslation { id: number; promotion_id: number; language: string; name: string | null; title: string | null; description: string | null; cover_image_key: string | null; cover_image_url: string | null; mobile_cover_image_key: string | null; mobile_cover_image_url: string | null; }
@@ -1779,12 +1779,6 @@ export default function AdminPage() {
                                   <div>
                                     <div className="text-sm font-medium flex items-center gap-1.5">
                                       {enName}
-                                      {product.is_featured && (
-                                        <span className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500" title={adminLang === 'zh' ? '推荐产品' : 'Featured product'}>
-                                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                                          {adminLang === 'zh' ? '推荐' : 'FEATURED'}
-                                        </span>
-                                      )}
                                       {product.has_promotion && (
                                         <span className="inline-flex items-center rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-400" title={
                                           (() => {
@@ -1822,7 +1816,14 @@ export default function AdminPage() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">{zhName}</div>
+                                    {product.is_featured ? (
+                                      <div className="mt-0.5">
+                                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500" title={adminLang === 'zh' ? '推荐产品' : 'Featured product'}>
+                                          <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                          {adminLang === 'zh' ? '推荐' : 'FEATURED'}
+                                        </span>
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
                               </td>
@@ -1835,7 +1836,31 @@ export default function AdminPage() {
                                     const sid = p.store_id as number;
                                     if (sid) storeIds.add(sid);
                                   });
-                                  return `${storeIds.size} ${t('stores', '家商城', adminLang)}`;
+                                  return (
+                                    <div className="space-y-1">
+                                      <div>{`${storeIds.size} ${t('stores', '家商城', adminLang)}`}</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {Array.from(storeIds).map((sid) => {
+                                          // A (store, region) quote is commission-bearing if any such price row says so.
+                                          const rows = product.product_prices?.filter((p: ProductPrice) => p.store_id === sid) ?? [];
+                                          const comm = rows.some((p) => p.has_commission);
+                                          return (
+                                            <span
+                                              key={sid}
+                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                                                comm
+                                                  ? 'bg-emerald-500/15 text-emerald-400'
+                                                  : 'bg-zinc-500/15 text-zinc-400'
+                                              }`}
+                                              title={comm ? (adminLang === 'zh' ? 'Awin 佣金链接' : 'Awin commission link') : (adminLang === 'zh' ? '手动添加，无佣金' : 'Manually added, no commission')}
+                                            >
+                                              #{sid} {comm ? (adminLang === 'zh' ? '佣金' : 'COMM') : (adminLang === 'zh' ? '无偿' : 'FREE')}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
                                 })()}
                               </td>
                               <td className="px-4 py-3">
@@ -7150,6 +7175,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     currency: string;
     product_url: string;
     no_quote: boolean;
+    has_commission: boolean;
     store_type: 'promotion' | 'standard';
     time_type: 'permanent' | 'time_range' | 'countdown';
     start_time: string;
@@ -7162,7 +7188,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
     countdown_minutes: number;
     countdown_seconds: number;
   }[]>(
-    (promotionProduct?.promotion_product_prices || promotionProduct?.stores)?.map((p: { store_id?: number | null; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; store_type?: 'promotion' | 'standard'; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | 'convert_to_standard' | 'hide' | null; region?: string; standard_price?: string | null }) => {
+    (promotionProduct?.promotion_product_prices || promotionProduct?.stores)?.map((p: { store_id?: number | null; current_price?: string; original_price?: string; discount_percent?: number; currency?: string; product_url?: string; no_quote?: boolean; has_commission?: boolean; store_type?: 'promotion' | 'standard'; time_type?: 'permanent' | 'time_range' | 'countdown'; start_time?: string | null; end_time?: string | null; countdown_action?: 'close' | 'original_price' | 'convert_to_standard' | 'hide' | null; region?: string; standard_price?: string | null }) => {
       // Calculate countdown duration from end_time if countdown mode
       let countdown_days = 0, countdown_hours = 0, countdown_minutes = 0, countdown_seconds = 0;
       if (p.time_type === 'countdown' && p.end_time) {
@@ -7185,6 +7211,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
         currency: p.currency || '$',
         product_url: p.product_url || '',
         no_quote: p.no_quote || false,
+        has_commission: p.has_commission ?? false,
         store_type: (p.store_type as 'promotion' | 'standard') || 'promotion',
         time_type: (p.time_type as 'permanent' | 'time_range' | 'countdown') || 'permanent',
         start_time: p.start_time ? new Date(p.start_time).toISOString().slice(0, 16) : '',
@@ -7426,6 +7453,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
             currency: p.currency,
             product_url: p.product_url,
             no_quote: p.no_quote,
+            has_commission: p.has_commission ?? false,
             store_type: p.store_type,
             time_type: p.store_type === 'standard' ? 'permanent' : p.time_type,
             start_time: p.store_type === 'standard' ? null : startTime,
@@ -7716,6 +7744,7 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                                   currency: CURRENCY_OPTIONS.find(c => c.code === r.currency)?.symbol || r.currency || '$',
                                   region: r.region,
                                   no_quote: existing?.no_quote || false,
+                                  has_commission: existing?.has_commission ?? false,
                                   store_type: existing?.store_type || 'promotion',
                                   time_type: existing?.time_type || 'permanent',
                                   start_time: existing?.start_time || '',
@@ -7760,6 +7789,24 @@ function PromotionProductFormModal({ promotionProduct, categories, stores, promo
                               setStorePrices(newP);
                             }}
                           />
+                          {/* Commission vs free flag */}
+                          <label className="mt-2 flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.has_commission || false}
+                              onChange={(e) => {
+                                const np = [...storePrices];
+                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
+                                setStorePrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
+                            />
+                            {firstP.has_commission ? (
+                              <span className="text-[10px] font-semibold text-emerald-400">{translate('Commission', '佣金', lang)}</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-zinc-400">{translate('Free (no commission)', '无偿', lang)}</span>
+                            )}
+                          </label>
                         </div>
                         {hasMultipleCurrencies ? (
                           <div className="space-y-2">
@@ -8267,7 +8314,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         }))
       : activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' }))
   );
-  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; out_of_stock: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number; __endAt?: number }[]>(
+  const [prices, setPrices] = useState<{ store_id: string; current_price: string; original_price: string; product_url: string; discount_percent: string; currency: string; region: string; no_quote: boolean; out_of_stock: boolean; has_commission: boolean; store_type: string; promotion_id: string; time_type: 'permanent' | 'time_range' | 'countdown'; start_time: string; end_time: string; countdown_action: 'convert_to_standard' | 'hide'; promo_price: string; countdown_days: number; countdown_hours: number; countdown_minutes: number; countdown_seconds: number; __endAt?: number }[]>(
     product?.product_prices?.map((p) => {
       const store = stores.find((s) => s.id.toString() === p.store_id.toString());
       return {
@@ -8279,6 +8326,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         currency: p.currency || '$',
         region: p.region || '',
         no_quote: p.no_quote || false,
+        has_commission: p.has_commission ?? false,
         store_type: store?.store_type || 'standard',
         promotion_id: '',
         time_type: 'permanent' as const,
@@ -8291,7 +8339,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
         promo_price: '',
         countdown_seconds: 0,
       };
-    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+    }) || [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, has_commission: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
   );
   const [saving, setSaving] = useState(false);
   const [extraPromotions, setExtraPromotions] = useState<Promotion[]>([]);
@@ -8476,7 +8524,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setPrices(
         [...standardPricesList, ...promoPricesList].length > 0
           ? [...standardPricesList, ...promoPricesList]
-          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
+          : [{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, has_commission: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]
       );
     } else if (open && !product) {
       // Reset all fields for "Add New Product" mode
@@ -8489,7 +8537,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
       setIsFeatured(false);
       setNotes('');
       setTranslations(activeLanguages.map(l => ({ language: l.code, name: '', description: '', features: '', specs: '' })));
-      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
+      setPrices([{ store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, has_commission: false, store_type: 'standard', promotion_id: '', time_type: 'permanent' as const, start_time: '', end_time: '', countdown_action: 'convert_to_standard' as const, promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }]);
     }
   }, [open, product?.id, product?.updated_at, activeLanguages, stores]);
 
@@ -8541,6 +8589,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
           currency: p.currency || '$',
           region: p.region || '',
           no_quote: p.no_quote || false,
+          has_commission: p.has_commission ?? false,
         })),
         // Promotion store prices (with time settings)
         promotion_prices: promotionPrices.map((p) => {
@@ -8761,21 +8810,6 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-[10px] text-muted-foreground text-left block">{t('Store', '商城', lang)}</label>
                           <div className="flex items-center gap-3">
-                            {!hasMultipleCurrencies && (
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={firstP.out_of_stock || false}
-                                  onChange={(e) => {
-                                    const newP = [...prices];
-                                    for (const idx of group.indices) { newP[idx].out_of_stock = e.target.checked; }
-                                    setPrices(newP);
-                                  }}
-                                  className="h-3.5 w-3.5 rounded border-border"
-                                />
-                                <span className="text-[10px] text-muted-foreground">{t('Out of Stock', '缺货', lang)}</span>
-                              </label>
-                            )}
                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${firstP.store_type === 'promotion' ? 'bg-purple-600/20 text-purple-400' : 'bg-cyan-600/20 text-cyan-400'}`}>
                               {firstP.store_type === 'promotion' ? t('Promotion Store', '特惠商城', lang) : t('Standard Store', '标准商城', lang)}
                             </span>
@@ -8812,6 +8846,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                 currency: CURRENCY_OPTIONS.find(c => c.code === r.currency)?.symbol || r.currency || '$',
                                 region: r.region,
                                 no_quote: existing?.no_quote || false,
+                                has_commission: existing?.has_commission ?? false,
                                 store_type: firstP.store_type,
                                 promotion_id: firstP.promotion_id,
                                 promo_price: existing?.promo_price || '',
@@ -8836,6 +8871,7 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                                   currency: CURRENCY_OPTIONS.find(c => c.code === sr.currency)?.symbol || sr.currency || '$',
                                   region: sr.region || '',
                                   no_quote: existing?.no_quote || false,
+                                  has_commission: existing?.has_commission ?? false,
                                   store_type: firstP.store_type,
                                   promotion_id: firstP.promotion_id,
                                   promo_price: existing?.promo_price || '',
@@ -8859,6 +8895,40 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                             setPrices(newP);
                           }}
                         />
+                        {/* Commission / Free / Out-of-stock flags for this store group */}
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                          {/* Commission vs free: one checkbox, label reflects the state */}
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.has_commission || false}
+                              onChange={(e) => {
+                                const np = [...prices];
+                                for (const idx of group.indices) np[idx].has_commission = e.target.checked;
+                                setPrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-emerald-500"
+                            />
+                            {firstP.has_commission ? (
+                              <span className="text-[10px] font-semibold text-emerald-400">{t('Commission', '佣金', lang)}</span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-zinc-400">{t('Free (no commission)', '无偿', lang)}</span>
+                            )}
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={firstP.out_of_stock || false}
+                              onChange={(e) => {
+                                const np = [...prices];
+                                for (const idx of group.indices) np[idx].out_of_stock = e.target.checked;
+                                setPrices(np);
+                              }}
+                              className="h-3.5 w-3.5 rounded border-border accent-red-500"
+                            />
+                            <span className="text-[10px] text-red-400">{t('Out of Stock', '无货', lang)}</span>
+                          </label>
+                        </div>
                         {/* Promotion Selector for Promotion Store */}
                         {firstP.store_type === 'promotion' && (
                           <div className="mt-2">
@@ -9130,10 +9200,10 @@ function ProductFormModal({ product, categories, stores, promotions, onSave, lan
                   });
                 })()}
                 <div className="flex gap-3">
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, has_commission: false, store_type: 'standard', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-cyan-400 hover:underline font-medium">
                     + {t('Add Standard Store', '添加标准商城', lang)}
                   </button>
-                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
+                  <button onClick={() => setPrices([...prices, { store_id: '', current_price: '', original_price: '', product_url: '', discount_percent: '', currency: '$', region: '', no_quote: false, out_of_stock: false, has_commission: false, store_type: 'promotion', promotion_id: '', time_type: 'permanent', start_time: '', end_time: '', countdown_action: 'convert_to_standard', promo_price: '', countdown_days: 0, countdown_hours: 0, countdown_minutes: 0, countdown_seconds: 0 }])} className="text-xs text-purple-400 hover:underline font-medium">
                     + {t('Add Promotion Store', '添加特惠商城', lang)}
                   </button>
                 </div>

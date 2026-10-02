@@ -162,20 +162,25 @@ export async function POST(request: NextRequest) {
     // Internal stores for the mapping dropdowns.
     const { data: storeRows } = await supabase
       .from('stores')
-      .select('id, slug, store_type, regions, store_translations(name, language)');
-    const stores: StoreInfo[] = (storeRows ?? []).map((s: any) => {
-      const caps = parseStoreCapabilities(s.regions);
-      const en = (s.store_translations ?? []).find(
-        (t: any) => t.language === 'en',
+      .select('id, slug, logo_url, store_type, regions, store_translations(name, language)');
+    const stores: StoreInfo[] = (storeRows ?? [])
+      .map((s: any) => {
+        const caps = parseStoreCapabilities(s.regions);
+        const en = (s.store_translations ?? []).find(
+          (t: any) => t.language === 'en',
+        );
+        return {
+          id: s.id,
+          slug: s.slug,
+          name: en?.name || s.slug,
+          logoUrl: s.logo_url ?? null,
+          regions: caps.regions,
+          currencies: caps.currencies,
+        };
+      })
+      .sort((a: StoreInfo, b: StoreInfo) =>
+        a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
       );
-      return {
-        id: s.id,
-        slug: s.slug,
-        name: en?.name || s.slug,
-        regions: caps.regions,
-        currencies: caps.currencies,
-      };
-    });
 
     const baseResponse = {
       success: true,

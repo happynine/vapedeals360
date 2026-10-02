@@ -79,6 +79,7 @@ function mapPriceRow(p: Record<string, unknown>, productId: number) {
     currency: p.currency || '$',
     region: p.region || '',
     no_quote: p.no_quote || false,
+    has_commission: p.has_commission ?? false,
     promotion_id: p.promotion_id || null,
     time_type: p.time_type || 'permanent',
     start_time: p.start_time || null,

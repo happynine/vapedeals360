@@ -1,11 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Upload,
   Loader2,
   AlertTriangle,
   Settings2,
   Store as StoreIcon,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -467,6 +469,87 @@ function FilterChip({
   );
 }
 
+/** Custom store dropdown: shows logo, A-Z sorted, native <option> can't render images. */
+function StoreSelect({
+  stores,
+  value,
+  onChange,
+}: {
+  stores: StoreInfo[];
+  value: number;
+  onChange: (storeId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const current = stores.find((s) => s.id === value);
+  const btnCls =
+    'flex h-9 w-[230px] items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200';
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" className={btnCls} onClick={() => setOpen((v) => !v)}>
+        <StoreLogo src={current?.logoUrl} alt={current?.name ?? ''} />
+        <span className="flex-1 truncate text-left">
+          {current ? `${current.name} (#${current.id})` : `#${value}`}
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 opacity-70 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 max-h-72 w-[260px] overflow-auto rounded-md border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+          {stores.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => {
+                onChange(s.id);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-zinc-700/70 ${
+                s.id === value ? 'text-white' : 'text-zinc-300'
+              }`}
+            >
+              <StoreLogo src={s.logoUrl} alt={s.name} />
+              <span className="flex-1 truncate">{s.name}</span>
+              <span className="text-xs text-zinc-500">#{s.id}</span>
+              {s.id === value && <Check className="h-4 w-4 text-emerald-400" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Small rounded store logo with a fallback icon. */
+function StoreLogo({ src, alt }: { src?: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-700">
+        <StoreIcon className="h-3 w-3 text-zinc-300" />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className="h-5 w-5 shrink-0 rounded bg-white object-contain"
+    />
+  );
+}
+
 /** Store / region / currency selects for one advertiser, cross-linked. */
 function MappingSelects({
   stores,
@@ -488,11 +571,10 @@ function MappingSelects({
 
   return (
     <>
-      <select
-        className={selectCls}
+      <StoreSelect
+        stores={stores}
         value={storeId}
-        onChange={(e) => {
-          const id = Number(e.target.value);
+        onChange={(id) => {
           const s = stores.find((x) => x.id === id);
           onChange({
             storeId: id,
@@ -500,14 +582,7 @@ function MappingSelects({
             currency: s?.currencies[0] ?? '',
           });
         }}
-      >
-        {stores.length === 0 && <option value={storeId}>#{storeId}</option>}
-        {stores.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name} (#{s.id})
-          </option>
-        ))}
-      </select>
+      />
       <select
         className={selectCls}
         value={value?.region ?? ''}

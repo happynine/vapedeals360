@@ -225,6 +225,7 @@ export async function POST(request: NextRequest) {
         currency: string; 
         product_url: string; 
         no_quote: boolean;
+        has_commission?: boolean;
         time_type: string;
         start_time: string | null;
         end_time: string | null;
@@ -241,6 +242,7 @@ export async function POST(request: NextRequest) {
         currency: sp.currency || '$',
         product_url: sp.product_url || null,
         no_quote: sp.no_quote ?? false,
+        has_commission: sp.has_commission ?? false,
         store_type: sp.store_type || 'promotion',
         time_type: sp.time_type || 'permanent',
         start_time: sp.start_time || null,
@@ -368,6 +370,7 @@ export async function PUT(request: NextRequest) {
           currency: string; 
           product_url: string; 
           no_quote: boolean;
+          has_commission?: boolean;
           time_type: string;
           start_time: string | null;
           end_time: string | null;
@@ -384,6 +387,7 @@ export async function PUT(request: NextRequest) {
           currency: sp.currency || '$',
           product_url: sp.product_url || null,
           no_quote: sp.no_quote ?? false,
+          has_commission: sp.has_commission ?? false,
           store_type: sp.store_type || 'promotion',
           time_type: sp.time_type || 'permanent',
           start_time: sp.start_time || null,
