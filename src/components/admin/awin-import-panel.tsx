@@ -467,23 +467,6 @@ function FilterChip({
   );
 }
 
-/** Standard regions/currencies offered even when a store hasn't configured them. */
-const STANDARD_REGIONS = [
-  'Global', 'USA', 'UK', 'EU', 'Canada', 'Australia', 'Japan', 'South Korea',
-];
-const STANDARD_CURRENCIES = [
-  'USD', 'GBP', 'EUR', 'CAD', 'AUD', 'JPY', 'KRW', 'RUB', 'IDR', 'CNY',
-];
-
-/** Merge store-provided options with the standard list; current value always kept. */
-function mergeOptions(configured: string[], standard: string[], current?: string): string[] {
-  const out: string[] = [];
-  for (const v of configured) if (v && !out.includes(v)) out.push(v);
-  for (const v of standard) if (!out.includes(v)) out.push(v);
-  if (current && !out.includes(current)) out.unshift(current);
-  return out;
-}
-
 /** Store / region / currency selects for one advertiser, cross-linked. */
 function MappingSelects({
   stores,
@@ -496,9 +479,9 @@ function MappingSelects({
 }) {
   const storeId = value?.storeId ?? stores[0]?.id ?? 0;
   const store = stores.find((s) => s.id === storeId);
-  // Free choice: store-configured options plus a standard list (no dedup block).
-  const regions = mergeOptions(store?.regions ?? [], STANDARD_REGIONS, value?.region);
-  const currencies = mergeOptions(store?.currencies ?? [], STANDARD_CURRENCIES, value?.currency);
+  // Options come only from what this store has configured (capabilities).
+  const regions = store?.regions ?? [];
+  const currencies = store?.currencies ?? [];
 
   const selectCls =
     'h-9 rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200';
@@ -511,12 +494,10 @@ function MappingSelects({
         onChange={(e) => {
           const id = Number(e.target.value);
           const s = stores.find((x) => x.id === id);
-          // Only prefill region/currency when not already chosen, so switching
-          // stores never clobbers a deliberate UK/GBP-style selection.
           onChange({
             storeId: id,
-            ...(value?.region ? {} : { region: s?.regions[0] ?? '' }),
-            ...(value?.currency ? {} : { currency: s?.currencies[0] ?? '' }),
+            region: s?.regions[0] ?? '',
+            currency: s?.currencies[0] ?? '',
           });
         }}
       >
@@ -532,7 +513,7 @@ function MappingSelects({
         value={value?.region ?? ''}
         onChange={(e) => onChange({ region: e.target.value })}
       >
-        {!value?.region && <option value="">地区</option>}
+        {(!value?.region || regions.length === 0) && <option value="">地区</option>}
         {regions.map((r) => (
           <option key={r} value={r}>
             {r}
@@ -544,7 +525,9 @@ function MappingSelects({
         value={value?.currency ?? ''}
         onChange={(e) => onChange({ currency: e.target.value })}
       >
-        {!value?.currency && <option value="">货币</option>}
+        {(!value?.currency || currencies.length === 0) && (
+          <option value="">货币</option>
+        )}
         {currencies.map((c) => (
           <option key={c} value={c}>
             {c}
