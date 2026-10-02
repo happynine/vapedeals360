@@ -172,6 +172,12 @@ export interface PreviewResponse {
   categoryOverrides: Record<string, string>;
   /** Internal categories (slug + English name) usable as mapping targets. */
   internalCategories: Array<{ slug: string; name: string }>;
+  /** Persisted category mappings loaded from DB (advertiser null = global). */
+  savedCategoryMappings: Array<{
+    advertiser_id: string | null;
+    feed_category: string;
+    category_slug: string;
+  }>;
   /** True when entries were built (all advertisers mapped); false = list only. */
   ready: boolean;
   error?: string;

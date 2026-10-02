@@ -74,8 +74,16 @@ export interface CompareInput {
   externalIds: DbExternalIdRow[];
   /** Promotion info keyed by the store product pathname. */
   promoMap?: Map<string, PromoInfo>;
-  /** User-defined feed top-category → internal slug overrides. */
+  /** User-defined feed top-category → internal slug overrides (this session). */
   categoryOverrides?: Record<string, string>;
+  /** Persisted category mappings: advertiser_id NULL = global default. */
+  savedCategoryMappings?: SavedCategoryMapping[];
+}
+
+export interface SavedCategoryMapping {
+  advertiser_id: string | null;
+  feed_category: string;
+  category_slug: string;
 }
 export interface DbExternalIdRow {
   product_id: number;
@@ -151,7 +159,7 @@ function normalizeTopCategory(raw: string): string {
   return first;
 }
 /** Normalize a category name for matching (take first segment, strip symbols). */
-function categoryKey(value: string): string {
+export function categoryKey(value: string): string {
   return normText(topCategory(value));
 }
 /**
@@ -169,18 +177,24 @@ const CATEGORY_ALIASES: Record<string, string> = {
 function mapCategory(
   feedCategory: string,
   categories: DbCategoryRow[],
-  overrides?: Record<string, string>,
+  overrides: Record<string, string> | undefined,
+  advertiserId: string,
+  savedByAdv: Map<string, Map<string, string>>,
+  savedGlobal: Map<string, string>,
 ): string | null {
   const key = categoryKey(feedCategory);
   if (!key) return null;
-  // 0. User-defined override (highest priority; target must exist).
-  if (overrides) {
-    const override = overrides[key];
-    if (override && categories.some((c) => c.slug === override)) return override;
-  }
-  // 1. Explicit built-in alias (only when the target category actually exists).
+  const valid = (slug: string | undefined | null): boolean =>
+    !!slug && categories.some((c) => c.slug === slug);
+  // 0. This-session override (highest priority; target must exist).
+  if (overrides && valid(overrides[key])) return overrides[key] as string;
+  // 1. Persisted per-advertiser mapping, then global default.
+  const perAdv = savedByAdv.get(advertiserId);
+  if (perAdv && valid(perAdv.get(key))) return perAdv.get(key) as string;
+  if (valid(savedGlobal.get(key))) return savedGlobal.get(key) as string;
+  // 2. Explicit built-in alias (only when the target category actually exists).
   const alias = CATEGORY_ALIASES[key];
-  if (alias && categories.some((c) => c.slug === alias)) return alias;
+  if (valid(alias)) return alias as string;
   for (const c of categories) {
     if (categoryKey(c.slug) === key) return c.slug;
     if (categoryKey(c.name || '') === key) return c.slug;
@@ -222,7 +236,23 @@ export function buildPreview(input: CompareInput): CompareResult {
     externalIds,
     promoMap,
     categoryOverrides,
+    savedCategoryMappings,
   } = input;
+
+  // Persisted category mappings: per-advertiser overrides + global defaults.
+  const savedByAdv = new Map<string, Map<string, string>>();
+  const savedGlobal = new Map<string, string>();
+  for (const m of savedCategoryMappings ?? []) {
+    const key = categoryKey(m.feed_category);
+    if (!key) continue;
+    if (m.advertiser_id) {
+      const bucket = savedByAdv.get(m.advertiser_id) ?? new Map<string, string>();
+      bucket.set(key, m.category_slug);
+      savedByAdv.set(m.advertiser_id, bucket);
+    } else {
+      savedGlobal.set(key, m.category_slug);
+    }
+  }
 
   const targetsByAdv = new Map<string, AdvertiserTarget>(
     targets.map((t) => [t.advertiserId, t]),
@@ -403,7 +433,14 @@ export function buildPreview(input: CompareInput): CompareResult {
       (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
       null;
     const mappedFrom = feedCategory || item.category;
-    let categorySlug = mapCategory(mappedFrom, categories, categoryOverrides);
+    let categorySlug = mapCategory(
+      mappedFrom,
+      categories,
+      categoryOverrides,
+      advId,
+      savedByAdv,
+      savedGlobal,
+    );
     if (!categorySlug && mappedFrom) {
       categorySlug = slugify(mappedFrom);
       unmapped.add(mappedFrom);

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { categoryKey } from '@/lib/awin-compare';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -60,6 +61,11 @@ export default function AwinImportPanel() {
   const [error, setError] = useState('');
   const [showMapping, setShowMapping] = useState(false);
   const [compareKey, setCompareKey] = useState<string | null>(null);
+  // Category mapping editor: scope 'global' or an advertiser id.
+  const [catMapScope, setCatMapScope] = useState<string>('global');
+  const [catDraft, setCatDraft] = useState<Record<string, string>>({});
+  const [savingMappings, setSavingMappings] = useState(false);
+  const [mappingMsg, setMappingMsg] = useState('');
 
   const adminFetch = (url: string, init?: RequestInit) =>
     fetch(url, {
@@ -243,6 +249,87 @@ export default function AwinImportPanel() {
     (a) => mappings[a.advertiserId]?.region,
   ).length;
 
+  // All feed top-category names seen across entries (label + normalized key).
+  const feedCategoryNames = (() => {
+    const seen = new Map<string, string>();
+    for (const e of entries) {
+      for (const raw of [e.feedCategory || '', ...e.extraFeedCategories]) {
+        if (!raw) continue;
+        const key = categoryKey(raw);
+        if (key && !seen.has(key)) seen.set(key, raw);
+      }
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  })();
+
+  // When the scope (global / one advertiser) changes, seed the draft with the
+  // saved rows for that scope; blank rows fall back to the current entry guess.
+  useEffect(() => {
+    if (!preview) return;
+    const saved = new Map<string, string>();
+    for (const m of preview.savedCategoryMappings ?? []) {
+      const wantAdv = catMapScope === 'global' ? null : catMapScope;
+      if ((m.advertiser_id ?? null) === wantAdv) {
+        saved.set(categoryKey(m.feed_category), m.category_slug);
+      }
+    }
+    const guess = new Map<string, string>();
+    if (catMapScope === 'global') {
+      for (const e of entries) guess.set(categoryKey(e.feedCategory || ''), e.category);
+    } else {
+      for (const e of entries) {
+        if (e.advertiserId !== catMapScope) continue;
+        guess.set(categoryKey(e.feedCategory || ''), e.category);
+      }
+    }
+    const draft: Record<string, string> = {};
+    for (const [key] of feedCategoryNames) {
+      const v = saved.get(key) ?? guess.get(key) ?? '';
+      if (v) draft[key] = v;
+    }
+    setCatDraft(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catMapScope, preview?.generatedAt]);
+
+  // Persist both kinds of mappings independently of the final import commit.
+  const handleSaveMappings = async () => {
+    setSavingMappings(true);
+    setMappingMsg('');
+    setError('');
+    try {
+      const payload = {
+        advertiserMappings: Object.fromEntries(
+          advertisers
+            .filter((a) => mappings[a.advertiserId]?.region)
+            .map((a) => [a.advertiserId, mappings[a.advertiserId]]),
+        ),
+        categoryMappings: Object.entries(catDraft)
+          .filter(([, slug]) => slug)
+          .map(([key, slug]) => ({
+            advertiserId: catMapScope === 'global' ? null : catMapScope,
+            feedCategory: key,
+            categorySlug: slug,
+          })),
+      };
+      const res = await adminFetch('/api/admin/awin-import/mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || '保存失败');
+      setMappingMsg(
+        `已保存：商城映射 ${data.savedAdvertisers} 个 · 品类映射 ${data.savedCategories} 条${
+          data.errors?.length ? `（提示：${data.errors.join('；')}）` : ''
+        }`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '保存失败');
+    } finally {
+      setSavingMappings(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Upload */}
@@ -309,14 +396,27 @@ export default function AwinImportPanel() {
               <StoreIcon className="w-4 h-4" />
               文件包含 {advertisers.length} 个商城，请设置对应关系
             </h4>
-            <Button
-              onClick={handleApplyMappings}
-              disabled={loading}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              生成预览
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSaveMappings}
+                disabled={savingMappings || loading}
+                variant="outline"
+                className="border-amber-600/60 text-amber-200 hover:bg-amber-900/30"
+                title="把商城对应关系保存下来，以后上传自动带出"
+              >
+                {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Check className="w-4 h-4 mr-1" />
+                保存对应关系
+              </Button>
+              <Button
+                onClick={handleApplyMappings}
+                disabled={loading}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                生成预览
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             {advertisers.map((a) => {
@@ -341,6 +441,83 @@ export default function AwinImportPanel() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Category mapping editor (visible whenever a preview exists) */}
+      {preview && feedCategoryNames.length > 0 && (
+        <div className="rounded-lg border border-sky-800/60 bg-sky-950/20 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="font-semibold text-sky-200 flex items-center gap-2">
+              <Settings2 className="w-4 h-4" />
+              品类对应关系（保存后以后上传自动生效）
+            </h4>
+            <Button
+              onClick={handleSaveMappings}
+              disabled={savingMappings}
+              className="bg-sky-600 hover:bg-sky-700"
+            >
+              {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Check className="w-4 h-4 mr-1" />
+              保存品类对应
+            </Button>
+          </div>
+
+          {/* Scope: global default or one advertiser override. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-sky-300/80">适用范围：</span>
+            <FilterChip
+              active={catMapScope === 'global'}
+              onClick={() => setCatMapScope('global')}
+            >
+              全局默认（所有商城）
+            </FilterChip>
+            {advertisers.map((a) => (
+              <FilterChip
+                key={a.advertiserId}
+                active={catMapScope === a.advertiserId}
+                onClick={() => setCatMapScope(a.advertiserId)}
+              >
+                {a.advertiserName}
+              </FilterChip>
+            ))}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {feedCategoryNames.map(([key, label]) => (
+              <div
+                key={key}
+                className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2"
+              >
+                <span
+                  className="flex-1 truncate text-sm text-zinc-200"
+                  title={label}
+                >
+                  {label}
+                </span>
+                <select
+                  value={catDraft[key] ?? ''}
+                  onChange={(ev) =>
+                    setCatDraft((prev) => ({ ...prev, [key]: ev.target.value }))
+                  }
+                  className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-200"
+                >
+                  <option value="">— 不映射 —</option>
+                  {preview.internalCategories.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          {mappingMsg && (
+            <p className="text-xs text-emerald-300">{mappingMsg}</p>
+          )}
+          <p className="text-xs text-zinc-500">
+            按商城设置的对应优先于全局默认；没设商城专属时走全局。
+          </p>
         </div>
       )}
 

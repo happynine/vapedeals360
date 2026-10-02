@@ -139,6 +139,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Persisted category mappings (table absent until migration → empty).
+    let savedCategoryMappings: Array<{
+      advertiser_id: string | null;
+      feed_category: string;
+      category_slug: string;
+    }> = [];
+    const catMapRes = await supabase
+      .from('awin_category_mappings')
+      .select('advertiser_id, feed_category, category_slug');
+    if (!catMapRes.error) savedCategoryMappings = catMapRes.data ?? [];
+
     const clientMappings = parseMappings(mappingsRaw);
 
     // Resolve effective mapping per advertiser: client choice > DB > default.
@@ -188,6 +199,7 @@ export async function POST(request: NextRequest) {
       stores,
       generatedAt: new Date().toISOString(),
       categoryOverrides: parseCategoryOverrides(categoryOverridesRaw),
+      savedCategoryMappings,
     };
 
     // Not every advertiser mapped → return the list only, no entries yet.
@@ -292,6 +304,7 @@ export async function POST(request: NextRequest) {
       externalIds,
       promoMap,
       categoryOverrides: baseResponse.categoryOverrides,
+      savedCategoryMappings,
     });
 
     return NextResponse.json({
