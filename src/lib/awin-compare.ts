@@ -271,6 +271,13 @@ export function buildPreview(input: CompareInput): CompareResult {
     }
     sellingByProduct.set(pr.product_id, list);
   }
+  // Every price row per product (used to render each store's current offer).
+  const allPricesByProduct = new Map<number, DbPriceRow[]>();
+  for (const pr of prices) {
+    const list = allPricesByProduct.get(pr.product_id) ?? [];
+    list.push(pr);
+    allPricesByProduct.set(pr.product_id, list);
+  }
   // Existing price rows keyed by (product, store, region).
   const priceKeyOf = (productId: number, storeId: number, region: string) =>
     `${productId}::${storeId}::${region}`;
@@ -295,11 +302,26 @@ export function buildPreview(input: CompareInput): CompareResult {
     );
     const sellingIds: number[] = [];
     for (const x of others) if (!sellingIds.includes(x.storeId)) sellingIds.push(x.storeId);
+    // Existing per-store offers (all rows for this product), for column B.
+    const storePrices = (allPricesByProduct.get(p.id) ?? []).map((pr) => {
+      const s = storesById.get(pr.store_id);
+      return {
+        storeId: pr.store_id,
+        storeName: storeName(pr.store_id),
+        logoUrl: s?.logoUrl ?? null,
+        region: pr.region ?? '',
+        price: toNumber(pr.current_price),
+        currency: pr.currency || '',
+        inStock: pr.in_stock ?? true,
+        productUrl: pr.product_url ?? null,
+      };
+    });
     return {
       productId: p.id,
       slug: p.slug,
       name: p.name || p.slug,
       imageUrl: p.image_url,
+      description: p.description ?? null,
       score,
       level,
       source: others.length > 0 ? 'cross_store' : 'internal',
@@ -307,6 +329,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         const s = storesById.get(sid);
         return { id: sid, name: storeName(sid), logoUrl: s?.logoUrl ?? null };
       }),
+      storePrices,
     };
   };
 

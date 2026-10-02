@@ -225,22 +225,45 @@ export async function POST(request: NextRequest) {
     const region = spec?.region || mappings[entry.advertiserId]?.region || '';
     const targetStore = spec?.storeId ?? mappings[entry.advertiserId]?.storeId ?? null;
 
-    // --- Confirmed fuzzy merge: attach identity + price, never clobber content.
+    // --- Confirmed fuzzy merge: attach identity + price, keep content unless
+    //     the user explicitly picked the feed value for a product-level field.
     if (entry.kind === 'possible_match' && entry.mergeProductId !== null) {
       const mergeId = entry.mergeProductId;
-      const { error: idErr } = await supabase
-        .from('products')
-        .update({
-          ...(entry.awProductId ? { aw_product_id: entry.awProductId } : {}),
-          ...(entry.merchantProductId
-            ? { merchant_product_id: entry.merchantProductId }
-            : {}),
-        })
-        .eq('id', mergeId);
-      if (idErr) {
-        result.errors.push(`${entry.slug}: merge identity failed (${idErr.message})`);
-        return;
+      const choices = entry.fieldChoices;
+
+      const productPatch: Record<string, unknown> = {};
+      if (entry.awProductId) productPatch.aw_product_id = entry.awProductId;
+      if (entry.merchantProductId) productPatch.merchant_product_id = entry.merchantProductId;
+      if (choices?.image === 'feed' && entry.imageUrl)
+        productPatch.image_url = entry.imageUrl;
+      if (Object.keys(productPatch).length > 0) {
+        const { error: idErr } = await supabase
+          .from('products')
+          .update(productPatch)
+          .eq('id', mergeId);
+        if (idErr) {
+          result.errors.push(`${entry.slug}: merge identity failed (${idErr.message})`);
+          return;
+        }
       }
+
+      // Name / description overwrite only when the feed source was picked.
+      const trPatch: Record<string, string> = {};
+      if (choices?.name === 'feed' && entry.name) trPatch.name = entry.name;
+      if (choices?.description === 'feed' && entry.description)
+        trPatch.description = entry.description;
+      if (Object.keys(trPatch).length > 0) {
+        const { error: trErr } = await supabase
+          .from('product_translations')
+          .update(trPatch)
+          .eq('product_id', mergeId)
+          .eq('language', 'en');
+        if (trErr) {
+          result.errors.push(`${entry.slug}: merge fields failed (${trErr.message})`);
+          return;
+        }
+      }
+
       await linkExternalId({
         productId: mergeId,
         advertiserId: entry.advertiserId,

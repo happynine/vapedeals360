@@ -10,12 +10,32 @@ export type ChangeKind =
   | 'possible_match' // Fuzzy candidate: may be the same product, manual confirm.
   | 'missing'; // Existing price row (store+region) not present in the new feed.
 
+/** Product-level fields whose source can be picked in the compare modal. */
+export type FieldChoiceKey = 'image' | 'name' | 'description';
+/** 'feed' = new Awin value; 'canonical' = current VapeDeals360 value. */
+export type FieldChoiceSource = 'feed' | 'canonical';
+export type FieldChoices = Record<FieldChoiceKey, FieldChoiceSource>;
+
+/** One store's current offer shown in the compare modal (column B). */
+export interface CandidateStorePrice {
+  storeId: number;
+  storeName: string;
+  logoUrl?: string | null;
+  region: string;
+  price: number | null;
+  currency: string;
+  inStock: boolean;
+  productUrl: string | null;
+}
+
 /** A fuzzy match candidate for one feed item. */
 export interface MatchCandidate {
   productId: number;
   slug: string;
   name: string;
   imageUrl: string | null;
+  /** Current canonical English description, for field-by-field comparison. */
+  description: string | null;
   score: number;
   level: 'strong' | 'possible';
   /**
@@ -26,6 +46,8 @@ export interface MatchCandidate {
   source: 'cross_store' | 'internal';
   /** Other stores currently selling this product (ids + names), cross_store. */
   sellingStores: Array<{ id: number; name: string; logoUrl?: string | null }>;
+  /** Existing per-store offers for this product (all stores). */
+  storePrices: CandidateStorePrice[];
 }
 
 export interface PreviewPromo {
@@ -82,6 +104,8 @@ export interface PreviewEntry {
   brand: string;
   /** Fuzzy candidates for a 'new' / 'possible_match' item, best first. */
   matchCandidates: MatchCandidate[];
+  /** Compare-modal field sources; undefined until the modal is applied. */
+  fieldChoices?: FieldChoices;
   /** Price rows touched (one per mapped store+region; usually one). */
   prices: PreviewPrice[];
 }
@@ -162,6 +186,11 @@ export interface CommitEntry {
   brand: string;
   /** Confirmed fuzzy merge target; null = create new / no merge. */
   mergeProductId: number | null;
+  /**
+   * Field sources picked in the compare modal (only used when merging):
+   * 'feed' overwrites the canonical product-level field; 'canonical' keeps it.
+   */
+  fieldChoices?: FieldChoices;
   prices: Array<{
     priceId: number | null;
     storeId: number | null;

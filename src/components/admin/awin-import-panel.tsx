@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Upload,
   Loader2,
@@ -8,6 +8,7 @@ import {
   Store as StoreIcon,
   ChevronDown,
   Check,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,9 @@ import type {
   PreviewEntry,
   PreviewResponse,
   StoreInfo,
+  FieldChoiceKey,
+  FieldChoiceSource,
+  FieldChoices,
 } from '@/lib/awin-import-types';
 
 const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
@@ -55,6 +59,7 @@ export default function AwinImportPanel() {
   const [summary, setSummary] = useState<CommitSummary | null>(null);
   const [error, setError] = useState('');
   const [showMapping, setShowMapping] = useState(false);
+  const [compareKey, setCompareKey] = useState<string | null>(null);
 
   const adminFetch = (url: string, init?: RequestInit) =>
     fetch(url, {
@@ -200,6 +205,7 @@ export default function AwinImportPanel() {
           productId: e.productId,
           mergeProductId:
             e.kind === 'possible_match' && e.selected ? e.productId : null,
+          fieldChoices: e.fieldChoices,
           slug: e.slug,
           name: e.name,
           description: e.description,
@@ -434,7 +440,12 @@ export default function AwinImportPanel() {
 
           <div className="space-y-2">
             {visibleEntries.map((e) => (
-              <EntryRow key={e.key} entry={e} updateEntry={updateEntry} />
+              <EntryRow
+                key={e.key}
+                entry={e}
+                updateEntry={updateEntry}
+                onCompare={(key) => setCompareKey(key)}
+              />
             ))}
             {visibleEntries.length === 0 && (
               <p className="text-sm text-zinc-500 p-4">当前筛选下没有产品。</p>
@@ -442,6 +453,15 @@ export default function AwinImportPanel() {
           </div>
         </>
       )}
+
+      <CompareModal
+        entry={entries.find((e) => e.key === compareKey) ?? null}
+        onClose={() => setCompareKey(null)}
+        onApply={(key, patch) => {
+          updateEntry(key, patch);
+          setCompareKey(null);
+        }}
+      />
     </div>
   );
 }
@@ -453,7 +473,7 @@ function FilterChip({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -617,9 +637,11 @@ function MappingSelects({
 function EntryRow({
   entry,
   updateEntry,
+  onCompare,
 }: {
   entry: PreviewEntry;
   updateEntry: (key: string, patch: Partial<PreviewEntry>) => void;
+  onCompare: (key: string) => void;
 }) {
   const price = entry.prices[0];
   const cross = entry.matchCandidates.filter((c) => c.source === 'cross_store');
@@ -687,12 +709,20 @@ function EntryRow({
               onChoose={chooseCandidate}
             />
           )}
-          <button
-            onClick={() => updateEntry(entry.key, { productId: null, selected: true })}
-            className="text-xs text-zinc-400 hover:text-zinc-200 underline"
-          >
-            都不是，作为新品
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => updateEntry(entry.key, { productId: null, selected: true })}
+              className="text-xs text-zinc-400 hover:text-zinc-200 underline"
+            >
+              都不是，作为新品
+            </button>
+            <button
+              onClick={() => onCompare(entry.key)}
+              className="text-xs text-purple-300 hover:text-purple-200 underline"
+            >
+              对比
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -754,5 +784,416 @@ function CandidateGroup({
         </button>
       ))}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Compare modal: three columns (feed / other stores / current site)   */
+/* ------------------------------------------------------------------ */
+
+const DEFAULT_CHOICES: FieldChoices = {
+  image: 'canonical',
+  name: 'canonical',
+  description: 'canonical',
+};
+
+function CompareModal({
+  entry,
+  onClose,
+  onApply,
+}: {
+  entry: PreviewEntry | null;
+  onClose: () => void;
+  onApply: (key: string, patch: Partial<PreviewEntry>) => void;
+}) {
+  const [mode, setMode] = useState<'merge' | 'new'>('merge');
+  const [choices, setChoices] = useState<FieldChoices>(DEFAULT_CHOICES);
+
+  // Reset local state whenever a different entry opens.
+  useEffect(() => {
+    if (!entry) return;
+    setMode(entry.productId !== null ? 'merge' : 'new');
+    setChoices(entry.fieldChoices ?? DEFAULT_CHOICES);
+  }, [entry]);
+
+  if (!entry) return null;
+
+  const activeCandidate =
+    entry.matchCandidates.find((c) => c.productId === entry.productId) ??
+    entry.matchCandidates[0] ??
+    null;
+
+  const feedPrice = entry.prices[0];
+
+  const pick = (key: FieldChoiceKey, source: FieldChoiceSource) =>
+    setChoices((prev) => ({ ...prev, [key]: source }));
+
+  const handleApply = () => {
+    if (mode === 'merge' && activeCandidate) {
+      onApply(entry.key, {
+        productId: activeCandidate.productId,
+        selected: true,
+        fieldChoices: choices,
+      });
+    } else {
+      onApply(entry.key, { productId: null, selected: true });
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+          <h3 className="text-sm font-semibold text-white">对比相同产品</h3>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Column headers */}
+          <div className="grid grid-cols-[120px_1fr_1fr_1fr] items-center gap-3">
+            <span className="text-[11px] text-zinc-500">字段</span>
+            <span className="rounded bg-purple-950/50 px-2 py-1 text-center text-[11px] font-medium text-purple-300">
+              A商城 · 本次导入（{entry.advertiserName}）
+            </span>
+            <span className="rounded bg-emerald-950/40 px-2 py-1 text-center text-[11px] font-medium text-emerald-300">
+              B商城 · 其他在售店（VapeDeals360 站内）
+            </span>
+            <span className="rounded bg-blue-950/40 px-2 py-1 text-center text-[11px] font-medium text-blue-300">
+              VapeDeals360 · 站内现值
+            </span>
+          </div>
+
+          {/* ---- Image ---- */}
+          <CompareRow
+            label="配图"
+            choices={choices}
+            fieldKey="image"
+            mode={mode}
+            onPick={pick}
+            feedCell={
+              <CompareThumb src={entry.imageUrl} />
+            }
+            bCell={
+              activeCandidate?.storePrices?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {activeCandidate.storePrices.slice(0, 4).map((sp, i) => (
+                    <div key={`${sp.storeId}-${sp.region}-${i}`} className="text-center">
+                      <StoreLogo src={sp.logoUrl} alt={sp.storeName} />
+                      <p className="mt-1 text-[10px] text-zinc-400">
+                        {sp.storeName}
+                        {sp.region ? ` · ${sp.region}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyNote />
+              )
+            }
+            canonicalCell={<CompareThumb src={activeCandidate?.imageUrl ?? null} />}
+          />
+
+          {/* ---- Name ---- */}
+          <CompareRow
+            label="产品名"
+            choices={choices}
+            fieldKey="name"
+            mode={mode}
+            onPick={pick}
+            feedCell={<CompareText>{entry.name}</CompareText>}
+            bCell={
+              activeCandidate?.storePrices?.length ? (
+                <div className="space-y-1">
+                  {activeCandidate.storePrices.slice(0, 3).map((sp, i) => (
+                    <p key={`${sp.storeId}-${sp.region}-${i}`} className="text-[11px] text-zinc-400">
+                      {sp.storeName}
+                      {sp.region ? ` · ${sp.region}` : ''}
+                    </p>
+                  ))}
+                  <p className="text-[10px] text-zinc-500">
+                    各店产品名统一使用 VapeDeals360 站内产品名
+                  </p>
+                </div>
+              ) : (
+                <EmptyNote />
+              )
+            }
+            canonicalCell={<CompareText>{activeCandidate?.name ?? ''}</CompareText>}
+          />
+
+          {/* ---- Other params ---- */}
+          <div className="rounded-md border border-zinc-800 p-3">
+            <p className="mb-2 text-[11px] font-medium text-zinc-400">其他参数</p>
+            <div className="grid grid-cols-[120px_1fr_1fr_1fr] gap-3">
+              <div />
+              <div className="space-y-1.5 text-[11px]">
+                <ParamLine label="品牌" value={entry.brand} />
+                <ParamLine label="分类" value={entry.categoryLabel || entry.category} />
+                <ParamLine label="SKU" value={entry.merchantProductId || entry.awProductId} />
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <p className="text-zinc-500">
+                  品牌、分类等参数不按店区分，统一使用站内值
+                </p>
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <ParamLine label="品牌" value={entry.brand} />
+                <ParamLine label="分类" value={entry.categoryLabel || entry.category} />
+                <ParamLine label="产品 #" value={String(activeCandidate?.productId ?? '—')} />
+              </div>
+            </div>
+          </div>
+
+          {/* ---- Description (field choice) ---- */}
+          <CompareRow
+            label="详情描述"
+            choices={choices}
+            fieldKey="description"
+            mode={mode}
+            onPick={pick}
+            feedCell={
+              <CompareText scroll>
+                {entry.description || '—'}
+              </CompareText>
+            }
+            bCell={<EmptyNote text="描述统一使用站内值" />}
+            canonicalCell={
+              <CompareText scroll>
+                {activeCandidate?.description || '—'}
+              </CompareText>
+            }
+          />
+
+          {/* ---- Prices (per store) ---- */}
+          <div className="rounded-md border border-zinc-800 p-3">
+            <p className="mb-2 text-[11px] font-medium text-zinc-400">
+              价格 / 链接 / 库存（按商城独立维护，本次导入只更新 A 商城）
+            </p>
+            <div className="grid grid-cols-[120px_1fr_1fr_1fr] gap-3">
+              <span className="pt-1 text-[10px] text-zinc-500">本次导入报价</span>
+
+              {/* A: new offer */}
+              <div className="space-y-1 rounded bg-purple-950/20 p-2 text-[11px]">
+                <p className="font-semibold text-emerald-400">
+                  {feedPrice?.newPrice ?? '—'} {feedPrice?.currency}
+                </p>
+                <p className={feedPrice?.inStock ? 'text-zinc-400' : 'text-red-400'}>
+                  {feedPrice?.inStock ? 'In Stock' : 'Out of Stock'}
+                </p>
+                {feedPrice?.newUrl && (
+                  <a
+                    href={feedPrice.newUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block break-all text-purple-300 underline"
+                  >
+                    {feedPrice.newUrl}
+                  </a>
+                )}
+              </div>
+
+              {/* B: other stores */}
+              <div className="space-y-1.5">
+                {activeCandidate?.storePrices?.length ? (
+                  activeCandidate.storePrices.map((sp, i) => (
+                    <div
+                      key={`${sp.storeId}-${sp.region}-${i}`}
+                      className="flex flex-wrap items-center gap-1.5 text-[11px]"
+                    >
+                      <StoreLogo src={sp.logoUrl} alt={sp.storeName} />
+                      <span className="text-zinc-300">{sp.storeName}</span>
+                      {sp.region && <span className="text-zinc-500">· {sp.region}</span>}
+                      <span className="font-medium text-emerald-400">
+                        {sp.price !== null ? `${sp.price} ${sp.currency}` : 'No Quote'}
+                      </span>
+                      <span className={sp.inStock ? 'text-zinc-500' : 'text-red-400'}>
+                        {sp.inStock ? '' : '· Out of Stock'}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyNote text="暂无其他商城报价" />
+                )}
+              </div>
+
+              {/* C: canonical column note */}
+              <p className="pt-1 text-[10px] text-zinc-500">
+                产品名、配图、描述为全站唯一一份；价格按店独立。导入只新增/更新本商城报价，不影响其他店。
+              </p>
+            </div>
+          </div>
+
+          {/* ---- Bottom mode choice ---- */}
+          <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
+            <label className="flex items-start gap-2 text-xs text-zinc-300">
+              <input
+                type="radio"
+                checked={mode === 'merge'}
+                onChange={() => setMode('merge')}
+                disabled={!activeCandidate}
+                className="mt-0.5 accent-emerald-500"
+              />
+              <span>
+                使用 VapeDeals360 的产品信息，只导入到商城（挂接同款，不改产品内容；上面勾了「采用本次导入」的字段除外）
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-zinc-300">
+              <input
+                type="radio"
+                checked={mode === 'new'}
+                onChange={() => setMode('new')}
+                className="mt-0.5 accent-amber-500"
+              />
+              <span>不是相似产品，作为新品导入</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 border-t border-zinc-800 px-4 py-3">
+          <Button variant="outline" onClick={onClose} className="border-zinc-700 text-zinc-300">
+            取消
+          </Button>
+          <Button onClick={handleApply} className="bg-purple-600 hover:bg-purple-700">
+            确认选择
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompareRow({
+  label,
+  choices,
+  fieldKey,
+  mode,
+  onPick,
+  feedCell,
+  bCell,
+  canonicalCell,
+}: {
+  label: string;
+  choices: FieldChoices;
+  fieldKey: FieldChoiceKey;
+  mode: 'merge' | 'new';
+  onPick: (key: FieldChoiceKey, source: FieldChoiceSource) => void;
+  feedCell: ReactNode;
+  bCell: ReactNode;
+  canonicalCell: ReactNode;
+}) {
+  const disabled = mode !== 'merge';
+  return (
+    <div className="grid grid-cols-[120px_1fr_1fr_1fr] gap-3 rounded-md border border-zinc-800 p-3">
+      <span className="pt-1 text-[11px] text-zinc-400">{label}</span>
+      <div className="space-y-1.5">
+        <SourceRadio
+          label="采用本次导入"
+          checked={!disabled && choices[fieldKey] === 'feed'}
+          disabled={disabled}
+          onChange={() => onPick(fieldKey, 'feed')}
+          tone="purple"
+        />
+        {feedCell}
+      </div>
+      <div>{bCell}</div>
+      <div className="space-y-1.5">
+        <SourceRadio
+          label="保留站内现值"
+          checked={!disabled && choices[fieldKey] === 'canonical'}
+          disabled={disabled}
+          onChange={() => onPick(fieldKey, 'canonical')}
+          tone="blue"
+        />
+        {canonicalCell}
+      </div>
+    </div>
+  );
+}
+
+function SourceRadio({
+  label,
+  checked,
+  disabled,
+  onChange,
+  tone,
+}: {
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: () => void;
+  tone: 'purple' | 'blue';
+}) {
+  return (
+    <label
+      className={`flex items-center gap-1.5 text-[10px] ${
+        disabled ? 'text-zinc-600' : tone === 'purple' ? 'text-purple-300' : 'text-blue-300'
+      }`}
+    >
+      <input
+        type="radio"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        className={tone === 'purple' ? 'accent-purple-500' : 'accent-blue-500'}
+      />
+      {label}
+    </label>
+  );
+}
+
+function CompareThumb({ src }: { src?: string | null }) {
+  return (
+    <div className="rounded bg-zinc-800/60 p-1">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src || ''}
+        alt=""
+        className="h-20 w-20 rounded object-cover"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.opacity = '0.2';
+        }}
+      />
+    </div>
+  );
+}
+
+function CompareText({
+  children,
+  scroll,
+}: {
+  children: ReactNode;
+  scroll?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded bg-zinc-800/40 p-2 text-[11px] leading-relaxed text-zinc-300 ${
+        scroll ? 'max-h-32 overflow-y-auto' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function EmptyNote({ text = '—' }: { text?: string }) {
+  return <p className="pt-1 text-[10px] text-zinc-600">{text}</p>;
+}
+
+function ParamLine({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="flex gap-1.5">
+      <span className="shrink-0 text-zinc-500">{label}：</span>
+      <span className="break-all text-zinc-300">{value || '—'}</span>
+    </p>
   );
 }
