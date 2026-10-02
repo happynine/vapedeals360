@@ -845,13 +845,15 @@ function CompareModal({
   const advertiserName = stores.find((s) => s.id === entry.targetStore)?.name ?? 'A商城';
 
   // Sibling feed rows in the SAME batch that are duplicates of this product.
+  const normName = (s?: string | null) =>
+    (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   const siblings = allEntries.filter(
     (o) =>
       o.key !== entry.key &&
       ((entry.merchantProductId &&
         o.merchantProductId &&
         o.merchantProductId.toUpperCase() === entry.merchantProductId.toUpperCase()) ||
-        norm(o.name) === norm(entry.name)),
+        normName(o.name) === normName(entry.name)),
   );
 
   const relatedKeys = [entry.key, ...siblings.map((s) => s.key)];
