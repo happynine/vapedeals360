@@ -102,10 +102,14 @@ export interface PreviewEntry {
   oldImageUrl: string | null;
   category: string; // Mapped internal category slug.
   categoryLabel: string; // Human label / original feed category.
-  /** Top-level feed category used for grouping/filtering, e.g. "Disposable Vapes". */
+  /** Normalized top-level bucket used for filter chips, e.g. "Disposable Vapes". */
   feedCategory: string;
-  /** Other top-level buckets the same SKU is listed under (deduped). */
+  /** Store's own raw top-level feed category (mapping is keyed by this). */
+  rawFeedCategory: string;
+  /** Other normalized buckets the same SKU is listed under (deduped). */
   extraFeedCategories: string[];
+  /** Other raw top-level categories the same SKU is listed under (deduped). */
+  extraRawFeedCategories: string[];
   /** Promotion info matched from a landing page, when any. */
   promo: PreviewPromo | null;
   brand: string;

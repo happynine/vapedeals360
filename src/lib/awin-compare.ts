@@ -171,40 +171,71 @@ const CATEGORY_ALIASES: Record<string, string> = {
   'vape kit': 'pod-systems',
 };
 /**
- * Map a feed category string to an internal category slug using existing
- * database categories. Returns null when no confident match exists.
+ * Resolve one saved slug for a key across per-advertiser then global scope.
+ */
+function savedSlug(
+  key: string,
+  advertiserId: string,
+  savedByAdv: Map<string, Map<string, string>>,
+  savedGlobal: Map<string, string>,
+): string | null {
+  const perAdv = savedByAdv.get(advertiserId);
+  if (perAdv?.has(key)) return perAdv.get(key) as string;
+  if (savedGlobal.has(key)) return savedGlobal.get(key) as string;
+  return null;
+}
+
+/**
+ * Built-in guess for one category key (alias → exact → loose containment).
+ * Returns null when nothing fits.
+ */
+function autoGuessCategory(key: string, categories: DbCategoryRow[]): string | null {
+  if (!key) return null;
+  const alias = CATEGORY_ALIASES[key];
+  if (alias && categories.some((c) => c.slug === alias)) return alias;
+  for (const c of categories) {
+    if (categoryKey(c.slug) === key) return c.slug;
+    if (categoryKey(c.name || '') === key) return c.slug;
+  }
+  for (const c of categories) {
+    const cKey = categoryKey(c.name || c.slug);
+    if (cKey && (key.includes(cKey) || cKey.includes(key))) return c.slug;
+  }
+  return null;
+}
+
+/**
+ * Map a feed product to an internal category slug.
+ *
+ * Mapping is keyed on the store's own RAW top-level category (so every
+ * advertiser keeps a distinct set); the normalized bucket only serves the
+ * filter chips and acts as a fallback.
+ *
+ * Priority per stage (raw key, then normalized key):
+ *   this-session override → saved per-advertiser/global mapping → built-in guess.
  */
 function mapCategory(
-  feedCategory: string,
+  rawKey: string,
+  normalizedKey: string,
   categories: DbCategoryRow[],
   overrides: Record<string, string> | undefined,
   advertiserId: string,
   savedByAdv: Map<string, Map<string, string>>,
   savedGlobal: Map<string, string>,
 ): string | null {
-  const key = categoryKey(feedCategory);
-  if (!key) return null;
   const valid = (slug: string | undefined | null): boolean =>
     !!slug && categories.some((c) => c.slug === slug);
-  // 0. This-session override (highest priority; target must exist).
-  if (overrides && valid(overrides[key])) return overrides[key] as string;
-  // 1. Persisted per-advertiser mapping, then global default.
-  const perAdv = savedByAdv.get(advertiserId);
-  if (perAdv && valid(perAdv.get(key))) return perAdv.get(key) as string;
-  if (valid(savedGlobal.get(key))) return savedGlobal.get(key) as string;
-  // 2. Explicit built-in alias (only when the target category actually exists).
-  const alias = CATEGORY_ALIASES[key];
-  if (valid(alias)) return alias as string;
-  for (const c of categories) {
-    if (categoryKey(c.slug) === key) return c.slug;
-    if (categoryKey(c.name || '') === key) return c.slug;
+
+  for (const key of [rawKey, normalizedKey]) {
+    if (!key) continue;
+    if (overrides && valid(overrides[key])) return overrides[key] as string;
+    const saved = savedSlug(key, advertiserId, savedByAdv, savedGlobal);
+    if (valid(saved)) return saved as string;
   }
-  // Loose containment match (e.g. "disposable vapes" vs "disposable").
-  for (const c of categories) {
-    const cKey = categoryKey(c.name || c.slug);
-    if (cKey && (key.includes(cKey) || cKey.includes(key))) return c.slug;
-  }
-  return null;
+  // No saved/override hit: auto-guess raw first, then normalized.
+  const guessRaw = autoGuessCategory(rawKey, categories);
+  if (guessRaw) return guessRaw;
+  return autoGuessCategory(normalizedKey, categories);
 }
 function toNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === '') return null;
@@ -421,29 +452,36 @@ export function buildPreview(input: CompareInput): CompareResult {
       seenFeedKeys.add(dedupeKey);
     }
 
+    const rawTop = topCategory(item.category);
+    const rawKey = categoryKey(rawTop);
     const feedCategory = normalizeTopCategory(item.category);
     const extraBuckets: string[] = [];
-    for (const extraRaw of item.extraCategories ?? []) {
-      const bucket = normalizeTopCategory(extraRaw);
+    const extraRaw: string[] = [];
+    for (const extraRawCat of item.extraCategories ?? []) {
+      const bucket = normalizeTopCategory(extraRawCat);
       if (bucket && bucket !== feedCategory && !extraBuckets.includes(bucket)) {
         extraBuckets.push(bucket);
+      }
+      const rk = categoryKey(topCategory(extraRawCat));
+      if (rk && rk !== rawKey && !extraRaw.includes(rk)) {
+        extraRaw.push(rk);
       }
     }
     const promo =
       (promoMap && item.merchantUrl && promoMap.get(productPath(item.merchantUrl))) ||
       null;
-    const mappedFrom = feedCategory || item.category;
     let categorySlug = mapCategory(
-      mappedFrom,
+      rawKey,
+      categoryKey(feedCategory),
       categories,
       categoryOverrides,
       advId,
       savedByAdv,
       savedGlobal,
     );
-    if (!categorySlug && mappedFrom) {
-      categorySlug = slugify(mappedFrom);
-      unmapped.add(mappedFrom);
+    if (!categorySlug && rawKey) {
+      categorySlug = slugify(rawTop);
+      unmapped.add(rawTop);
     }
     if (!categorySlug) categorySlug = 'uncategorized';
 
@@ -504,7 +542,9 @@ export function buildPreview(input: CompareInput): CompareResult {
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
         feedCategory,
+        rawFeedCategory: rawTop,
         extraFeedCategories: extraBuckets,
+        extraRawFeedCategories: extraRaw,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: [],
@@ -579,7 +619,9 @@ export function buildPreview(input: CompareInput): CompareResult {
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
         feedCategory,
+        rawFeedCategory: rawTop,
         extraFeedCategories: extraBuckets,
+        extraRawFeedCategories: extraRaw,
         promo: promo ? toPreviewPromo(promo) : null,
         brand: item.brand,
         matchCandidates: candidates.slice(0, 6),
@@ -619,7 +661,9 @@ export function buildPreview(input: CompareInput): CompareResult {
         category: '',
         categoryLabel: '',
         feedCategory: '',
+        rawFeedCategory: '',
         extraFeedCategories: [],
+        extraRawFeedCategories: [],
         promo: null,
         brand: '',
         matchCandidates: [],

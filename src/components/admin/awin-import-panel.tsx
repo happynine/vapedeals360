@@ -249,18 +249,34 @@ export default function AwinImportPanel() {
     (a) => mappings[a.advertiserId]?.region,
   ).length;
 
-  // All feed top-category names seen across entries (label + normalized key).
+  // The store's own RAW top-level categories. In a per-store scope list only
+  // that advertiser's categories; the global scope unions every advertiser and
+  // tags the source store, since raw names are not shared across stores.
   const feedCategoryNames = (() => {
-    const seen = new Map<string, string>();
+    const seen = new Map<string, { label: string; advs: string[] }>();
+    const inScope = (advId: string) =>
+      catMapScope === 'global' || advId === catMapScope;
     for (const e of entries) {
-      for (const raw of [e.feedCategory || '', ...e.extraFeedCategories]) {
+      if (!inScope(e.advertiserId)) continue;
+      for (const raw of [e.rawFeedCategory || '', ...e.extraRawFeedCategories]) {
         if (!raw) continue;
         const key = categoryKey(raw);
-        if (key && !seen.has(key)) seen.set(key, raw);
+        if (!key) continue;
+        const row = seen.get(key);
+        if (row) {
+          if (!row.advs.includes(e.advertiserId)) row.advs.push(e.advertiserId);
+        } else {
+          seen.set(key, { label: raw, advs: [e.advertiserId] });
+        }
       }
     }
-    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    return [...seen.entries()]
+      .map(([key, v]) => [key, v.label, v.advs] as [string, string, string[]])
+      .sort((a, b) => a[1].localeCompare(b[1]));
   })();
+
+  const advName = (advId: string) =>
+    advertisers.find((a) => a.advertiserId === advId)?.advertiserName || advId;
 
   // When the scope (global / one advertiser) changes, seed the draft with the
   // saved rows for that scope; blank rows fall back to the current entry guess.
@@ -273,13 +289,13 @@ export default function AwinImportPanel() {
         saved.set(categoryKey(m.feed_category), m.category_slug);
       }
     }
+    // Guess is taken from entries whose own raw category equals the key.
     const guess = new Map<string, string>();
-    if (catMapScope === 'global') {
-      for (const e of entries) guess.set(categoryKey(e.feedCategory || ''), e.category);
-    } else {
-      for (const e of entries) {
-        if (e.advertiserId !== catMapScope) continue;
-        guess.set(categoryKey(e.feedCategory || ''), e.category);
+    for (const e of entries) {
+      if (catMapScope !== 'global' && e.advertiserId !== catMapScope) continue;
+      for (const raw of [e.rawFeedCategory || '', ...e.extraRawFeedCategories]) {
+        const key = categoryKey(raw);
+        if (key && e.category) guess.set(key, e.category);
       }
     }
     const draft: Record<string, string> = {};
@@ -305,11 +321,21 @@ export default function AwinImportPanel() {
         ),
         categoryMappings: Object.entries(catDraft)
           .filter(([, slug]) => slug)
-          .map(([key, slug]) => ({
-            advertiserId: catMapScope === 'global' ? null : catMapScope,
-            feedCategory: key,
-            categorySlug: slug,
-          })),
+          .map(([key, slug]) => {
+            if (catMapScope !== 'global') {
+              return { advertiserId: catMapScope, feedCategory: key, categorySlug: slug };
+            }
+            // Global scope: raw store-specific names must not become global
+            // defaults. Only persist the key when it is one of the normalized
+            // shared buckets; other rows stay as auto-guess defaults.
+            const shared = new Set(
+              entries.flatMap((e) => [categoryKey(e.feedCategory || ''), ...e.extraFeedCategories.map((c) => categoryKey(c))]),
+            );
+            return shared.has(key)
+              ? { advertiserId: null, feedCategory: key, categorySlug: slug }
+              : null;
+          })
+          .filter(Boolean) as Array<{ advertiserId: string | null; feedCategory: string; categorySlug: string }>,
       };
       const res = await adminFetch('/api/admin/awin-import/mappings', {
         method: 'POST',
@@ -319,10 +345,16 @@ export default function AwinImportPanel() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || '保存失败');
       setMappingMsg(
-        `已保存：商城映射 ${data.savedAdvertisers} 个 · 品类映射 ${data.savedCategories} 条${
+        `已保存：商城映射 ${data.savedAdvertisers} 个 · 品类映射 ${data.savedCategories} 条，正在刷新预览…${
           data.errors?.length ? `（提示：${data.errors.join('；')}）` : ''
         }`,
       );
+      // Recompute the preview so the new mappings take effect this session.
+      if (file && data.ready !== false) {
+        const fresh = await postFile(mappings);
+        setPreview(fresh);
+        if (fresh.ready) setEntries(fresh.entries);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '保存失败');
     } finally {
@@ -484,23 +516,30 @@ export default function AwinImportPanel() {
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
-            {feedCategoryNames.map(([key, label]) => (
+            {feedCategoryNames.map(([key, label, advs]) => (
               <div
                 key={key}
                 className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 p-2"
               >
-                <span
-                  className="flex-1 truncate text-sm text-zinc-200"
-                  title={label}
-                >
-                  {label}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="truncate text-sm text-zinc-200"
+                    title={label}
+                  >
+                    {label}
+                  </p>
+                  {catMapScope === 'global' && advs.length > 0 && (
+                    <p className="truncate text-[10px] text-zinc-500" title={advs.map(advName).join('、')}>
+                      {advs.map(advName).join('、')}
+                    </p>
+                  )}
+                </div>
                 <select
                   value={catDraft[key] ?? ''}
                   onChange={(ev) =>
                     setCatDraft((prev) => ({ ...prev, [key]: ev.target.value }))
                   }
-                  className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-200"
+                  className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-200"
                 >
                   <option value="">— 不映射 —</option>
                   {preview.internalCategories.map((c) => (
@@ -516,7 +555,7 @@ export default function AwinImportPanel() {
             <p className="text-xs text-emerald-300">{mappingMsg}</p>
           )}
           <p className="text-xs text-zinc-500">
-            按商城设置的对应优先于全局默认；没设商城专属时走全局。
+            品类对应按商城各自的原始分类名保存；切换商城看到的分类各自独立。全局范围只保存所有商城共用的通用品类，商城专属的分类请在对应商城标签里设置，且优先于全局。
           </p>
         </div>
       )}
