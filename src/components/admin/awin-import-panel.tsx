@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Check,
   X,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ export default function AwinImportPanel() {
   const [advertisers, setAdvertisers] = useState<AdvertiserInfo[]>([]);
   const [stores, setStores] = useState<StoreInfo[]>([]);
   const [mappings, setMappings] = useState<Record<string, AdvertiserMapping>>({});
+  const [advNames, setAdvNames] = useState<Record<string, string>>({});
   const [entries, setEntries] = useState<PreviewEntry[]>([]);
   const [advFilter, setAdvFilter] = useState<string>('__all__');
   const [catFilter, setCatFilter] = useState<string>('__all__');
@@ -62,11 +64,71 @@ export default function AwinImportPanel() {
   const [error, setError] = useState('');
   const [showMapping, setShowMapping] = useState(false);
   const [compareKey, setCompareKey] = useState<string | null>(null);
+  // Single-store context: '__all__' or one advertiser id. Drives every view.
+  const [activeAdv, setActiveAdv] = useState<string>('__all__');
+  // "Add advertiser" inline form.
+  const [showAddAdv, setShowAddAdv] = useState(false);
+  const [newAdv, setNewAdv] = useState({
+    advertiserId: '',
+    advertiserName: '',
+    storeId: '',
+    region: 'USA',
+    currency: 'USD',
+    feedUrl: '',
+  });
   // Category mapping editor: scope 'global' or an advertiser id.
   const [catMapScope, setCatMapScope] = useState<string>('global');
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
   const [savingMappings, setSavingMappings] = useState(false);
   const [mappingMsg, setMappingMsg] = useState('');
+
+  // Load saved advertisers + internal stores on mount, so the "select store"
+  // context works even before a feed is uploaded.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await adminFetch('/api/admin/awin-import/mappings');
+        const data = await res.json();
+        if (!alive || !res.ok || !data.success) return;
+        setStores((prev) => (prev.length ? prev : data.stores));
+        setAdvertisers((prev) => {
+          if (prev.length) return prev;
+          return (data.advertisers ?? []).map((a: any) => ({
+            advertiserId: a.advertiser_id,
+            advertiserName: a.advertiser_name || a.advertiser_id,
+            productCount: 0,
+            suggestedCurrency: a.currency,
+            mapping: { storeId: a.store_id, region: a.region, currency: a.currency },
+          }));
+        });
+        setMappings((prev) => {
+          const next = { ...prev };
+          for (const a of data.advertisers ?? []) {
+            next[a.advertiser_id] = {
+              storeId: a.store_id,
+              region: a.region,
+              currency: a.currency,
+            };
+          }
+          return next;
+        });
+        setAdvNames((prev) => {
+          const next = { ...prev };
+          for (const a of data.advertisers ?? []) {
+            next[a.advertiser_id] = a.advertiser_name || '';
+          }
+          return next;
+        });
+      } catch {
+        // Non-fatal; uploading a feed will populate the same data.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const adminFetch = (url: string, init?: RequestInit) =>
     fetch(url, {
@@ -110,11 +172,7 @@ export default function AwinImportPanel() {
       setPreview(data);
       setAdvertisers(data.advertisers);
       setStores(data.stores);
-      const pre: Record<string, AdvertiserMapping> = {};
-      for (const a of data.advertisers) if (a.mapping) pre[a.advertiserId] = a.mapping;
-      setMappings(pre);
-      setAdvFilter('__all__');
-      setCatFilter('__all__');
+
       setShowMapping(true);
       if (data.ready) {
         setEntries(data.entries);
@@ -134,6 +192,93 @@ export default function AwinImportPanel() {
       const next = { ...prev, [advId]: { ...base, ...patch } };
       return next;
     });
+  };
+
+  // The single-store selector is the global context: switching it drives both
+  // the entry-list advertiser filter and the category-analysis scope.
+  useEffect(() => {
+    setAdvFilter(activeAdv);
+    setCatMapScope(activeAdv === '__all__' ? 'global' : activeAdv);
+  }, [activeAdv]);
+
+  // Persist a manually added advertiser mapping, then bring it into context.
+  const handleAddAdvertiser = async () => {
+    const advertiserId = newAdv.advertiserId.trim();
+    const advertiserName = newAdv.advertiserName.trim();
+    const storeId = Number(newAdv.storeId);
+    const region = newAdv.region.trim().toUpperCase();
+    const currency = newAdv.currency.trim().toUpperCase();
+    if (!advertiserId) {
+      setError('请填写商城在 Awin 的 Advertiser ID');
+      return;
+    }
+    if (!advertiserName) {
+      setError('请填写商城名称');
+      return;
+    }
+    if (!Number.isInteger(storeId) || !region || !currency) {
+      setError('请完整选择 对应店铺 / 地区 / 货币');
+      return;
+    }
+    setSavingMappings(true);
+    setError('');
+    try {
+      const res = await adminFetch('/api/admin/awin-import/mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          advertiserMappings: {
+            [advertiserId]: {
+              storeId,
+              region,
+              currency,
+              advertiserName,
+              feedUrl: newAdv.feedUrl.trim(),
+            },
+          },
+          categoryMappings: [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.errors?.join('；') || '添加失败');
+      }
+      // Reflect it locally without waiting for a new upload.
+      setMappings((prev) => ({
+        ...prev,
+        [advertiserId]: { storeId, region, currency },
+      }));
+      setAdvNames((prev) => ({ ...prev, [advertiserId]: advertiserName }));
+      setAdvertisers((prev) => {
+        const without = prev.filter((a) => a.advertiserId !== advertiserId);
+        return [
+          ...without,
+          {
+            advertiserId,
+            advertiserName,
+            productCount: 0,
+            suggestedCurrency: currency,
+            mapping: { storeId, region, currency },
+          },
+        ];
+      });
+      setMappingMsg(`已添加商城「${advertiserName}」并保存对应关系。`);
+      setShowAddAdv(false);
+      setActiveAdv(advertiserId);
+      setAdvFilter(advertiserId);
+      setNewAdv({
+        advertiserId: '',
+        advertiserName: '',
+        storeId: '',
+        region: 'USA',
+        currency: 'USD',
+        feedUrl: '',
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '添加失败');
+    } finally {
+      setSavingMappings(false);
+    }
   };
 
   // Re-send once every advertiser has a complete mapping.
@@ -406,6 +551,23 @@ export default function AwinImportPanel() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* Single-store context selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 whitespace-nowrap">选商城</span>
+            <select
+              value={activeAdv}
+              onChange={(e) => setActiveAdv(e.target.value)}
+              className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-200"
+            >
+              <option value="__all__">全部商城</option>
+              {advertisers.map((a) => (
+                <option key={a.advertiserId} value={a.advertiserId}>
+                  {advNames[a.advertiserId] || a.advertiserName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <Input
             type="file"
             accept=".csv,.gz"
@@ -434,7 +596,126 @@ export default function AwinImportPanel() {
               商城对应关系（{mappedCount}/{advertisers.length}）
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => setShowAddAdv((v) => !v)}
+            className="border-emerald-700 text-emerald-300 hover:bg-emerald-900/20"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            添加商城
+          </Button>
         </div>
+
+        {/* Add advertiser inline form */}
+        {showAddAdv && (
+          <div className="rounded-md border border-emerald-800/60 bg-emerald-950/20 p-3 space-y-3">
+            <p className="text-sm font-medium text-emerald-200">
+              添加一个商城（保存对应关系，以后上传该商城自动带出）
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="space-y-1 text-xs text-zinc-400">
+                Awin Advertiser ID
+                <Input
+                  value={newAdv.advertiserId}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, advertiserId: e.target.value }))
+                  }
+                  placeholder="如 86487"
+                  className="h-9 text-sm text-zinc-200"
+                />
+              </label>
+              <label className="space-y-1 text-xs text-zinc-400">
+                商城名称
+                <Input
+                  value={newAdv.advertiserName}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, advertiserName: e.target.value }))
+                  }
+                  placeholder="如 EightVape"
+                  className="h-9 text-sm text-zinc-200"
+                />
+              </label>
+              <label className="space-y-1 text-xs text-zinc-400">
+                对应站内店铺
+                <select
+                  value={newAdv.storeId}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, storeId: e.target.value }))
+                  }
+                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+                >
+                  <option value="">— 请选择 —</option>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-zinc-400">
+                地区
+                <select
+                  value={newAdv.region}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, region: e.target.value }))
+                  }
+                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+                >
+                  {['USA', 'UK', 'GLOBAL', 'EU', 'CA', 'AU'].map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-zinc-400">
+                货币
+                <select
+                  value={newAdv.currency}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, currency: e.target.value }))
+                  }
+                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+                >
+                  {['USD', 'GBP', 'EUR', 'CAD', 'AUD'].map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-zinc-400">
+                Feed 地址（可选，定时拉取用）
+                <Input
+                  value={newAdv.feedUrl}
+                  onChange={(e) =>
+                    setNewAdv((p) => ({ ...p, feedUrl: e.target.value }))
+                  }
+                  placeholder="https://…"
+                  className="h-9 text-sm text-zinc-200"
+                />
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAddAdvertiser}
+                disabled={savingMappings}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Check className="w-4 h-4 mr-1" />
+                保存商城
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowAddAdv(false)}
+                className="text-zinc-400"
+              >
+                取消
+              </Button>
+            </div>
+          </div>
+        )}
 
         <label className="block text-xs text-zinc-400 space-y-1">
           促销 / 优惠页网址（可选，每行一个，自动标注促销价、划线原价与优惠码）
@@ -540,24 +821,19 @@ export default function AwinImportPanel() {
             </div>
           </div>
 
-          {/* Scope: global default or one advertiser override. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-sky-300/80">适用范围：</span>
-            <FilterChip
-              active={catMapScope === 'global'}
-              onClick={() => setCatMapScope('global')}
-            >
-              全局默认（所有商城）
-            </FilterChip>
-            {advertisers.map((a) => (
-              <FilterChip
-                key={a.advertiserId}
-                active={catMapScope === a.advertiserId}
-                onClick={() => setCatMapScope(a.advertiserId)}
-              >
-                {a.advertiserName}
-              </FilterChip>
-            ))}
+          {/* Context follows the top "选商城" selector; shown read-only. */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-sky-300/90">
+            <span>正在分析：</span>
+            <span className="rounded-full border border-sky-700/60 bg-sky-900/30 px-2.5 py-0.5 font-medium text-sky-100">
+              {catMapScope === 'global'
+                ? '全部商城（通用默认）'
+                : advNames[catMapScope] || catMapScope}
+            </span>
+            <span className="text-sky-400/70">
+              {catMapScope === 'global'
+                ? '下方只保存所有商城共用的通用品类'
+                : '下方是该商城自己的原始分类，独立保存、优先于全局'}
+            </span>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -627,23 +903,17 @@ export default function AwinImportPanel() {
       {entries.length > 0 && (
         <>
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
-            {/* Advertiser tabs */}
-            <div className="flex flex-wrap gap-2">
-              <FilterChip
-                active={advFilter === '__all__'}
-                onClick={() => setAdvFilter('__all__')}
-              >
-                全部商城
-              </FilterChip>
-              {advertisers.map((a) => (
-                <FilterChip
-                  key={a.advertiserId}
-                  active={advFilter === a.advertiserId}
-                  onClick={() => setAdvFilter(a.advertiserId)}
-                >
-                  {a.advertiserName}（{a.productCount}）
-                </FilterChip>
-              ))}
+            {/* Context comes from the top store selector. */}
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              当前商城：
+              <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2.5 py-0.5 font-medium text-zinc-200">
+                {advFilter === '__all__'
+                  ? '全部商城'
+                  : advNames[advFilter] ||
+                    advertisers.find((a) => a.advertiserId === advFilter)
+                      ?.advertiserName ||
+                    advFilter}
+              </span>
             </div>
             {/* Category chips */}
             <div className="flex flex-wrap gap-2">

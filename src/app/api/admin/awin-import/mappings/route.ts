@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { categoryKey } from '@/lib/awin-compare';
+import { parseStoreCapabilities } from '@/lib/store-capabilities';
 
 /**
  * Persist Awin ↔ VapeDeals360 mapping configuration so it does not have to be
@@ -19,13 +20,63 @@ import { categoryKey } from '@/lib/awin-compare';
  *   }>
  * }
  */
+export async function GET(request: NextRequest) {
+  if (!(await verifyAdminSession(request))) return unauthorizedResponse();
+  try {
+    const supabase = getServiceRoleClient();
+    const { data: rows, error } = await supabase
+      .from('awin_advertiser_mappings')
+      .select(
+        'advertiser_id, advertiser_name, store_id, region, currency, is_active, feed_url, notes, last_synced_at',
+      )
+      .order('advertiser_name', { ascending: true });
+    if (error) throw error;
+
+    const { data: storeRows } = await supabase
+      .from('stores')
+      .select('id, slug, logo_url, regions, store_translations(name, language)');
+    const stores = (storeRows ?? []).map((s: any) => {
+      const caps = parseStoreCapabilities(s.regions);
+      const en = (s.store_translations ?? []).find(
+        (t: any) => t.language === 'en',
+      );
+      return {
+        id: s.id,
+        slug: s.slug,
+        name: en?.name || s.slug,
+        logoUrl: s.logo_url ?? null,
+        regions: caps.regions,
+        currencies: caps.currencies,
+      };
+    });
+
+    return NextResponse.json({ success: true, advertisers: rows ?? [], stores });
+  } catch (error) {
+    console.error('Awin mappings load error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Load failed',
+      },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminSession(request))) return unauthorizedResponse();
   try {
     const body = (await request.json()) as {
       advertiserMappings?: Record<
         string,
-        { storeId?: number; region?: string; currency?: string }
+        {
+          storeId?: number;
+          region?: string;
+          currency?: string;
+          advertiserName?: string;
+          feedUrl?: string;
+          notes?: string;
+        }
       >;
       categoryMappings?: Array<{
         advertiserId?: string | null;
@@ -44,25 +95,28 @@ export async function POST(request: NextRequest) {
       const storeId = Number(m.storeId);
       const region = (m.region || '').trim().toUpperCase();
       const currency = (m.currency || '').trim().toUpperCase();
+      const advertiserName = (m.advertiserName || '').trim();
+      const feedUrl = (m.feedUrl || '').trim() || null;
+      const notes = (m.notes || '').trim();
       if (!advertiserId || !Number.isInteger(storeId) || !region || !currency) {
         errors.push(`${advertiserId}: incomplete advertiser mapping`);
         continue;
       }
+      const row: Record<string, unknown> = {
+        advertiser_id: advertiserId,
+        store_id: storeId,
+        region,
+        currency,
+        is_active: true,
+        last_synced_at: now,
+        updated_at: now,
+      };
+      if (advertiserName) row.advertiser_name = advertiserName;
+      if (feedUrl) row.feed_url = feedUrl;
+      if (notes) row.notes = notes;
       const { error } = await supabase
         .from('awin_advertiser_mappings')
-        .upsert(
-          {
-            advertiser_id: advertiserId,
-            store_id: storeId,
-            region,
-            currency,
-            is_active: true,
-            first_seen_at: now,
-            last_synced_at: now,
-            updated_at: now,
-          },
-          { onConflict: 'advertiser_id' },
-        );
+        .upsert(row, { onConflict: 'advertiser_id' });
       if (error) errors.push(`${advertiserId}: ${error.message}`);
     }
 

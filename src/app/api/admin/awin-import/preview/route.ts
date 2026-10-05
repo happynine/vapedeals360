@@ -127,15 +127,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Existing server-side mappings (table may not exist yet → empty).
-    const dbMappings = new Map<string, AdvertiserMapping>();
+    const dbMappings = new Map<string, AdvertiserMapping & { advertiserName?: string; feedUrl?: string }>();
     const { data: mappingRows } = await supabase
       .from('awin_advertiser_mappings')
-      .select('advertiser_id, region, currency, store_id');
+      .select('advertiser_id, advertiser_name, region, currency, store_id, feed_url');
     for (const m of mappingRows ?? []) {
       dbMappings.set(m.advertiser_id, {
         storeId: m.store_id,
         region: m.region,
         currency: m.currency,
+        advertiserName: m.advertiser_name || '',
+        feedUrl: m.feed_url || '',
       });
     }
 
@@ -159,7 +161,7 @@ export async function POST(request: NextRequest) {
         clientMappings[adv] ?? dbMappings.get(adv) ?? DEFAULT_MAPPINGS[adv] ?? null;
     }
 
-    const advertisers: AdvertiserInfo[] = order.map((adv) => {
+    const fileAdvertisers: AdvertiserInfo[] = order.map((adv) => {
       const m = meta.get(adv)!;
       return {
         advertiserId: adv,
@@ -169,6 +171,22 @@ export async function POST(request: NextRequest) {
         mapping: effective[adv],
       };
     });
+
+    // Advertisers saved earlier but absent from THIS file (e.g. added manually,
+    // or a different feed). Keep them visible and editable, with zero products.
+    const extraAdvertisers: AdvertiserInfo[] = [];
+    for (const [adv, m] of dbMappings) {
+      if (order.includes(adv)) continue;
+      extraAdvertisers.push({
+        advertiserId: adv,
+        advertiserName: m.advertiserName || adv,
+        productCount: 0,
+        suggestedCurrency: m.currency,
+        mapping: { storeId: m.storeId, region: m.region, currency: m.currency },
+      });
+    }
+    // Stable order: advertisers present in the file first, then saved extras.
+    const advertisers = [...fileAdvertisers, ...extraAdvertisers];
 
     // Internal stores for the mapping dropdowns.
     const { data: storeRows } = await supabase
@@ -202,8 +220,7 @@ export async function POST(request: NextRequest) {
       savedCategoryMappings,
     };
 
-    // Not every advertiser mapped → return the list only, no entries yet.
-    const allMapped = order.every((adv) => !!effective[adv]);
+
     if (!allMapped) {
       return NextResponse.json({
         ...baseResponse,
