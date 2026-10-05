@@ -1076,12 +1076,12 @@ function CompareModal({
   onApply,
   onApplyMany,
 }: {
-  entry: ImportEntry | null;
-  allEntries: ImportEntry[];
+  entry: PreviewEntry | null;
+  allEntries: PreviewEntry[];
   stores: StoreInfo[];
   onClose: () => void;
-  onApply: (key: string, patch: Partial<ImportEntry>) => void;
-  onApplyMany: (updates: Array<{ key: string; patch: Partial<ImportEntry> }>) => void;
+  onApply: (key: string, patch: Partial<PreviewEntry>) => void;
+  onApplyMany: (updates: Array<{ key: string; patch: Partial<PreviewEntry> }>) => void;
 }) {
   // Per-entry state so sibling feed duplicates can be confirmed together.
   const [modeByKey, setModeByKey] = useState<Record<string, 'merge' | 'new'>>({});
@@ -1111,7 +1111,10 @@ function CompareModal({
   );
   const candidate = entry.matchCandidates[candIdx] ?? null;
 
-  const advertiserName = stores.find((s) => s.id === entry.targetStore)?.name ?? 'A商城';
+  // The feed row's target store lives on its price row (no top-level field).
+  const targetStoreId = entry.prices[0]?.storeId ?? null;
+  const advertiserName =
+    stores.find((s) => s.id === targetStoreId)?.name ?? 'A商城';
 
   // Sibling feed rows in the SAME batch that are duplicates of this product.
   const normName = (s?: string | null) =>
@@ -1135,7 +1138,7 @@ function CompareModal({
   const storeById = (id?: number | null) => stores.find((s) => s.id === id);
 
   const handleConfirm = () => {
-    const updates: Array<{ key: string; patch: Partial<ImportEntry> }> = [];
+    const updates: Array<{ key: string; patch: Partial<PreviewEntry> }> = [];
     for (const k of relatedKeys) {
       const mode = getMode(k);
       const choices = getChoices(k);
@@ -1368,18 +1371,20 @@ function CompareModal({
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="flex items-center gap-2 rounded bg-purple-500/10 px-2.5 py-2 text-[11px] ring-1 ring-purple-500/20">
-                <StoreLogo src={storeById(entry.targetStore)?.logoUrl} alt={advertiserName} />
+                <StoreLogo src={storeById(targetStoreId)?.logoUrl} alt={advertiserName} />
                 <span className="flex-1 truncate text-zinc-300">{advertiserName}</span>
                 <span className="font-mono text-purple-300">{entry.merchantProductId || '—'}</span>
               </div>
-              {candidate?.storeSkus.map((s) => (
+              {(candidate?.storePrices ?? [])
+                .filter((s) => s.storeId !== targetStoreId)
+                .map((s) => (
                 <div
                   key={s.storeId}
                   className="flex items-center gap-2 rounded bg-zinc-800/70 px-2.5 py-2 text-[11px]"
                 >
-                  <StoreLogo src={storeById(s.storeId)?.logoUrl} alt={s.name} />
-                  <span className="flex-1 truncate text-zinc-300">{s.name}</span>
-                  <span className="font-mono text-zinc-200">{s.merchantProductId || '—'}</span>
+                  <StoreLogo src={s.logoUrl} alt={s.storeName} />
+                  <span className="flex-1 truncate text-zinc-300">{s.storeName}</span>
+                  <span className="font-mono text-zinc-200">{s.sku || '—'}</span>
                 </div>
               ))}
             </div>
@@ -1396,7 +1401,7 @@ function CompareModal({
 
             {/* A store quote card */}
             <QuoteCard
-              logo={storeById(entry.targetStore)?.logoUrl ?? null}
+              logo={storeById(targetStoreId)?.logoUrl ?? null}
               name={advertiserName}
               badge="本次导入 · A商城"
               badgeTone="purple"
@@ -1440,13 +1445,13 @@ function CompareModal({
                     <QuoteCard
                       key={sp.storeId}
                       logo={storeById(sp.storeId)?.logoUrl ?? null}
-                      name={sp.name}
+                      name={sp.storeName}
                       badge={`${sp.region || ''} ${sp.currency || ''}`.trim()}
                       badgeTone="zinc"
                     >
                       <QuoteFields
                         currency=""
-                        current={sp.currentPrice}
+                        current={sp.price}
                         original={sp.originalPrice}
                         url={sp.productUrl}
                         inStock={sp.inStock}
@@ -1479,7 +1484,7 @@ function CompareModal({
           {siblings.length > 0 && (
             <p className="rounded bg-zinc-800/60 px-3 py-2 text-[11px] text-zinc-400">
               本次 feed 中另有 <span className="font-semibold text-zinc-200">{siblings.length}</span> 个商城
-              （{siblings.map((s) => storeById(s.targetStore)?.name).join('、')}）的同款产品，确认后将一起挂接到该产品。
+              （{siblings.map((s) => storeById(s.prices[0]?.storeId)?.name).join('、')}）的同款产品，确认后将一起挂接到该产品。
             </p>
           )}
         </div>
