@@ -26,11 +26,15 @@ export interface AwinRawRow {
   merchant_image_url?: string;
   search_price?: string;
   // Older / Google-format feeds may use these aliases.
+  advertiser_id?: string;
+  advertiser_name?: string;
   id?: string;
   title?: string;
   link?: string;
   image_link?: string;
   price?: string;
+  brand?: string;
+  mpn?: string;
   google_product_category?: string;
   product_type?: string;
   availability?: string;
@@ -126,19 +130,25 @@ export function parseAwinCsv(text: string, defaultCurrency = 'USD'): NormalizedF
     ).trim();
     items.push({
       awProductId,
-      merchantProductId: (row.merchant_product_id || '').trim(),
-      merchantId: (row.merchant_id || '').trim(),
-      merchantName: (row.merchant_name || '').trim(),
+      merchantProductId: (row.merchant_product_id || row.mpn || '').trim(),
+      merchantId: (row.merchant_id || row.advertiser_id || '').trim(),
+      merchantName: (row.merchant_name || row.advertiser_name || '').trim(),
       name,
       description: (row.description || '').trim(),
       price,
       currency: defaultCurrency,
       deepLink,
-      merchantUrl: (row.merchant_deep_link || '').trim(),
+      merchantUrl: (row.merchant_deep_link || row.link || '').trim(),
       imageUrl,
-      category: (row.merchant_category || row.category_name || row.product_type || '').trim(),
+      category: (
+        row.merchant_category ||
+        row.category_name ||
+        row.product_type ||
+        // Google taxonomy is "A > B > Leaf"; only the leaf is useful locally.
+        ((row.google_product_category || '').split('>').pop() ?? '')
+      ).trim(),
       extraCategories: [],
-      brand: (row.brand_name || '').trim(),
+      brand: (row.brand_name || row.brand || '').trim(),
       inStock: parseAvailability(row.availability),
       rrpPrice: parsePrice(row.rrp_price || row.original_price || ''),
     });
