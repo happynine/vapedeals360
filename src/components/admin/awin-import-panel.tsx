@@ -21,6 +21,7 @@ import type {
   PreviewEntry,
   PreviewResponse,
   StoreInfo,
+  CandidateStorePrice,
   FieldChoiceKey,
   FieldChoiceSource,
   FieldChoices,
@@ -1137,6 +1138,14 @@ function CompareModal({
 
   const storeById = (id?: number | null) => stores.find((s) => s.id === id);
 
+  // Per-store deduped SKU rows (a store may have several price regions).
+  const otherStores: CandidateStorePrice[] = [];
+  for (const sp of candidate?.storePrices ?? []) {
+    if (sp.storeId === targetStoreId) continue;
+    if (otherStores.some((x) => x.storeId === sp.storeId)) continue;
+    otherStores.push(sp);
+  }
+
   const handleConfirm = () => {
     const updates: Array<{ key: string; patch: Partial<PreviewEntry> }> = [];
     for (const k of relatedKeys) {
@@ -1211,19 +1220,37 @@ function CompareModal({
             </div>
           )}
           {/* Header */}
-          <div className="grid grid-cols-[110px_1fr_1fr_1fr] gap-3">
+          <div className="grid grid-cols-[110px_1fr_1fr] gap-3">
             <div />
             <div className="rounded bg-purple-500/15 px-3 py-2 text-center text-[11px] font-semibold leading-tight text-purple-300 ring-1 ring-purple-500/30">
               A商城 · 本次导入
               <div className="mt-0.5 font-normal text-purple-300/80">{advertiserName}</div>
             </div>
-            <div className="rounded bg-emerald-500/10 px-3 py-2 text-center text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/25">
-              B商城 · 其他在售店（VapeDeals360 站内）
-            </div>
             <div className="rounded bg-blue-500/10 px-3 py-2 text-center text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
               VapeDeals360 · 站内现值
             </div>
           </div>
+
+          {/* B stores — consolidated once; brand/category/name are not per-store. */}
+          {otherStores.length > 0 && (
+            <div className="rounded-md border border-emerald-500/25 bg-emerald-500/5 p-3">
+              <p className="mb-2 text-[11px] font-semibold text-emerald-300">
+                B商城 · 其他在售店（VapeDeals360 站内，共 {otherStores.length} 家，本次不改动）
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {otherStores.map((s) => (
+                  <span
+                    key={s.storeId}
+                    className="flex items-center gap-1.5 rounded bg-zinc-800/70 px-2 py-1 text-[11px] text-zinc-300"
+                  >
+                    <StoreLogo src={s.logoUrl} alt={s.storeName} />
+                    {s.storeName}
+                    {s.region && <span className="text-zinc-500">· {s.region}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Image */}
           <FieldRow label="配图">
@@ -1240,21 +1267,6 @@ function CompareModal({
             >
               <CompareThumb src={entry.imageUrl} />
             </ChoiceCell>
-            <MiddleCell>
-              {candidate && candidate.sellingStores.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {candidate.sellingStores.map((s) => (
-                    <div key={s.id} className="flex items-center gap-1 text-[11px] text-zinc-300">
-                      <StoreLogo src={s.logoUrl} alt={s.name} />
-                      {s.name}
-                      <span className="text-zinc-500">· {regionOfStore(s.id, candidate)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyNote />
-              )}
-            </MiddleCell>
             <ChoiceCell
               label="保留站内现值"
               checked={mergeMode && getChoices(entry.key).image === 'canonical'}
@@ -1285,20 +1297,6 @@ function CompareModal({
             >
               <CompareText>{entry.name}</CompareText>
             </ChoiceCell>
-            <MiddleCell>
-              {candidate ? (
-                <div className="space-y-0.5 text-[11px] text-zinc-400">
-                  {candidate.sellingStores.map((s) => (
-                    <div key={s.id}>
-                      {s.name} · {regionOfStore(s.id, candidate)}
-                    </div>
-                  ))}
-                  <p className="pt-1 text-zinc-500">各店产品名统一使用 VapeDeals360 站内产品名</p>
-                </div>
-              ) : (
-                <EmptyNote />
-              )}
-            </MiddleCell>
             <ChoiceCell
               label="保留站内现值"
               checked={mergeMode && getChoices(entry.key).name === 'canonical'}
@@ -1321,11 +1319,8 @@ function CompareModal({
               <ParamLine label="分类" value={entry.category || '—'} />
               <ParamLine label="SKU" value={entry.merchantProductId || '—'} mono />
             </div>
-            <MiddleCell>
-              <p className="text-[11px] text-zinc-500">品牌、分类等参数不按店区分，统一使用站内值</p>
-            </MiddleCell>
             <div className="space-y-1.5 rounded bg-zinc-800/60 p-2.5 text-[11px]">
-              <ParamLine label="品牌" value={candidate ? '—' : '—'} />
+              <ParamLine label="品牌" value="—" />
               <ParamLine label="分类" value={entry.category || '—'} />
               <ParamLine label="产品 #" value={candidate ? String(candidate.productId) : '—'} mono />
             </div>
@@ -1346,9 +1341,6 @@ function CompareModal({
             >
               <CompareText>{entry.description}</CompareText>
             </ChoiceCell>
-            <MiddleCell>
-              <p className="text-[11px] text-zinc-500">描述统一使用站内值</p>
-            </MiddleCell>
             <ChoiceCell
               label="保留站内现值"
               checked={mergeMode && getChoices(entry.key).description === 'canonical'}
@@ -1375,9 +1367,7 @@ function CompareModal({
                 <span className="flex-1 truncate text-zinc-300">{advertiserName}</span>
                 <span className="font-mono text-purple-300">{entry.merchantProductId || '—'}</span>
               </div>
-              {(candidate?.storePrices ?? [])
-                .filter((s) => s.storeId !== targetStoreId)
-                .map((s) => (
+              {otherStores.map((s) => (
                 <div
                   key={s.storeId}
                   className="flex items-center gap-2 rounded bg-zinc-800/70 px-2.5 py-2 text-[11px]"
@@ -1399,65 +1389,44 @@ function CompareModal({
               </p>
             </div>
 
-            {/* A store quote card */}
-            <QuoteCard
-              logo={storeById(targetStoreId)?.logoUrl ?? null}
-              name={advertiserName}
-              badge="本次导入 · A商城"
-              badgeTone="purple"
-            >
-              <QuoteFields
-                currency={entry.prices[0]?.currency ?? ''}
-                current={entry.prices[0]?.newPrice}
-                original={entry.prices[0]?.newOriginalPrice}
-                url={entry.prices[0]?.newUrl}
-                inStock={entry.prices[0]?.inStock ?? true}
-              />
-            </QuoteCard>
-
-            {/* Existing store cards, aligned with the feed store when it already exists */}
-            <div className="mt-2 space-y-2">
-              {entry.prices.map((p) => (
+            {/* The importing store: one merged card (new price or update). */}
+            {(() => {
+              const q = entry.prices[0];
+              if (!q) return <EmptyNote text="无报价信息" />;
+              const exists = !!q.priceId;
+              return (
                 <QuoteCard
-                  key={`feed-${p.priceId ?? 'new'}`}
-                  logo={storeById(p.storeId)?.logoUrl ?? null}
-                  name={storeById(p.storeId)?.name ?? `Store #${p.storeId}`}
-                  badge={p.priceId ? '站内已有 · 将更新' : '站内新增'}
-                  badgeTone={p.priceId ? 'amber' : 'emerald'}
+                  logo={storeById(targetStoreId)?.logoUrl ?? null}
+                  name={advertiserName}
+                  badge={exists ? '站内已有 · 将更新' : '站内新增'}
+                  badgeTone={exists ? 'amber' : 'emerald'}
                 >
                   <QuoteFields
-                    currency={p.currency}
-                    current={p.newPrice}
-                    original={p.newOriginalPrice}
-                    url={p.newUrl}
-                    inStock={p.inStock}
+                    currency={q.currency}
+                    current={q.newPrice}
+                    original={q.newOriginalPrice}
+                    url={q.newUrl}
+                    inStock={q.inStock}
                   />
                 </QuoteCard>
-              ))}
-            </div>
+              );
+            })()}
 
-            {/* Other selling stores with their current prices */}
-            {candidate && candidate.storePrices.length > 0 && (
+            {/* Other stores: names only, no price/link details. */}
+            {otherStores.length > 0 && (
               <div className="mt-3 border-t border-zinc-800 pt-3">
-                <p className="mb-2 text-[10px] text-zinc-500">其他在售店现价（本次不改动）</p>
-                <div className="space-y-2">
-                  {candidate.storePrices.map((sp) => (
-                    <QuoteCard
+                <p className="mb-2 text-[10px] text-zinc-500">
+                  其他在售店（共 {otherStores.length} 家，本次不改动，店铺信息见上方 B商城 区块）
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {otherStores.map((sp) => (
+                    <span
                       key={sp.storeId}
-                      logo={storeById(sp.storeId)?.logoUrl ?? null}
-                      name={sp.storeName}
-                      badge={`${sp.region || ''} ${sp.currency || ''}`.trim()}
-                      badgeTone="zinc"
+                      className="flex items-center gap-1.5 rounded bg-zinc-800/70 px-2 py-1 text-[11px] text-zinc-400"
                     >
-                      <QuoteFields
-                        currency=""
-                        current={sp.price}
-                        original={sp.originalPrice}
-                        url={sp.productUrl}
-                        inStock={sp.inStock}
-                        readOnly
-                      />
-                    </QuoteCard>
+                      <StoreLogo src={sp.logoUrl} alt={sp.storeName} />
+                      {sp.storeName}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -1508,12 +1477,6 @@ function CompareModal({
   );
 }
 
-function regionOfStore(storeId: number, candidate: MatchCandidate): string {
-  const p = candidate.storePrices.find((sp) => sp.storeId === storeId);
-  if (p?.region) return p.region;
-  return candidate.sellingStores.find((s) => s.id === storeId) ? '' : '';
-}
-
 function FieldRow({
   label,
   children,
@@ -1522,7 +1485,7 @@ function FieldRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[110px_1fr_1fr_1fr] items-start gap-3 rounded-md border border-zinc-800 p-3">
+    <div className="grid grid-cols-[110px_1fr_1fr] items-start gap-3 rounded-md border border-zinc-800 p-3">
       <span className="pt-1 text-[11px] font-semibold text-zinc-400">{label}</span>
       {children}
     </div>
@@ -1560,14 +1523,6 @@ function ChoiceCell({
       </span>
       {children}
     </label>
-  );
-}
-
-function MiddleCell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-[64px] items-center rounded bg-emerald-500/5 p-2.5 ring-1 ring-emerald-500/15">
-      {children}
-    </div>
   );
 }
 
