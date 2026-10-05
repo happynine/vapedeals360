@@ -189,7 +189,7 @@ function savedSlug(
  * Built-in guess for one category key (alias → exact → loose containment).
  * Returns null when nothing fits.
  */
-function autoGuessCategory(key: string, categories: DbCategoryRow[]): string | null {
+export function autoGuessCategory(key: string, categories: DbCategoryRow[]): string | null {
   if (!key) return null;
   const alias = CATEGORY_ALIASES[key];
   if (alias && categories.some((c) => c.slug === alias)) return alias;

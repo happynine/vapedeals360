@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { categoryKey } from '@/lib/awin-compare';
+import { categoryKey, autoGuessCategory } from '@/lib/awin-compare';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -362,6 +362,38 @@ export default function AwinImportPanel() {
     }
   };
 
+  // One-click: fill every still-unmapped row with the built-in smart guess.
+  // Rows the guesser cannot resolve are left as "不映射" for manual review.
+  const handleAutofillCategories = () => {
+    if (!preview) return;
+    const dbCats = preview.internalCategories.map((c) => ({
+      id: 0,
+      slug: c.slug,
+      name: c.name,
+    }));
+    let filled = 0;
+    setCatDraft((prev) => {
+      const next = { ...prev };
+      for (const [key] of feedCategoryNames) {
+        if (next[key]) continue;
+        const guess = autoGuessCategory(key, dbCats);
+        if (guess) {
+          next[key] = guess;
+          filled++;
+        }
+      }
+      return next;
+    });
+    setMappingMsg('');
+    // Defer the count message until state settles; count synchronously too.
+    let n = 0;
+    for (const [key] of feedCategoryNames) {
+      if (catDraft[key]) continue;
+      if (autoGuessCategory(key, dbCats)) n++;
+    }
+    setMappingMsg(n > 0 ? `已智能填充 ${n} 个分类，请核对后保存。` : '所有分类已有映射，无需填充。');
+  };
+
   return (
     <div className="space-y-4">
       {/* Upload */}
@@ -484,15 +516,27 @@ export default function AwinImportPanel() {
               <Settings2 className="w-4 h-4" />
               品类对应关系（保存后以后上传自动生效）
             </h4>
-            <Button
-              onClick={handleSaveMappings}
-              disabled={savingMappings}
-              className="bg-sky-600 hover:bg-sky-700"
-            >
-              {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <Check className="w-4 h-4 mr-1" />
-              保存品类对应
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAutofillCategories}
+                disabled={savingMappings}
+                variant="outline"
+                className="border-sky-600/60 text-sky-200 hover:bg-sky-900/30"
+                title="把所有仍未映射的分类按智能建议自动填上"
+              >
+                <Settings2 className="w-4 h-4 mr-1" />
+                智能填充未映射
+              </Button>
+              <Button
+                onClick={handleSaveMappings}
+                disabled={savingMappings}
+                className="bg-sky-600 hover:bg-sky-700"
+              >
+                {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                <Check className="w-4 h-4 mr-1" />
+                保存品类对应
+              </Button>
+            </div>
           </div>
 
           {/* Scope: global default or one advertiser override. */}
