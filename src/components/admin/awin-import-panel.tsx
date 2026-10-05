@@ -68,14 +68,17 @@ export default function AwinImportPanel() {
   const [activeAdv, setActiveAdv] = useState<string>('__all__');
   // "Add advertiser" inline form.
   const [showAddAdv, setShowAddAdv] = useState(false);
-  const [newAdv, setNewAdv] = useState({
-    advertiserId: '',
-    advertiserName: '',
-    storeId: '',
-    region: 'USA',
-    currency: 'USD',
-    feedUrl: '',
-  });
+  // Store-upload flow: upload one store's feed, identity is auto-detected, the
+  // user only picks which existing online store it maps to.
+  const [newAdvFile, setNewAdvFile] = useState<File | null>(null);
+  const [newAdvDetected, setNewAdvDetected] = useState<{
+    advertiserId: string;
+    advertiserName: string;
+    productCount: number;
+    currency: string;
+  } | null>(null);
+  const [newAdvStoreId, setNewAdvStoreId] = useState<number | null>(null);
+  const [detectingAdv, setDetectingAdv] = useState(false);
   // Category mapping editor: scope 'global' or an advertiser id.
   const [catMapScope, setCatMapScope] = useState<string>('global');
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
@@ -202,24 +205,61 @@ export default function AwinImportPanel() {
   }, [activeAdv]);
 
   // Persist a manually added advertiser mapping, then bring it into context.
+  // Step 1: upload the store's feed and let the server detect its identity.
+  const handleDetectAdvFile = async () => {
+    if (!newAdvFile) {
+      setError('请先选择该商城的 feed 文件');
+      return;
+    }
+    setDetectingAdv(true);
+    setError('');
+    setNewAdvDetected(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', newAdvFile);
+      fd.append('promo_urls', '');
+      fd.append('mappings', '{}');
+      const res = await adminFetch('/api/admin/awin-import/preview', {
+        method: 'POST',
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || '读取失败');
+      const first = (data.advertisers ?? [])[0];
+      if (!first) throw new Error('文件中没有识别到商城');
+      setNewAdvDetected({
+        advertiserId: first.advertiserId,
+        advertiserName: first.advertiserName,
+        productCount: first.productCount,
+        currency: first.suggestedCurrency || 'USD',
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '读取失败');
+    } finally {
+      setDetectingAdv(false);
+    }
+  };
+
+  // Step 2: map the detected advertiser to an existing online store and save.
   const handleAddAdvertiser = async () => {
-    const advertiserId = newAdv.advertiserId.trim();
-    const advertiserName = newAdv.advertiserName.trim();
-    const storeId = Number(newAdv.storeId);
-    const region = newAdv.region.trim().toUpperCase();
-    const currency = newAdv.currency.trim().toUpperCase();
-    if (!advertiserId) {
-      setError('请填写商城在 Awin 的 Advertiser ID');
+    if (!newAdvDetected) {
+      setError('请先上传并读取商城 feed');
       return;
     }
-    if (!advertiserName) {
-      setError('请填写商城名称');
+    if (!newAdvStoreId) {
+      setError('请选择对应的线上已有商城');
       return;
     }
-    if (!Number.isInteger(storeId) || !region || !currency) {
-      setError('请完整选择 对应店铺 / 地区 / 货币');
+    const store = stores.find((s) => s.id === newAdvStoreId);
+    if (!store) {
+      setError('请选择有效的线上商城');
       return;
     }
+    // Region/currency are carried over from the existing store, not typed.
+    const region = store.regions?.[0] || 'USA';
+    const currency =
+      store.currencies?.[0] || newAdvDetected.currency || 'USD';
+    const { advertiserId, advertiserName } = newAdvDetected;
     setSavingMappings(true);
     setError('');
     try {
@@ -229,11 +269,10 @@ export default function AwinImportPanel() {
         body: JSON.stringify({
           advertiserMappings: {
             [advertiserId]: {
-              storeId,
+              storeId: newAdvStoreId,
               region,
               currency,
               advertiserName,
-              feedUrl: newAdv.feedUrl.trim(),
             },
           },
           categoryMappings: [],
@@ -243,10 +282,9 @@ export default function AwinImportPanel() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || data.errors?.join('；') || '添加失败');
       }
-      // Reflect it locally without waiting for a new upload.
       setMappings((prev) => ({
         ...prev,
-        [advertiserId]: { storeId, region, currency },
+        [advertiserId]: { storeId: newAdvStoreId, region, currency },
       }));
       setAdvNames((prev) => ({ ...prev, [advertiserId]: advertiserName }));
       setAdvertisers((prev) => {
@@ -256,29 +294,30 @@ export default function AwinImportPanel() {
           {
             advertiserId,
             advertiserName,
-            productCount: 0,
+            productCount: newAdvDetected.productCount,
             suggestedCurrency: currency,
-            mapping: { storeId, region, currency },
+            mapping: { storeId: newAdvStoreId, region, currency },
           },
         ];
       });
-      setMappingMsg(`已添加商城「${advertiserName}」并保存对应关系。`);
-      setShowAddAdv(false);
+      setMappingMsg(
+        `已添加「${advertiserName}」并对应到线上商城「${store.name}」。`,
+      );
+      resetAddAdv();
       setActiveAdv(advertiserId);
       setAdvFilter(advertiserId);
-      setNewAdv({
-        advertiserId: '',
-        advertiserName: '',
-        storeId: '',
-        region: 'USA',
-        currency: 'USD',
-        feedUrl: '',
-      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '添加失败');
     } finally {
       setSavingMappings(false);
     }
+  };
+
+  const resetAddAdv = () => {
+    setShowAddAdv(false);
+    setNewAdvFile(null);
+    setNewAdvDetected(null);
+    setNewAdvStoreId(null);
   };
 
   // Re-send once every advertiser has a complete mapping.
@@ -606,43 +645,59 @@ export default function AwinImportPanel() {
           </Button>
         </div>
 
-        {/* Add advertiser inline form */}
+        {/* Add advertiser: upload that store's feed, then pick online store */}
         {showAddAdv && (
           <div className="rounded-md border border-emerald-800/60 bg-emerald-950/20 p-3 space-y-3">
             <p className="text-sm font-medium text-emerald-200">
-              添加一个商城（保存对应关系，以后上传该商城自动带出）
+              上传一个商城的 feed（系统自动识别商城，你只需选择对应的线上已有商城）
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="space-y-1 text-xs text-zinc-400">
-                Awin Advertiser ID
-                <Input
-                  value={newAdv.advertiserId}
-                  onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, advertiserId: e.target.value }))
-                  }
-                  placeholder="如 86487"
-                  className="h-9 text-sm text-zinc-200"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-zinc-400">
-                商城名称
-                <Input
-                  value={newAdv.advertiserName}
-                  onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, advertiserName: e.target.value }))
-                  }
-                  placeholder="如 EightVape"
-                  className="h-9 text-sm text-zinc-200"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-zinc-400">
-                对应站内店铺
+
+            {/* Step 1: file */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                type="file"
+                accept=".csv,.gz"
+                className="max-w-sm text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-700 file:px-3 file:py-1 file:text-zinc-200"
+                onChange={(e) => {
+                  setNewAdvFile(e.target.files?.[0] ?? null);
+                  setNewAdvDetected(null);
+                  setNewAdvStoreId(null);
+                }}
+              />
+              <Button
+                onClick={handleDetectAdvFile}
+                disabled={detectingAdv || !newAdvFile}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {detectingAdv && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                <Upload className="w-4 h-4 mr-1" />
+                读取商城
+              </Button>
+              {newAdvDetected && (
+                <div className="rounded-md border border-emerald-700/50 bg-emerald-900/20 px-3 py-1.5 text-xs text-emerald-100">
+                  已识别：<b>{newAdvDetected.advertiserName}</b> · ID{' '}
+                  {newAdvDetected.advertiserId} ·{' '}
+                  {newAdvDetected.productCount} 个产品
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: pick existing online store */}
+            {newAdvDetected && (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 p-3">
+                <span className="text-xs text-zinc-400 whitespace-nowrap">
+                  对应线上已有商城
+                </span>
                 <select
-                  value={newAdv.storeId}
+                  value={newAdvStoreId ?? ''}
                   onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, storeId: e.target.value }))
+                    setNewAdvStoreId(
+                      e.target.value ? Number(e.target.value) : null,
+                    )
                   }
-                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
+                  className="min-w-[220px] rounded-md border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-200"
                 >
                   <option value="">— 请选择 —</option>
                   {stores.map((s) => (
@@ -651,64 +706,25 @@ export default function AwinImportPanel() {
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="space-y-1 text-xs text-zinc-400">
-                地区
-                <select
-                  value={newAdv.region}
-                  onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, region: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
-                >
-                  {['USA', 'UK', 'GLOBAL', 'EU', 'CA', 'AU'].map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-xs text-zinc-400">
-                货币
-                <select
-                  value={newAdv.currency}
-                  onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, currency: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-200"
-                >
-                  {['USD', 'GBP', 'EUR', 'CAD', 'AUD'].map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-xs text-zinc-400">
-                Feed 地址（可选，定时拉取用）
-                <Input
-                  value={newAdv.feedUrl}
-                  onChange={(e) =>
-                    setNewAdv((p) => ({ ...p, feedUrl: e.target.value }))
-                  }
-                  placeholder="https://…"
-                  className="h-9 text-sm text-zinc-200"
-                />
-              </label>
-            </div>
+                <span className="text-[11px] text-zinc-500">
+                  地区 / 货币将自动使用该线上商城的设置
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Button
                 onClick={handleAddAdvertiser}
-                disabled={savingMappings}
+                disabled={savingMappings || !newAdvDetected || !newAdvStoreId}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Check className="w-4 h-4 mr-1" />
-                保存商城
+                保存对应商城
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => setShowAddAdv(false)}
+                onClick={resetAddAdv}
                 className="text-zinc-400"
               >
                 取消
