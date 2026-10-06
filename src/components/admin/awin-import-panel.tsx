@@ -598,9 +598,9 @@ export default function AwinImportPanel() {
     let filled = 0;
     setCatDraft((prev) => {
       const next = { ...prev };
-      for (const [key] of feedCategoryNames) {
+      for (const [key, , advs] of feedCategoryNames) {
         if (next[key]) continue;
-        const guess = autoGuessCategory(key, dbCats);
+        const guess = autoGuessCategory(key, dbCats, advs[0]);
         if (guess) {
           next[key] = guess;
           filled++;
@@ -611,9 +611,9 @@ export default function AwinImportPanel() {
     setMappingMsg('');
     // Defer the count message until state settles; count synchronously too.
     let n = 0;
-    for (const [key] of feedCategoryNames) {
+    for (const [key, , advs] of feedCategoryNames) {
       if (catDraft[key]) continue;
-      if (autoGuessCategory(key, dbCats)) n++;
+      if (autoGuessCategory(key, dbCats, advs[0])) n++;
     }
     setMappingMsg(n > 0 ? `已智能填充 ${n} 个分类，请核对后保存。` : '所有分类已有映射，无需填充。');
   };

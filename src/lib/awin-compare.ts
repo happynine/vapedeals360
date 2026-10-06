@@ -169,7 +169,66 @@ export function categoryKey(value: string): string {
  */
 const CATEGORY_ALIASES: Record<string, string> = {
   'vape kit': 'pod-systems',
+  // EightVape Google feed leaves: unambiguous consumable hardware.
+  coils: 'accessories',
 };
+
+/**
+ * Advertiser-specific leaf aliases. EightVape's (86487) Google feed maps odd
+ * Google taxonomy leaves to products whose real type only the store context
+ * reveals (verified title-by-title). Kept per-advertiser so other feeds that
+ * reuse the same leaf names are never affected.
+ */
+const PER_ADV_ALIASES: Record<string, Record<string, string>> = {
+  '86487': {
+    hardware: 'pod-systems', // 8/8 pod kits
+    'electronic cigarettes': 'pod-systems', // 214/269 devices
+    'food, beverages & tobacco': 'e-liquids', // vape juice rows
+    'vaporisers & electronic cigarettes': 'e-liquids', // 148/148 juice titles
+    'baking mixes': 'e-liquids', // Dinner Lady salts
+    'sweets & chocolate': 'e-liquids', // VGOD nic salts
+  },
+};
+
+/**
+ * Title-level category guess, used as a last resort when the feed provides no
+ * usable category (e.g. EightVape's Google feed leaves google_product_category
+ * empty on ~90% of rows and the few values are noisy). Generic rules only —
+ * brand-specific names are not hardcoded — so this stays safe for other feeds.
+ */
+const TITLE_NON_PRODUCT =
+  /gift\s*card|wish list|creation and sharing|excise|nicotine\s*tax|e-?cig\s*tax|vapor\s*tax|signature\s*fee|red envelopes?|package\s*protection|shipping|\btax\b|\bfee\b/i;
+const TITLE_ELIQUID_STRONG =
+  /vape\s*juice|e-?juice|e-?liquid|nic(?:otine)?\s*salts?|\bsalts?\b|vape\s*liquid/i;
+const TITLE_ACCESSORY =
+  /\bcoils?\b|replacement|\brta\b|\brda\b|\brba\b|\btanks?\b|\bglass\b|atomizer|cartridge|drip\s*tip|charger|\bbatteries?\b|adapter|o-?rings?|silicone|\bmouthpiece\b|(?:vape|organic)?\s*cotton\s*bacon|\bvape\s*cotton\b|organic\s*cotton|unicorn\s*bottles?|empty\s*bottles?|\bbottles?\b|t-?shirt|\bhoodies?\b|\bcaps?\b|\bbeanie\b|socks?|keychain|key\s*ring|lanyard|mouse\s*pad|fridge\s*magnet|wallet|backpack|tote|cotton\s*bag|\bcable\b|tea\s*set|scented\s*card|\bpillow\b|\bbag\b|\bpods?\b\s*[(（](?:(?!require battery)[\s\S])*?(?:pack|pcs|cartridge|empty|coil|\d+(?:\.\d+)?\s*ohm)|\bpods?\b[^.;]{0,60}?(?:pack|pcs|cartridge|empty|replacement)/i;
+const TITLE_VOLUME = /\d+(?:\.\d+)?\s?ml\b/i;
+const TITLE_DISPOSABLE =
+  /dispos[ao]?b?a?l?e?|diposable|\bpuffs?\b|\b\d{2,3}k\b(?:[^.;]{0,30}?puffs)?/i;
+const TITLE_BOXMOD = /box\s*mod/i;
+const TITLE_DEVICE = /\bmod\b|\bkit\b|\bsystem\b|\bpen\b|\bpods?\b|\bdevice\b/i;
+
+export function guessCategoryFromTitle(
+  title: string,
+  categories: DbCategoryRow[],
+): string | null {
+  if (!title || TITLE_NON_PRODUCT.test(title)) return null;
+  const slug: string | null = TITLE_ELIQUID_STRONG.test(title)
+    ? 'e-liquids'
+    : TITLE_ACCESSORY.test(title)
+      ? 'accessories'
+      : TITLE_VOLUME.test(title)
+        ? 'e-liquids'
+        : TITLE_DISPOSABLE.test(title)
+          ? 'disposable-vapes'
+          : TITLE_BOXMOD.test(title)
+            ? 'box-mods'
+            : TITLE_DEVICE.test(title)
+              ? 'pod-systems'
+              : null;
+  if (slug && categories.some((c) => c.slug === slug)) return slug;
+  return null;
+}
 /**
  * Resolve one saved slug for a key across per-advertiser then global scope.
  */
@@ -187,10 +246,17 @@ function savedSlug(
 
 /**
  * Built-in guess for one category key (alias → exact → loose containment).
- * Returns null when nothing fits.
+ * Returns null when nothing fits. Advertiser-specific aliases take priority
+ * when an advertiserId is supplied.
  */
-export function autoGuessCategory(key: string, categories: DbCategoryRow[]): string | null {
+export function autoGuessCategory(
+  key: string,
+  categories: DbCategoryRow[],
+  advertiserId?: string,
+): string | null {
   if (!key) return null;
+  const perAdv = advertiserId ? PER_ADV_ALIASES[advertiserId]?.[key] : undefined;
+  if (perAdv && categories.some((c) => c.slug === perAdv)) return perAdv;
   const alias = CATEGORY_ALIASES[key];
   if (alias && categories.some((c) => c.slug === alias)) return alias;
   for (const c of categories) {
@@ -233,9 +299,9 @@ function mapCategory(
     if (valid(saved)) return saved as string;
   }
   // No saved/override hit: auto-guess raw first, then normalized.
-  const guessRaw = autoGuessCategory(rawKey, categories);
+  const guessRaw = autoGuessCategory(rawKey, categories, advertiserId);
   if (guessRaw) return guessRaw;
-  return autoGuessCategory(normalizedKey, categories);
+  return autoGuessCategory(normalizedKey, categories, advertiserId);
 }
 function toNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === '') return null;
@@ -479,6 +545,12 @@ export function buildPreview(input: CompareInput): CompareResult {
       savedByAdv,
       savedGlobal,
     );
+    // Feed carries a leaf but it gives no usable slug: a strong title signal
+    // is still better than a synthetic "new category" slug (e.g. EightVape
+    // "Gift Boxes and Tins" that are actually disposable mystery boxes).
+    if (!categorySlug) {
+      categorySlug = guessCategoryFromTitle(item.name, categories);
+    }
     if (!categorySlug && rawKey) {
       categorySlug = slugify(rawTop);
       unmapped.add(rawTop);
