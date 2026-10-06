@@ -10,6 +10,7 @@ import {
   Check,
   X,
   Plus,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1364,9 +1365,22 @@ function EntryRow({
             <span className="text-zinc-500 mr-2">[{KIND_LABEL[entry.kind]}]</span>
             {entry.name}
           </p>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            {entry.advertiserName} · {entry.categoryLabel || entry.category} · SKU{' '}
-            {entry.merchantProductId || entry.awProductId}
+          <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-2 flex-wrap">
+            <span className="whitespace-nowrap">
+              {entry.advertiserName} · {entry.categoryLabel || entry.category} · SKU{' '}
+              {entry.merchantProductId || entry.awProductId}
+            </span>
+            {entry.storeUrl && (
+              <a
+                href={entry.storeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 hover:underline whitespace-nowrap"
+              >
+                <ExternalLink className="h-3 w-3" />
+                去商城查看
+              </a>
+            )}
           </p>
         </div>
         <div className="text-right">

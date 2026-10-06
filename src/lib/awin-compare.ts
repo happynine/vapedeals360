@@ -601,9 +601,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         selected: false,
         advertiserId: advId,
         advertiserName: item.merchantName,
-        awProductId: item.awProductId,
-        merchantProductId: item.merchantProductId,
-        productId: hard.id,
+
         slug: hard.slug,
         name: item.name || hard.name || '',
         oldName: hard.name ?? null,
@@ -680,6 +678,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         advertiserName: item.merchantName,
         awProductId: item.awProductId,
         merchantProductId: item.merchantProductId,
+        storeUrl: item.deepLink || item.merchantUrl || '',
         productId: null,
         slug,
         name: item.name,

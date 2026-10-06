@@ -91,6 +91,8 @@ export interface PreviewEntry {
   // Identity
   awProductId: string;
   merchantProductId: string;
+  /** Product URL on the store (feed deep link), used to open the store page. */
+  storeUrl: string;
   productId: number | null; // Existing product id when matched.
   slug: string;
   // Editable fields (for new / changed products).
