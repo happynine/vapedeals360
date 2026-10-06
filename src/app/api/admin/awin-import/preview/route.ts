@@ -161,6 +161,13 @@ export async function POST(request: NextRequest) {
         clientMappings[adv] ?? dbMappings.get(adv) ?? DEFAULT_MAPPINGS[adv] ?? null;
     }
 
+    // Only advertisers actually present in this file gate readiness; saved
+    // extras with zero products must not block the preview.
+    const allMapped = order.every((adv) => {
+      const m = effective[adv];
+      return !!m && !!m.storeId && !!m.region && !!m.currency;
+    });
+
     const fileAdvertisers: AdvertiserInfo[] = order.map((adv) => {
       const m = meta.get(adv)!;
       return {
