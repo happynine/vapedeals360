@@ -64,8 +64,9 @@ export default function AwinImportPanel() {
   const [error, setError] = useState('');
   const [showMapping, setShowMapping] = useState(false);
   const [compareKey, setCompareKey] = useState<string | null>(null);
-  // Single-store context: '__all__' or one advertiser id. Drives every view.
+  // Single-store context: '__all__' or one ONLINE STORE id. Drives every view.
   const [activeAdv, setActiveAdv] = useState<string>('__all__');
+  const [storePickerOpen, setStorePickerOpen] = useState(false);
   // "Add advertiser" inline form.
   const [showAddAdv, setShowAddAdv] = useState(false);
   // Store-upload flow: upload one store's feed, identity is auto-detected, the
@@ -197,11 +198,38 @@ export default function AwinImportPanel() {
     });
   };
 
-  // The single-store selector is the global context: switching it drives both
-  // the entry-list advertiser filter and the category-analysis scope.
+  // Map an online store id → the advertiser id(s) mapped to it (one store may
+  // be backed by several advertisers). Derived from the loaded mappings.
+  const advsByStore = (() => {
+    const map = new Map<string, string[]>();
+    for (const a of advertisers) {
+      const sid = a.mapping?.storeId;
+      if (!sid) continue;
+      const list = map.get(String(sid)) ?? [];
+      list.push(a.advertiserId);
+      map.set(String(sid), list);
+    }
+    return map;
+  })();
+
+  // Advertiser ids covered by the current store context (all → undefined).
+  const contextAdvIds =
+    activeAdv === '__all__' ? null : advsByStore.get(activeAdv) ?? [];
+
+  // The store selector is the global context: switching it drives both the
+  // entry-list advertiser filter and the category-analysis scope. A single
+  // store may map to several advertisers, so the filter matches any of them.
   useEffect(() => {
-    setAdvFilter(activeAdv);
-    setCatMapScope(activeAdv === '__all__' ? 'global' : activeAdv);
+    if (activeAdv === '__all__') {
+      setAdvFilter('__all__');
+      setCatMapScope('global');
+    } else {
+      // Keep the first backing advertiser as the scope; filtering uses the set.
+      const [first] = advsByStore.get(activeAdv) ?? [];
+      setAdvFilter(first ?? `__store_${activeAdv}`);
+      setCatMapScope(first ?? 'global');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAdv]);
 
   // Persist a manually added advertiser mapping, then bring it into context.
@@ -304,8 +332,7 @@ export default function AwinImportPanel() {
         `已添加「${advertiserName}」并对应到线上商城「${store.name}」。`,
       );
       resetAddAdv();
-      setActiveAdv(advertiserId);
-      setAdvFilter(advertiserId);
+      setActiveAdv(String(newAdvStoreId));
     } catch (e) {
       setError(e instanceof Error ? e.message : '添加失败');
     } finally {
@@ -366,7 +393,7 @@ export default function AwinImportPanel() {
 
   const visibleEntries = entries.filter(
     (e) =>
-      (advFilter === '__all__' || e.advertiserId === advFilter) &&
+      (contextAdvIds === null || contextAdvIds.includes(e.advertiserId)) &&
       inCategory(e) &&
       (!onlyPromo || !!e.promo),
   );
@@ -434,13 +461,13 @@ export default function AwinImportPanel() {
     (a) => mappings[a.advertiserId]?.region,
   ).length;
 
-  // The store's own RAW top-level categories. In a per-store scope list only
-  // that advertiser's categories; the global scope unions every advertiser and
-  // tags the source store, since raw names are not shared across stores.
+  // The store's own RAW top-level categories. With one online store selected,
+  // scope to the advertiser(s) backing it; all-stores unions every advertiser
+  // and tags the source, since raw names are not shared across stores.
   const feedCategoryNames = (() => {
     const seen = new Map<string, { label: string; advs: string[] }>();
     const inScope = (advId: string) =>
-      catMapScope === 'global' || advId === catMapScope;
+      contextAdvIds === null || contextAdvIds.includes(advId);
     for (const e of entries) {
       if (!inScope(e.advertiserId)) continue;
       for (const raw of [e.rawFeedCategory || '', ...e.extraRawFeedCategories]) {
@@ -469,15 +496,20 @@ export default function AwinImportPanel() {
     if (!preview) return;
     const saved = new Map<string, string>();
     for (const m of preview.savedCategoryMappings ?? []) {
-      const wantAdv = catMapScope === 'global' ? null : catMapScope;
-      if ((m.advertiser_id ?? null) === wantAdv) {
+      const wantAdv =
+        contextAdvIds === null ? null : (m.advertiser_id ?? null);
+      const inScope =
+        contextAdvIds === null
+          ? wantAdv === null
+          : wantAdv !== null && contextAdvIds.includes(wantAdv);
+      if (inScope) {
         saved.set(categoryKey(m.feed_category), m.category_slug);
       }
     }
     // Guess is taken from entries whose own raw category equals the key.
     const guess = new Map<string, string>();
     for (const e of entries) {
-      if (catMapScope !== 'global' && e.advertiserId !== catMapScope) continue;
+      if (contextAdvIds !== null && !contextAdvIds.includes(e.advertiserId)) continue;
       for (const raw of [e.rawFeedCategory || '', ...e.extraRawFeedCategories]) {
         const key = categoryKey(raw);
         if (key && e.category) guess.set(key, e.category);
@@ -506,21 +538,28 @@ export default function AwinImportPanel() {
         ),
         categoryMappings: Object.entries(catDraft)
           .filter(([, slug]) => slug)
-          .map(([key, slug]) => {
-            if (catMapScope !== 'global') {
-              return { advertiserId: catMapScope, feedCategory: key, categorySlug: slug };
+          .flatMap(([key, slug]) => {
+            const row = feedCategoryNames.find(([k]) => k === key);
+            const advs = row?.[2] ?? [];
+            if (contextAdvIds !== null) {
+              // Store scope: persist the raw name for each backing advertiser
+              // that actually uses it.
+              return advs.map((advId) => ({
+                advertiserId: advId,
+                feedCategory: key,
+                categorySlug: slug,
+              }));
             }
-            // Global scope: raw store-specific names must not become global
+            // All-stores: raw store-specific names must not become global
             // defaults. Only persist the key when it is one of the normalized
             // shared buckets; other rows stay as auto-guess defaults.
             const shared = new Set(
               entries.flatMap((e) => [categoryKey(e.feedCategory || ''), ...e.extraFeedCategories.map((c) => categoryKey(c))]),
             );
             return shared.has(key)
-              ? { advertiserId: null, feedCategory: key, categorySlug: slug }
-              : null;
-          })
-          .filter(Boolean) as Array<{ advertiserId: string | null; feedCategory: string; categorySlug: string }>,
+              ? [{ advertiserId: null, feedCategory: key, categorySlug: slug }]
+              : [];
+          }),
       };
       const res = await adminFetch('/api/admin/awin-import/mappings', {
         method: 'POST',
@@ -590,21 +629,70 @@ export default function AwinImportPanel() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* Single-store context selector */}
-          <div className="flex items-center gap-2">
+          {/* Single-store context selector (online stores, logo + name) */}
+          <div className="relative flex items-center gap-2">
             <span className="text-xs text-zinc-400 whitespace-nowrap">选商城</span>
-            <select
-              value={activeAdv}
-              onChange={(e) => setActiveAdv(e.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-2 text-sm text-zinc-200"
+            <button
+              type="button"
+              onClick={() => setStorePickerOpen((v) => !v)}
+              className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-200 hover:border-zinc-500 min-w-[150px]"
             >
-              <option value="__all__">全部商城</option>
-              {advertisers.map((a) => (
-                <option key={a.advertiserId} value={a.advertiserId}>
-                  {advNames[a.advertiserId] || a.advertiserName}
-                </option>
-              ))}
-            </select>
+              {activeAdv === '__all__' ? (
+                <StoreIcon className="h-5 w-5 text-zinc-400" />
+              ) : (
+                <StoreLogo
+                  src={stores.find((s) => String(s.id) === activeAdv)?.logoUrl}
+                  alt={stores.find((s) => String(s.id) === activeAdv)?.name ?? ''}
+                />
+              )}
+              <span className="flex-1 text-left truncate">
+                {activeAdv === '__all__'
+                  ? '全部商城'
+                  : stores.find((s) => String(s.id) === activeAdv)?.name ?? '商城'}
+              </span>
+              <ChevronDown className="h-4 w-4 text-zinc-400" />
+            </button>
+            {storePickerOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setStorePickerOpen(false)}
+                />
+                <div className="absolute left-12 top-full z-30 mt-1 max-h-72 w-60 overflow-auto rounded-md border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAdv('__all__');
+                      setStorePickerOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-700 ${
+                      activeAdv === '__all__' ? 'text-purple-300' : 'text-zinc-200'
+                    }`}
+                  >
+                    <StoreIcon className="h-5 w-5 text-zinc-400" />
+                    <span className="flex-1">全部商城</span>
+                    {activeAdv === '__all__' && <Check className="h-4 w-4" />}
+                  </button>
+                  {stores.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveAdv(String(s.id));
+                        setStorePickerOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-700 ${
+                        activeAdv === String(s.id) ? 'text-purple-300' : 'text-zinc-200'
+                      }`}
+                    >
+                      <StoreLogo src={s.logoUrl} alt={s.name} />
+                      <span className="flex-1 truncate">{s.name}</span>
+                      {activeAdv === String(s.id) && <Check className="h-4 w-4 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <Input
@@ -841,12 +929,12 @@ export default function AwinImportPanel() {
           <div className="flex flex-wrap items-center gap-2 text-xs text-sky-300/90">
             <span>正在分析：</span>
             <span className="rounded-full border border-sky-700/60 bg-sky-900/30 px-2.5 py-0.5 font-medium text-sky-100">
-              {catMapScope === 'global'
+              {activeAdv === '__all__'
                 ? '全部商城（通用默认）'
-                : advNames[catMapScope] || catMapScope}
+                : stores.find((s) => String(s.id) === activeAdv)?.name || '商城'}
             </span>
             <span className="text-sky-400/70">
-              {catMapScope === 'global'
+              {activeAdv === '__all__'
                 ? '下方只保存所有商城共用的通用品类'
                 : '下方是该商城自己的原始分类，独立保存、优先于全局'}
             </span>
@@ -865,7 +953,7 @@ export default function AwinImportPanel() {
                   >
                     {label}
                   </p>
-                  {catMapScope === 'global' && advs.length > 0 && (
+                  {activeAdv === '__all__' && advs.length > 0 && (
                     <p className="truncate text-[10px] text-zinc-500" title={advs.map(advName).join('、')}>
                       {advs.map(advName).join('、')}
                     </p>
@@ -922,13 +1010,18 @@ export default function AwinImportPanel() {
             {/* Context comes from the top store selector. */}
             <div className="flex items-center gap-2 text-xs text-zinc-400">
               当前商城：
-              <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2.5 py-0.5 font-medium text-zinc-200">
-                {advFilter === '__all__'
-                  ? '全部商城'
-                  : advNames[advFilter] ||
-                    advertisers.find((a) => a.advertiserId === advFilter)
-                      ?.advertiserName ||
-                    advFilter}
+              <span className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-2.5 py-0.5 font-medium text-zinc-200">
+                {activeAdv === '__all__' ? (
+                  '全部商城'
+                ) : (
+                  <>
+                    <StoreLogo
+                      src={stores.find((s) => String(s.id) === activeAdv)?.logoUrl}
+                      alt=""
+                    />
+                    {stores.find((s) => String(s.id) === activeAdv)?.name || '商城'}
+                  </>
+                )}
               </span>
             </div>
             {/* Category chips */}
