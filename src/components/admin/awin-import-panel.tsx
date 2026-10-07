@@ -1689,6 +1689,8 @@ function CompareModal({
   // Position within the fixed batch snapshot; -1 / unused in single mode.
   const [batchPos, setBatchPos] = useState(0);
 
+  const entry = batch ? reviewList[batchPos] ?? null : initialEntry;
+
   useEffect(() => {
     setBatchPos(0);
   }, [reviewKeys?.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1716,7 +1718,6 @@ function CompareModal({
     }
   }, [entry?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const entry = batch ? reviewList[batchPos] ?? null : initialEntry;
   if (!entry) return null;
   const reviewIndex = batchPos;
 
