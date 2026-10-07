@@ -19,6 +19,7 @@ import type {
 import type { PromoInfo } from './promo-page';
 import { productPath } from './promo-page';
 import { scoreSimilarity } from './product-similarity';
+import { isPlaceholderImage } from './woo-enrich';
 export interface DbProductRow {
   id: number;
   slug: string;
@@ -78,6 +79,12 @@ export interface CompareInput {
   categoryOverrides?: Record<string, string>;
   /** Persisted category mappings: advertiser_id NULL = global default. */
   savedCategoryMappings?: SavedCategoryMapping[];
+  /**
+   * Optional WooCommerce enrichment indexed by `${advertiserId}::${merchantProductId}`:
+   * provides the real image and the store's own category slugs when the feed
+   * itself carries only placeholders / empty categories.
+   */
+  wooEnrichment?: Map<string, { imageUrl: string; categorySlugs: string[] }>;
 }
 
 export interface SavedCategoryMapping {
@@ -303,6 +310,52 @@ function mapCategory(
   if (guessRaw) return guessRaw;
   return autoGuessCategory(normalizedKey, categories, advertiserId);
 }
+
+/**
+ * Translate a store's own WooCommerce category slug into an internal slug.
+ * These are the store's real taxonomy (more accurate than a title guess),
+ * already stripped of marketing/brand tags by the enrichment loader.
+ * Returns null for unrelated slugs (nicotine pouches, gum, insurance, …).
+ */
+const WC_SLUG_TO_INTERNAL: Record<string, string> = {
+  juice: 'e-liquids',
+  'best-vape-juice': 'e-liquids',
+  'tobacco-vape-juice': 'e-liquids',
+  'free-vape-juice-with-kit': 'e-liquids',
+  'disposable-vape': 'disposable-vapes',
+  'disposable-vape-with-detachable-battery': 'disposable-vapes',
+  'best-disposable-vapes': 'disposable-vapes',
+  'pod-system': 'pod-systems',
+  'vape-pods': 'pod-systems',
+  'uwell-caliburn': 'pod-systems',
+  'vaporesso-xros': 'pod-systems',
+  kits: 'pod-systems',
+  'best-vapes': 'pod-systems',
+  'best-vape-kits': 'pod-systems',
+  'vape-mods': 'pod-systems',
+  'box-mod-kits': 'box-mods',
+  'vape-accessories': 'accessories',
+  'vape-coils': 'accessories',
+  'vape-tanks': 'accessories',
+  'geekvape-replacements': 'accessories',
+  'vaporesso-replacements': 'accessories',
+  'smok-replacements': 'accessories',
+  battery: 'accessories',
+  'replacement-glass': 'accessories',
+  merch: 'accessories',
+};
+
+function mapWcSlugs(
+  wcSlugs: string[],
+  categories: DbCategoryRow[],
+): string | null {
+  const valid = new Set(categories.map((c) => c.slug));
+  for (const s of wcSlugs) {
+    const internal = WC_SLUG_TO_INTERNAL[s];
+    if (internal && valid.has(internal)) return internal;
+  }
+  return null;
+}
 function toNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === '') return null;
   const n = typeof value === 'number' ? value : Number.parseFloat(String(value));
@@ -334,6 +387,7 @@ export function buildPreview(input: CompareInput): CompareResult {
     promoMap,
     categoryOverrides,
     savedCategoryMappings,
+    wooEnrichment,
   } = input;
 
   // Persisted category mappings: per-advertiser overrides + global defaults.
@@ -518,6 +572,14 @@ export function buildPreview(input: CompareInput): CompareResult {
       seenFeedKeys.add(dedupeKey);
     }
 
+    // WooCommerce enrichment (real image + store taxonomy) when the feed row
+    // only carries a placeholder image and/or empty categories.
+    const woo =
+      wooEnrichment?.get(`${advId}::${item.merchantProductId}`) ?? null;
+    const realImage =
+      (isPlaceholderImage(item.imageUrl) ? woo?.imageUrl : item.imageUrl) ||
+      item.imageUrl;
+
     const rawTop = topCategory(item.category);
     const rawKey = categoryKey(rawTop);
     const feedCategory = normalizeTopCategory(item.category);
@@ -545,9 +607,12 @@ export function buildPreview(input: CompareInput): CompareResult {
       savedByAdv,
       savedGlobal,
     );
-    // Feed carries a leaf but it gives no usable slug: a strong title signal
-    // is still better than a synthetic "new category" slug (e.g. EightVape
-    // "Gift Boxes and Tins" that are actually disposable mystery boxes).
+    // Feed carries a leaf but it gives no usable slug: prefer the store's own
+    // real WooCommerce taxonomy (more accurate), then a strong title signal
+    // (e.g. mystery boxes actually containing disposables).
+    if (!categorySlug && woo) {
+      categorySlug = mapWcSlugs(woo.categorySlugs, categories);
+    }
     if (!categorySlug) {
       categorySlug = guessCategoryFromTitle(item.name, categories);
     }
@@ -607,7 +672,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         oldName: hard.name ?? null,
         description: item.description || hard.description || '',
         oldDescription: hard.description ?? null,
-        imageUrl: item.imageUrl || hard.image_url || '',
+        imageUrl: realImage || hard.image_url || '',
         oldImageUrl: hard.image_url ?? null,
         category: categorySlug,
         categoryLabel: item.category || categorySlug,
@@ -685,7 +750,7 @@ export function buildPreview(input: CompareInput): CompareResult {
         oldName: null,
         description: item.description,
         oldDescription: null,
-        imageUrl: item.imageUrl,
+        imageUrl: realImage,
         oldImageUrl: null,
         category: categorySlug,
         categoryLabel: item.category || categorySlug,

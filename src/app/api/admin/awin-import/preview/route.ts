@@ -12,6 +12,11 @@ import {
 } from '@/lib/awin-compare';
 import { parseStoreCapabilities } from '@/lib/store-capabilities';
 import { buildPromoMap } from '@/lib/promo-page';
+import {
+  fetchWcCatalog,
+  isPlaceholderImage,
+  originOf,
+} from '@/lib/woo-enrich';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -316,6 +321,41 @@ export async function POST(request: NextRequest) {
       name: ctById.get(c.id)?.name ?? null,
     }));
 
+    // Best-effort WooCommerce enrichment for advertisers whose feed rows only
+    // carry placeholder images. One catalog fetch per store origin; failures
+    // never block the preview.
+    const wooEnrichment = new Map<
+      string,
+      { imageUrl: string; categorySlugs: string[] }
+    >();
+    if (feedItems.some((f) => isPlaceholderImage(f.imageUrl))) {
+      const originByAdv = new Map<string, string>();
+      for (const f of feedItems) {
+        const adv = f.merchantId || f.merchantName;
+        if (!adv || originByAdv.has(adv)) continue;
+        const origin = originOf(f.merchantUrl || f.deepLink);
+        if (origin) originByAdv.set(adv, origin);
+      }
+      for (const [adv, origin] of originByAdv) {
+        try {
+          const catalog = await fetchWcCatalog(origin);
+          if (!catalog) continue;
+          for (const f of feedItems) {
+            const fAdv = f.merchantId || f.merchantName;
+            if (fAdv !== adv || !f.merchantProductId) continue;
+            const wcId = Number.parseInt(f.merchantProductId, 10);
+            if (!Number.isFinite(wcId)) continue;
+            const data = catalog.get(wcId);
+            if (data && (data.imageUrl || data.categorySlugs.length)) {
+              wooEnrichment.set(`${adv}::${f.merchantProductId}`, data);
+            }
+          }
+        } catch {
+          // ignore — fall back to feed-only data for this store.
+        }
+      }
+    }
+
     const result = buildPreview({
       targets,
       feedItems,
@@ -329,6 +369,7 @@ export async function POST(request: NextRequest) {
       promoMap,
       categoryOverrides: baseResponse.categoryOverrides,
       savedCategoryMappings,
+      wooEnrichment,
     });
 
     return NextResponse.json({
