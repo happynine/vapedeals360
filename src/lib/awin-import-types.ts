@@ -186,6 +186,13 @@ export interface PreviewResponse {
   }>;
   /** True when entries were built (all advertisers mapped); false = list only. */
   ready: boolean;
+  /** Per-store analysis methods already recorded (registry snapshot). */
+  storeProfiles?: Array<{
+    advertiserId: string;
+    name: string;
+    method: string;
+    verifiedAt: string;
+  }>;
   error?: string;
 }
 

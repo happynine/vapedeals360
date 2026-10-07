@@ -38,6 +38,13 @@ const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
   missing: '待确认',
 };
 
+// Human labels for a store's recorded enrichment method.
+const METHOD_LABEL: Record<string, string> = {
+  none: 'feed 完整',
+  woo_store_api: 'WooCommerce 补全',
+  custom: '专属方法',
+};
+
 interface CommitSummary {
   batchId: number | null;
   created: number;
@@ -88,6 +95,11 @@ export default function AwinImportPanel() {
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
   const [savingMappings, setSavingMappings] = useState(false);
   const [mappingMsg, setMappingMsg] = useState('');
+  // Batch "compare similar products" review mode. reviewKeys is a fixed
+  // snapshot so mid-review candidate choices never change the list.
+  const [batchReview, setBatchReview] = useState(false);
+  const [finalCommit, setFinalCommit] = useState(false);
+  const [reviewKeys, setReviewKeys] = useState<string[]>([]);
 
   // Load saved advertisers + internal stores on mount, so the "select store"
   // context works even before a feed is uploaded.
@@ -389,10 +401,35 @@ export default function AwinImportPanel() {
     setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, ...patch } : e)));
   };
 
+  // Groups are built from the RESOLVED INTERNAL category slug (e.category), so
+  // they work for every feed format including native feeds whose own buckets
+  // are empty. Missing rows (no category) are bucketed as uncategorized.
+  const internalCategoryGroups = (() => {
+    const counts = new Map<string, number>();
+    for (const e of entries) {
+      if (contextAdvIds !== null && !contextAdvIds.includes(e.advertiserId))
+        continue;
+      const slug = e.category || 'uncategorized';
+      counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+    const nameOf = (slug: string) =>
+      slug === 'uncategorized'
+        ? 'Uncategorized'
+        : preview?.internalCategories.find((c) => c.slug === slug)?.name || slug;
+    return [...counts.entries()]
+      .map(([slug, count]) => ({ slug, label: nameOf(slug), count }))
+      .sort((a, b) =>
+        a.slug === 'uncategorized'
+          ? 1
+          : b.slug === 'uncategorized'
+            ? -1
+            : a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }),
+      );
+  })();
+
   const inCategory = (e: PreviewEntry) => {
     if (catFilter === '__all__') return true;
-    const buckets = [e.feedCategory || 'Uncategorized', ...e.extraFeedCategories];
-    return buckets.includes(catFilter);
+    return (e.category || 'uncategorized') === catFilter;
   };
 
   const visibleEntries = entries.filter(
@@ -401,6 +438,48 @@ export default function AwinImportPanel() {
       inCategory(e) &&
       (!onlyPromo || !!e.promo),
   );
+
+  // Selection state per internal category: all / some / none, scoped to store.
+  const categorySelection = (slug: string): 'all' | 'some' | 'none' => {
+    const group = entries.filter(
+      (e) =>
+        (contextAdvIds === null || contextAdvIds.includes(e.advertiserId)) &&
+        (e.category || 'uncategorized') === slug,
+    );
+    if (group.length === 0) return 'none';
+    const sel = group.filter((e) => e.selected).length;
+    if (sel === 0) return 'none';
+    return sel === group.length ? 'all' : 'some';
+  };
+
+  const toggleCategorySelection = (slug: string) => {
+    const target = categorySelection(slug) !== 'all';
+    const keys = new Set(
+      entries
+        .filter(
+          (e) =>
+            (contextAdvIds === null ||
+              contextAdvIds.includes(e.advertiserId)) &&
+            (e.category || 'uncategorized') === slug,
+        )
+        .map((e) => e.key),
+    );
+    setEntries((prev) =>
+      prev.map((e) =>
+        keys.has(e.key) ? { ...e, selected: target } : e,
+      ),
+    );
+  };
+
+  const handleStartCompare = () => {
+    if (entries.filter((e) => e.selected).length === 0) {
+      setError('请先勾选要核对的产品');
+      return;
+    }
+    setError('');
+    setReviewKeys(entries.filter((e) => e.selected).map((e) => e.key));
+    setBatchReview(true);
+  };
 
   const setVisibleSelected = (value: boolean) => {
     const keys = new Set(visibleEntries.map((e) => e.key));
@@ -742,9 +821,24 @@ export default function AwinImportPanel() {
         {showAddAdv && (
           <div className="rounded-md border border-emerald-800/60 bg-emerald-950/20 p-3 space-y-3">
             <p className="text-sm font-medium text-emerald-200">
-              流程：① 上传该商城 feed 并读取 → ② 选择它对应的线上商城 →
-              ③ 保存后，按此商城逐个设置「品类对应关系」。全部商城配好后，再统一对比跨商城相似产品。
+              并联增加一个商城的独立分析（不影响已分析好的商城）。流程：①
+              上传该商城 feed 并读取 → ② 选择它对应的线上商城 → ③
+              保存后，按此商城单独建立「品类对应关系」与专属补救方法。每个商城的方法各自独立记录，全部配好后再统一对比跨商城相似产品。
             </p>
+            {preview?.storeProfiles && preview.storeProfiles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                <span>已记录分析方法：</span>
+                {preview.storeProfiles.map((p) => (
+                  <span
+                    key={p.advertiserId}
+                    className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-0.5"
+                    title={p.method}
+                  >
+                    {p.name} · {METHOD_LABEL[p.method] || p.method}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Step 1: file + read */}
             <div className="flex flex-wrap items-center gap-3">
@@ -1070,7 +1164,8 @@ export default function AwinImportPanel() {
                 )}
               </span>
             </div>
-            {/* Category chips */}
+            {/* Category chips (resolved internal categories; click to filter,
+                checkbox to select the whole category for import). */}
             <div className="flex flex-wrap gap-2">
               <FilterChip
                 active={catFilter === '__all__'}
@@ -1078,15 +1173,38 @@ export default function AwinImportPanel() {
               >
                 全部品类
               </FilterChip>
-              {preview?.categoryGroups.map((g) => (
-                <FilterChip
-                  key={g.key || '__uncat__'}
-                  active={catFilter === g.key}
-                  onClick={() => setCatFilter(g.key)}
-                >
-                  {g.label} {g.count}
-                </FilterChip>
-              ))}
+              {internalCategoryGroups.map((g) => {
+                const sel = categorySelection(g.slug);
+                return (
+                  <div
+                    key={g.slug}
+                    className={`flex items-center gap-1.5 rounded-full border pl-1 pr-3 text-xs transition ${
+                      catFilter === g.slug
+                        ? 'border-purple-500 bg-purple-600 text-white'
+                        : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
+                    }`}
+                  >
+                    <label
+                      className="flex items-center"
+                      title="勾选则选中该品类全部产品"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={sel === 'some' ? 'indeterminate' : sel === 'all'}
+                        onCheckedChange={() => toggleCategorySelection(g.slug)}
+                        className="h-3.5 w-3.5 border-zinc-500"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCatFilter(g.slug)}
+                      className="whitespace-nowrap"
+                    >
+                      {g.label} {g.count}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm text-zinc-400">
@@ -1114,12 +1232,10 @@ export default function AwinImportPanel() {
               </Button>
               <div className="ml-auto">
                 <Button
-                  onClick={handleCommit}
-                  disabled={committing}
+                  onClick={handleStartCompare}
                   className="bg-purple-600 hover:bg-purple-700"
                 >
-                  {committing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  确认导入所选（{entries.filter((e) => e.selected).length}）
+                  对比相似产品（{entries.filter((e) => e.selected).length}）
                 </Button>
               </div>
             </div>
@@ -1142,17 +1258,41 @@ export default function AwinImportPanel() {
       )}
 
       <CompareModal
-        entry={entries.find((e) => e.key === compareKey) ?? null}
+        entry={
+          (batchReview
+            ? (reviewKeys
+                .map((k) => entries.find((e) => e.key === k))
+                .find((e): e is PreviewEntry | undefined => !!e) ??
+              null)
+            : entries.find((e) => e.key === compareKey)) ?? null
+        }
         allEntries={entries}
         stores={stores}
-        onClose={() => setCompareKey(null)}
+        batch={batchReview}
+        reviewKeys={reviewKeys}
+        finalCommit={finalCommit}
+        committing={committing}
+        onClose={() => {
+          setCompareKey(null);
+          setBatchReview(false);
+          setFinalCommit(false);
+          setReviewKeys([]);
+        }}
         onApply={(key, patch) => {
           updateEntry(key, patch);
           setCompareKey(null);
         }}
+        onApplyStay={(key, patch) => updateEntry(key, patch)}
         onApplyMany={(updates) => {
           for (const { key, patch } of updates) updateEntry(key, patch);
           setCompareKey(null);
+        }}
+        onFinalImport={async () => {
+          setFinalCommit(true);
+          await handleCommit();
+          setBatchReview(false);
+          setFinalCommit(false);
+          setReviewKeys([]);
         }}
       />
     </div>
@@ -1508,41 +1648,77 @@ const DEFAULT_CHOICES: FieldChoices = {
 };
 
 function CompareModal({
-  entry,
+  entry: initialEntry,
   allEntries,
   stores,
+  batch,
+  reviewKeys,
+  finalCommit,
+  committing,
   onClose,
   onApply,
+  onApplyStay,
   onApplyMany,
+  onFinalImport,
 }: {
   entry: PreviewEntry | null;
   allEntries: PreviewEntry[];
   stores: StoreInfo[];
+  batch?: boolean;
+  reviewKeys?: string[];
+  finalCommit?: boolean;
+  committing?: boolean;
   onClose: () => void;
   onApply: (key: string, patch: Partial<PreviewEntry>) => void;
+  onApplyStay: (key: string, patch: Partial<PreviewEntry>) => void;
   onApplyMany: (updates: Array<{ key: string; patch: Partial<PreviewEntry> }>) => void;
+  onFinalImport: () => void;
 }) {
+  // Batch review navigation across the fixed snapshot of entries taken when
+  // the review started, so candidate choices never shrink the list.
+  const reviewList = batch
+    ? (reviewKeys ?? [])
+        .map((k) => allEntries.find((e) => e.key === k))
+        .filter((e): e is PreviewEntry => !!e)
+    : [];
   // Per-entry state so sibling feed duplicates can be confirmed together.
   const [modeByKey, setModeByKey] = useState<Record<string, 'merge' | 'new'>>({});
   const [choicesByKey, setChoicesByKey] = useState<Record<string, FieldChoices>>({});
   // Which match candidate is currently displayed (0 = top scored).
   const [candIdxByKey, setCandIdxByKey] = useState<Record<string, number>>({});
+  // Position within the fixed batch snapshot; -1 / unused in single mode.
+  const [batchPos, setBatchPos] = useState(0);
+
+  useEffect(() => {
+    setBatchPos(0);
+  }, [reviewKeys?.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (entry) {
       // Direct "Compare" click: default to the best candidate + merge mode so
       // columns B and the site-value column are never blank.
       const hasCand = entry.matchCandidates.length > 0;
-      setModeByKey({ [entry.key]: entry.mergeProductId || hasCand ? 'merge' : 'new' });
-      setChoicesByKey({ [entry.key]: entry.fieldChoices ?? DEFAULT_CHOICES });
+      setModeByKey((m) => ({
+        ...m,
+        [entry.key]: m[entry.key] ?? (entry.mergeProductId || hasCand ? 'merge' : 'new'),
+      }));
+      setChoicesByKey((c) => ({
+        ...c,
+        [entry.key]: c[entry.key] ?? entry.fieldChoices ?? DEFAULT_CHOICES,
+      }));
       const preSel = entry.matchCandidates.findIndex(
         (c) => c.productId === entry.mergeProductId,
       );
-      setCandIdxByKey({ [entry.key]: preSel >= 0 ? preSel : 0 });
+      setCandIdxByKey((c) => ({
+        ...c,
+        [entry.key]: c[entry.key] ?? (preSel >= 0 ? preSel : 0),
+      }));
     }
   }, [entry?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const entry = batch ? reviewList[batchPos] ?? null : initialEntry;
   if (!entry) return null;
+  const reviewIndex = batchPos;
 
   const candIdx = Math.min(
     candIdxByKey[entry.key] ?? 0,
@@ -1584,7 +1760,44 @@ function CompareModal({
     otherStores.push(sp);
   }
 
+  const buildPatch = (
+    k: string,
+  ): { key: string; patch: Partial<PreviewEntry> } => {
+    const mode = getMode(k);
+    const choices = getChoices(k);
+    return {
+      key: k,
+      patch:
+        mode === 'merge' && candidate
+          ? { kind: 'merge', mergeProductId: candidate.productId, fieldChoices: choices }
+          : { kind: 'new', mergeProductId: null, fieldChoices: choices },
+    };
+  };
+
+  // Persist the current entry's choices before moving to another selected row.
+  const saveCurrentAndGo = (nextIndex: number) => {
+    const patch = buildPatch(entry.key);
+    onApplyStay(patch.key, patch.patch);
+    setBatchPos(nextIndex);
+  };
+
+  const goPrev = () => {
+    if (batchPos > 0) saveCurrentAndGo(batchPos - 1);
+  };
+  const goNext = () => {
+    if (batchPos < reviewList.length - 1) saveCurrentAndGo(batchPos + 1);
+  };
+
   const handleConfirm = () => {
+    if (batch) {
+      const patch = buildPatch(entry.key);
+      onApplyStay(patch.key, patch.patch);
+      if (batchPos < reviewList.length - 1) {
+        goNext();
+        return;
+      }
+      return;
+    }
     const updates: Array<{ key: string; patch: Partial<PreviewEntry> }> = [];
     for (const k of relatedKeys) {
       const mode = getMode(k);
@@ -1613,7 +1826,16 @@ function CompareModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
-          <h3 className="text-sm font-semibold text-zinc-100">对比相同产品</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-zinc-100">
+              {batch ? '对比相似产品' : '对比相同产品'}
+            </h3>
+            {batch && (
+              <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-300">
+                {reviewIndex + 1} / {reviewList.length}
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="rounded p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
@@ -1845,6 +2067,7 @@ function CompareModal({
                     original={q.newOriginalPrice}
                     url={q.newUrl}
                     inStock={q.inStock}
+                    existing={exists ? q.oldPrice : null}
                   />
                 </QuoteCard>
               );
@@ -1896,19 +2119,64 @@ function CompareModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-zinc-800 px-5 py-3">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-zinc-700 px-4 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="rounded-md bg-purple-600 px-5 py-2 text-xs font-medium text-white transition hover:bg-purple-500"
-          >
-            确认选择
-          </button>
+        <div
+          className={`flex items-center gap-3 border-t border-zinc-800 px-5 py-3 ${
+            batch ? 'justify-between' : 'justify-end'
+          }`}
+        >
+          {batch ? (
+            <>
+              <button
+                onClick={goPrev}
+                disabled={reviewIndex <= 0}
+                className="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40"
+              >
+                ← 上一个
+              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onClose}
+                  className="rounded-md border border-zinc-700 px-4 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  取消
+                </button>
+                {reviewIndex < reviewList.length - 1 ? (
+                  <button
+                    onClick={handleConfirm}
+                    className="rounded-md bg-purple-600 px-5 py-2 text-xs font-medium text-white transition hover:bg-purple-500"
+                  >
+                    确认并下一个 →
+                  </button>
+                ) : (
+                  <button
+                    onClick={onFinalImport}
+                    disabled={committing || finalCommit}
+                    className="rounded-md bg-emerald-600 px-5 py-2 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                  >
+                    {(committing || finalCommit) && (
+                      <Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+                    )}
+                    核对无误，导入全部所选
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                className="rounded-md border border-zinc-700 px-4 py-2 text-xs text-zinc-300 transition hover:bg-zinc-800"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="rounded-md bg-purple-600 px-5 py-2 text-xs font-medium text-white transition hover:bg-purple-500"
+              >
+                确认选择
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -2047,6 +2315,7 @@ function QuoteFields({
   url,
   inStock,
   readOnly,
+  existing,
 }: {
   currency: string;
   current?: number | null;
@@ -2054,16 +2323,37 @@ function QuoteFields({
   url?: string | null;
   inStock?: boolean;
   readOnly?: boolean;
+  /** Site's current price before this import, for direct comparison. */
+  existing?: number | null;
 }) {
   const money = (v?: number | null) =>
     v === null || v === undefined || Number.isNaN(v)
       ? '—'
       : `${v.toFixed(2)}${currency ? ` ${currency}` : ''}`;
+  // Price movement vs the site's current value.
+  let deltaNote: string | null = null;
+  if (
+    existing !== null &&
+    existing !== undefined &&
+    current !== null &&
+    current !== undefined &&
+    !Number.isNaN(existing) &&
+    !Number.isNaN(current)
+  ) {
+    const d = current - existing;
+    if (Math.abs(d) < 0.005) deltaNote = '价格持平';
+    else
+      deltaNote = `${d < 0 ? '↓ 降价' : '↑ 涨价'} ${Math.abs(d).toFixed(2)} ${currency || ''}`;
+  }
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-3 text-[11px]">
+      <div className="grid grid-cols-3 gap-3 text-[11px]">
         <div>
-          <p className="mb-1 text-zinc-500">Current Price{currency ? ` (${currency})` : ''}</p>
+          <p className="mb-1 text-zinc-500">站内现值{currency ? ` (${currency})` : ''}</p>
+          <p className="rounded bg-black/25 px-2.5 py-1.5 font-medium text-blue-300">{money(existing)}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-zinc-500">本次导入{currency ? ` (${currency})` : ''}</p>
           <p className="rounded bg-black/25 px-2.5 py-1.5 font-medium text-emerald-300">{money(current)}</p>
         </div>
         <div>
@@ -2071,6 +2361,19 @@ function QuoteFields({
           <p className="rounded bg-black/25 px-2.5 py-1.5 text-zinc-300">{money(original)}</p>
         </div>
       </div>
+      {deltaNote && (
+        <p
+          className={`text-[11px] ${
+            deltaNote.includes('降')
+              ? 'text-emerald-300'
+              : deltaNote.includes('涨')
+                ? 'text-red-300'
+                : 'text-zinc-400'
+          }`}
+        >
+          {deltaNote}
+        </p>
+      )}
       <div>
         <p className="mb-1 text-[11px] text-zinc-500">Product URL</p>
         {url ? (

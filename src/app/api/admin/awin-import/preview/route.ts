@@ -17,6 +17,7 @@ import {
   isPlaceholderImage,
   originOf,
 } from '@/lib/woo-enrich';
+import { getStoreProfile, allStoreProfiles } from '@/lib/store-profiles';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -230,6 +231,7 @@ export async function POST(request: NextRequest) {
       generatedAt: new Date().toISOString(),
       categoryOverrides: parseCategoryOverrides(categoryOverridesRaw),
       savedCategoryMappings,
+      storeProfiles: allStoreProfiles(),
     };
 
 
@@ -333,7 +335,10 @@ export async function POST(request: NextRequest) {
       for (const f of feedItems) {
         const adv = f.merchantId || f.merchantName;
         if (!adv || originByAdv.has(adv)) continue;
-        const origin = originOf(f.merchantUrl || f.deepLink);
+        // Prefer the store's proven profile; fall back to feed-URL derivation.
+        const profile = getStoreProfile(adv);
+        const origin =
+          profile?.origin || originOf(f.merchantUrl || f.deepLink);
         if (origin) originByAdv.set(adv, origin);
       }
       for (const [adv, origin] of originByAdv) {
