@@ -17,6 +17,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { categoryKey, autoGuessCategory } from '@/lib/awin-compare';
+import { parseAwinCsv, dedupeFeedItems } from '@/lib/awin-feed';
+import {
+  fetchWcPage,
+  isPlaceholderImage,
+  originOf,
+  type WcEnrichment,
+} from '@/lib/woo-enrich';
+import { getStoreProfile } from '@/lib/store-profiles';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -95,6 +103,8 @@ export default function AwinImportPanel() {
   const [batchReview, setBatchReview] = useState(false);
   const [finalCommit, setFinalCommit] = useState(false);
   const [reviewKeys, setReviewKeys] = useState<string[]>([]);
+  // Visible progress while the browser pulls a store's catalog page by page.
+  const [enrichMsg, setEnrichMsg] = useState('');
 
   // Load saved advertisers + internal stores on mount, so the "select store"
   // context works even before a feed is uploaded.
@@ -153,16 +163,73 @@ export default function AwinImportPanel() {
       },
     });
 
+  // Browser-side gzip decompress (modern browsers support DecompressionStream).
+  const maybeDecompress = async (f: File): Promise<string> => {
+    const buf = await f.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const isGz = bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    if (!isGz) return new TextDecoder().decode(bytes);
+    const stream = new Blob([buf])
+      .stream()
+      .pipeThrough(new DecompressionStream('gzip'));
+    return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  };
+
+  // Pull every needed store's catalog ONE PAGE at a time from the browser, so
+  // each request stays under the serverless time limit. Returns the snapshot
+  // shaped { [advId]: { [productId]: WcEnrichment } }. Best-effort: a failing
+  // store simply yields no enrichment and the feed-only preview still works.
+  const collectEnrichment = async (f: File): Promise<
+    Record<string, Record<string, WcEnrichment>>
+  > => {    setEnrichMsg('');
+    const text = await maybeDecompress(f);
+    const items = dedupeFeedItems(parseAwinCsv(text, 'USD'));
+    // Which advertisers actually have placeholder images, + their origin.
+    const origins = new Map<string, string>();
+    for (const it of items) {
+      if (!isPlaceholderImage(it.imageUrl)) continue;
+      const adv = it.merchantId || it.merchantName;
+      if (!adv || origins.has(adv)) continue;
+      const profile = getStoreProfile(adv);
+      const origin =
+        profile?.origin || originOf(it.merchantUrl || it.deepLink) || '';
+      if (origin) origins.set(adv, origin);
+    }
+    const result: Record<string, Record<string, WcEnrichment>> = {};
+    for (const [adv, origin] of origins) {
+      const byId: Record<string, WcEnrichment> = {};
+      let page = 1;
+      let hasMore = true;
+      while (hasMore && page <= 30) {
+        setEnrichMsg(`正在补全 ${adv}：第 ${page} 页…`);
+        const res = await fetchWcPage(origin, page);
+        if (!res) break; // endpoint unusable → feed-only for this store
+        for (const p of res.products) {
+          if (p.data.imageUrl || p.data.categorySlugs.length) {
+            byId[String(p.id)] = p.data;
+          }
+        }
+        hasMore = res.hasMore;
+        page++;
+      }
+      if (Object.keys(byId).length) result[adv] = byId;
+    }
+    setEnrichMsg('');
+    return result;
+  };
+
   // POST the file. When advertisers still lack mappings the server returns
   // ready=false with the advertiser list; once all mapped it returns entries.
   const postFile = async (
     nextMappings: Record<string, AdvertiserMapping>,
+    enrichment: Record<string, Record<string, WcEnrichment>> = {},
   ): Promise<PreviewResponse> => {
     if (!file) throw new Error('Please select a feed file first');
     const fd = new FormData();
     fd.append('file', file);
     fd.append('promo_urls', promoUrls);
     fd.append('mappings', JSON.stringify(nextMappings));
+    fd.append('woo_enrichment', JSON.stringify(enrichment));
     const res = await adminFetch('/api/admin/awin-import/preview', {
       method: 'POST',
       body: fd,
@@ -182,7 +249,8 @@ export default function AwinImportPanel() {
     setSummary(null);
     setEntries([]);
     try {
-      const data = await postFile(mappings);
+      const enrichment = await collectEnrichment(file);
+      const data = await postFile(mappings, enrichment);
       setPreview(data);
       setAdvertisers(data.advertisers);
       setStores(data.stores);
@@ -286,10 +354,12 @@ export default function AwinImportPanel() {
     patchRow(id, { reading: true, status: '', error: false });
     setError('');
     try {
+      const rowEnrichment = await collectEnrichment(row.file);
       const fd = new FormData();
       fd.append('file', row.file);
       fd.append('promo_urls', '');
       fd.append('mappings', '{}');
+      fd.append('woo_enrichment', JSON.stringify(rowEnrichment));
       const res = await adminFetch('/api/admin/awin-import/preview', {
         method: 'POST',
         body: fd,
@@ -378,7 +448,8 @@ export default function AwinImportPanel() {
     setLoading(true);
     setError('');
     try {
-      const data = await postFile(mappings);
+      const enrichment = file ? await collectEnrichment(file) : {};
+      const data = await postFile(mappings, enrichment);
       setPreview(data);
       if (!data.ready) {
         setAdvertisers(data.advertisers);
@@ -657,7 +728,8 @@ export default function AwinImportPanel() {
       );
       // Recompute the preview so the new mappings take effect this session.
       if (file && data.ready !== false) {
-        const fresh = await postFile(mappings);
+        const enrichment = await collectEnrichment(file);
+        const fresh = await postFile(mappings, enrichment);
         setPreview(fresh);
         if (fresh.ready) setEntries(fresh.entries);
       }
@@ -952,6 +1024,12 @@ export default function AwinImportPanel() {
             className="text-xs text-zinc-200 h-16"
           />
         </label>
+
+        {enrichMsg && (
+          <p className="text-xs text-sky-300 flex items-center gap-1.5">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {enrichMsg}
+          </p>
+        )}
 
         {error && (
           <p className="text-sm text-red-400 flex items-center gap-1">

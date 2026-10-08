@@ -12,12 +12,8 @@ import {
 } from '@/lib/awin-compare';
 import { parseStoreCapabilities } from '@/lib/store-capabilities';
 import { buildPromoMap } from '@/lib/promo-page';
-import {
-  fetchWcCatalog,
-  isPlaceholderImage,
-  originOf,
-} from '@/lib/woo-enrich';
-import { getStoreProfile, allStoreProfiles } from '@/lib/store-profiles';
+import type { WcEnrichment } from '@/lib/woo-enrich';
+import { allStoreProfiles } from '@/lib/store-profiles';
 import type {
   AdvertiserInfo,
   AdvertiserMapping,
@@ -70,6 +66,34 @@ function parseCategoryOverrides(raw: string): Record<string, string> {
   return out;
 }
 
+/** Parse the client-collected WooCommerce enrichment snapshot.
+ *  Shape: { [advertiserId]: { [productId]: { imageUrl, categorySlugs } } }. */
+function parseClientEnrichment(
+  raw: string,
+): Map<string, WcEnrichment> {
+  const out = new Map<string, WcEnrichment>();
+  if (!raw.trim()) return out;
+  try {
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object') return out;
+    for (const [adv, byId] of Object.entries(obj)) {
+      if (!byId || typeof byId !== 'object') continue;
+      for (const [pid, data] of Object.entries(byId as Record<string, unknown>)) {
+        const d = data as WcEnrichment | null;
+        if (!d || typeof d !== 'object') continue;
+        if (!d.imageUrl && !(d.categorySlugs?.length > 0)) continue;
+        out.set(`${adv}::${pid}`, {
+          imageUrl: d.imageUrl || '',
+          categorySlugs: Array.isArray(d.categorySlugs) ? d.categorySlugs : [],
+        });
+      }
+    }
+  } catch {
+    // ignore malformed enrichment
+  }
+  return out;
+}
+
 /** Parse the mappings JSON blob the panel sends: advertiserId -> mapping. */
 function parseMappings(raw: string): Record<string, AdvertiserMapping> {
   if (!raw.trim()) return {};
@@ -95,6 +119,7 @@ export async function POST(request: NextRequest) {
     const promoUrlsRaw = (formData.get('promo_urls') as string) || '';
     const categoryOverridesRaw =
       (formData.get('category_overrides') as string) || '';
+    const wooEnrichmentRaw = (formData.get('woo_enrichment') as string) || '';
     const mappingsRaw = (formData.get('mappings') as string) || '';
     if (!file) {
       return NextResponse.json(
@@ -323,43 +348,10 @@ export async function POST(request: NextRequest) {
       name: ctById.get(c.id)?.name ?? null,
     }));
 
-    // Best-effort WooCommerce enrichment for advertisers whose feed rows only
-    // carry placeholder images. One catalog fetch per store origin; failures
-    // never block the preview.
-    const wooEnrichment = new Map<
-      string,
-      { imageUrl: string; categorySlugs: string[] }
-    >();
-    if (feedItems.some((f) => isPlaceholderImage(f.imageUrl))) {
-      const originByAdv = new Map<string, string>();
-      for (const f of feedItems) {
-        const adv = f.merchantId || f.merchantName;
-        if (!adv || originByAdv.has(adv)) continue;
-        // Prefer the store's proven profile; fall back to feed-URL derivation.
-        const profile = getStoreProfile(adv);
-        const origin =
-          profile?.origin || originOf(f.merchantUrl || f.deepLink);
-        if (origin) originByAdv.set(adv, origin);
-      }
-      for (const [adv, origin] of originByAdv) {
-        try {
-          const catalog = await fetchWcCatalog(origin);
-          if (!catalog) continue;
-          for (const f of feedItems) {
-            const fAdv = f.merchantId || f.merchantName;
-            if (fAdv !== adv || !f.merchantProductId) continue;
-            const wcId = Number.parseInt(f.merchantProductId, 10);
-            if (!Number.isFinite(wcId)) continue;
-            const data = catalog.get(wcId);
-            if (data && (data.imageUrl || data.categorySlugs.length)) {
-              wooEnrichment.set(`${adv}::${f.merchantProductId}`, data);
-            }
-          }
-        } catch {
-          // ignore — fall back to feed-only data for this store.
-        }
-      }
-    }
+    // WooCommerce enrichment is collected CLIENT-SIDE, one Store API page at
+    // a time, to stay under the serverless function time limit. The panel
+    // walks the pages and posts the snapshot here.
+    const wooEnrichment = parseClientEnrichment(wooEnrichmentRaw);
 
     const result = buildPreview({
       targets,

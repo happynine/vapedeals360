@@ -67,8 +67,41 @@ async function fetchJson(url: string, timeoutMs: number): Promise<WcApiProduct[]
 }
 
 /**
+ * Fetch ONE Store API page. Used by the browser so each request stays well
+ * under the serverless time limit; the client walks pages and accumulates.
+ * Returns { products, hasMore } — null means the endpoint is unusable.
+ */
+export async function fetchWcPage(
+  origin: string,
+  page: number,
+  perPage = 100,
+  timeoutMs = 9000,
+): Promise<{ products: Array<{ id: number; data: WcEnrichment }>; hasMore: boolean } | null> {
+  const url = `${origin}/wp-json/wc/store/v1/products?per_page=${perPage}&page=${page}&_fields=id,categories,images`;
+  let rows: WcApiProduct[];
+  try {
+    rows = await fetchJson(url, timeoutMs);
+  } catch {
+    return page === 1 ? null : { products: [], hasMore: false };
+  }
+  if (!Array.isArray(rows)) return page === 1 ? null : { products: [], hasMore: false };
+  const products = rows.map((p) => ({
+    id: p.id,
+    data: {
+      imageUrl: p.images?.[0]?.src ?? '',
+      categorySlugs: (p.categories ?? [])
+        .map((c) => c.slug)
+        .filter((s) => s && !NOISE_CATEGORY.test(s)),
+    },
+  }));
+  return { products, hasMore: rows.length >= perPage };
+}
+
+/**
  * Fetch the store's whole catalog (paginated, up to a cap) and index it by id.
  * Returns null when the endpoint does not behave like a WooCommerce Store API.
+ * NOTE: server-side callers risk the platform function timeout for large
+ * catalogs; prefer client-driven fetchWcPage pagination from the panel.
  */
 export async function fetchWcCatalog(
   origin: string,
