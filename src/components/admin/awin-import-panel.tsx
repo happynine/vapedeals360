@@ -38,12 +38,16 @@ const KIND_LABEL: Record<PreviewEntry['kind'], string> = {
   missing: '待确认',
 };
 
-// Human labels for a store's recorded enrichment method.
-const METHOD_LABEL: Record<string, string> = {
-  none: 'feed 完整',
-  woo_store_api: 'WooCommerce 补全',
-  custom: '专属方法',
-};
+// One parallel store-analysis row created via "添加商城".
+interface AddStoreRow {
+  id: string;
+  storeId: number | null;
+  file: File | null;
+  fileName: string;
+  reading: boolean;
+  status: string; // inline result message
+  error: boolean;
+}
 
 interface CommitSummary {
   batchId: number | null;
@@ -75,21 +79,12 @@ export default function AwinImportPanel() {
   // Single-store context: '__all__' or one ONLINE STORE id. Drives every view.
   const [activeAdv, setActiveAdv] = useState<string>('__all__');
   const [storePickerOpen, setStorePickerOpen] = useState(false);
-  // "Add advertiser" inline form.
-  const [showAddAdv, setShowAddAdv] = useState(false);
-  // Store-upload flow: upload one store's feed, identity is auto-detected, the
-  // user only picks which existing online store it maps to.
-  const [newAdvFile, setNewAdvFile] = useState<File | null>(null);
-  const [newAdvDetected, setNewAdvDetected] = useState<{
-    advertiserId: string;
-    advertiserName: string;
-    productCount: number;
-    currency: string;
-  } | null>(null);
-  const [newAdvStoreId, setNewAdvStoreId] = useState<number | null>(null);
-  // Logo picker for the add-store flow.
-  const [newAdvPickerOpen, setNewAdvPickerOpen] = useState(false);
-  const [detectingAdv, setDetectingAdv] = useState(false);
+  // Parallel independent store-analysis rows. Clicking "添加商城" appends a
+  // row identical in shape to the main row: pick an online store + its feed,
+  // then read it. Each row is self-contained and never affects other rows.
+  const [addRows, setAddRows] = useState<AddStoreRow[]>([]);
+  // Which row's logo picker is open, if any.
+  const [rowPickerOpen, setRowPickerOpen] = useState<string | null>(null);
   // Category mapping editor: scope 'global' or an advertiser id.
   const [catMapScope, setCatMapScope] = useState<string>('global');
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
@@ -247,19 +242,52 @@ export default function AwinImportPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAdv]);
 
-  // Persist a manually added advertiser mapping, then bring it into context.
-  // Step 1: upload the store's feed and let the server detect its identity.
-  const handleDetectAdvFile = async () => {
-    if (!newAdvFile) {
-      setError('请先选择该商城的 feed 文件');
+  // --- Parallel store rows -------------------------------------------------
+  const patchRow = (id: string, patch: Partial<AddStoreRow>) =>
+    setAddRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  const handleAddRow = () =>
+    setAddRows((prev) => [
+      ...prev,
+      {
+        id: `row_${Date.now()}_${prev.length}`,
+        storeId: null,
+        file: null,
+        fileName: '',
+        reading: false,
+        status: '',
+        error: false,
+      },
+    ]);
+
+  const handleRemoveRow = (id: string) => {
+    setAddRows((prev) => prev.filter((r) => r.id !== id));
+    setRowPickerOpen((cur) => (cur === id ? null : cur));
+  };
+
+  // Read one row: detect the feed's advertiser, persist its mapping to the
+  // chosen online store in a single step, then bring that store into context.
+  const handleReadRow = async (id: string) => {
+    const row = addRows.find((r) => r.id === id);
+    if (!row) return;
+    if (!row.storeId) {
+      patchRow(id, { status: '请先选择线上商城', error: true });
       return;
     }
-    setDetectingAdv(true);
+    if (!row.file) {
+      patchRow(id, { status: '请先选择 feed 文件', error: true });
+      return;
+    }
+    const store = stores.find((s) => s.id === row.storeId);
+    if (!store) {
+      patchRow(id, { status: '请选择有效的线上商城', error: true });
+      return;
+    }
+    patchRow(id, { reading: true, status: '', error: false });
     setError('');
-    setNewAdvDetected(null);
     try {
       const fd = new FormData();
-      fd.append('file', newAdvFile);
+      fd.append('file', row.file);
       fd.append('promo_urls', '');
       fd.append('mappings', '{}');
       const res = await adminFetch('/api/admin/awin-import/preview', {
@@ -270,49 +298,19 @@ export default function AwinImportPanel() {
       if (!res.ok || !data.success) throw new Error(data.error || '读取失败');
       const first = (data.advertisers ?? [])[0];
       if (!first) throw new Error('文件中没有识别到商城');
-      setNewAdvDetected({
-        advertiserId: first.advertiserId,
-        advertiserName: first.advertiserName,
-        productCount: first.productCount,
-        currency: first.suggestedCurrency || 'USD',
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '读取失败');
-    } finally {
-      setDetectingAdv(false);
-    }
-  };
+      const advertiserId: string = first.advertiserId;
+      const advertiserName: string = first.advertiserName;
+      const region = store.regions?.[0] || 'USA';
+      const currency =
+        store.currencies?.[0] || first.suggestedCurrency || 'USD';
 
-  // Step 2: map the detected advertiser to an existing online store and save.
-  const handleAddAdvertiser = async () => {
-    if (!newAdvDetected) {
-      setError('请先上传并读取商城 feed');
-      return;
-    }
-    if (!newAdvStoreId) {
-      setError('请选择对应的线上已有商城');
-      return;
-    }
-    const store = stores.find((s) => s.id === newAdvStoreId);
-    if (!store) {
-      setError('请选择有效的线上商城');
-      return;
-    }
-    // Region/currency are carried over from the existing store, not typed.
-    const region = store.regions?.[0] || 'USA';
-    const currency =
-      store.currencies?.[0] || newAdvDetected.currency || 'USD';
-    const { advertiserId, advertiserName } = newAdvDetected;
-    setSavingMappings(true);
-    setError('');
-    try {
-      const res = await adminFetch('/api/admin/awin-import/mappings', {
+      const saveRes = await adminFetch('/api/admin/awin-import/mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           advertiserMappings: {
             [advertiserId]: {
-              storeId: newAdvStoreId,
+              storeId: row.storeId,
               region,
               currency,
               advertiserName,
@@ -321,46 +319,47 @@ export default function AwinImportPanel() {
           categoryMappings: [],
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || data.errors?.join('；') || '添加失败');
+      const saveData = await saveRes.json();
+      if (!saveRes.ok || !saveData.success) {
+        throw new Error(
+          saveData.error || saveData.errors?.join('；') || '保存对应商城失败',
+        );
       }
+
       setMappings((prev) => ({
         ...prev,
-        [advertiserId]: { storeId: newAdvStoreId, region, currency },
+        [advertiserId]: { storeId: row.storeId, region, currency },
       }));
       setAdvNames((prev) => ({ ...prev, [advertiserId]: advertiserName }));
       setAdvertisers((prev) => {
-        const without = prev.filter((a) => a.advertiserId !== advertiserId);
+        const without = prev.filter(
+          (a) => a.advertiserId !== advertiserId,
+        );
         return [
           ...without,
           {
             advertiserId,
             advertiserName,
-            productCount: newAdvDetected.productCount,
+            productCount: first.productCount,
             suggestedCurrency: currency,
-            mapping: { storeId: newAdvStoreId, region, currency },
+            mapping: { storeId: row.storeId, region, currency },
           },
         ];
       });
-      setMappingMsg(
-        `已添加「${advertiserName}」并对应到线上商城「${store.name}」。`,
-      );
-      resetAddAdv();
-      setActiveAdv(String(newAdvStoreId));
+      patchRow(id, {
+        reading: false,
+        status: `已读取：${advertiserName}（${first.productCount} 个产品）→ ${store.name}`,
+        error: false,
+      });
+      setMappingMsg(`已添加「${advertiserName}」并对应到「${store.name}」。`);
+      setActiveAdv(String(row.storeId));
     } catch (e) {
-      setError(e instanceof Error ? e.message : '添加失败');
-    } finally {
-      setSavingMappings(false);
+      patchRow(id, {
+        reading: false,
+        status: e instanceof Error ? e.message : '读取失败',
+        error: true,
+      });
     }
-  };
-
-  const resetAddAdv = () => {
-    setShowAddAdv(false);
-    setNewAdvFile(null);
-    setNewAdvDetected(null);
-    setNewAdvStoreId(null);
-    setNewAdvPickerOpen(false);
   };
 
   // Re-send once every advertiser has a complete mapping.
@@ -808,7 +807,7 @@ export default function AwinImportPanel() {
           )}
           <Button
             variant="outline"
-            onClick={() => setShowAddAdv((v) => !v)}
+            onClick={handleAddRow}
             className="border-emerald-700 text-emerald-300 hover:bg-emerald-900/20"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -816,115 +815,65 @@ export default function AwinImportPanel() {
           </Button>
         </div>
 
-        {/* Add advertiser: upload that store's feed, pick online store, then
-            set its category mapping one store at a time. */}
-        {showAddAdv && (
-          <div className="rounded-md border border-emerald-800/60 bg-emerald-950/20 p-3 space-y-3">
-            <p className="text-sm font-medium text-emerald-200">
-              并联增加一个商城的独立分析（不影响已分析好的商城）。流程：①
-              上传该商城 feed 并读取 → ② 选择它对应的线上商城 → ③
-              保存后，按此商城单独建立「品类对应关系」与专属补救方法。每个商城的方法各自独立记录，全部配好后再统一对比跨商城相似产品。
-            </p>
-            {preview?.storeProfiles && preview.storeProfiles.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
-                <span>已记录分析方法：</span>
-                {preview.storeProfiles.map((p) => (
-                  <span
-                    key={p.advertiserId}
-                    className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-0.5"
-                    title={p.method}
-                  >
-                    {p.name} · {METHOD_LABEL[p.method] || p.method}
-                  </span>
-                ))}
-              </div>
-            )}
 
-            {/* Step 1: file + read */}
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">1</span>
-              <Input
-                type="file"
-                accept=".csv,.gz"
-                className="max-w-sm text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-700 file:px-3 file:py-1 file:text-zinc-200"
-                onChange={(e) => {
-                  setNewAdvFile(e.target.files?.[0] ?? null);
-                  setNewAdvDetected(null);
-                  setNewAdvStoreId(null);
-                }}
-              />
-              <Button
-                onClick={handleDetectAdvFile}
-                disabled={detectingAdv || !newAdvFile}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                {detectingAdv && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                <Upload className="w-4 h-4 mr-1" />
-                读取商城
-              </Button>
-              {newAdvDetected && (
-                <div className="rounded-md border border-emerald-700/50 bg-emerald-900/20 px-3 py-1.5 text-xs text-emerald-100">
-                  已识别：<b>{newAdvDetected.advertiserName}</b> · ID{' '}
-                  {newAdvDetected.advertiserId} ·{' '}
-                  {newAdvDetected.productCount} 个产品
-                </div>
-              )}
-            </div>
+        {/* Parallel independent store-analysis rows, one per added store.
+            Same shape as the main row: pick online store + its feed, read it. */}
+        {addRows.map((row) => {
+          const selStore = stores.find((s) => s.id === row.storeId) ?? null;
+          return (
+            <div
+              key={row.id}
+              className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-2.5"
+            >
+              <span className="text-xs text-zinc-400 whitespace-nowrap">选商城</span>
 
-            {/* Step 2: pick existing online store (logo picker) */}
-            <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900/60 p-3">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">2</span>
-              <span className="text-xs text-zinc-300 whitespace-nowrap font-medium">
-                选择对应的线上商城
-              </span>
-              <div className="relative">
+              {/* Online-store logo picker */}
+              <div className="relative flex items-center">
                 <button
                   type="button"
-                  disabled={!newAdvDetected}
-                  onClick={() => setNewAdvPickerOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-200 hover:border-zinc-500 min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() =>
+                    setRowPickerOpen((cur) => (cur === row.id ? null : row.id))
+                  }
+                  className="flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-200 hover:border-zinc-500 min-w-[150px]"
                 >
-                  {newAdvStoreId === null ? (
-                    <StoreIcon className="h-5 w-5 text-zinc-400" />
+                  {selStore ? (
+                    <StoreLogo src={selStore.logoUrl} alt={selStore.name} />
                   ) : (
-                    <StoreLogo
-                      src={stores.find((s) => s.id === newAdvStoreId)?.logoUrl}
-                      alt={stores.find((s) => s.id === newAdvStoreId)?.name ?? ''}
-                    />
+                    <StoreIcon className="h-5 w-5 text-zinc-400" />
                   )}
                   <span className="flex-1 text-left truncate">
-                    {newAdvStoreId === null
-                      ? newAdvDetected
-                        ? '请选择线上商城'
-                        : '请先读取商城'
-                      : stores.find((s) => s.id === newAdvStoreId)?.name ?? '商城'}
+                    {selStore?.name ?? '选择线上商城'}
                   </span>
                   <ChevronDown className="h-4 w-4 text-zinc-400" />
                 </button>
-                {newAdvPickerOpen && newAdvDetected && (
+                {rowPickerOpen === row.id && (
                   <>
                     <div
                       className="fixed inset-0 z-20"
-                      onClick={() => setNewAdvPickerOpen(false)}
+                      onClick={() => setRowPickerOpen(null)}
                     />
-                    <div className="absolute left-0 top-full z-30 mt-1 max-h-72 w-64 overflow-auto rounded-md border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+                    <div className="absolute left-12 top-full z-30 mt-1 max-h-72 w-60 overflow-auto rounded-md border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
                       {stores.map((s) => (
                         <button
                           key={s.id}
                           type="button"
                           onClick={() => {
-                            setNewAdvStoreId(s.id);
-                            setNewAdvPickerOpen(false);
+                            patchRow(row.id, {
+                              storeId: s.id,
+                              status: '',
+                              error: false,
+                            });
+                            setRowPickerOpen(null);
                           }}
                           className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-700 ${
-                            newAdvStoreId === s.id ? 'text-emerald-300' : 'text-zinc-200'
+                            row.storeId === s.id
+                              ? 'text-purple-300'
+                              : 'text-zinc-200'
                           }`}
                         >
                           <StoreLogo src={s.logoUrl} alt={s.name} />
                           <span className="flex-1 truncate">{s.name}</span>
-                          {newAdvStoreId === s.id && (
+                          {row.storeId === s.id && (
                             <Check className="h-4 w-4 shrink-0" />
                           )}
                         </button>
@@ -933,33 +882,66 @@ export default function AwinImportPanel() {
                   </>
                 )}
               </div>
-              <span className="text-[11px] text-zinc-500">
-                地区 / 货币自动用该线上商城设置；保存后即可按此商城设置品类对应
-              </span>
-            </div>
 
-            {/* Step 3: save */}
-            <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">3</span>
+              {/* Feed file for this row */}
+              <label className="flex items-center gap-3 max-w-sm cursor-pointer rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-sm text-zinc-300 hover:border-zinc-500">
+                <span className="rounded bg-zinc-700 px-3 py-1 text-zinc-200 text-xs">
+                  选择文件
+                </span>
+                <span className="truncate">
+                  {row.fileName || '未选择任何文件'}
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.gz"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    patchRow(row.id, {
+                      file: f,
+                      fileName: f?.name ?? '',
+                      status: '',
+                      error: false,
+                    });
+                  }}
+                />
+              </label>
+
               <Button
-                onClick={handleAddAdvertiser}
-                disabled={savingMappings || !newAdvDetected || !newAdvStoreId}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => handleReadRow(row.id)}
+                disabled={row.reading}
+                className="bg-purple-600 hover:bg-purple-700"
               >
-                {savingMappings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                <Check className="w-4 h-4 mr-1" />
-                保存对应商城
+                {row.reading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                读取商城
               </Button>
-              <Button
-                variant="ghost"
-                onClick={resetAddAdv}
-                className="text-zinc-400"
+
+              {row.status && (
+                <span
+                  className={`text-xs ${
+                    row.error ? 'text-red-400' : 'text-emerald-300'
+                  }`}
+                >
+                  {row.status}
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleRemoveRow(row.id)}
+                title="移除该商城行"
+                className="ml-auto rounded-md p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
               >
-                取消
-              </Button>
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-        )}
+          );
+        })}
+
 
         <label className="block text-xs text-zinc-400 space-y-1">
           促销 / 优惠页网址（可选，每行一个，自动标注促销价、划线原价与优惠码）
