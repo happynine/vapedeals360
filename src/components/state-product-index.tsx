@@ -90,7 +90,32 @@ export async function StateProductIndex({
       (x): x is { slug: string; name: string; price: number; image: string } => x !== null,
     );
 
-  const shown = stateCode ? items.slice(0, limit) : items;
+  // On state pages, deterministically shuffle the eligible pool seeded by the
+  // state code so different states surface different products/orders while a
+  // given state stays stable across renders. Hub strips keep source order.
+  let pool = items;
+  if (stateCode) {
+    let h = 1779033703 ^ stateCode.length;
+    for (let i = 0; i < stateCode.length; i++) {
+      h = Math.imul(h ^ stateCode.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    let seed = h >>> 0;
+    const rand = () => {
+      seed |= 0;
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    pool = [...items];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+  }
+
+  const shown = stateCode ? pool.slice(0, limit) : pool;
   if (shown.length === 0) return null;
 
   const grid = (
@@ -129,9 +154,7 @@ export async function StateProductIndex({
   if (layout === 'compact') {
     return (
       <section aria-label={title} className="mt-5">
-        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-        {subtitle ? <p className="mt-1 text-xs text-gray-500">{subtitle}</p> : null}
-        <div className="mt-3">{grid}</div>
+        {grid}
       </section>
     );
   }
