@@ -660,7 +660,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金，且您无需支付额外费用。"
             : "* Prices are from partner stores. We may earn a commission when you purchase through our links. At no extra cost to you."}
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-gray-500">
+        <p className="mt-2 text-xs leading-relaxed text-gray-400">
           {language === "zh"
             ? "VapeDeals360 是一个独立的价格比较与优惠信息网站。我们不是零售商，不直接销售产品。本网站提及的所有产品名称、品牌名称、徽标及零售商名称均为其各自所有者的财产，仅用于描述和比较目的。VapeDeals360 与所列任何品牌或零售商无关联，也未获得其认可或赞助。价格与库存信息来自零售商网站，可能随时变动；购买时以零售商网站显示的最终价格为准。"
             : "VapeDeals360 is an independent price-comparison and deal-information website. We are not a retailer and do not sell products directly. All product names, brand names, logos, and retailer names mentioned on this site are the property of their respective owners and are used solely for descriptive and comparison purposes. VapeDeals360 is not affiliated with, endorsed by, or sponsored by any of the brands or retailers listed. Prices and availability are sourced from retailer websites and may change at any time; the final price shown on the retailer's website at the time of purchase always applies."}
