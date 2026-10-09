@@ -357,8 +357,8 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         if (bannerJson.success) setBanners(bannerJson.data || []);
       }
 
-      // Fetch promotions only on first page without filters
-      if (page === 1 && !selectedCategory && !searchQuery) {
+      // Promotions cover stays visible even when a type is selected; only hidden during search
+      if (page === 1 && !searchQuery) {
         const promoRes = await fetch(`/api/promotions?language=${language}`);
         const promoJson = await promoRes.json();
         if (promoJson.success) {
@@ -478,11 +478,11 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
   return (
     <div className="min-h-screen flex flex-col">
       {/* Mobile: Combined Banner + Promotion Carousel */}
-      {(banners.length > 0 || (promotions.length > 0 && !selectedCategory && !searchQuery)) && (
+      {(banners.length > 0 || (promotions.length > 0 && !searchQuery)) && (
         <div className="sm:hidden -mx-4 mb-4 bg-white">
           <MobileCombinedCarousel
             banners={banners}
-            promotions={!selectedCategory && !searchQuery ? promotions : []}
+            promotions={!searchQuery ? promotions : []}
             language={language}
           />
         </div>
@@ -498,7 +498,7 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
       )}
 
       {/* Desktop: Promotions Section - Cover Images Grid */}
-      {promotions.length > 0 && !selectedCategory && !searchQuery && (
+      {promotions.length > 0 && !searchQuery && (
         <div className="hidden sm:block mb-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {promotions.map((promotion) => {
