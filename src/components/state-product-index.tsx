@@ -17,11 +17,13 @@ export async function StateProductIndex({
   subtitle = 'Compare real-time prices across trusted, authorized retailers. Always confirm the product is legal in your state at checkout.',
   limit = 10,
   stateCode,
+  layout = 'section',
 }: {
   title?: string;
   subtitle?: string;
   limit?: number;
   stateCode?: string;
+  layout?: 'section' | 'compact';
 }) {
   if (!isSupabaseConfigured()) return null;
 
@@ -91,40 +93,54 @@ export async function StateProductIndex({
   const shown = stateCode ? items.slice(0, limit) : items;
   if (shown.length === 0) return null;
 
+  const grid = (
+    <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-5">
+      {shown.map((it) => (
+        <li key={it.slug}>
+          <a
+            href={`/product/${encodeURI(it.slug)}`}
+            className="group block rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-purple-300 hover:shadow-sm"
+          >
+            {it.image ? (
+              <img
+                src={it.image}
+                alt={`${it.name} — price comparison`}
+                width={480}
+                height={480}
+                loading="lazy"
+                className="mb-2 aspect-square w-full rounded-xl border border-gray-100 object-cover"
+              />
+            ) : (
+              <div className="mb-2 aspect-square w-full rounded-xl bg-gray-50" />
+            )}
+            <span className="block truncate text-sm font-medium text-purple-700 group-hover:underline">
+              {it.name}
+            </span>
+            <span className="mt-0.5 block text-sm font-semibold text-gray-900">
+              from {symbol}
+              {it.price.toFixed(2)}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (layout === 'compact') {
+    return (
+      <section aria-label={title} className="mt-5">
+        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+        {subtitle ? <p className="mt-1 text-xs text-gray-500">{subtitle}</p> : null}
+        <div className="mt-3">{grid}</div>
+      </section>
+    );
+  }
+
   return (
     <section aria-label={title} className="mt-12">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
       <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-      <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-5">
-        {shown.map((it) => (
-          <li key={it.slug}>
-            <a
-              href={`/product/${encodeURI(it.slug)}`}
-              className="group block rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-purple-300 hover:shadow-sm"
-            >
-              {it.image ? (
-                <img
-                  src={it.image}
-                  alt={`${it.name} — price comparison`}
-                  width={480}
-                  height={480}
-                  loading="lazy"
-                  className="mb-2 aspect-square w-full rounded-xl border border-gray-100 object-cover"
-                />
-              ) : (
-                <div className="mb-2 aspect-square w-full rounded-xl bg-gray-50" />
-              )}
-              <span className="block truncate text-sm font-medium text-purple-700 group-hover:underline">
-                {it.name}
-              </span>
-              <span className="mt-0.5 block text-sm font-semibold text-gray-900">
-                from {symbol}
-                {it.price.toFixed(2)}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-5">{grid}</div>
     </section>
   );
 }

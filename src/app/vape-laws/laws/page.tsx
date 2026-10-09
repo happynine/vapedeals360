@@ -123,34 +123,53 @@ export default function VapeLawsHubPage() {
         <p className="mt-1 text-sm text-gray-500">
           Full, source-backed guides are live for these states.
         </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-5 space-y-8">
           {LAUNCH_STATES.map((s) => {
             const c = getStateContent(s);
             if (!c) return null;
             return (
-              <Link
+              <div
                 key={s.code}
-                href={`/vape-laws/${s.slug}`}
-                className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-5 transition hover:border-purple-300 hover:shadow-sm"
+                className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6"
               >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-700">
-                    {s.name}
-                  </h3>
-                  <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700">
-                    {s.code}
-                  </span>
+                {/* State rule card */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{s.name}</h3>
+                      <span className="rounded-md bg-purple-50 px-2 py-0.5 text-xs font-bold text-purple-700">
+                        {s.code}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">{c.headline}</p>
+                  </div>
+                  <Link
+                    href={`/vape-laws/${s.slug}`}
+                    className="shrink-0 self-start rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-purple-100"
+                  >
+                    View {s.name} rules →
+                  </Link>
                 </div>
-                <p className="mt-2 line-clamp-4 flex-1 text-sm text-gray-600">{c.headline}</p>
-                <span className="mt-3 text-sm font-medium text-purple-600 group-hover:underline">
-                  View {s.name} rules →
-                </span>
-              </Link>
+
+                {/* This state's recommended products */}
+                {s.code === 'TX' ? (
+                  <p className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                    Texas-specific compliant product sourcing is being verified — recommendations
+                    will appear here shortly.
+                  </p>
+                ) : (
+                  <StateProductIndex
+                    layout="compact"
+                    stateCode={s.code}
+                    title="Recommended for this state"
+                    subtitle="Only products available for delivery here from US-zone stores. Confirm details at checkout."
+                    limit={5}
+                  />
+                )}
+              </div>
             );
           })}
         </div>
-
-        <StateProductIndex />
 
         {/* Quick explainer */}
         <section className="mt-12">
