@@ -269,7 +269,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                 <span>/</span>
                 <Link
                   href={`/?category=${product.category!.id}`}
-                  className="text-purple-700 hover:text-purple-900 hover:underline transition-colors"
+                  className="text-gray-500 hover:text-purple-700 transition-colors"
                 >
                   {catName}
                 </Link>
