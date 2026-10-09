@@ -575,6 +575,7 @@ export default function AdminPage() {
   const [productCurrencyFilter, setProductCurrencyFilter] = useState<string>('');
   const [productCurrencyDropdownOpen, setProductCurrencyDropdownOpen] = useState(false);
   const [productTypeFilter, setProductTypeFilter] = useState<string>('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState<string>('');
   const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
@@ -602,9 +603,10 @@ export default function AdminPage() {
       } else if (productTypeFilter === 'featured') {
         if (!p.is_featured) return false;
       }
+      if (productCategoryFilter && p.category_id?.toString() !== productCategoryFilter) return false;
       return true;
     });
-  }, [sortedProducts, productSearch, productCurrencyFilter, productTypeFilter, stores]);
+  }, [sortedProducts, productSearch, productCurrencyFilter, productTypeFilter, productCategoryFilter, stores]);
   const productTotalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
   const paginatedProducts = useMemo(() => {
     const start = (productPage - 1) * PRODUCTS_PER_PAGE;
@@ -1709,6 +1711,20 @@ export default function AdminPage() {
                       <option value="standard">{t('Standard Products', '标准产品', adminLang)}</option>
                       <option value="promotion">{t('Promotion Products', '活动产品', adminLang)}</option>
                       <option value="featured">{t('Featured Products', '推荐产品', adminLang)}</option>
+                    </select>
+                    <select
+                      value={productCategoryFilter}
+                      onChange={(e) => { setProductCategoryFilter(e.target.value); setProductPage(1); }}
+                      className="px-3 py-1.5 rounded-md border border-border bg-secondary text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">{t('All Categories', '全部分类', adminLang)}</option>
+                      {[...categories]
+                        .filter((c) => c.is_active)
+                        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                        .map((c) => {
+                          const name = c.category_translations?.find((tr) => tr.language === 'en')?.name || c.slug;
+                          return <option key={c.id} value={c.id}>{name}</option>;
+                        })}
                     </select>
                   </div>
                 </div>
