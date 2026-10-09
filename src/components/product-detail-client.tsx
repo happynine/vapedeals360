@@ -22,6 +22,7 @@ export interface Store {
   store_type: string;
   is_active: boolean;
   translations: StoreTranslation[];
+  regions?: unknown;
 }
 
 export interface ProductPrice {
@@ -52,6 +53,29 @@ function getDisplayPrice(p: ProductPrice): string {
     return p.promo_price;
   }
   return p.current_price;
+}
+
+/**
+ * Read a store's US banned-state codes from its regions JSONB. Supports both
+ * the old paired array shape and the new decoupled object shape.
+ */
+function getBannedStates(store?: Store): string[] {
+  const raw = store?.regions;
+  if (!raw) return [];
+  if (!Array.isArray(raw)) {
+    const decoupled = raw as { banned_states?: unknown };
+    return Array.isArray(decoupled.banned_states) ? decoupled.banned_states.map(String) : [];
+  }
+  for (const r of raw as Array<Record<string, unknown>>) {
+    if (
+      String(r.currency ?? '') === 'USD' &&
+      ['', 'USA', 'Global'].includes(String(r.region ?? '').trim()) &&
+      Array.isArray(r.banned_states)
+    ) {
+      return r.banned_states.map(String);
+    }
+  }
+  return [];
 }
 
 export interface ProductTranslation {
@@ -395,6 +419,9 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             const isLowest = idx === 0;
             const displayPrice = getDisplayPrice(price);
             const priceDiscount = price.discount_percent || (price.original_price ? Math.round((parseFloat(price.original_price) - parseFloat(displayPrice)) / parseFloat(price.original_price) * 100) : null);
+            // When viewing in USD, surface the US states this retailer does not ship to.
+            const bannedStates =
+              (price.currency || "$") === "$" ? getBannedStates(price.store) : [];
 
             return (
               <div key={price.id} className={`border-t border-gray-100 transition-colors hover:bg-gray-50 ${isLowest ? "bg-emerald-50/50" : ""}`}>
@@ -413,7 +440,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                         <span className="text-sm font-bold text-purple-700">{st?.name?.charAt(0) || "?"}</span>
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-sm font-medium text-gray-900">{st?.name || "Store"}</span>
                       {isLowest && (
                         <span className="ml-2 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
@@ -424,6 +451,23 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                         <span className="ml-2 inline-block rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
                           {language === "zh" ? "缺货" : "OUT OF STOCK"}
                         </span>
+                      )}
+                      {bannedStates.length > 0 && (
+                        <div className="mt-1.5">
+                          <span className="block text-[10px] font-medium leading-tight text-gray-400">
+                            {language === "zh" ? "本商城美国禁售州：" : "Not shipped to:"}
+                          </span>
+                          <div className="mt-0.5 flex max-w-[220px] flex-wrap gap-0.5">
+                            {bannedStates.map((code) => (
+                              <span
+                                key={code}
+                                className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
+                              >
+                                {code}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -538,6 +582,23 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       )}
                     </div>
                   </div>
+                  {bannedStates.length > 0 && (
+                    <div className="mt-2">
+                      <span className="block text-[10px] font-medium leading-tight text-gray-400">
+                        {language === "zh" ? "本商城美国禁售州：" : "Not shipped to:"}
+                      </span>
+                      <div className="mt-0.5 flex flex-wrap gap-0.5">
+                        {bannedStates.map((code) => (
+                          <span
+                            key={code}
+                            className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
+                          >
+                            {code}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Countdown row for mobile */}
                   {(price.time_type === 'countdown' || price.time_type === 'time_range') && (
                     <div className="mt-2 flex items-center gap-2">
@@ -599,7 +660,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
             ? "* 以下价格来自合作商家，我们可能通过购买链接获得佣金，且您无需支付额外费用。"
             : "* Prices are from partner stores. We may earn a commission when you purchase through our links. At no extra cost to you."}
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-gray-400">
+        <p className="mt-3 text-sm leading-relaxed text-gray-500">
           {language === "zh"
             ? "VapeDeals360 是一个独立的价格比较与优惠信息网站。我们不是零售商，不直接销售产品。本网站提及的所有产品名称、品牌名称、徽标及零售商名称均为其各自所有者的财产，仅用于描述和比较目的。VapeDeals360 与所列任何品牌或零售商无关联，也未获得其认可或赞助。价格与库存信息来自零售商网站，可能随时变动；购买时以零售商网站显示的最终价格为准。"
             : "VapeDeals360 is an independent price-comparison and deal-information website. We are not a retailer and do not sell products directly. All product names, brand names, logos, and retailer names mentioned on this site are the property of their respective owners and are used solely for descriptive and comparison purposes. VapeDeals360 is not affiliated with, endorsed by, or sponsored by any of the brands or retailers listed. Prices and availability are sourced from retailer websites and may change at any time; the final price shown on the retailer's website at the time of purchase always applies."}
