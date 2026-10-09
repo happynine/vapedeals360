@@ -1,19 +1,6 @@
-  const triggerRef = useRef<HTMLDivElement | null>(null);
+"use client";
 
-  useEffect(() => {
-    if (!open) return;
-    const close = () => hide();
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-import { useState, useEffect, useRef } from "react";"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SafeImage } from "@/components/safe-image";
 import { useLanguage } from "@/hooks/use-language";
@@ -97,17 +84,16 @@ const BANNED_PREVIEW = 5;
 /**
  * Compact US banned-state indicator: a single non-wrapping row with the first
  * few codes and a trailing "More" tag. Hovering the row opens a fixed-position
- * popover (escapes any clipping ancestor) listing the remaining states. The
- * popover flips above the row when there is not enough room below.
+ * popover that escapes any clipping ancestor, listing the remaining states.
+ * The popover flips above the row when there is not enough room below.
  */
 function BannedStateTags({ codes, language }: { codes: string[]; language: string }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLDivElement | null>(null);
 
   const preview = codes.slice(0, BANNED_PREVIEW);
   const rest = codes.slice(BANNED_PREVIEW);
-  if (codes.length === 0) return null;
 
   const POP_WIDTH = 176; // px, matches w-44
   const ROW_H = 17; // px per wrapped row
@@ -123,7 +109,6 @@ function BannedStateTags({ codes, language }: { codes: string[]; language: strin
     setCoords({
       top: placeAbove ? r.top - popHeight - 4 : r.bottom + 4,
       left: Math.max(8, Math.min(r.left, window.innerWidth - POP_WIDTH - 8)),
-      placeAbove,
     });
     setOpen(true);
   };
@@ -132,6 +117,19 @@ function BannedStateTags({ codes, language }: { codes: string[]; language: strin
     setCoords(null);
   };
 
+  useEffect(() => {
+    if (!open) return;
+    const close = () => hide();
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  if (codes.length === 0) return null;
   return (
     <div className="mt-1.5">
       <span className="block text-[10px] font-medium leading-tight text-gray-400">
