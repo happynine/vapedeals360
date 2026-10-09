@@ -8,10 +8,11 @@ import { getStateProductRule } from '@/lib/state-laws';
  * state pages. Real product names, images, USD prices and internal /product
  * links are emitted in the initial HTML.
  *
- * When `stateCode` is provided, a product only appears if at least one active
- * US-zone store sells it there: the store must be admitted to the US market
- * (USD + Global/USA) and the state must NOT be in that store's banned list.
- * If every US-zone store bans the state, the section renders nothing.
+ * When `stateCode` is provided, a product only appears if it is carried by at
+ * least one active US-zone store AND none of its US-zone stores bans that
+ * state. In other words, a single retailer flagging the state as banned
+ * disqualifies the whole product from the state page — another retailer that
+ * still ships there does not keep it listed.
  */
 export async function StateProductIndex({
   title = 'Popular vapes & deals right now',
@@ -69,16 +70,18 @@ export async function StateProductIndex({
   }
   if (!products || products.length === 0) return null;
 
-  // A store may carry a product into `stateCode` only if it is US-admitted and
-  // does not ban that state.
-  const storeAllowed = (store: unknown): boolean => {
-    if (!store) return false;
+  // Classify a store against the US zone:
+  // - 'banned': active, US-admitted store that explicitly bans `stateCode`
+  // - 'allowed': active, US-admitted store that does not ban `stateCode`
+  // - null: inactive or not US-admitted (irrelevant for this state's rule)
+  const storeStatus = (store: unknown): 'banned' | 'allowed' | null => {
+    if (!store) return null;
     const s = store as Record<string, unknown>;
-    if (s.is_active === false) return false;
+    if (s.is_active === false) return null;
     const caps = parseStoreCapabilities(s.regions);
-    if (!canEnterUsZone(caps)) return false;
-    if (stateCode && (caps.banned_states || []).includes(stateCode)) return false;
-    return true;
+    if (!canEnterUsZone(caps)) return null;
+    if (stateCode && (caps.banned_states || []).includes(stateCode)) return 'banned';
+    return 'allowed';
   };
 
   const items = products
@@ -89,12 +92,28 @@ export async function StateProductIndex({
       const translations = p.translations as Array<{ language: string; name: string }> | undefined;
       const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
       const prices = (p.prices as Array<Record<string, unknown>> | undefined) || [];
+
+      if (stateCode) {
+        // A product is disqualified for this state if ANY active US-zone store
+        // that carries it has the state in its banned list. Another retailer
+        // that still ships there does not keep it listed.
+        let hasAllowedStore = false;
+        for (const pr of prices) {
+          const status = storeStatus(pr.store);
+          if (status === 'banned') return null;
+          if (status === 'allowed') hasAllowedStore = true;
+        }
+        if (!hasAllowedStore) return null;
+      }
+
+      // Price is sourced only from valid, US-admitted stores that do not ban
+      // the state, so the "from $x" figure is one the visitor can actually buy at.
       const valid = prices.filter(
         (pr) =>
           pr.no_quote !== true &&
           pr.in_stock !== false &&
           String(pr.currency ?? '') === symbol &&
-          (!stateCode || storeAllowed(pr.store)),
+          (!stateCode || storeStatus(pr.store) === 'allowed'),
       );
       if (!tr?.name || valid.length === 0) return null;
       let lowest = Infinity;
