@@ -589,7 +589,7 @@ export default function AdminPage() {
       let top = r.top + r.height / 2 - size / 2;
       top = Math.max(8, Math.min(top, window.innerHeight - size - 16));
       setHoverPreview({ url, name, top, left });
-    }, 2000);
+    }, 1000);
   };
   const hideHoverPreview = () => {
     if (hoverPreviewTimer.current) { clearTimeout(hoverPreviewTimer.current); hoverPreviewTimer.current = null; }
