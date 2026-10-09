@@ -78,6 +78,58 @@ function getBannedStates(store?: Store): string[] {
   return [];
 }
 
+// Number of state codes shown inline before the "More" affordance.
+const BANNED_PREVIEW = 5;
+
+/**
+ * Compact US banned-state indicator: a single non-wrapping row with the first
+ * few codes and a trailing "More" tag. Hovering the row opens a small popover
+ * listing the remaining states. Pure CSS hover, no client state.
+ */
+function BannedStateTags({ codes, language }: { codes: string[]; language: string }) {
+  if (codes.length === 0) return null;
+  const preview = codes.slice(0, BANNED_PREVIEW);
+  const rest = codes.slice(BANNED_PREVIEW);
+  return (
+    <div className="mt-1.5">
+      <span className="block text-[10px] font-medium leading-tight text-gray-400">
+        {language === 'zh' ? '美国不发货州：' : 'Not shipped to (US):'}
+      </span>
+      <div className="group/bans relative mt-0.5 inline-flex max-w-full">
+        <div className="flex flex-nowrap items-center gap-0.5">
+          {preview.map((code) => (
+            <span
+              key={code}
+              className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
+            >
+              {code}
+            </span>
+          ))}
+          {rest.length > 0 && (
+            <span className="cursor-default rounded bg-gray-100 px-1 py-px text-[9px] font-semibold leading-tight text-gray-500">
+              More
+            </span>
+          )}
+        </div>
+        {rest.length > 0 && (
+          <div className="invisible absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white p-2 opacity-0 shadow-lg transition-all group-hover/bans:visible group-hover/bans:opacity-100">
+            <div className="flex flex-wrap gap-0.5">
+              {rest.map((code) => (
+                <span
+                  key={code}
+                  className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export interface ProductTranslation {
   id: number;
   product_id: number;
@@ -452,23 +504,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                           {language === "zh" ? "缺货" : "OUT OF STOCK"}
                         </span>
                       )}
-                      {bannedStates.length > 0 && (
-                        <div className="mt-1.5">
-                          <span className="block text-[10px] font-medium leading-tight text-gray-400">
-                            {language === "zh" ? "本商城美国禁售州：" : "Not shipped to:"}
-                          </span>
-                          <div className="mt-0.5 flex max-w-[220px] flex-wrap gap-0.5">
-                            {bannedStates.map((code) => (
-                              <span
-                                key={code}
-                                className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
-                              >
-                                {code}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <BannedStateTags codes={bannedStates} language={language} />
                     </div>
                   </div>
                   <div className="text-center">
@@ -582,23 +618,7 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
                       )}
                     </div>
                   </div>
-                  {bannedStates.length > 0 && (
-                    <div className="mt-2">
-                      <span className="block text-[10px] font-medium leading-tight text-gray-400">
-                        {language === "zh" ? "本商城美国禁售州：" : "Not shipped to:"}
-                      </span>
-                      <div className="mt-0.5 flex flex-wrap gap-0.5">
-                        {bannedStates.map((code) => (
-                          <span
-                            key={code}
-                            className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
-                          >
-                            {code}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <BannedStateTags codes={bannedStates} language={language} />
                   {/* Countdown row for mobile */}
                   {(price.time_type === 'countdown' || price.time_type === 'time_range') && (
                     <div className="mt-2 flex items-center gap-2">
