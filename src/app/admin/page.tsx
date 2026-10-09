@@ -576,6 +576,25 @@ export default function AdminPage() {
   const [productCurrencyDropdownOpen, setProductCurrencyDropdownOpen] = useState(false);
   const [productTypeFilter, setProductTypeFilter] = useState<string>('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>('');
+  const [hoverPreview, setHoverPreview] = useState<{ url: string; name: string; top: number; left: number } | null>(null);
+  const hoverPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showHoverPreview = (url: string, name: string, target: HTMLElement) => {
+    if (hoverPreviewTimer.current) clearTimeout(hoverPreviewTimer.current);
+    hoverPreviewTimer.current = setTimeout(() => {
+      const size = 240;
+      const r = target.getBoundingClientRect();
+      let left = r.right + 10;
+      if (left + size + 16 > window.innerWidth) left = r.left - size - 10;
+      if (left < 8) left = Math.max(8, window.innerWidth - size - 16);
+      let top = r.top + r.height / 2 - size / 2;
+      top = Math.max(8, Math.min(top, window.innerHeight - size - 16));
+      setHoverPreview({ url, name, top, left });
+    }, 2000);
+  };
+  const hideHoverPreview = () => {
+    if (hoverPreviewTimer.current) { clearTimeout(hoverPreviewTimer.current); hoverPreviewTimer.current = null; }
+    setHoverPreview(null);
+  };
   const PRODUCTS_PER_PAGE = 20;
   const sortedProducts = useMemo(() => {
     return [...products].sort((a, b) => productSortOrder === 'asc' ? a.id - b.id : b.id - a.id);
@@ -1781,7 +1800,17 @@ export default function AdminPage() {
                               <td className="px-4 py-3 text-sm text-muted-foreground">{product.id}</td>
                               <td className="px-4 py-3">
                                 {thumbnailDisplayUrl ? (
-                                  <img src={thumbnailDisplayUrl} alt={enName} className="w-10 h-10 object-cover rounded" />
+                                  <span
+                                    className="inline-block w-10 h-10"
+                                    onMouseEnter={(e) => showHoverPreview(thumbnailDisplayUrl, enName, e.currentTarget)}
+                                    onMouseLeave={hideHoverPreview}
+                                  >
+                                    <img
+                                      src={thumbnailDisplayUrl}
+                                      alt={enName}
+                                      className="w-10 h-10 object-cover rounded cursor-zoom-in"
+                                    />
+                                  </span>
                                 ) : (
                                   <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
                                     <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2373,6 +2402,24 @@ export default function AdminPage() {
           )}
         </div>
       </main>
+
+      {/* Hover image preview (240x240, anchored to thumbnail cell) */}
+      {hoverPreview && (
+        <div
+          className="fixed z-[100] pointer-events-none"
+          style={{ left: hoverPreview.left, top: hoverPreview.top }}
+        >
+          <img
+            src={hoverPreview.url}
+            alt={hoverPreview.name}
+            className="rounded-lg border border-border shadow-2xl"
+            style={{ width: 240, height: 240, objectFit: 'contain', background: '#0b0b10' }}
+          />
+          <div className="mt-1 text-center text-[11px] text-white/80 drop-shadow">
+            {hoverPreview.name} · 240 × 240
+          </div>
+        </div>
+      )}
 
       {/* Image Crop Modal */}
       <ImageCropModal
