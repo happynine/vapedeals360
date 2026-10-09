@@ -1,6 +1,7 @@
-import { fetchProducts } from '@/lib/database';
+import { fetchProducts, fetchCategories } from '@/lib/database';
 import { isSupabaseConfigured } from '@/storage/database/supabase-client';
 import { parseStoreCapabilities, canEnterUsZone } from '@/lib/store-capabilities';
+import { getStateProductRule } from '@/lib/state-laws';
 
 /**
  * Server-rendered, crawler-readable deal strip reused by the vape-laws Hub and
@@ -27,11 +28,30 @@ export async function StateProductIndex({
 }) {
   if (!isSupabaseConfigured()) return null;
 
-  // Texas (TX): SB 2024 prohibits products wholly or partly made in China (or
-  // another designated foreign adversary), which covers virtually the whole
-  // current US catalog. Suppress the strip entirely until a separate compliant
-  // sourcing approach is built. Generic Hub strips pass no stateCode and stay.
-  if (stateCode === 'TX') return null;
+  // Resolve this state's product-level rule. `suppress` states (e.g. Texas)
+  // render no recommendations until separate compliant sourcing is built.
+  const stateRule = getStateProductRule(stateCode);
+  if (stateRule?.suppress) return null;
+
+  // Build category_id -> slug map once so category-level bans can be enforced.
+  let bannedCategoryIds = new Set<number>();
+  if (stateRule?.bannedCategorySlugs && stateRule.bannedCategorySlugs.length > 0) {
+    try {
+      const categories = (await fetchCategories('en')) as Array<{
+        id: number;
+        slug: string;
+      }>;
+      bannedCategoryIds = new Set(
+        categories
+          .filter((c) => stateRule.bannedCategorySlugs!.includes(c.slug))
+          .map((c) => c.id),
+      );
+    } catch {
+      // If category lookup fails, fail safe: do not silently over-recommend
+      // into a regulated state.
+      return null;
+    }
+  }
 
   // US state pages always price in USD ('$'), independent of visitor currency.
   const symbol = '$';
@@ -63,6 +83,9 @@ export async function StateProductIndex({
 
   const items = products
     .map((p) => {
+      // State category-level compliance: drop products whose category is
+      // banned in this state (e.g. disposables in California).
+      if (bannedCategoryIds.has(Number(p.category_id))) return null;
       const translations = p.translations as Array<{ language: string; name: string }> | undefined;
       const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
       const prices = (p.prices as Array<Record<string, unknown>> | undefined) || [];
