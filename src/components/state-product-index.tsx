@@ -2,17 +2,20 @@ import { fetchProducts, fetchCategories } from '@/lib/database';
 import { isSupabaseConfigured } from '@/storage/database/supabase-client';
 import { parseStoreCapabilities, canEnterUsZone } from '@/lib/store-capabilities';
 import { getStateProductRule } from '@/lib/state-laws';
+import { cleanAffiliateUrl } from '@/lib/seo';
 
 /**
  * Server-rendered, crawler-readable deal strip reused by the vape-laws Hub and
  * state pages. Real product names, images, USD prices and internal /product
  * links are emitted in the initial HTML.
  *
- * When `stateCode` is provided, a product only appears if it is carried by at
- * least one active US-zone store AND none of its US-zone stores bans that
- * state. In other words, a single retailer flagging the state as banned
- * disqualifies the whole product from the state page — another retailer that
- * still ships there does not keep it listed.
+ * When `stateCode` is provided, filtering is done at the STORE level:
+ *  - a store that bans the state is simply dropped — none of its products
+ *    appear on that state page;
+ *  - a product is still recommended as long as at least one OTHER active
+ *    US-zone store that does not ban the state carries it.
+ * Each card lists the stores it is available from (logo, name, price, Buy),
+ * mirroring the cards on /vape-laws.
  */
 export async function StateProductIndex({
   title = 'Popular vapes & deals right now',
@@ -84,6 +87,26 @@ export async function StateProductIndex({
     return 'allowed';
   };
 
+  const storeName = (store: Record<string, unknown>): string => {
+    const trs = store.store_translations as Array<{ language: string; name: string }> | undefined;
+    return trs?.find((x) => x.language === 'en')?.name || trs?.[0]?.name || (store.slug as string) || 'Store';
+  };
+
+  const offerValue = (pr: Record<string, unknown>): number => {
+    const v =
+      pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
+        ? Number(pr.promo_price)
+        : Number(pr.current_price);
+    return Number.isFinite(v) && v > 0 ? v : NaN;
+  };
+
+  interface StoreOffer {
+    name: string;
+    logo: string | null;
+    url: string;
+    price: number;
+  }
+
   const items = products
     .map((p) => {
       // State category-level compliance: drop products whose category is
@@ -93,43 +116,47 @@ export async function StateProductIndex({
       const tr = translations?.find((x) => x.language === 'en') || translations?.[0];
       const prices = (p.prices as Array<Record<string, unknown>> | undefined) || [];
 
-      if (stateCode) {
-        // A product is disqualified for this state if ANY active US-zone store
-        // that carries it has the state in its banned list. Another retailer
-        // that still ships there does not keep it listed.
-        let hasAllowedStore = false;
-        for (const pr of prices) {
-          const status = storeStatus(pr.store);
-          if (status === 'banned') return null;
-          if (status === 'allowed') hasAllowedStore = true;
-        }
-        if (!hasAllowedStore) return null;
+      // Store-level filtering: a store that bans the state is dropped, but the
+      // product still qualifies if at least one other active US-zone store
+      // (which does not ban the state) sells it.
+      const offers: StoreOffer[] = [];
+      for (const pr of prices) {
+        if (pr.no_quote === true || pr.in_stock === false || String(pr.currency ?? '') !== symbol) continue;
+        const status = storeStatus(pr.store);
+        if (status !== 'allowed') continue;
+        const price = offerValue(pr);
+        if (!Number.isFinite(price)) continue;
+        const store = (pr.store || {}) as Record<string, unknown>;
+        const logo = (store.logo_url as string | null) || null;
+        offers.push({
+          name: storeName(store),
+          logo,
+          url: (pr.product_url as string) || '',
+          price,
+        });
       }
+      if (!tr?.name || offers.length === 0) return null;
 
-      // Price is sourced only from valid, US-admitted stores that do not ban
-      // the state, so the "from $x" figure is one the visitor can actually buy at.
-      const valid = prices.filter(
-        (pr) =>
-          pr.no_quote !== true &&
-          pr.in_stock !== false &&
-          String(pr.currency ?? '') === symbol &&
-          (!stateCode || storeStatus(pr.store) === 'allowed'),
-      );
-      if (!tr?.name || valid.length === 0) return null;
-      let lowest = Infinity;
-      for (const pr of valid) {
-        const v =
-          pr.promotion_id != null && pr.promo_price != null && pr.promo_price !== ''
-            ? Number(pr.promo_price)
-            : Number(pr.current_price);
-        if (Number.isFinite(v) && v > 0 && v < lowest) lowest = v;
-      }
-      if (!Number.isFinite(lowest)) return null;
+      offers.sort((a, b) => a.price - b.price);
       const image = (p.home_image_url as string | null) || (p.image_url as string | null) || '';
-      return { slug: p.slug as string, name: tr.name as string, price: lowest, image };
+      return {
+        slug: p.slug as string,
+        name: tr.name as string,
+        image,
+        lowest: offers[0].price,
+        stores: offers,
+      };
     })
     .filter(
-      (x): x is { slug: string; name: string; price: number; image: string } => x !== null,
+      (
+        x,
+      ): x is {
+        slug: string;
+        name: string;
+        image: string;
+        lowest: number;
+        stores: StoreOffer[];
+      } => x !== null,
     );
 
   // On state pages, deterministically shuffle the eligible pool seeded by the
@@ -160,34 +187,97 @@ export async function StateProductIndex({
   const shown = stateCode ? pool.slice(0, limit) : pool;
   if (shown.length === 0) return null;
 
+  // Compact strips on the laws Hub show one store row each; the full section
+  // on state pages shows up to two. Cards stay server-rendered (no JS needed).
+  const maxStoreRows = layout === 'compact' ? 1 : 2;
+
+  const logoSrc = (logo: string | null): string | null => {
+    if (!logo) return null;
+    if (logo.startsWith('http')) return logo;
+    return `/api/image?key=${encodeURIComponent(logo)}`;
+  };
+
   const grid = (
     <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-5">
       {shown.map((it) => (
         <li key={it.slug}>
-          <a
-            href={`/product/${encodeURI(it.slug)}`}
-            className="group block rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-purple-300 hover:shadow-sm"
-          >
-            {it.image ? (
-              <img
-                src={it.image}
-                alt={`${it.name} — price comparison`}
-                width={480}
-                height={480}
-                loading="lazy"
-                className="mb-2 aspect-square w-full rounded-xl border border-gray-100 object-cover"
-              />
-            ) : (
-              <div className="mb-2 aspect-square w-full rounded-xl bg-gray-50" />
-            )}
-            <span className="block truncate text-sm font-medium text-purple-700 group-hover:underline">
-              {it.name}
-            </span>
-            <span className="mt-0.5 block text-sm font-semibold text-gray-900">
-              from {symbol}
-              {it.price.toFixed(2)}
-            </span>
-          </a>
+          <div className="group h-full rounded-2xl border border-gray-200 bg-white p-3 transition hover:border-purple-300 hover:shadow-sm">
+            <a href={`/product/${encodeURI(it.slug)}`}>
+              {it.image ? (
+                <img
+                  src={it.image}
+                  alt={`${it.name} — price comparison`}
+                  width={480}
+                  height={480}
+                  loading="lazy"
+                  className="mb-2 aspect-square w-full rounded-xl border border-gray-100 object-cover"
+                />
+              ) : (
+                <div className="mb-2 aspect-square w-full rounded-xl bg-gray-50" />
+              )}
+              <span className="block truncate text-sm font-medium text-purple-700 group-hover:underline">
+                {it.name}
+              </span>
+            </a>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className="text-sm font-semibold text-gray-900">
+                {symbol}
+                {it.lowest.toFixed(2)}
+              </span>
+              {it.stores.length >= 2 && (
+                <span className="text-[10px] font-medium text-emerald-600">Lowest</span>
+              )}
+            </div>
+
+            {/* Store rows: logo + name + price + Buy (only state-allowed stores) */}
+            <div className="mt-2 space-y-1.5">
+              {it.stores.slice(0, maxStoreRows).map((s, i) => {
+                const logo = logoSrc(s.logo);
+                const buyHref = cleanAffiliateUrl(s.url);
+                return (
+                  <div
+                    key={`${it.slug}-${s.name}-${i}`}
+                    className="flex items-center justify-between gap-1.5 rounded-lg bg-gray-50 px-2 py-1"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-purple-50">
+                        {logo ? (
+                          <img src={logo} alt="" loading="lazy" className="h-full w-full object-contain" />
+                        ) : (
+                          <span className="text-[9px] font-bold text-purple-600">
+                            {s.name.charAt(0) || '?'}
+                          </span>
+                        )}
+                      </span>
+                      <span className="truncate text-[11px] text-gray-500">{s.name}</span>
+                    </div>
+                    <span className="flex-shrink-0 text-[11px] font-semibold tabular-nums text-emerald-600">
+                      {symbol}
+                      {s.price.toFixed(2)}
+                    </span>
+                    {buyHref ? (
+                      <a
+                        href={buyHref}
+                        target="_blank"
+                        rel="sponsored nofollow noopener noreferrer"
+                        className="flex-shrink-0 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 transition-colors hover:bg-purple-700 hover:text-white"
+                      >
+                        Buy
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {it.stores.length > maxStoreRows && (
+                <a
+                  href={`/product/${encodeURI(it.slug)}`}
+                  className="block py-0.5 text-center text-[11px] text-purple-700 hover:underline"
+                >
+                  View all {it.stores.length} stores
+                </a>
+              )}
+            </div>
+          </div>
         </li>
       ))}
     </ul>
