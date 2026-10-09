@@ -9,7 +9,7 @@ import { cleanAffiliateUrl } from '@/lib/seo';
 import { ALL_STATES, LAUNCH_STATES, getStateContent } from '@/lib/states';
 import { useLanguage } from '@/hooks/use-language';
 import { SiteHeader } from '@/components/site-header';
-import { parseStoreCapabilities, canEnterUsZone } from '@/lib/store-capabilities';
+import { parseStoreCapabilities, canEnterUsZone, resolveUsClassification } from '@/lib/store-capabilities';
 import type { UsSiteType, UsShipFrom, StoreCapabilities } from '@/lib/store-capabilities';
 
 // 美国专区只展示 USD 报价，DB 中 USD 货币以符号 '$' 存储
@@ -109,10 +109,10 @@ export function UsZoneMall() {
     // 地区/货币已解耦：货币含 USD 且 地区含 Global/USA 才准入
     const caps = parseStoreCapabilities(store.regions);
     if (!canEnterUsZone(caps)) return false;
-    // 必须显式配齐美国专区字段，否则不进入美国专区
-    if (!caps.us_site_type || !caps.us_ship_from) return false;
-    if (caps.us_site_type !== siteTab) return false;
-    if (shipFilter !== 'all' && caps.us_ship_from !== shipFilter) return false;
+    // 站点类型/发货仓：已配置则按配置，未配置则按地区推断，不再因留空整条隐藏
+    const classified = resolveUsClassification(caps);
+    if (classified.us_site_type !== siteTab) return false;
+    if (shipFilter !== 'all' && classified.us_ship_from !== shipFilter) return false;
     if (stateCode && (caps.banned_states || []).includes(stateCode)) return false;
     return true;
   };

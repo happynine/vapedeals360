@@ -122,3 +122,23 @@ export function storeServesRegion(caps: StoreCapabilities, region: string | null
   if (caps.regions.includes('Global')) return true;
   return caps.regions.includes(region);
 }
+
+/**
+ * 当商城未显式配置 us_site_type / us_ship_from 时，按已填写的地区清单
+ * 推断美国专区归类，避免「能进美国、也没禁该州」的商城因字段留空而被
+ * 整条隐藏：
+ *  - 地区含 USA（无论是否同时含其它地区）→ 美国本土店 / 美国仓发货
+ *  - 仅含 Global（不含 USA）→ 国际店 / 国际仓发货（如官方品牌站）
+ * 已显式配置的字段保持原样，不被覆盖。
+ */
+export function resolveUsClassification(
+  caps: StoreCapabilities,
+): { us_site_type: UsSiteType; us_ship_from: UsShipFrom } {
+  if (caps.us_site_type && caps.us_ship_from) {
+    return { us_site_type: caps.us_site_type, us_ship_from: caps.us_ship_from };
+  }
+  const domestic = caps.regions.includes('USA');
+  const siteType: UsSiteType = caps.us_site_type ?? (domestic ? 'domestic' : 'international');
+  const shipFrom: UsShipFrom = caps.us_ship_from ?? (domestic ? 'us_warehouse' : 'intl_warehouse');
+  return { us_site_type: siteType, us_ship_from: shipFrom };
+}
