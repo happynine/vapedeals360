@@ -350,12 +350,15 @@ export function ProductListClient({ initialData }: { initialData: InitialData })
         });
       }
 
-      // Fetch banners and promotions only on first page without filters
-      if (page === 1 && !selectedCategory && !searchQuery) {
+      // Banners are global and always shown regardless of product filters
+      if (page === 1) {
         const bannerRes = await fetch(`/api/banners?language=${language}`);
         const bannerJson = await bannerRes.json();
         if (bannerJson.success) setBanners(bannerJson.data || []);
+      }
 
+      // Fetch promotions only on first page without filters
+      if (page === 1 && !selectedCategory && !searchQuery) {
         const promoRes = await fetch(`/api/promotions?language=${language}`);
         const promoJson = await promoRes.json();
         if (promoJson.success) {
