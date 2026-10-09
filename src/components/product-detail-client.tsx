@@ -1,4 +1,17 @@
-"use client";
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => hide();
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+import { useState, useEffect, useRef } from "react";"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -83,19 +96,53 @@ const BANNED_PREVIEW = 5;
 
 /**
  * Compact US banned-state indicator: a single non-wrapping row with the first
- * few codes and a trailing "More" tag. Hovering the row opens a small popover
- * listing the remaining states. Pure CSS hover, no client state.
+ * few codes and a trailing "More" tag. Hovering the row opens a fixed-position
+ * popover (escapes any clipping ancestor) listing the remaining states. The
+ * popover flips above the row when there is not enough room below.
  */
 function BannedStateTags({ codes, language }: { codes: string[]; language: string }) {
-  if (codes.length === 0) return null;
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean } | null>(null);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+
   const preview = codes.slice(0, BANNED_PREVIEW);
   const rest = codes.slice(BANNED_PREVIEW);
+  if (codes.length === 0) return null;
+
+  const POP_WIDTH = 176; // px, matches w-44
+  const ROW_H = 17; // px per wrapped row
+  const cols = 7;
+  const popHeight = Math.ceil(rest.length / cols) * ROW_H + 22;
+
+  const show = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const placeAbove = spaceBelow < popHeight + 12 && r.top > spaceBelow;
+    setCoords({
+      top: placeAbove ? r.top - popHeight - 4 : r.bottom + 4,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - POP_WIDTH - 8)),
+      placeAbove,
+    });
+    setOpen(true);
+  };
+  const hide = () => {
+    setOpen(false);
+    setCoords(null);
+  };
+
   return (
     <div className="mt-1.5">
       <span className="block text-[10px] font-medium leading-tight text-gray-400">
         {language === 'zh' ? '美国不发货州：' : 'Not shipped to (US):'}
       </span>
-      <div className="group/bans relative mt-0.5 inline-flex max-w-full">
+      <div
+        ref={triggerRef}
+        className="mt-0.5 inline-flex max-w-full"
+        onMouseEnter={rest.length > 0 ? show : undefined}
+        onMouseLeave={rest.length > 0 ? hide : undefined}
+      >
         <div className="flex flex-nowrap items-center gap-0.5">
           {preview.map((code) => (
             <span
@@ -111,21 +158,26 @@ function BannedStateTags({ codes, language }: { codes: string[]; language: strin
             </span>
           )}
         </div>
-        {rest.length > 0 && (
-          <div className="invisible absolute left-0 top-full z-30 mt-1 w-40 rounded-lg border border-gray-200 bg-white p-2 opacity-0 shadow-lg transition-all group-hover/bans:visible group-hover/bans:opacity-100">
-            <div className="flex flex-wrap gap-0.5">
-              {rest.map((code) => (
-                <span
-                  key={code}
-                  className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
-                >
-                  {code}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+      {open && coords && rest.length > 0 && (
+        <div
+          className="fixed z-[100] w-44 rounded-lg border border-gray-200 bg-white p-2 shadow-xl"
+          style={{ top: coords.top, left: coords.left }}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+        >
+          <div className="flex flex-wrap gap-x-0.5 gap-y-1">
+            {rest.map((code) => (
+              <span
+                key={code}
+                className="rounded bg-red-50 px-1 py-px text-[9px] font-semibold leading-tight text-red-500"
+              >
+                {code}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
