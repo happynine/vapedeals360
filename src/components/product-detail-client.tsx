@@ -250,18 +250,34 @@ export function ProductDetailClient({ product, promoBreadcrumb }: { product: Pro
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8 bg-white flex-1">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500">
-        <Link href="/" className="hover:text-gray-900 transition-colors">
+        <Link href="/" className="hover:text-purple-700 transition-colors">
           {language === "zh" ? "首页" : "Home"}
         </Link>
-        <span>/</span>
-        {promoBreadcrumb && (
+        {promoBreadcrumb ? (
           <>
-            <Link href="/promotion/solobar" className="hover:text-gray-900 transition-colors text-purple-700">
+            <span>/</span>
+            <Link href="/promotion/solobar" className="text-purple-700 hover:text-purple-900 transition-colors">
               {language === "zh" ? "促销活动" : "Promo"}
             </Link>
-            <span>/</span>
           </>
-        )}
+        ) : product.category ? (
+          (() => {
+            const catTranslation = getTranslation(product.category!.translations, language);
+            const catName = catTranslation?.name || product.category!.slug;
+            return (
+              <>
+                <span>/</span>
+                <Link
+                  href={`/?category=${product.category!.id}`}
+                  className="text-purple-700 hover:text-purple-900 hover:underline transition-colors"
+                >
+                  {catName}
+                </Link>
+              </>
+            );
+          })()
+        ) : null}
+        <span>/</span>
         <span className="text-gray-900 truncate">{t?.name}</span>
       </nav>
 
