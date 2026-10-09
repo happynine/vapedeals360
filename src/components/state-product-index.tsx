@@ -25,6 +25,12 @@ export async function StateProductIndex({
 }) {
   if (!isSupabaseConfigured()) return null;
 
+  // Texas (TX): SB 2024 prohibits products wholly or partly made in China (or
+  // another designated foreign adversary), which covers virtually the whole
+  // current US catalog. Suppress the strip entirely until a separate compliant
+  // sourcing approach is built. Generic Hub strips pass no stateCode and stay.
+  if (stateCode === 'TX') return null;
+
   // US state pages always price in USD ('$'), independent of visitor currency.
   const symbol = '$';
 
