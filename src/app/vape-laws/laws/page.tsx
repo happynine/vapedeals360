@@ -93,7 +93,7 @@ export default function VapeLawsHubPage() {
 
       {/* Hero + state picker */}
       <section className="border-b border-gray-100 bg-gradient-to-b from-purple-50 to-white">
-        <div className="mx-auto max-w-5xl px-4 py-12 sm:py-16 text-center">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
           <nav aria-label="Breadcrumb" className="mb-4 text-xs text-gray-400">
             <Link href="/" className="hover:text-purple-600">Home</Link>
             <span className="mx-1">/</span>
@@ -117,13 +117,13 @@ export default function VapeLawsHubPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-5xl px-4 py-12">
+      <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-12">
         {/* 5 launch states */}
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Popular states</h2>
         <p className="mt-1 text-sm text-gray-500">
           Full, source-backed guides are live for these states.
         </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {LAUNCH_STATES.map((s) => {
             const c = getStateContent(s);
             if (!c) return null;
