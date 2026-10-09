@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
 import { del } from '@vercel/blob';
+import { refreshHome } from '@/lib/cache-revalidate';
 
 function getClient() {
   return getServiceRoleClient();
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       if (tError) throw new Error(`Create banner translations failed: ${tError.message}`);
     }
 
+    refreshHome();
     return NextResponse.json({ success: true, data: banner });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to create banner';
@@ -238,6 +240,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    refreshHome();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update banner';
@@ -298,6 +301,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
+    refreshHome();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to delete banner';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { del } from '@vercel/blob';
+import { refreshPromotion } from '@/lib/cache-revalidate';
 // 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
 async function deleteBlobFile(fileUrl: string | null | undefined) {
   if (!fileUrl) return;
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
       const { error: productsError } = await client.from('promotion_products').insert(productsData);
       if (productsError) { console.error('Error linking products:', productsError); }
     }
+    refreshPromotion(slug);
     return NextResponse.json({ success: true, data: promotion });
   } catch (error) {
     console.error('Error creating promotion:', error);
@@ -182,6 +184,7 @@ export async function PUT(request: NextRequest) {
         if (productsError) { console.error('Error linking products:', productsError); }
       }
     }
+    refreshPromotion(slug);
     return NextResponse.json({ success: true, data: promotion });
   } catch (error) {
     console.error('Error updating promotion:', error);
@@ -212,6 +215,7 @@ export async function DELETE(request: NextRequest) {
         await deleteBlobFile((t as Record<string, unknown>).mobile_cover_image_url as string | null);
       }
     }
+    refreshPromotion();
     return NextResponse.json({ success: true, message: 'Promotion deleted successfully' });
   } catch (error) {
     console.error('Error deleting promotion:', error);

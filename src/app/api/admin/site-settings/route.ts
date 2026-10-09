@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
+import { refreshAll } from '@/lib/cache-revalidate';
 
 export async function GET(request: Request) {
   const rl = checkRateLimit(request, "admin");
@@ -124,6 +125,7 @@ export async function PUT(request: Request) {
     const updatedTranslations = updatedData?.site_setting_translations || [];
     const enTranslation = updatedTranslations.find((t: { language: string }) => t.language === 'en') || updatedTranslations[0];
 
+    refreshAll();
     return Response.json({
       success: true,
       data: {

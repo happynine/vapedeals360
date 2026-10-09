@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshAll } from '@/lib/cache-revalidate';
 
 // GET all languages
 export async function GET(request: Request) {
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
+    refreshAll();
     return NextResponse.json({ success: true, data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -72,6 +74,7 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (error) throw new Error(`Update failed: ${error.message}`);
+    refreshAll();
     return NextResponse.json({ success: true, data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -96,6 +99,7 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .eq('id', id);
     if (error) throw new Error(`Delete failed: ${error.message}`);
+    refreshAll();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

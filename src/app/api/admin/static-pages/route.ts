@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshStaticPage } from '@/lib/cache-revalidate';
 
 // GET /api/admin/static-pages?slug=privacy-policy
 export async function GET(request: NextRequest) {
@@ -128,5 +129,6 @@ export async function POST(request: NextRequest) {
     .update({ is_published: true, updated_at: new Date().toISOString() })
     .eq('id', page.id);
 
+  refreshStaticPage(slug);
   return NextResponse.json({ success: true });
 }

@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshPublicPages } from '@/lib/cache-revalidate';
 
 // GET /api/admin/social-links - Get all social links for admin
 export async function GET(request: Request) {
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
+  refreshPublicPages();
   return NextResponse.json({ success: true, data });
 }
 
@@ -78,6 +80,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
+  refreshPublicPages();
   return NextResponse.json({ success: true, data });
 }
 
@@ -103,5 +106,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
+  refreshPublicPages();
   return NextResponse.json({ success: true });
 }

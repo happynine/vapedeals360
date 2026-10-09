@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshProduct } from '@/lib/cache-revalidate';
 
 // GET all prices (optionally filter by product_id)
 export async function GET(request: NextRequest) {
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
     if (error) throw new Error(`Create price failed: ${error.message}`);
+    const { data: prod } = await client.from('products').select('slug').eq('id', product_id).single();
+    refreshProduct((prod as { slug?: string } | null)?.slug);
 
     return NextResponse.json({ success: true, data });
   } catch (err) {
@@ -91,6 +94,8 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
     if (error) throw new Error(`Update price failed: ${error.message}`);
+    const { data: prod } = await client.from('products').select('slug').eq('id', product_id).single();
+    refreshProduct((prod as { slug?: string } | null)?.slug);
 
     return NextResponse.json({ success: true, data });
   } catch (err) {
@@ -112,6 +117,7 @@ export async function DELETE(request: NextRequest) {
 
     const { error } = await client.from('product_prices').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete price failed: ${error.message}`);
+    refreshProduct();
 
     return NextResponse.json({ success: true });
   } catch (err) {

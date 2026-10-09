@@ -2,7 +2,8 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
-import { deleteFile, uploadFile } from '@/lib/storage';
+import { deleteFile, uploadFile, buildR2Url } from '@/lib/storage';
+import { refreshProduct } from '@/lib/cache-revalidate';
 
 // 检查促销价格是否已过期
 function isPromotionExpired(price: { time_type?: string; end_time?: string | null; start_time?: string | null }): boolean {
@@ -214,6 +215,7 @@ export async function POST(request: NextRequest) {
       if (priceError) throw new Error(`Create prices failed: ${priceError.message}`);
     }
 
+    refreshProduct(slug);
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -383,6 +385,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    refreshProduct(slug);
     return NextResponse.json({ success: true, data: product });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -422,6 +425,7 @@ export async function DELETE(request: NextRequest) {
       await deleteFile((product as Record<string, unknown>).home_image_key as string | null);
     }
 
+    refreshProduct();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

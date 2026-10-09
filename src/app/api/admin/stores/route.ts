@@ -3,6 +3,7 @@ import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { del } from '@vercel/blob';
+import { refreshAll } from '@/lib/cache-revalidate';
 // 删除 Vercel Blob 文件的辅助函数（失败不影响主流程）
 async function deleteBlobFile(fileUrl: string | null | undefined) {
   if (!fileUrl) return;
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       const { error: transError } = await client.from('store_translations').insert(transRows);
       if (transError) throw new Error(`Create translations failed: ${transError.message}`);
     }
+    refreshAll();
     return NextResponse.json({ success: true, data: store });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -127,6 +129,7 @@ export async function PUT(request: NextRequest) {
       const { error: transError } = await client.from('store_translations').insert(transRows);
       if (transError) throw new Error(`Update translations failed: ${transError.message}`);
     }
+    refreshAll();
     return NextResponse.json({ success: true, data: store });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -156,6 +159,7 @@ export async function DELETE(request: NextRequest) {
     if (store) {
       await deleteBlobFile((store as Record<string, unknown>).logo_url as string | null);
     }
+    refreshAll();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

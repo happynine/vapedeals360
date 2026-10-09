@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshPublicPages } from '@/lib/cache-revalidate';
 
 // PUT /api/admin/category-descriptions
 export async function PUT(request: NextRequest) {
@@ -29,5 +30,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  refreshPublicPages();
   return NextResponse.json({ success: true });
 }

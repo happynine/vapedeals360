@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { getPresignedUrl } from '@/lib/storage';
+import { refreshPublicPages } from '@/lib/cache-revalidate';
 
 // 自动在 products 表创建/查找对应产品，返回 product_id
 async function ensureProductInProductsTable(
@@ -262,6 +263,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    refreshPublicPages();
     return NextResponse.json({ success: true, data: promotionProduct });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
@@ -406,6 +408,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    refreshPublicPages();
     return NextResponse.json({ success: true, data: promotionProduct });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
@@ -446,6 +449,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    refreshPublicPages();
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });

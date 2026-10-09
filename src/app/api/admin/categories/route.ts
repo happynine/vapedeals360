@@ -2,6 +2,7 @@ import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshPublicPages } from '@/lib/cache-revalidate';
 
 // GET all categories with translations
 export async function GET(request: Request) {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
       if (transError) throw new Error(`Create translations failed: ${transError.message}`);
     }
 
+    refreshPublicPages();
     return NextResponse.json({ success: true, data: category });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -86,6 +88,7 @@ export async function PUT(request: NextRequest) {
       if (transError) throw new Error(`Update translations failed: ${transError.message}`);
     }
 
+    refreshPublicPages();
     return NextResponse.json({ success: true, data: category });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -107,6 +110,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await client.from('categories').delete().eq('id', parseInt(id));
     if (error) throw new Error(`Delete category failed: ${error.message}`);
 
+    refreshPublicPages();
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/storage/database/supabase-client';
 import { verifyAdminSession, unauthorizedResponse } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit';
 import { deleteFile, deleteByPrefix, extractImageKeysFromHtml, extractKeyFromUrl } from '@/lib/storage';
+import { refreshContentPage } from '@/lib/cache-revalidate';
 
 // Admin POST operations are never cached
 
@@ -186,9 +187,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: transError.message }, { status: 500 });
     }
 
+    refreshContentPage(type, trimmedSlug);
     return NextResponse.json({ success: true, data: { ...page, content_page_translations: insertedTranslations } });
   }
 
+  refreshContentPage(type, trimmedSlug);
   return NextResponse.json({ success: true, data: page });
 }
 
@@ -339,6 +342,12 @@ export async function PUT(request: NextRequest) {
     }
   }
 
+  const { data: refreshed } = await supabase
+    .from('content_pages')
+    .select('type, slug')
+    .eq('id', id)
+    .single();
+  refreshContentPage(refreshed?.type, refreshed?.slug);
   return NextResponse.json({ success: true });
 }
 
@@ -368,7 +377,7 @@ export async function DELETE(request: NextRequest) {
   // 0. Fetch old data (for legacy image cleanup fallback)
   const { data: oldPage } = await supabase
     .from('content_pages')
-    .select('cover_image, content_page_translations(content)')
+    .select('type, slug, cover_image, content_page_translations(content)')
     .eq('id', pageId)
     .single();
 
@@ -414,5 +423,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  refreshContentPage(oldPage?.type, oldPage?.slug);
   return NextResponse.json({ success: true });
 }

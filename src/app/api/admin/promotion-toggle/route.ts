@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceRoleClient } from '@/storage/database/supabase-client';
+import { refreshHome } from '@/lib/cache-revalidate';
 
 // GET - 获取促销活动开关状态
 export async function GET() {
@@ -81,6 +82,7 @@ export async function PUT(request: NextRequest) {
       }
     }
     
+    refreshHome();
     return NextResponse.json({ success: true, promotions_enabled });
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
